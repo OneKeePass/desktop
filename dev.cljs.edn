@@ -1,0 +1,26 @@
+;;all figwheel-main.edn configurations ?
+^{
+  ;; :auto-bundle will set the Clojurescript compile options :target and :bundle-cmd  
+  ;; Using :webpack this will set :bundle-cmd to:
+  ;; {:none ["npx" "webpack" "--mode=development" :output-to "-o" :final-output-to]
+  ;; :default ["npx" "webpack" :output-to "-o" :final-output-to]}
+  ;; See https://figwheel.org/config-options#auto-bundle, 
+  ;; https://clojurescript.org/guides/webpack, https://clojurescript.org/reference/compiler-options
+
+  :auto-bundle :webpack
+  :open-url false
+  :log-file "figwheel-main.log"
+  :log-level :all
+  :bundle-freq  :smart ;;:always
+  :css-dirs ["resources/public/css"]
+  :clean-outputs true
+  ;;:final-output-to "resources/public/cljs-out/main_bundle.js"
+  ;;:output-dir "target/public/cljs-out/dev"
+  }
+;;all clojurescript compiler options  
+{:main onekeepass.frontend.core
+ :aot-cache false ;; see figwheel doc
+ ;;:bundle-freq  :smart ;;:always
+ :pseudo-names true
+ :pretty-print true
+ }

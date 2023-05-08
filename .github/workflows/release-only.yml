@@ -1,0 +1,98 @@
+name: Release OneKeePass Desktop - previous build 
+
+on:
+  workflow_dispatch:
+jobs:
+  
+  release-okp-from-build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Query version number
+        #run: echo "version=${GITHUB_REF:11}" >> $GITHUB_ENV
+        run: echo "version=0.5.0" >> $GITHUB_ENV
+
+      # - name: Download x86_64 artifacts
+      #   uses: actions/download-artifact@v3
+      #   with:
+      #     name: artifacts-x86_64
+      #     path: artifacts/x86_64
+
+      # - name: Download aarch64 artifacts
+      #   uses: actions/download-artifact@v3
+      #   with:
+      #     name: artifacts-aarch64
+      #     path: artifacts/aarch64
+
+
+      - name: PreviousWF Download x86_64 artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          #workflow: ${{ github.event.workflow_run.workflow_id }}
+          workflow: build-release.yml
+          workflow_conclusion: failure
+          name: artifacts-x86_64
+          path: artifacts/x86_64
+
+      - name: PreviousWF Download aarch64 artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          #workflow: ${{ github.event.workflow_run.workflow_id }}
+          workflow: build-release.yml
+          workflow_conclusion: failure
+          name: artifacts-aarch64
+          path: artifacts/aarch64
+
+      - name: Create bundles dir
+        run:  mkdir artifacts/bundles
+
+      - name: Rename artifacts
+        run: |
+          mv "artifacts/aarch64/OneKeePass_${{ env.version }}_aarch64.dmg" "artifacts/bundles/OneKeePass_${{ env.version }}_macos_aarch64.dmg"
+          mv "artifacts/aarch64/OneKeePass.app" "artifacts/bundles/OneKeePass_${{ env.version }}_macos_aarch64.app"
+
+          mv "artifacts/x86_64/OneKeePass_${{ env.version }}_x64.dmg" "artifacts/bundles/OneKeePass_${{ env.version }}_macos_x86_64.dmg"
+
+          mv "artifacts/x86_64/one-kee-pass_${{ env.version }}_amd64.deb" "artifacts/bundles/OneKeePass_${{ env.version }}_linux_x86_64.deb"
+          mv "artifacts/x86_64/one-kee-pass_${{ env.version }}_amd64.AppImage" "artifacts/bundles/OneKeePass_${{ env.version }}_linux_x86_64.AppImage"
+
+          mv "artifacts/x86_64/OneKeePass_${{ env.version }}_x64_en-US.msi" "artifacts/bundles/OneKeePass_${{ env.version }}_windows_x86_64.msi"
+
+      - run: ls -al artifacts/bundles
+
+      - name: Create checksums
+        run:  |
+          cd ./artifacts/bundles
+          sha256sum OneKeePass_${{ env.version }}_macos_aarch64.dmg >> checksums.txt
+          sha256sum OneKeePass_${{ env.version }}_macos_x86_64.dmg >> checksums.txt
+          sha256sum OneKeePass_${{ env.version }}_linux_x86_64.deb >> checksums.txt
+          sha256sum OneKeePass_${{ env.version }}_linux_x86_64.AppImage >> checksums.txt
+          sha256sum OneKeePass_${{ env.version }}_windows_x86_64.msi >> checksums.txt
+          cat checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ env.version }}
+          name: OneKeePass v${{ env.version }}
+          body: See the assets to download this version and install.
+          prerelease: false
+          generate_release_notes: false
+          files:  |
+            ./artifacts/bundles/*.dmg
+            ./artifacts/bundles/*.deb
+            ./artifacts/bundles/*.AppImage
+            ./artifacts/bundles/*.msi
+            ./artifacts/bundles/checksums.txt
+            
+            
+
+
+    

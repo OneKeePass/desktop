@@ -1,0 +1,116 @@
+{:linters
+ {:unused-namespace {:exclude [".*@mui/.*"]}
+  :unresolved-symbol {:exclude [AppBar
+                                Alert
+                                AlertTitle
+                                Accordion
+                                AccordionSummary
+                                AccordionDetails
+                                AccountBalanceOutlined
+                                Autocomplete
+                                Avatar
+                                Button
+                                Backdrop
+                                CssBaseline
+                                CircularProgress
+                                Checkbox
+                                Container
+                                ClickAwayListener
+                                DesktopDatePicker
+                                Dialog
+                                DialogActions
+                                DialogContent
+                                DialogContentText
+                                DialogTitle
+                                Divider
+                                FormControlLabel
+                                FormGroup
+                                FormControl
+                                FormHelperText
+                                Grid
+                                Icon
+                                IconButton
+                                InputAdornment
+                                InputLabel
+                                Input
+                                Link
+                                LinearProgress
+                                List
+                                ListItem
+                                ListItemButton
+                                ListItemText
+                                ListItemAvatar
+                                ListItemIcon
+                                ListItemSecondaryAction
+                                ListSubheader
+                                Menu
+                                MenuItem
+                                Paper
+                                Popper
+                                Slider
+                                Stack
+                                Snackbar
+                                SnackbarContent
+                                Switch
+                                Select
+                                SvgIcon
+                                Tabs
+                                Tab
+                                TextField
+                                Toolbar
+                                Tooltip
+                                Typography
+
+                                Save
+                                SaveAs
+                                AccessTime
+                                ArrowDropDown
+                                ArrowRight
+                                AccountBalanceOutlined
+                                CancelPresentation
+                                CancelPresentationSharp
+                                CancelPresentationOutlined
+                                Check
+                                ClearOutlined
+                                CloseOutlined
+                                CreditCardOutlined
+                                DeleteOutline
+                                DoneAll
+                                EditOutlined
+                                Folder
+                                FolderOutlined
+                                FavoriteBorder
+                                FeedOutlined
+                                FlightTakeoffOutlined
+                                LoginOutlined
+                                LockOpenOutlined
+                                LockOutlined
+                                PostAddOutlined
+                                Search
+                                SettingsOutlined
+                                SecurityOutlined
+                                VpnKeyOutlined
+                                AccountBalance
+                                FileCopyOutlined
+                                VisibilityOff
+                                Visibility
+                                AddCircleOutlineOutlined
+                                MoreVert
+                                ExpandMore
+                                ChevronRight
+                                MoreHoriz
+                                GroupWorkOutlined
+                                WifiOutlined
+                                TreeItem
+                                TreeView
+                                DateTimePicker
+                                LocalizationProvider]}
+
+  :unresolved-var {:exclude [onekeepass.frontend.mui-components]}
+  
+  ;;Following is not working 
+  ;; :unused-import {:exclude [camel-snake-kebab.core]}
+  }
+  
+  :skip-comments true
+  }

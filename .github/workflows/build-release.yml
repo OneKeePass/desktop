@@ -1,0 +1,231 @@
+name: Build and publish OneKeePass Desktop
+
+on:
+  workflow_dispatch:
+  # push:
+  #   tags:
+  #     - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+jobs:
+  # First we build the cljs -> js bundle
+  build-cljs-bundle:
+    runs-on: macos-latest
+
+    steps:
+      - name: desktop repo
+        uses: actions/checkout@v3
+
+      - name: Setup Node and yarn cache
+        uses: actions/setup-node@v3
+        with:
+            node-version: 16
+            cache: 'yarn'
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: 17
+          distribution: 'zulu'
+
+      - name: Install clj
+        run:  brew install clojure/tools/clojure
+
+      - name: Install node dependencies
+        run:  yarn
+      
+      - name: Build cljs main bundle
+        run:  clojure -M:frontend:fw  -m figwheel.main -O advanced  -bo dev 
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: artifacts-cljs-main-bundle
+          path: |
+            ./target/public/cljs-out/dev/main_bundle.js
+
+  build-okp:
+    needs: build-cljs-bundle
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - build: linux
+            os: ubuntu-latest
+            arch: x86_64
+            target: x86_64-unknown-linux-gnu
+          - build: windows
+            os: windows-latest
+            arch: x86_64
+            target: x86_64-pc-windows-msvc
+          - build: macos
+            os: macos-latest
+            arch: x86_64
+            target: x86_64-apple-darwin
+          - build: macos
+            os: macos-latest
+            arch: aarch64
+            target: aarch64-apple-darwin
+
+    steps:
+      - name: desktop repo
+        uses: actions/checkout@v3
+
+      - name: Setup Node and yarn cache
+        uses: actions/setup-node@v3
+        with:
+            node-version: 16
+            cache: 'yarn'
+
+      - name: Install node dependencies
+        run:  yarn
+        
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+    
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install dependencies (ubuntu only)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      - name: Install rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Download main_bundle.js artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: artifacts-cljs-main-bundle
+          path: ./resources/public/cljs-out/dev
+
+      - name: App bundle
+        run:  yarn tauri build --target ${{ matrix.target }}  
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          # TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+
+      # Need to use two separate upload paths to the same artifact name;Otherwise only *.deb gets uploaded
+      # See 
+      # https://stackoverflow.com/questions/74834752/upload-file-with-github-action-instead-of-folder
+      # https://github.com/actions/upload-artifact#uploading-to-the-same-artifact
+
+      - uses: actions/upload-artifact@v3
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: artifacts-${{ matrix.arch }}
+          #path: ./src-tauri/target/${{ matrix.target }}/release/bundle/appimage/**.AppImage.*
+          path: ./src-tauri/target/${{ matrix.target }}/release/bundle/appimage/**.AppImage
+            
+      - uses: actions/upload-artifact@v3
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: artifacts-${{ matrix.arch }}
+          path: ./src-tauri/target/${{ matrix.target }}/release/bundle/deb/**.deb
+
+      # See the comments above  
+      - uses: actions/upload-artifact@v3
+        if: matrix.os == 'macos-latest'
+        with:
+          name: artifacts-${{ matrix.arch }}
+          path: ./src-tauri/target/${{ matrix.target }}/release/bundle/dmg/**.dmg
+          
+      - uses: actions/upload-artifact@v3
+        if: matrix.os == 'macos-latest'
+        with:
+          name: artifacts-${{ matrix.arch }}
+          path: ./src-tauri/target/${{ matrix.target }}/release/bundle/macos/**.app
+           
+      - uses: actions/upload-artifact@v3
+        if: matrix.os == 'windows-latest'
+        with:
+          name: artifacts-${{ matrix.arch }}
+          path: |
+            ./src-tauri/target/${{ matrix.target }}/release/bundle/msi/**
+
+  release-okp:
+    needs: build-okp
+    runs-on: ubuntu-latest
+    # This is required for softprops/action-gh-release; Otherwise there will be a 403 status error
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Query version number
+        run: echo "version=${GITHUB_REF:11}" >> $GITHUB_ENV
+        #run: echo "version=1.0.0" >> $GITHUB_ENV
+
+      - name: Download x86_64 artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: artifacts-x86_64
+          path: artifacts/x86_64
+
+      - name: Download aarch64 artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: artifacts-aarch64
+          path: artifacts/aarch64
+
+      - name: Create bundles dir
+        run:  mkdir artifacts/bundles
+
+      - name: Rename artifacts
+        run: |
+          mv "artifacts/aarch64/OneKeePass_${{ env.version }}_aarch64.dmg" "artifacts/bundles/OneKeePass_${{ env.version }}_macos_aarch64.dmg"
+          mv "artifacts/aarch64/OneKeePass.app" "artifacts/bundles/OneKeePass_${{ env.version }}_macos_aarch64.app"
+
+          mv "artifacts/x86_64/OneKeePass_${{ env.version }}_x64.dmg" "artifacts/bundles/OneKeePass_${{ env.version }}_macos_x86_64.dmg"
+
+          mv "artifacts/x86_64/one-kee-pass_${{ env.version }}_amd64.deb" "artifacts/bundles/OneKeePass_${{ env.version }}_linux_x86_64.deb"
+          mv "artifacts/x86_64/one-kee-pass_${{ env.version }}_amd64.AppImage" "artifacts/bundles/OneKeePass_${{ env.version }}_linux_x86_64.AppImage"
+
+          mv "artifacts/x86_64/OneKeePass_${{ env.version }}_x64_en-US.msi" "artifacts/bundles/OneKeePass_${{ env.version }}_windows_x86_64.msi"
+
+          # When we use tauri updater build
+          #mv "artifacts/aarch64/macos/OneKeePass.app.tar.gz" "artifacts/OneKeePass_${{ env.version }}_macos_aarch64.app.tar.gz"
+          #mv "artifacts/aarch64/macos/OneKeePass.app.tar.gz.sig" "artifacts/OneKeePass_${{ env.version }}_macos_aarch64.app.tar.gz.sig"
+          #mv "artifacts/x86_64/macos/OneKeePass.app.tar.gz" "artifacts/OneKeePass_${{ env.version }}_macos_x86_64.app.tar.gz"
+          #mv "artifacts/x86_64/macos/OneKeePass.app.tar.gz.sig" "artifacts/OneKeePass_${{ env.version }}_macos_x86_64.app.tar.gz.sig"
+          #mv "artifacts/x86_64/appimage/one-kee-pass_${{ env.version }}_amd64.AppImage.tar.gz" "artifacts/OneKeePass_${{ env.version }}_linux_x86_64.AppImage.tar.gz"
+          #mv "artifacts/x86_64/appimage/one-kee-pass_${{ env.version }}_amd64.AppImage.tar.gz.sig" "artifacts/OneKeePass_${{ env.version }}_linux_x86_64.AppImage.tar.gz.sig"
+          #mv "artifacts/x86_64/OneKeePass_${{ env.version }}_x64_en-US.msi.zip" "artifacts/OneKeePass_${{ env.version }}_windows_x86_64.msi.zip"
+          #mv "artifacts/x86_64/OneKeePass_${{ env.version }}_x64_en-US.msi.zip.sig" "artifacts/OneKeePass_${{ env.version }}_windows_x86_64.msi.zip.sig"
+
+      
+      - name: Create checksums
+        run:  |
+          ls -al artifacts/bundles
+          cd ./artifacts/bundles
+          sha256sum OneKeePass_${{ env.version }}_macos_aarch64.dmg >> checksums.txt
+          sha256sum OneKeePass_${{ env.version }}_macos_x86_64.dmg >> checksums.txt
+          sha256sum OneKeePass_${{ env.version }}_linux_x86_64.deb >> checksums.txt
+          sha256sum OneKeePass_${{ env.version }}_linux_x86_64.AppImage >> checksums.txt
+          sha256sum OneKeePass_${{ env.version }}_windows_x86_64.msi >> checksums.txt
+          cat checksums.txt
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ env.version }}
+          name: OneKeePass v${{ env.version }}
+          body: See the assets to download and install for this version. See the [CHANGELOG](https://github.com/OneKeePass/desktop/blob/main/CHANGELOG.md)
+          prerelease: false
+          generate_release_notes: false
+          #files: ./artifacts/bundles/*
+          files:  |
+            ./artifacts/bundles/*.dmg
+            ./artifacts/bundles/*.deb
+            ./artifacts/bundles/*.AppImage
+            ./artifacts/bundles/*.msi
+            ./artifacts/bundles/checksums.txt
+
+
+    

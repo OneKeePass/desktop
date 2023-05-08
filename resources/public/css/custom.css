@@ -1,0 +1,153 @@
+/*Colors from https://mui.com/customization/default-theme/*/
+:root {
+  --color-primary-main:#1976d2;
+  --color-primary-light:#42a5f5;
+  --color-warning-dark:#ED6C02;
+  --mui-color-grey-300:#e0e0e0;
+  --mui-color-grey-200:#eeeeee;
+
+  --mui-theme-spacing-1:8px;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+#app {
+    height: 100%;
+}
+
+/* App bar, content and footer  */
+.box {
+  display: flex;
+  flex-flow: column;
+  height: 100%;
+  /* margin-left: 18px;
+  margin-right: 18px; */
+}
+
+.box .cust_row {
+  /* border: 1px dotted #0313fc; */
+}
+
+.box .cust_row.header {
+  flex: 0 1 auto;
+}
+
+.box .cust_row.content {
+  flex: 1 1 auto;
+}
+
+.box .cust_row.footer {
+  flex: 0 1 20px;
+}
+
+.gbox {
+  display: flex;
+  flex-flow: column;
+  height: 100%;
+}
+
+.gbox .gheader {
+  flex: 0 1 auto;
+}
+
+.gbox .gcontent {
+  flex: 1 1 auto;
+}
+
+.gbox .gfooter {
+  flex: 0 1 40px;
+}
+
+/** All Mui component cutomizations **/
+
+/* .app-bar-icon-root {
+  color: #ffffff;
+} */
+
+/* .entry-cnt-field, .entry-cnt-field-lbl, .entry-cnt-notes-field {
+  padding-left: calc(3*var(--mui-theme-spacing-1));
+  padding-right: calc(3*var(--mui-theme-spacing-1));
+} */
+
+.entry-cnt-field {
+  margin-top: calc(2*var(--mui-theme-spacing-1));
+}
+
+.entry-cnt-notes-field {
+  margin-top: calc(2*var(--mui-theme-spacing-1));
+}
+
+.buttons1 > * {
+  margin: 8px;
+}
+
+.fav-menu-button-contained {
+  box-shadow: none;
+}
+
+.fav-menu-button-icon-small {
+  font-size: 1.25em;
+}
+
+.pwd-dlg-root, .group-form-flg-root {
+  width: 85%;
+}
+
+.custom-field-dlg-root {
+  width: 40%;
+}
+
+.entry-cnt-container {
+  width: 95%;
+  background: white;
+  padding: 0px 8px 24px 8px;
+  border: .1px solid;
+}
+
+.entry-cnt-text-field-read {
+  border:0;
+  border-bottom:1px solid #eeeeee;
+}
+
+.entry-cnt-text-field-read-focused {
+  border-bottom:1px solid var(--color-primary-main);
+}
+
+.entry-cnt-text-field-edit {
+  border:1px solid grey;
+  outline:1px solid transparent;
+}
+
+.entry-cnt-text-field-edit-focused,.dialog-field-edit-focused {
+  /* color:red; */
+  border:1px solid var(--color-primary-main);
+  outline: 1px solid var(--color-primary-main);
+}
+
+/* .my-button {
+  background-color: #6772e5;
+  color: #fff;
+  box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
+  padding: 7px 14px;
+  text-transform:none;
+}
+.my-button:hover {
+  background-color: #5469d4;
+}
+
+.my-button-label {
+  color: #3bf500;
+}
+
+.my-button-theme-cust {
+  background-color: var(--color-primary-main) ;
+  color: var(--color-warning-dark);
+}
+
+.my-button-label-theme-cust {
+  color: var(--color-warning-dark);
+} */

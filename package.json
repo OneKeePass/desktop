@@ -1,0 +1,32 @@
+{
+  "name": "onekeepass-frontend",
+  "version": "0.0.1",
+  "private": true,
+  "devDependencies": {
+    "@fontsource/roboto": "^4.5.7",
+    "@tauri-apps/cli": "^1.2.3",
+    "trim-newlines": "^4.0.2",
+    "webpack": "^5.55.1",
+    "webpack-cli": "^4.8.0"
+  },
+  "scripts": {
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@date-io/date-fns": "^2.11.0",
+    "@emotion/react": "^11.10.5",
+    "@emotion/styled": "^11.10.5",
+    "@mui/icons-material": "^5.11.0",
+    "@mui/lab": "^5.0.0-alpha.95",
+    "@mui/material": "^5.11.7",
+    "@mui/x-date-pickers": "^5.0.17",
+    "@tauri-apps/api": "^1.2.0",
+    "date-fns": "^2.25.0",
+    "react": "^18.0.1",
+    "react-dom": "^18.0.1",
+    "react-idle-timer": "^5.4.1",
+    "react-split-pane": "^0.1.92",
+    "react-virtualized-auto-sizer": "^1.0.6",
+    "react-window": "^1.8.6"
+  }
+}

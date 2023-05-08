@@ -1,0 +1,32 @@
+{:deps  {;;org.clojure/clojure {:mvn/version "1.10.3"}
+         org.clojure/clojurescript   {:mvn/version "1.11.54"}}
+
+ :paths ["src/main" "target" "resources"]
+
+ :aliases
+ {;;Application dependencies
+  :frontend {:extra-deps  {reagent/reagent {:mvn/version "1.1.1"
+                                            :exclusions [cljsjs/react cljsjs/react-dom]}
+                           re-frame/re-frame {:mvn/version "1.3.0-rc3"
+                                              :exclusions [cljsjs/react cljsjs/react-dom]}
+                           ;;day8.re-frame/undo {:mvn/version "0.3.3"}
+                           camel-snake-kebab/camel-snake-kebab {:mvn/version "0.4.3"}
+                           org.clojure/core.async {:mvn/version "1.5.648"}
+                           hickory/hickory {:mvn/version "0.7.1"}
+                           org.clojure/data.xml {:mvn/version "0.0.8"}
+                           ;;org.clojure/data.xml {:mvn/version "0.2.0-alpha6"} ;; preview
+                           
+                           }}
+  ;;Figwheel dependencies
+  :fw {:extra-deps {com.bhauman/figwheel-main {:mvn/version "0.2.18"}
+                    com.bhauman/rebel-readline-cljs {:mvn/version "0.1.4"}}
+       ;;:main-opts ["-m" "figwheel.main" "-b" "dev" "-r"]
+       }
+
+
+
+  :nrepl {:extra-deps {nrepl/nrepl {:mvn/version "0.9.0"}
+                       cider/piggieback {:mvn/version "0.5.3"}
+                       cider/cider-nrepl {:mvn/version "0.28.3"} ;;
+                       }
+          :main-opts ["-m" "nrepl.cmdline" "--middleware" "[cider.piggieback/wrap-cljs-repl]"]}}}
