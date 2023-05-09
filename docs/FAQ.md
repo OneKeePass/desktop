@@ -12,19 +12,13 @@ OneKeePass stores all your passwords and other details in a single encrypted fil
 ## What is the format of the OneKeePass database?
 OneKeePass supports the well known [KeePass](https://keepass.info/help/kb/kdbx_4.1.html) database format KDBX 4
 
-<br>
-
 ## How many databases can be opened ?
 You can open many databases at the same time. Each database is opened in a separate tab
-
-<br>
 
 ## How to synchrozie the database file between devices?
 OneKeePass does not do any automatic synchronization at this time. As the password database is a single file, you can 
 use any of the cloud storage service for the synchronization between devices and also for the backup
 
-
-<br>
 
 ## How are entries organized ?
 Entries are organized so that you can view them as  Entry types or Categories or Group tree. 
@@ -53,19 +47,16 @@ Entries are organized so that you can view them as  Entry types or Categories or
 </h1>
 </details>
 
-<br>
 
 ## What are the entry categories ?
 It is just the flattened list of keepass groups instead of a tree/folder like structure
 
-<br>
 
 ## What is an entry type?
 Each entry type has certain set of fields. For example *Login* entry type include fields like username, password, url etc.
 OneKeePass supports some built-in standard entry types: Login, Credit/Debit Card, Bank Account and Wireless Router.
 More standard entry types will be added. 
 
-<br>
 
 ## Can I create custom entry type?
 You can create a custom type with sections and fields. Such custom entry type can be used as template while creating new entries
