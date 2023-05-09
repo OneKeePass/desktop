@@ -39,12 +39,7 @@ All created database files are encrypted using the best and most secure encrypti
 
 You can start using OneKeePass on your Windows, macOS, or Linux computer using the latest pre-compiled binaries from the **[downloads page](https://github.com/OneKeePass/desktop/releases)**
 
-**If you encounter the error message `"OneKeePass" is damaged and can't be opened. You should move it to the Trash`. while installing software on macOS, it may be due to security settings restrictions in macOS. To solve this problem, please try the following command in Terminal:**
-
-```bash
-sudo xattr -r -d com.apple.quarantine /YOUR_PATH/OneKeePass.app
-```
-**Soon the Code Signing of macOS Application will be done to avoid this**
+OneKeePass is also available for iOS and Android platforms. See [here](https://github.com/OneKeePass/mobile) for details
 
 <br>
 
