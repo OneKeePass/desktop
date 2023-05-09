@@ -21,7 +21,7 @@ You can open many databases at the same time. Each database is opened in a separ
 OneKeePass does not do any automatic synchronization at this time. As the password database is a single file, you can 
 use any of the cloud storage service for the synchronization between devices and also for the backup
 
-***OneKeePass does not check whether the database file has been changed outside or not before saving. The file may overwritten. This will be fixed in the next version***  
+***OneKeePass does not check whether the database file has been changed outside or not before saving. Because of this the file may be overwritten. This will be fixed in the next version***  
 
 <br>
 
