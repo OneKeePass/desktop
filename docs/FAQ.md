@@ -70,6 +70,9 @@ You can create a custom type with sections and fields. Such custom entry type ca
 
 </details>
 
+## What is a key file ?
+A key file is a file containing random bytes that is used in addition to your master key for additional security. You can basically use any file you want as a key file. Such a file should have random bytes data and the content of this random data remains the same as long as it is used as key file.
+
 
 
 
