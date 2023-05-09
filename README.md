@@ -44,9 +44,11 @@ You can start using OneKeePass on your Windows, macOS, or Linux computer using t
 ```bash
 sudo xattr -r -d com.apple.quarantine /YOUR_PATH/OneKeePass.app
 ```
+**Soon the Code Signing of macOS Application will be done to avoid this**
 
-**FAQ** can be found [here](./docs/FAQ.md)
+<br>
 
+Common **FAQ** about the application can be found [here](./docs/FAQ.md)
 
 ## How to build
 
