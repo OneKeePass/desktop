@@ -49,7 +49,7 @@ Common **FAQ** about the application can be found [here](./docs/FAQ.md)
 
 OneKeePass is developed primarily using the ClojureScript and Rust programming languages and is built with - [Tauri](https://tauri.app/),[React](https://react.dev/),[MUI](https://mui.com/) and many Rust crates
 
-To build your own binary, please follow the instructions [here](BUILD.md)
+To build your own binary, please follow the instructions [here](./docs/BUILD.md)
 
  
 ## How to Contribute
