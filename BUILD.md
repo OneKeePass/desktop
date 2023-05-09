@@ -7,7 +7,7 @@ Please install the following for your platform of choice - macOS or Linux or Win
     Follow the [Tauri setup guide](https://tauri.app/v1/guides/getting-started/prerequisites) 
 2. Install [Node](https://nodejs.org/)
 3. Install JDK from [Adoptium](https://adoptium.net/) or from [azul](https://www.azul.com/downloads/?package=jdk#zulu) or from [Oracle](https://www.oracle.com/java/technologies/downloads/)
-4. Install [Clojure](https://clojure.org/guides/install_clojure). See more details on Clojurescript [here](https://clojurescript.org/guides/quick-start)
+4. Install [Clojure](https://clojure.org/guides/install_clojure). See more details on ClojureScript [here](https://clojurescript.org/guides/quick-start)
 
 
 ## Build
