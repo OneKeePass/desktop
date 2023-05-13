@@ -328,8 +328,8 @@
   "Saves the opened kdbx file.
   The backend api returns KdbxSaved struct with the same db key on successfull saving with database-name.
   "
-  [db-key dispatch-fn]
-  (invoke-api "save_kdbx" {:db-key db-key} dispatch-fn))
+  [db-key overwrite dispatch-fn] 
+  (invoke-api "save_kdbx" {:db-key db-key :overwrite overwrite} dispatch-fn))
 
 (defn save-all-modified-dbs
   [db-keys dispatch-fn]
