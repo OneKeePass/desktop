@@ -12,12 +12,16 @@
    [onekeepass.frontend.search :as search]
    [onekeepass.frontend.open-db-form :as od-form]
    [onekeepass.frontend.new-database :as nd-form]
-   [onekeepass.frontend.common-components :refer [message-dialog confirm-text-dialog]]
+   [onekeepass.frontend.common-components :refer [message-dialog 
+                                                  error-info-dialog
+                                                  confirm-text-dialog]]
    [onekeepass.frontend.password-generator :as gen-form]
-   [onekeepass.frontend.mui-components :as m :refer [mui-dialog
+   [onekeepass.frontend.mui-components :as m :refer [color-primary-main
+                                                     mui-dialog
                                                      mui-dialog-title
                                                      mui-dialog-content
                                                      mui-dialog-actions
+                                                     mui-divider
                                                      mui-linear-progress
                                                      mui-button
                                                      mui-alert
@@ -33,7 +37,8 @@
                                                      mui-icon-save
                                                      mui-icon-save-as
                                                      mui-icon-search
-                                                     mui-icon-settings-outlined]]))
+                                                     mui-icon-settings-outlined
+                                                     mui-typography]]))
 
 (set! *warn-on-infer* true)
 
@@ -55,22 +60,82 @@
     {:label "Cancel" :on-click tb-events/close-current-db-on-cancel-click}]
    dialog-data])
 
-(defn save-info-dialog [{:keys [status api-error-text]}]
-  [mui-dialog {:open (= status :in-progress) :on-click #(.stopPropagation ^js/Event %)}
-   [mui-dialog-title "Save Database"]
+(defn conflict-action-confirm-dialog [{:keys [dialog-show confirm]}]
+  (if (= confirm :overwrite)
+    [confirm-text-dialog
+     "Confirm Overwrite"
+     "Do you want to overwrite the externally changed database with your changes?"
+     [{:label "Yes,Overwrite" :on-click tb-events/overwrite-external-changes}
+      {:label "Cancel" :on-click tb-events/conflict-action-confirm-dialog-hide}]
+     {:dialog-show dialog-show}]
+    [confirm-text-dialog
+     "Confirm Discard"
+     "Do you want to discard your changes and close the database?"
+     [{:label "Discard" :on-click tb-events/conflict-action-discard}
+      {:label "Cancel" :on-click tb-events/conflict-action-confirm-dialog-hide}]
+     {:dialog-show dialog-show}]))
+
+(defn content-change-action-dialog [open?]
+  [mui-dialog {:open open? :on-click #(.stopPropagation ^js/Event %)}
+   [mui-dialog-title "Content conflicts detected"]
    [mui-dialog-content
     [mui-stack
-     "Saving database is in progress"
+     "The database content has changed since the last opening. Please take one of the following action:"]
 
-     (when api-error-text
-       [mui-alert {:severity "error" :sx {:mt 1}} api-error-text])
+    [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
+    [mui-stack
+     [mui-typography {:sx {"&.MuiTypography-root" {:color color-primary-main}}}
+      "You can save your changes to a new database and manually merge (auto merge feature will be added in the  future release). Click"]]
+    [mui-stack {:style {:align-items "center"}}
+     [mui-typography {:sx {"&.MuiTypography-root"
+                           {:color "secondary"}}
+                      :variant  "button"} "Save as"]]
 
-     (when (and (nil? api-error-text) (= status :in-progress))
-       [mui-linear-progress {:sx {:mt 2}}])]]
+    [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
+    [mui-stack  {:direction "column"}
+     [mui-typography {:sx {"&.MuiTypography-root" {:color color-primary-main}}}
+      "You can overwrite the database with your changes. Click"]]
+    [mui-stack {:style {:align-items "center"}}
+     [mui-typography {:sx {"&.MuiTypography-root"
+                           {:color "red"}}
+                      :variant  "button"} "Overwrite"]]
+
+    [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
+    [mui-stack  {:direction "column"}
+     [mui-typography {:sx {"&.MuiTypography-root" {:color color-primary-main}}}
+      "You can discard your changes and close the database. Click "]]
+    [mui-stack {:style {:align-items "center"}}
+     [mui-typography {:sx {"&.MuiTypography-root"
+                           {:color "red" :margin-left "5px"}}
+                      :variant  "button"} "Discard & Close database"]]]
+
    [mui-dialog-actions
+    [mui-button {:color "error"
+                 :on-click tb-events/confirm-overwrite-external-db} "Overwrite"]
+    [mui-button {:color "error"
+                 :on-click tb-events/confirm-discard-current-db} "Discard & Close database"]
     [mui-button {:color "secondary"
-                 :disabled (= status :in-progress)
-                 :on-click tb-events/save-current-db-msg-dialog-hide} "Close"]]])
+                 :on-click tb-events/conflict-action-save-as} "Save as"]]])
+
+
+(defn save-info-dialog [{:keys [status api-error-text]}]
+  (if (= api-error-text "DbFileContentChangeDetected")
+    [content-change-action-dialog true]
+    [mui-dialog {:open (or (= status :in-progress) (= status :error)) :on-click #(.stopPropagation ^js/Event %)}
+     [mui-dialog-title "Save Database"]
+     [mui-dialog-content
+      [mui-stack
+       "Saving database is in progress"
+
+       (when api-error-text
+         [mui-alert {:severity "error" :sx {:mt 1}} api-error-text])
+
+       (when (and (nil? api-error-text) (= status :in-progress))
+         [mui-linear-progress {:sx {:mt 2}}])]]
+     [mui-dialog-actions
+      [mui-button {:color "secondary"
+                   :disabled (= status :in-progress)
+                   :on-click tb-events/save-current-db-msg-dialog-hide} "Close"]]]))
 
 (defn top-bar
   "A tool bar function component from Reagent a component so that 
@@ -79,8 +144,7 @@
   (fn []
     (let [save-action-data @(tb-events/save-current-db-data)
           locked? @(cmn-events/locked?)
-          save-disabled? (or locked? (not @(cmn-events/db-save-pending?)))
-          ]
+          save-disabled? (or locked? (not @(cmn-events/db-save-pending?)))]
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE (not save-disabled?))
       ;; React useEffect 
       (m/react-use-effect (fn []
@@ -93,9 +157,8 @@
                               (tauri-events/enable-app-menu const/MENU_ID_PASSWORD_GENERATOR false)
                               (tauri-events/enable-app-menu const/MENU_ID_CLOSE_DATABASE false)
                               (tauri-events/enable-app-menu const/MENU_ID_LOCK_DATABASE false)
-                              (tauri-events/enable-app-menu const/MENU_ID_SEARCH true) 
-                              )) (clj->js []))
-      
+                              (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js []))
+
       [:div {:style {:flex-grow 1}}
        [mui-app-bar {:position "static" :color "primary"}
         [mui-toolbar {:style {:min-height 32}}
@@ -118,7 +181,7 @@
           [mui-tooltip {:title "Save As" :enterDelay 2000}
            [mui-icon-button
             {:edge "start" :color "inherit"
-             :disabled  save-disabled?
+             :disabled locked?
              :on-click  cmn-events/save-as}
             [mui-icon-save-as]]]
 
@@ -150,17 +213,19 @@
            [mui-icon-settings-outlined]]]
 
          [mui-tooltip {:title "Search" :enterDelay 2000}
-          [mui-icon-button {:edge "end" 
+          [mui-icon-button {:edge "end"
                             :color "inherit"
                             :disabled locked?
                             :on-click srch-event/search-dialog-show}
            [mui-icon-search]]]]]
        [gen-form/password-generator-dialog @(gen-events/generator-dialog-data)]
        [message-dialog]
+       [error-info-dialog]
        [od-form/open-db-dialog-main]
        [save-info-dialog save-action-data]
        [nd-form/new-database-dialog-main]
        [settings-form/settings-dialog-main]
        [search/search-dialog-main]
+       [conflict-action-confirm-dialog @(tb-events/conflict-action-confirm-dialog-data)]
        [ask-save-dialog @(tb-events/ask-save-dialog-data)]
        [close-current-db-save-dialog @(tb-events/close-current-db-dialog-data)]])))

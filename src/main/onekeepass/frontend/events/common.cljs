@@ -10,7 +10,7 @@
    [clojure.string :as str]
    [cljs.core.async :refer [go-loop timeout <!]]
    [onekeepass.frontend.constants :refer [ADD_TAG_PREFIX]]
-   [onekeepass.frontend.utils :refer [contains-val? str->int]]
+   [onekeepass.frontend.utils :refer [contains-val? str->int utc-to-local-datetime-str]]
    [onekeepass.frontend.background :as bg]))
 
 (declare check-error)
@@ -112,7 +112,8 @@
     :fx [[:dispatch [:load-all-tags]]
          [:dispatch [:group-tree-content/load-groups]]
          [:dispatch [:entry-category/category-data-load-start (-> db :app-preference :default-entry-category-groupings)]]
-         [:dispatch [:common/load-entry-type-headers]]]}))
+         [:dispatch [:common/load-entry-type-headers]]
+         [:dispatch [:common/message-snackbar-open (str "Opened database " (:db-key kdbx-loaded))]]]}))
 
 (reg-event-fx
  :common/kdbx-database-unlocked
@@ -230,23 +231,38 @@
 (defn save-as
   "Called when user wants to save a modified db to another name"
   []
-  (dispatch [:save-db-file-as]))
+  (dispatch [:common/save-db-file-as]))
 
 (defn- on-save-as [m]
   (when-let [new-db-key (check-error m)]
     (dispatch [:save-as-completed new-db-key])))
 
 (reg-event-db
- :save-db-file-as
+ :common/save-db-file-as
  (fn [db [_event-id]]
-   (let [f (fn [file-name]
+   (let [{:keys [current-db-file-name path-sep]} db
+         ;; Extracts the file name from  the database full file path 
+         ;; "/Users/jjklsdf/Documents/OneKeePass/Mypasswords.kdbx" to Mypasswords
+         save-as-file-name (-> current-db-file-name
+                               (str/split (re-pattern
+                                           (str path-sep)))
+                               last (str/split #"\.") first)
+         ;; Appends timestamp and add back the extension 
+         ;; Mypasswords to  Mypasswords-2023-05-12 16 36 30.kdbx
+         save-as-file-name (if (= save-as-file-name current-db-file-name)
+                             "Mypassword.kdbx"
+                             (str save-as-file-name
+                                  "-"
+                                  (utc-to-local-datetime-str (js/Date.) "yyyy-MM-dd HH mm ss")
+                                  ".kdbx"))
+         f (fn [file-name]
             ;;(println "file-name is " file-name)
              (when-not (nil? file-name)
                (bg/save-as-kdbx (active-db-key db) file-name on-save-as)))]
-
     ;; Pass something similar {:default-path (str database-name ".kdbx")} to save as done in New database dialog
     ;; Now the user is presented with the default "Untitled"
-     (bg/save-file-dialog {:default-path "Mypassword.kdbx"} f)
+     (bg/save-file-dialog {:default-path save-as-file-name} f)
+
      db)))
 
 (reg-event-fx
@@ -497,6 +513,34 @@
  (fn [db _query-vec]
    (-> db :message-box)))
 
+;;;;;;;;;;;;;;;; error-info-dialog ;;;;;;;;;;;;;;;;;;;
+
+(defn close-error-info-dialog []
+  (dispatch [:error-info-box-hide]))
+
+(defn error-info-dialog-data []
+  (subscribe [:error-info-box]))
+
+(reg-event-db
+ :common/error-info-box-show
+ (fn [db [_event-id title error-text message]]
+   (-> db
+       (assoc-in [:error-info-box :dialog-show] true)
+       (assoc-in [:error-info-box :title] title)
+       (assoc-in [:error-info-box :error-text] error-text)
+       (assoc-in [:error-info-box :message] message))))
+
+(reg-event-db
+ :error-info-box-hide
+ (fn [db [_event-id]]
+   (-> db
+       (assoc-in [:error-info-box :dialog-show] false))))
+
+(reg-sub
+ :error-info-box
+ (fn [db _query-vec]
+   (-> db :error-info-box)))
+
 ;;;;;;;;;;;;;;;;;;;;; Common snackbar ;;;;;;;;;;;;;;;;
 
 ;; See message-sanckbar and message-sanckbar-alert in onekeepass.frontend.common-components
@@ -716,4 +760,4 @@
 
   (def db-key (:current-db-file-name @re-frame.db/app-db))
 
-  (-> @re-frame.db/app-db (get db-key) key))
+  (-> @re-frame.db/app-db (get db-key) keys))

@@ -397,6 +397,7 @@ pub(crate) async fn save_as_kdbx(
 #[command]
 pub(crate) async fn save_kdbx(
   db_key: &str,
+  overwrite:bool,
   app_state: State<'_, utils::AppState>,
 ) -> Result<kp_service::KdbxSaved> {
   // db_key is the full database file name and backup file name is derived from that
@@ -404,6 +405,7 @@ pub(crate) async fn save_kdbx(
   Ok(kp_service::save_kdbx_with_backup(
     db_key,
     backup_file_name.as_deref(),
+    overwrite,
   )?)
 }
 

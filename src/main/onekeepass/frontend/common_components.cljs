@@ -309,6 +309,21 @@
                  :disabled (= status :in-progress)
                  :on-click close-fn} "Close"]]])
 
+(defn error-info-dialog
+  "Creates a reagent component to show a dialog"
+  ([{:keys [title dialog-show message error-text]}]
+   [mui-dialog {:open dialog-show :on-click #(.stopPropagation ^js/Event %)}
+    [mui-dialog-title title]
+    [mui-dialog-content
+     [mui-stack
+      message
+      [mui-alert {:severity "error" :sx {:mt 1}} error-text]]]
+    [mui-dialog-actions
+     [mui-button {:color "secondary"
+                  :on-click cmn-events/close-error-info-dialog} "Close"]]])
+  ([]
+   (error-info-dialog @(cmn-events/error-info-dialog-data))))
+
 (defn message-dialog
   ([{:keys [title dialog-show message]}]
    [mui-dialog {:open dialog-show :on-click #(.stopPropagation ^js/Event %)}
@@ -320,6 +335,8 @@
                   :on-click cmn-events/close-message-dialog} "Ok"]]])
   ([]
    [message-dialog @(cmn-events/message-dialog-data)]))
+
+
 
 ;; TODO: 
 ;; Need to combine message-sanckbar and message-sanckbar-alert

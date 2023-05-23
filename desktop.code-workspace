@@ -4,5 +4,17 @@
 			"path": "../desktop"
 		}
 	],
-	"settings": {}
+	"settings": {
+
+		"rust-analyzer.diagnostics.disabled":["unresolved-proc-macro"]
+
+		"editor.semanticTokenColorCustomizations": {
+	        "enabled": true,
+	        	"rules": {
+	            	"*.mutable": {
+	                	"underline": false,
+	            }
+	        }
+    	}	
+    }
 }
