@@ -1,3 +1,6 @@
+### 0.6.0
+- Before saving any changes made in the current database, the database file is checked whether it was changed externally. If any changes detected, the user is presented with options to take an appropriate action
+
 ### 0.5.0
 
 - Supports the KeePass-compatible database (Kdbx 4.x)
