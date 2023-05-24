@@ -1,4 +1,4 @@
-name: Build and publish OneKeePass Desktop
+name: OneKeePass Windows and Linux build and publish
 
 on:
   workflow_dispatch:
