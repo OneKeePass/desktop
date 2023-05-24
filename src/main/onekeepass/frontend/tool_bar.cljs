@@ -12,7 +12,7 @@
    [onekeepass.frontend.search :as search]
    [onekeepass.frontend.open-db-form :as od-form]
    [onekeepass.frontend.new-database :as nd-form]
-   [onekeepass.frontend.common-components :refer [message-dialog 
+   [onekeepass.frontend.common-components :refer [message-dialog
                                                   error-info-dialog
                                                   confirm-text-dialog]]
    [onekeepass.frontend.password-generator :as gen-form]
@@ -80,34 +80,35 @@
    [mui-dialog-title "Content conflicts detected"]
    [mui-dialog-content
     [mui-stack
-     "The database content has changed since the last opening. Please take one of the following action:"]
+     "The database content of the file has changed since the last opening. Please take one of the following action:"]
 
     [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
+    [mui-stack {:style {:align-items "center"}}
+     [mui-typography {:sx  {} #_{"&.MuiTypography-root" {:color "secondary"}}
+                      :color "secondary" :variant  "button"} "Save as"]]
     [mui-stack
      [mui-typography {:sx {"&.MuiTypography-root" {:color color-primary-main}}}
-      "You can save your changes to a new database and manually merge (auto merge feature will be added in the  future release). Click"]]
-    [mui-stack {:style {:align-items "center"}}
-     [mui-typography {:sx {"&.MuiTypography-root"
-                           {:color "secondary"}}
-                      :variant  "button"} "Save as"]]
+      "You can save your changes to a new database and manually merge (auto merge feature will be added in the  future release)"]]
 
     [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
     [mui-stack  {:direction "column"}
+     [mui-stack {:style {:align-items "center"}}
+      [mui-typography {:sx {}
+                       :color "error" :variant  "button"} "Overwrite"]]
      [mui-typography {:sx {"&.MuiTypography-root" {:color color-primary-main}}}
-      "You can overwrite the database with your changes. Click"]]
-    [mui-stack {:style {:align-items "center"}}
-     [mui-typography {:sx {"&.MuiTypography-root"
-                           {:color "red"}}
-                      :variant  "button"} "Overwrite"]]
+      "You can overwrite the database with your changes"]]
 
     [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
     [mui-stack  {:direction "column"}
+
+     [mui-stack {:style {:align-items "center"}}
+      [mui-typography {:sx {"&.MuiTypography-root"
+                            {:margin-left "5px"}}
+                       :color "error" :variant  "button"} "Discard & Close database"]]
+
      [mui-typography {:sx {"&.MuiTypography-root" {:color color-primary-main}}}
-      "You can discard your changes and close the database. Click "]]
-    [mui-stack {:style {:align-items "center"}}
-     [mui-typography {:sx {"&.MuiTypography-root"
-                           {:color "red" :margin-left "5px"}}
-                      :variant  "button"} "Discard & Close database"]]]
+      "You can discard your changes and close the database "]]
+    [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]]
 
    [mui-dialog-actions
     [mui-button {:color "error"

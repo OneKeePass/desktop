@@ -5,10 +5,6 @@ Here are some common ones. More will be added in due time
 ## Where and how the database is stored?
 OneKeePass stores all your passwords and other details in a single encrypted file in any place of your choosing in the file system 
 
-***WARNING: OneKeePass does not check whether the database file has been changed outside or not before saving. Because of this the file may be overwritten. This issue will be fixed in the next version***  
-
-<br>
-
 ## What is the format of the OneKeePass database?
 OneKeePass supports the well known [KeePass](https://keepass.info/help/kb/kdbx_4.1.html) database format KDBX 4
 
