@@ -469,6 +469,12 @@
 (defn export-as-xml [db-key xml-file-name]
   (invoke-api "export_as_xml"  {:db-key db-key :xml-file-name xml-file-name} #(println %)))
 
+(defn test-save-key []
+  (invoke-api "save_key" {} #(println %)))
+
+(defn test-read-key []
+  (invoke-api "read_key" {} #(println %)))
+
 (comment
   (def db-key (:current-db-file-name @re-frame.db/app-db)))
 

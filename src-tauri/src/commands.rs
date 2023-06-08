@@ -15,6 +15,7 @@ use uuid::Uuid;
 use crate::menu::{self, MenuActionRequest};
 use crate::utils::SystemInfoWithPreference;
 use crate::{preference, utils};
+use crate::biometric;
 use onekeepass_core::db_service as kp_service;
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -520,3 +521,19 @@ pub async fn svg_file<R: Runtime>(app: tauri::AppHandle<R>, name: &str) -> Resul
   //Ok("Done".into())
   Ok(s)
 }
+
+// #[tauri::command]
+// pub fn sample_call() {
+//   biometric::store_key();
+// }
+
+#[tauri::command]
+pub async fn save_key() {
+  biometric::save_key();
+}
+
+#[tauri::command]
+pub async fn read_key() {
+  biometric::read_key();
+}
+

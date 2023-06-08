@@ -33,6 +33,9 @@ impl AppState {
   pub fn new() -> Self {
     Self {
       preference: Arc::new(Mutex::new(Preference::default())),
+      // We keep any previously determined backup file name for easy lookup and avoids
+      // generating the name again
+      // TODO: How to handle this when we want to include time info in the file name
       backup_files: Mutex::new(HashMap::default()),
     }
   }
@@ -54,6 +57,7 @@ impl AppState {
     *store_pref = pref;
   }
 
+  /// Gets the full backfile name
   pub fn get_backup_file(&self, db_file_name: &str) -> Option<String> {
     let store_pref = self.preference.lock().unwrap();
     if !store_pref.backup.enabled {

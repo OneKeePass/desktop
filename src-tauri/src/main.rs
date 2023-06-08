@@ -3,10 +3,12 @@
   windows_subsystem = "windows"
 )]
 
+mod biometric;
 mod commands;
 mod menu;
 mod preference;
 mod utils;
+mod key_secure;
 
 use log::info;
 use tauri::Manager;
@@ -78,6 +80,8 @@ fn main() {
       commands::export_as_xml,
       commands::load_custom_svg_icons,
       commands::svg_file,
+      commands::save_key,
+      commands::read_key,
     ])
     .build(tauri::generate_context!())
     .expect("error while building tauri application");

@@ -9,7 +9,9 @@
    [onekeepass.frontend.events.new-database :as nd-events]
    [onekeepass.frontend.events.open-db-form :as od-events]
    [onekeepass.frontend.events.common :as cmn-events]
-  
+   
+   [onekeepass.frontend.background :as bg]
+   
    [onekeepass.frontend.mui-components :as m :refer [mui-link
                                                      mui-typography
                                                      mui-container 
@@ -64,8 +66,17 @@
                    :width "50%"
                    :justify-content "flex-start"
                    :flexDirection "column"}}
+     #_[mui-stack {:direction "row" :align-self "center"} ;;:sx {:mt "25%"}
+        [mui-typography {:variant "h4" :sx {:color "text.primary"}} "OneKeePass"]]
      [mui-stack {:direction "row" :align-self "center"} ;;:sx {:mt "25%"}
-      [mui-typography {:variant "h4" :sx {:color "text.primary"}} "OneKeePass"]]]]])
+      [mui-typography {:variant "h4" :sx {:color "text.primary"}} "OneKeePass..."]]
+     
+     [mui-stack
+      [mui-link {:on-click #(bg/test-save-key)} "Save key"]
+[mui-link {:on-click #(bg/test-read-key)} "Read key"]
+      ]
+     
+     ]]])
 
 (defn welcome-content []
   [:div {:class "box" :style {:overflow "hidden" :background-color "ghostwhite"}} ;; hidden used so to avoid showing scrollbar 
