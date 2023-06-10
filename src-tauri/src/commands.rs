@@ -12,10 +12,11 @@ use std::fs::read_to_string;
 use std::path::Path;
 use uuid::Uuid;
 
+use crate::biometric;
+use crate::key_secure;
 use crate::menu::{self, MenuActionRequest};
 use crate::utils::SystemInfoWithPreference;
 use crate::{preference, utils};
-use crate::biometric;
 use onekeepass_core::db_service as kp_service;
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -40,7 +41,15 @@ pub(crate) async fn load_kdbx(
   app_state: State<'_, utils::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
   // key_file_name.as_deref() converts Option<String> to Option<&str> - https://stackoverflow.com/questions/31233938/converting-from-optionstring-to-optionstr
-  let r = kp_service::load_kdbx(db_file_name, password, key_file_name.as_deref());
+  // let r = kp_service::load_kdbx(db_file_name, password, key_file_name.as_deref());
+
+  let r = kp_service::load_kdbx_NEW(
+    db_file_name,
+    password,
+    key_file_name.as_deref(),
+    key_secure::store_key,
+    &key_secure::get_key,
+  );
 
   if let Err(kp_service::error::Error::DbFileIoError(m, ioe)) = &r {
     // Remove from the recent list only if the file opening failed because of the file is not found in the passed file path
@@ -327,7 +336,6 @@ pub(crate) async fn update_entry_from_form_data(
   Ok(kp_service::update_entry_from_form_data(db_key, form_data)?)
 }
 
-
 #[tauri::command]
 pub(crate) async fn insert_entry_from_form_data(
   db_key: &str,
@@ -398,7 +406,7 @@ pub(crate) async fn save_as_kdbx(
 #[command]
 pub(crate) async fn save_kdbx(
   db_key: &str,
-  overwrite:bool,
+  overwrite: bool,
   app_state: State<'_, utils::AppState>,
 ) -> Result<kp_service::KdbxSaved> {
   // db_key is the full database file name and backup file name is derived from that
@@ -415,7 +423,7 @@ pub(crate) async fn save_all_modified_dbs(
   db_keys: Vec<String>,
   app_state: State<'_, utils::AppState>,
 ) -> Result<Vec<kp_service::SaveAllResponse>> {
-  // Need to prepare back file paths for all db_keys 
+  // Need to prepare back file paths for all db_keys
   let dbs_with_backups: Vec<(String, Option<String>)> = db_keys
     .iter()
     .map(|s| (s.clone(), app_state.get_backup_file(s)))
@@ -432,12 +440,45 @@ pub(crate) async fn close_kdbx(db_key: &str) -> Result<()> {
 }
 
 #[command]
+pub(crate) async fn lock_kdbx(db_key: &str) -> Result<()> {
+  //TODO:
+  // Need to remove the session encryption key from memory in 'key_secure' module
+  // This key need to be retreived during 'unlock_kdbx' call
+
+  Ok(())
+}
+
+#[command]
+pub(crate) async fn unlock_kdbx_with_biometric_authentication(db_key: &str) -> Result<()> {
+  // Need to initiate Touch ID call sequence
+  // On successful Touch ID return, the session ecryption key is restored and 'Result<kp_service::KdbxLoaded>' returned
+
+  // In case, user cancels the Touch ID UI, we need to present the passord based and key file authentication
+
+  Ok(())
+}
+
+#[command]
 pub(crate) async fn unlock_kdbx(
   db_key: &str,
   password: &str,
   key_file_name: Option<&str>,
 ) -> Result<kp_service::KdbxLoaded> {
+  // We need to get the session encryption key from KeyChain(macOS)
+  // In case of Linux and Windows, the key is kept in memory and need to use Linux and Windows specific credential stores
+  // similiar to macOS KeyChain
+
   Ok(kp_service::unlock_kdbx(db_key, password, key_file_name)?)
+}
+
+#[command]
+pub(crate) async fn read_and_verify_db_file(db_key: &str) -> Result<()> {
+  Ok(kp_service::read_and_verify_db_file(db_key)?)
+}
+
+#[command]
+pub(crate) async fn reload_kdbx(db_key: &str) -> Result<kp_service::KdbxLoaded> {
+  Ok(kp_service::reload_kdbx(db_key)?)
 }
 
 #[command]
@@ -536,4 +577,3 @@ pub async fn save_key() {
 pub async fn read_key() {
   biometric::read_key();
 }
-

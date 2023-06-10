@@ -13,6 +13,7 @@
    [onekeepass.frontend.open-db-form :as od-form]
    [onekeepass.frontend.new-database :as nd-form]
    [onekeepass.frontend.common-components :refer [message-dialog
+                                                  progress-message-dialog
                                                   error-info-dialog
                                                   confirm-text-dialog]]
    [onekeepass.frontend.password-generator :as gen-form]
@@ -221,6 +222,7 @@
            [mui-icon-search]]]]]
        [gen-form/password-generator-dialog @(gen-events/generator-dialog-data)]
        [message-dialog]
+       [progress-message-dialog]
        [error-info-dialog]
        [od-form/open-db-dialog-main]
        [save-info-dialog save-action-data]

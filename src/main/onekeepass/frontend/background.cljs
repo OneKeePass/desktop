@@ -172,6 +172,9 @@
                            :password password
                            :key-file-name key-file-name} dispatch-fn))
 
+(defn lock-kdbx [db-key dispatch-fn]
+  (invoke-api "lock_kdbx" {:db-key db-key} dispatch-fn))
+
 (defn unlock-kdbx
   "Calls the API to unlock the previously opened db file.
    Calls the dispatch-fn with the received map of type 'KdbxLoaded' 
@@ -181,11 +184,20 @@
                              :password password
                              :key-file-name key-file-name} dispatch-fn))
 
+(defn unlock-kdbx-with_biometric-authentication [db-key dispatch-fn]
+  (invoke-api "unlock_kdbx_with_biometric_authentication" {:db-key db-key} dispatch-fn ))
+
+(defn read-and-verify-db-file [db-key dispatch-fn]
+  (invoke-api "read_and_verify_db_file" {:db-key db-key} dispatch-fn))
+
+(defn reload-kdbx [db-key dispatch-fn]
+  (invoke-api "reload_kdbx" {:db-key db-key} dispatch-fn))
+
 (defn groups-summary-data
   "Gets all groups and subgroups for a given db-key"
   [db-key dispatch-fn]
   ;;As uuid strings are used to get values of a group in the response map
-  ;;We do not want to convert any string keys of the map to keword key. 
+  ;;We do not want to convert any string keys of the map to keyword key. 
   (invoke-api "groups_summary_data" {:db-key db-key} dispatch-fn :convert-response false))
 
 (defn entry-summary-data
@@ -476,7 +488,13 @@
   (invoke-api "read_key" {} #(println %)))
 
 (comment
-  (def db-key (:current-db-file-name @re-frame.db/app-db)))
+  (-> @re-frame.db/app-db keys)
+  
+  (def db-key (:current-db-file-name @re-frame.db/app-db))
+  
+  (-> @re-frame.db/app-db (get db-key) keys)
+  
+  )
 
 #_(defn unregister-event-listener
     "Unregisters the previously registered event handler"

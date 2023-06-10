@@ -21,6 +21,7 @@
                                                      mui-box
                                                      mui-alert
                                                      mui-button
+                                                     mui-divider
                                                      mui-linear-progress
                                                      mui-dialog
                                                      mui-dialog-title
@@ -41,7 +42,7 @@
         ;; Tags from the list
         existing (filter #(= % value-entered) options)
         filtered (js->clj (filter-fn options params))
-        final-filtered (if (and (boolean (seq value-entered)) 
+        final-filtered (if (and (boolean (seq value-entered))
                                 (empty? existing))
                          ;; If the option is one added by user, then we need add the prefix
                          ;; and that value is shown as the last option in the selection list
@@ -336,7 +337,22 @@
   ([]
    [message-dialog @(cmn-events/message-dialog-data)]))
 
+;; This modal dialog just shows some progress action and user can not close
+;; Need to ensure that :common/progress-message-box-hide is called for every
+;; :common/progress-message-box-show
+(defn progress-message-dialog
+  ([{:keys [title dialog-show message]}]
+   [mui-dialog {:classes {:paper "pwd-dlg-root"}
+                :open dialog-show
+                :on-click #(.stopPropagation ^js/Event %)}
+    [mui-dialog-title title]
+    [mui-dialog-content {:dividers true}
+     [mui-stack message]
+     [mui-linear-progress {:sx {:mt 2}}]]
+    [mui-dialog-actions]])
 
+  ([]
+   [progress-message-dialog @(cmn-events/progress-message-dialog-data)]))
 
 ;; TODO: 
 ;; Need to combine message-sanckbar and message-sanckbar-alert
@@ -379,10 +395,10 @@
 #_(defn focus [^js/InputRef comp-ref]
   ;; calling  (.getElementById js/document "search_fld") will also work. But 'id' of input element 
   ;; should be unique
-  #_(.focus (.getElementById js/document "search_fld"))
-  (if-let [comp-id (some-> comp-ref .-props .-id)]
-    (.focus (.getElementById js/document comp-id))
-    (println "inputRef called back with invalid ref or nil ref")))
+    #_(.focus (.getElementById js/document "search_fld"))
+    (if-let [comp-id (some-> comp-ref .-props .-id)]
+      (.focus (.getElementById js/document comp-id))
+      (println "inputRef called back with invalid ref or nil ref")))
 
 (defn write-to-clipboard [value]
   (bg/write-to-clipboard value))

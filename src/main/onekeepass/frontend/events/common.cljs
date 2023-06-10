@@ -3,6 +3,7 @@
   (:require
    [re-frame.core :refer [reg-event-db
                           reg-event-fx
+                          reg-fx
                           reg-sub
                           dispatch
                           dispatch-sync
@@ -14,6 +15,8 @@
    [onekeepass.frontend.background :as bg]))
 
 (declare check-error)
+(declare on-error)
+(declare active-db-key)
 (declare assoc-in-key-db)
 
 
@@ -109,11 +112,19 @@
  :common/kdbx-database-opened
  (fn [{:keys [db]} [_event-id kdbx-loaded]]
    {:db (db-opened db kdbx-loaded)
+    :fx [[:dispatch [:common/kdbx-database-loading-complete kdbx-loaded]]]}))
+
+#_(reg-event-fx
+ :common/kdbx-database-opened
+ (fn [{:keys [db]} [_event-id kdbx-loaded]]
+   {:db (db-opened db kdbx-loaded)
     :fx [[:dispatch [:load-all-tags]]
          [:dispatch [:group-tree-content/load-groups]]
-         [:dispatch [:entry-category/category-data-load-start (-> db :app-preference :default-entry-category-groupings)]]
+         [:dispatch [:entry-category/category-data-load-start
+                     (-> db :app-preference :default-entry-category-groupings)]]
          [:dispatch [:common/load-entry-type-headers]]
-         [:dispatch [:common/message-snackbar-open (str "Opened database " (:db-key kdbx-loaded))]]]}))
+         [:dispatch [:common/message-snackbar-open
+                     (str "Opened database " (:db-key kdbx-loaded))]]]}))
 
 (reg-event-fx
  :common/kdbx-database-unlocked
@@ -122,9 +133,70 @@
    {:db (assoc-in-key-db db [:locked] false)
     :fx [[:dispatch [:load-all-tags]]
          [:dispatch [:group-tree-content/load-groups]]
-         [:dispatch [:entry-category/category-data-load-start (-> db :app-preference :default-entry-category-groupings)]]
+         [:dispatch [:entry-category/category-data-load-start 
+                     (-> db :app-preference :default-entry-category-groupings)]]
          [:dispatch [:common/load-entry-type-headers]]
-         [:dispatch [:common/show-content :group-entry]]]}))
+         [:dispatch [:common/show-content :group-entry]]
+
+         [:bg-read-and-verify-db-file [(active-db-key db)]]]}))
+
+(reg-event-fx
+ :common/kdbx-database-loading-complete
+ (fn [{:keys [db]} [_event-id kdbx-loaded]]
+   {:fx [[:dispatch [:load-all-tags]]
+         [:dispatch [:group-tree-content/load-groups]]
+         [:dispatch [:entry-category/category-data-load-start 
+                     (-> db :app-preference :default-entry-category-groupings)]]
+         [:dispatch [:common/load-entry-type-headers]]
+         [:dispatch [:common/message-snackbar-open 
+                     (str "Opened database " (:db-key kdbx-loaded))]]]}))
+
+
+
+(reg-fx
+ :bg-read-and-verify-db-file
+ (fn [[db-key]]
+   (bg/read-and-verify-db-file db-key
+                               (fn [api-response]
+                                 (when-not (on-error 
+                                            api-response
+                                            #(dispatch [:database-change-detected %]))
+                                   (println "No change in database"))))))
+
+(reg-event-fx
+ :database-change-detected
+ (fn [{:keys [db]} [_event-id error]]
+   ;; Need to check error code for specific value ''
+   ;; if we have unsaved data, need to give user options for the next actions
+   {:fx [[:dispatch [:reload-database]]]}))
+
+(reg-event-fx
+ :reload-database
+ (fn [{:keys [db]} [_event-id]]
+   {;; Here we are clearing all previous values of the current database 
+    ;; before reloading
+    :db (assoc-in db [(active-db-key db)] nil)
+    :fx [[:dispatch [:common/progress-message-box-show
+                     "Database modification detected"
+                     "Reloading the modified database. Please wait..."]]
+         [:bg-reload-kdbx [(active-db-key db)]]]}))
+
+
+(reg-fx
+ :bg-reload-kdbx
+ (fn [[db-key]]
+   (bg/reload-kdbx db-key (fn [api-response]
+                            (when-let [kdbx-loaded (check-error
+                                                    api-response
+                                                    #(dispatch [:reload-database-error %]))]  
+                              (dispatch [:common/kdbx-database-loading-complete kdbx-loaded])
+                              (dispatch [:common/progress-message-box-hide]))))))
+
+(reg-event-fx
+ :reload-database-error
+ (fn [{:keys [db]} [_event-id error]]
+   {:fx [[:dispatch [:common/progress-message-box-hide]]
+         [:dispatch [:common/message-snackbar-error-open error]]]}))
 
 ;; A common refresh all forms after an entry form changes - delete, put back , delete permanent
 (reg-event-fx
@@ -310,7 +382,16 @@
  :common/lock-current-db
  (fn [{:keys [db]} [_event-id]]
    {:db (assoc-in-key-db db [:locked] true)
-    :fx [[:dispatch [:common/show-content :locked-content]]]}))
+    :fx [[:bg-lock-kdbx [(active-db-key db)]]
+         [:dispatch [:common/show-content :locked-content]]]}))
+
+(reg-fx
+ :bg-lock-kdbx
+ (fn [[db-key]]
+   (bg/lock-kdbx db-key (fn [api-response]
+                          (when-not (on-error api-response)
+                            ;; Add any relevant dispatch calls here
+                            (println "Database is locked"))))))
 
 (reg-sub
  :common/current-db-locked
@@ -512,6 +593,33 @@
  :message-box
  (fn [db _query-vec]
    (-> db :message-box)))
+
+;;;;;;;;;;;;;;;;;; Progress message dialog ;;;;;;;;;;;;
+
+(defn progress-message-dialog-data []
+  (subscribe [:progress-message-box]))
+
+;; IMPORTANT: Need to ensure that :common/progress-message-box-hide is called for every
+;; :common/progress-message-box-show. Otherwise user can not do anhything on the page
+(reg-event-db
+ :common/progress-message-box-show
+ (fn [db [_event-id title message]]
+   (-> db
+       (assoc-in [:progress-message-box :dialog-show] true)
+       (assoc-in [:progress-message-box :title] title)
+       (assoc-in [:progress-message-box :message] message))))
+
+
+(reg-event-db
+ :common/progress-message-box-hide
+ (fn [db [_event-id]]
+   (-> db
+       (assoc-in [:progress-message-box :dialog-show] false))))
+
+(reg-sub
+ :progress-message-box
+ (fn [db _query-vec]
+   (-> db :progress-message-box)))
 
 ;;;;;;;;;;;;;;;; error-info-dialog ;;;;;;;;;;;;;;;;;;;
 
