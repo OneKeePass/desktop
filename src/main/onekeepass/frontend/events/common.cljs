@@ -10,7 +10,7 @@
                           subscribe]]
    [clojure.string :as str]
    [cljs.core.async :refer [go-loop timeout <!]]
-   [onekeepass.frontend.constants :refer [ADD_TAG_PREFIX]]
+   [onekeepass.frontend.constants :refer [ADD_TAG_PREFIX DB_CHANGED]]
    [onekeepass.frontend.utils :refer [contains-val? str->int utc-to-local-datetime-str]]
    [onekeepass.frontend.background :as bg]))
 
@@ -114,89 +114,16 @@
    {:db (db-opened db kdbx-loaded)
     :fx [[:dispatch [:common/kdbx-database-loading-complete kdbx-loaded]]]}))
 
-#_(reg-event-fx
- :common/kdbx-database-opened
+(reg-event-fx
+ :common/kdbx-database-loading-complete
  (fn [{:keys [db]} [_event-id kdbx-loaded]]
-   {:db (db-opened db kdbx-loaded)
-    :fx [[:dispatch [:load-all-tags]]
+   {:fx [[:dispatch [:load-all-tags]]
          [:dispatch [:group-tree-content/load-groups]]
          [:dispatch [:entry-category/category-data-load-start
                      (-> db :app-preference :default-entry-category-groupings)]]
          [:dispatch [:common/load-entry-type-headers]]
          [:dispatch [:common/message-snackbar-open
                      (str "Opened database " (:db-key kdbx-loaded))]]]}))
-
-(reg-event-fx
- :common/kdbx-database-unlocked
- (fn [{:keys [db]} [_event-id _kdbx-loaded]]
-   ;;(println "kdbx-loaded in kdbx-database-opened" kdbx-loaded)
-   {:db (assoc-in-key-db db [:locked] false)
-    :fx [[:dispatch [:load-all-tags]]
-         [:dispatch [:group-tree-content/load-groups]]
-         [:dispatch [:entry-category/category-data-load-start 
-                     (-> db :app-preference :default-entry-category-groupings)]]
-         [:dispatch [:common/load-entry-type-headers]]
-         [:dispatch [:common/show-content :group-entry]]
-
-         [:bg-read-and-verify-db-file [(active-db-key db)]]]}))
-
-(reg-event-fx
- :common/kdbx-database-loading-complete
- (fn [{:keys [db]} [_event-id kdbx-loaded]]
-   {:fx [[:dispatch [:load-all-tags]]
-         [:dispatch [:group-tree-content/load-groups]]
-         [:dispatch [:entry-category/category-data-load-start 
-                     (-> db :app-preference :default-entry-category-groupings)]]
-         [:dispatch [:common/load-entry-type-headers]]
-         [:dispatch [:common/message-snackbar-open 
-                     (str "Opened database " (:db-key kdbx-loaded))]]]}))
-
-
-
-(reg-fx
- :bg-read-and-verify-db-file
- (fn [[db-key]]
-   (bg/read-and-verify-db-file db-key
-                               (fn [api-response]
-                                 (when-not (on-error 
-                                            api-response
-                                            #(dispatch [:database-change-detected %]))
-                                   (println "No change in database"))))))
-
-(reg-event-fx
- :database-change-detected
- (fn [{:keys [db]} [_event-id error]]
-   ;; Need to check error code for specific value ''
-   ;; if we have unsaved data, need to give user options for the next actions
-   {:fx [[:dispatch [:reload-database]]]}))
-
-(reg-event-fx
- :reload-database
- (fn [{:keys [db]} [_event-id]]
-   {;; Here we are clearing all previous values of the current database 
-    ;; before reloading
-    :db (assoc-in db [(active-db-key db)] nil)
-    :fx [[:dispatch [:common/progress-message-box-show
-                     "Database modification detected"
-                     "Reloading the modified database. Please wait..."]]
-         [:bg-reload-kdbx [(active-db-key db)]]]}))
-
-
-(reg-fx
- :bg-reload-kdbx
- (fn [[db-key]]
-   (bg/reload-kdbx db-key (fn [api-response]
-                            (when-let [kdbx-loaded (check-error
-                                                    api-response
-                                                    #(dispatch [:reload-database-error %]))]  
-                              (dispatch [:common/kdbx-database-loading-complete kdbx-loaded])
-                              (dispatch [:common/progress-message-box-hide]))))))
-
-(reg-event-fx
- :reload-database-error
- (fn [{:keys [db]} [_event-id error]]
-   {:fx [[:dispatch [:common/progress-message-box-hide]]
-         [:dispatch [:common/message-snackbar-error-open error]]]}))
 
 ;; A common refresh all forms after an entry form changes - delete, put back , delete permanent
 (reg-event-fx
@@ -276,7 +203,7 @@
      (do
        (if  (nil? error-fn)
          #_(println "API returned error: " error)
-         ;; Should we create a gedneric error dialog instead of snackbar ?
+         ;; Should we use a generic error dialog instead of snackbar ?
          (dispatch [:common/message-snackbar-error-open error])
          (error-fn error))
        true)
@@ -366,9 +293,9 @@
               (assoc :opened-db-list dbs)
               (assoc :current-db-file-name next-active-db-key)
               (dissoc db-key))
-      :fx [[:dispatch [:common/load-app-preference]]]})))
-
-
+      :fx [[:dispatch [:common/message-snackbar-open
+                       (str "Closed database " db-key)]]
+           [:dispatch [:common/load-app-preference]]]})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; DB Lock/Unlock ;;;;;;;;;;;;;;;;;;;;;
 
@@ -392,6 +319,86 @@
                           (when-not (on-error api-response)
                             ;; Add any relevant dispatch calls here
                             (println "Database is locked"))))))
+
+;; Dispatched from a open-db-form event
+(reg-event-fx
+ :common/kdbx-database-unlocked
+ (fn [{:keys [db]} [_event-id _kdbx-loaded]]
+   {:db (assoc-in-key-db db [:locked] false)
+    :fx [;; TODO: Combine these reset calls with 'common/kdbx-database-loading-complete'
+         [:dispatch [:load-all-tags]]
+         [:dispatch [:group-tree-content/load-groups]]
+         [:dispatch [:entry-category/category-data-load-start
+                     (-> db :app-preference :default-entry-category-groupings)]]
+         [:dispatch [:common/load-entry-type-headers]]
+         [:dispatch [:common/show-content :group-entry]]
+
+         ;; Quick unlock, just gets the data from memory on successful
+         ;; authentication using existing credential
+         ;; We need to make sure, the data are not stale by checking whether database 
+         ;; has been changed externally and load accordingly
+         [:bg-read-and-verify-db-file [(active-db-key db)]]]}))
+
+
+;; Called to detect whether databae has been changed externally or not
+(reg-fx
+ :bg-read-and-verify-db-file
+ (fn [[db-key]]
+   (bg/read-and-verify-db-file db-key
+                               (fn [api-response]
+                                 (when-not (on-error
+                                            api-response
+                                            #(dispatch [:database-change-detected %]))
+                                   #()
+                                   #_(dispatch [:common/message-snackbar-open ""])
+                                   #_(println "No change in database"))))))
+
+(reg-event-fx
+ :database-change-detected
+ (fn [{:keys [db]} [_event-id error]]
+   ;; Need to check error code for specific value ''
+   ;; if we have unsaved data, need to give user options for the next actions
+   (if (and (= error DB_CHANGED) (get-in-key-db db [:db-modification :save-pending]) )
+     {:fx [[:dispatch [:common/error-info-box-show {:title "Database changed"
+                                                    :message (str "The database content of the file has changed since the last opening."
+                                                                  " Please save to see options availble to resolve this")}]]]}
+     {:fx [[:dispatch [:reload-database]]]})))
+
+(reg-event-fx
+ :reload-database
+ (fn [{:keys [db]} [_event-id]]
+   {;; Here we are clearing all previous values of the current database 
+    ;; before reading database from file and decrypting
+    :db (assoc-in db [(active-db-key db)] nil)
+    :fx [[:dispatch [:common/progress-message-box-show
+                     "Database modification detected"
+                     "Reloading the modified database. Please wait..."]]
+         [:bg-reload-kdbx [(active-db-key db)]]]}))
+
+;; reads database from file and decrypts
+(reg-fx
+ :bg-reload-kdbx
+ (fn [[db-key]]
+   (bg/reload-kdbx db-key (fn [api-response]
+                            (when-let [kdbx-loaded (check-error
+                                                    api-response
+                                                    #(dispatch [:reload-database-error %]))]
+                              (dispatch [:common/kdbx-database-loading-complete kdbx-loaded])
+                              (dispatch [:common/progress-message-box-hide]))))))
+
+;; On quick unlock, if the reloading tried fails, then we show 
+;; the login dialog
+;; Reloading can fail if the credentials to decrypt the database database has changed
+;; Or if the database moved/deleetd/renamed from its last known location
+(reg-event-fx
+ :reload-database-error
+ (fn [{:keys [db]} [_event-id error]]
+   {:fx [[:dispatch [:common/progress-message-box-hide]]
+         [:dispatch [:common/close-kdbx-db (active-db-key db)]]
+         [:dispatch [:open-db-form/login-dialog-show-on-reload-error
+                     {:file-name (active-db-key db)
+                      :error-text error}]]]}))
+
 
 (reg-sub
  :common/current-db-locked
@@ -562,12 +569,9 @@
 
 ;;;;;;;;;;;;;;; Message dialog ;;;;;;;;;;;;;
 
-;; TODO:  
-;; Need to see how effectively the message-box is used and use more or remove
-
-(defn show-message
-  [title message]
-  (dispatch [:common/message-box-show title message]))
+#_(defn show-message
+    [title message]
+    (dispatch [:common/message-box-show title message]))
 
 (defn close-message-dialog []
   (dispatch [:message-box-hide]))
@@ -631,7 +635,7 @@
 
 (reg-event-db
  :common/error-info-box-show
- (fn [db [_event-id title error-text message]]
+ (fn [db [_event-id {:keys [title error-text message]}]]
    (-> db
        (assoc-in [:error-info-box :dialog-show] true)
        (assoc-in [:error-info-box :title] title)

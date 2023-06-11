@@ -33,3 +33,34 @@ pub fn get_key(db_key: &str) -> Option<SecureKeyInfo> {
     debug!("get_key is called and data size {:?} ",m.get(db_key).map(|v| v.len()));
     m.get(db_key).map(|v| SecureKeyInfo::from_key_nonce(v.clone()))
 }
+
+pub fn delete_key(db_key: &str) {
+  let mut m = key_store().lock().unwrap();
+  m.remove(db_key);
+}
+
+// Need to reassign encryption key when we use 'Save as'
+pub fn reassign_key(new_db_key: &str, old_db_key: &str,) -> kp_service::Result<()> {
+  let mut m = key_store().lock().unwrap();
+  let kd = m.remove(old_db_key);
+  if let Some(key_data) = kd {
+    m.insert(new_db_key.into(), key_data);
+  }
+  debug!("Encryption key is reassigned from {} to {} ",old_db_key,new_db_key);
+  Ok(())
+}
+
+pub fn copy_key(source_db_key: &str, target_db_key: &str,) -> kp_service::Result<()>  {
+  
+  let source_key = {
+    let m = key_store().lock().unwrap();
+    m.get(source_db_key).cloned()
+  };
+
+  let mut m = key_store().lock().unwrap();
+  if let Some(k) = source_key {
+    m.insert(target_db_key.into(), k);
+  }
+  
+  Ok(())
+}

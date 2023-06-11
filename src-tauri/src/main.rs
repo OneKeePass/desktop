@@ -73,6 +73,7 @@ fn main() {
       commands::remove_entry_permanently,
       commands::remove_group_permanently,
       commands::save_all_modified_dbs,
+      commands::save_as_kdbx,
       commands::save_kdbx,
       commands::save_key,
       commands::score_password,
@@ -86,7 +87,7 @@ fn main() {
       commands::update_entry_from_form_data,
       commands::update_group,
       commands::upload_entry_attachment,
-      commands::save_as_kdbx,
+      
 
       /* 
       commands::save_as_kdbx,

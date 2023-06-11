@@ -6,7 +6,7 @@
    [onekeepass.frontend.events.search :as srch-event]
    [onekeepass.frontend.events.db-settings :as settings-events]
    [onekeepass.frontend.events.password-generator :as gen-events]
-   [onekeepass.frontend.constants :as const]
+   [onekeepass.frontend.constants :as const :refer [DB_CHANGED]]
    [onekeepass.frontend.events.tauri-events :as tauri-events]
    [onekeepass.frontend.db-settings :as settings-form]
    [onekeepass.frontend.search :as search]
@@ -119,9 +119,8 @@
     [mui-button {:color "secondary"
                  :on-click tb-events/conflict-action-save-as} "Save as"]]])
 
-
 (defn save-info-dialog [{:keys [status api-error-text]}]
-  (if (= api-error-text "DbFileContentChangeDetected")
+  (if (= api-error-text DB_CHANGED)
     [content-change-action-dialog true]
     [mui-dialog {:open (or (= status :in-progress) (= status :error)) :on-click #(.stopPropagation ^js/Event %)}
      [mui-dialog-title "Save Database"]

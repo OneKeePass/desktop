@@ -393,7 +393,10 @@ pub(crate) async fn save_as_kdbx(
   db_file_name: &str,
   app_state: State<'_, utils::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
-  let r = kp_service::save_as_kdbx(db_key, db_file_name)?;
+  key_secure::copy_key(db_key, db_file_name)?;
+  let r = kp_service::save_as_kdbx(db_key, db_file_name,)?;
+  key_secure::delete_key(db_key);
+  //key_secure::reassign_key(&r.db_key, db_key)?;
   // Appends this file name to the most recently opned file list
   app_state
     .preference
@@ -436,7 +439,9 @@ pub(crate) async fn save_all_modified_dbs(
 
 #[command]
 pub(crate) async fn close_kdbx(db_key: &str) -> Result<()> {
-  Ok(kp_service::close_kdbx(db_key)?)
+  kp_service::close_kdbx(db_key)?;
+  key_secure::delete_key(db_key);
+  Ok(())
 }
 
 #[command]

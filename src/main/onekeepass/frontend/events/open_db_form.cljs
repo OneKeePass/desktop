@@ -109,6 +109,18 @@
               (assoc-in [:open-db :unlock-request] true)
               (assoc-in [:open-db :file-name] file-name))})))
 
+;; After unlock, we detected databse change. But reloading of database fails  
+;; because the credentials of database has been changed outside our app
+;; Need to do relogin
+(reg-event-fx
+ :open-db-form/login-dialog-show-on-reload-error
+ (fn [{:keys [db]} [_event-id {:keys [file-name error-text]}]]
+   {:db (-> db (assoc-in [:open-db :dialog-show] true)
+            (assoc-in [:open-db :unlock-request] false)
+            (assoc-in [:open-db :file-name] file-name)
+            #_(assoc-in [:open-db :key-file-name] key-file-name)
+            (assoc-in [:open-db :error-text] error-text))}))
+
 (reg-event-db
  :open-db-dialog-hide
  (fn [db [_event-id]]
@@ -131,7 +143,7 @@
 
 (reg-event-db
  :open-db-error
- (fn [db [_event-id error]] 
+ (fn [db [_event-id error]]
    (-> db (assoc-in [:open-db :error-text] error)
        (assoc-in [:open-db :status] :error))))
 
@@ -144,7 +156,7 @@
 
 (defn- on-file-loading [api-response]
   (let [error-fn (fn [err] (dispatch [:open-db-error err]))]
-    (when-let [kdbx-loaded (check-error api-response error-fn)] 
+    (when-let [kdbx-loaded (check-error api-response error-fn)]
       (dispatch [:open-db-file-loading-done kdbx-loaded]))))
 
 ;;IMPORTANT reg-fx handler fn takes single argument. So we need to use vec [file-name pwd]

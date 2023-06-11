@@ -33,3 +33,5 @@
 (def MENU_DISABLE "Disable")
 
 (def ADD_TAG_PREFIX "Add New Tag:")
+
+(def DB_CHANGED "DbFileContentChangeDetected")

@@ -59,12 +59,12 @@
  (fn [[db-key overwrite?]]
    (bg/save-kdbx db-key
                  overwrite?
-                 (fn [api-response] 
+                 (fn [api-response]
                    (when-let [kdbx-saved
                               (check-error
                                api-response
                                #(dispatch [:save-current-db-error %]))]
-                     (dispatch [:save-current-db-completed kdbx-saved]) 
+                     (dispatch [:save-current-db-completed kdbx-saved])
                      (dispatch [:common/db-modification-saved kdbx-saved]))))))
 ;; TODO: 
 ;; combine save-current-db and :save-and-close-current-db; also bg-save-kdbx and bg-save-kdbx-before-close
@@ -269,7 +269,7 @@
      ;;            :save-status {:failed Writing failed with error DbFileContentChangeDetected}} 
      ;;           {:db-key /Users/asdfghr/Documents/OneKeePass/Test2.kdbx, 
      ;;            :save-status {:message The db file is not in modified status. No saving was done}}]}
-      
+
       (when-let [result (check-error
                          api-response
                          #(dispatch [:ask-save-dialog-save-error %]))]
@@ -288,8 +288,8 @@
             (assoc-in [:ask-save :status] :completed))
     ;; Open the error info
     :fx [[:dispatch [:common/error-info-box-show
-                     "Quit error"
-                     "Could not save databases and close the application. Please close all opened databases and then quit the application"]]]}))
+                     {:title "Quit error"
+                      :error-text "Could not save databases and close the application. Please close all opened databases and then quit the application"}]]]}))
 
 (reg-event-fx
  :ask-save-dialog-do-not-save

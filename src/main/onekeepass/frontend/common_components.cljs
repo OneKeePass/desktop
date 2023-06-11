@@ -21,7 +21,6 @@
                                                      mui-box
                                                      mui-alert
                                                      mui-button
-                                                     mui-divider
                                                      mui-linear-progress
                                                      mui-dialog
                                                      mui-dialog-title
@@ -243,6 +242,8 @@
   content-comp  - reagent component that accepts one or two parameters as map and provides the dialog content
   actions       - a vector of maps with keys [label on-click-factory]
   props         - an optional map for this factory like passing sx prop of mui-dialog etc
+
+  See group-tree-content/move-dialog how it is used
   "
   [title content-comp actions & _props]
   ;; form-2 reagent component function
@@ -318,7 +319,8 @@
     [mui-dialog-content
      [mui-stack
       message
-      [mui-alert {:severity "error" :sx {:mt 1}} error-text]]]
+      (when error-text
+        [mui-alert {:severity "error" :sx {:mt 1}} error-text])]]
     [mui-dialog-actions
      [mui-button {:color "secondary"
                   :on-click cmn-events/close-error-info-dialog} "Close"]]])
@@ -326,6 +328,7 @@
    (error-info-dialog @(cmn-events/error-info-dialog-data))))
 
 (defn message-dialog
+  "Called to show any message to the user and no action is done other than closing the dialog"
   ([{:keys [title dialog-show message]}]
    [mui-dialog {:open dialog-show :on-click #(.stopPropagation ^js/Event %)}
     [mui-dialog-title title]
@@ -357,7 +360,8 @@
 ;; TODO: 
 ;; Need to combine message-sanckbar and message-sanckbar-alert
 (defn message-sanckbar
-  "Called to show any generic message"
+  "Called to show any generic message in a snack bar 
+  that pops at the bottom of the app content and stays for 6 sec"
   ([{:keys [open message]}]
    [mui-snackbar {:open  open
                   :action (r/as-element [mui-icon-button

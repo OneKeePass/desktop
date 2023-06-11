@@ -140,6 +140,13 @@
 (defn header-bar []
   [:div  [:f> tool-bar/top-bar]])
 
+(defn common-snackbars []
+  [:<>
+   ;; message-sanckbar shows generic message
+   [cc/message-sanckbar]
+   ;; message-sanckbar-alert mostly for error notification
+   [cc/message-sanckbar-alert]])
+
 (defn root-content
   "A functional component"
   []
@@ -147,19 +154,18 @@
     #_(m/react-use-effect (fn [] (println " called effect")) [])
 
     (if @(cmn-events/show-start-page)
-      [sp/welcome-content]
+      [:<>
+       [sp/welcome-content]
+       [common-snackbars]]
       [:div {:class "box"}  ;;:style {:height "100vh"}
        [:div {:class "cust_row header"}
         [header-bar]
-        ;; message-sanckbar shows generic message
-        [cc/message-sanckbar]
-        ;; message-sanckbar-alert mostly for error notification
-        [cc/message-sanckbar-alert]]
+        [common-snackbars]]
 
        [:div {:class "cust_row content" :style {:height "80%"}} ;;height "80%" added for WebKit
         [:f> main-content]]
 
-       ;;At this no use case for the footer
+       ;;At this time, no use case for the footer
        #_[:div {:class "cust_row footer"}
           #_[:span "footer (fixed height)"]
           ;;need to make tag p's margin 0px if we use tag p. Include {:style {:margin 0}}
