@@ -41,15 +41,16 @@ pub(crate) async fn load_kdbx(
   app_state: State<'_, utils::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
   // key_file_name.as_deref() converts Option<String> to Option<&str> - https://stackoverflow.com/questions/31233938/converting-from-optionstring-to-optionstr
-  // let r = kp_service::load_kdbx(db_file_name, password, key_file_name.as_deref());
+  
+  let r = kp_service::load_kdbx(db_file_name, password, key_file_name.as_deref());
 
-  let r = kp_service::load_kdbx_NEW(
-    db_file_name,
-    password,
-    key_file_name.as_deref(),
-    key_secure::store_key,
-    &key_secure::get_key,
-  );
+  // let r = kp_service::load_kdbx_NEW(
+  //   db_file_name,
+  //   password,
+  //   key_file_name.as_deref(),
+  //   key_secure::store_key,
+  //   &key_secure::get_key,
+  // );
 
   if let Err(kp_service::error::Error::DbFileIoError(m, ioe)) = &r {
     // Remove from the recent list only if the file opening failed because of the file is not found in the passed file path
@@ -393,10 +394,12 @@ pub(crate) async fn save_as_kdbx(
   db_file_name: &str,
   app_state: State<'_, utils::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
-  key_secure::copy_key(db_key, db_file_name)?;
+  //key_secure::copy_key(db_key, db_file_name)?;
+  
   let r = kp_service::save_as_kdbx(db_key, db_file_name,)?;
-  key_secure::delete_key(db_key);
-  //key_secure::reassign_key(&r.db_key, db_key)?;
+  
+  //key_secure::delete_key(db_key);
+  
   // Appends this file name to the most recently opned file list
   app_state
     .preference

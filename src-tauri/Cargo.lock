@@ -1962,6 +1962,7 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "cipher 0.3.0",
+ "hex",
  "hex-literal",
  "hmac",
  "lazy_static",

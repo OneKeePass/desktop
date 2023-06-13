@@ -19,6 +19,7 @@ use tauri::{
   App, Env, Manager, Runtime,
 };
 
+use crate::key_secure;
 use crate::preference::Preference;
 use onekeepass_core::db_service as kp_service;
 
@@ -209,6 +210,9 @@ pub fn init_app(app: &App) {
 
   init_log(&log_dir);
   // Now onwards all loggings calls will be effective
+
+  key_secure::init_key_main_store();
+
   info!("{}", "Intit app is done");
 }
 
