@@ -1988,11 +1988,14 @@ dependencies = [
 name = "onekeepass-frontend"
 version = "0.0.0"
 dependencies = [
+ "cfg-if",
  "chrono",
+ "hex",
  "log",
  "log4rs",
  "once_cell",
  "onekeepass-core",
+ "secstr",
  "serde",
  "serde_json",
  "swift-rs",

@@ -8,9 +8,11 @@
 import Foundation
 import LocalAuthentication
 
-let logger = OkpLogger(tag: "SecureAccess")
 
-class SecureAccess {
+
+class SecureAccess2 {
+    
+    let logger = OkpLogger(tag: "SecureAccess")
     
     func storeKey() {
 
@@ -108,7 +110,7 @@ class SecureAccess {
         
         localAuthenticationContext.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { success, evaluationError in
             if success {
-                logger.info("Success")
+                self.logger.info("Success")
                 let query: [String: AnyObject] = [
                     //kSecAttrService as String: "Jey test service" as AnyObject,
                     kSecAttrAccount as String: "Jey test account" as AnyObject,
@@ -119,22 +121,22 @@ class SecureAccess {
                 
                 let status:OSStatus = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
                 
-                logger.info("SecItemCopyMatching called and status is \(status)")
+                self.logger.info("SecItemCopyMatching called and status is \(status)")
                 if let error = status.error {
-                    logger.error("SecItemCopyMatching error is  \(error)")
+                    self.logger.error("SecItemCopyMatching error is  \(error)")
                 } else {
-                    logger.info("SecItemCopyMatching called and status is \(status) and   \(status.description)")
-                    logger.info("Got the key data as \(dataTypeRef as! CFData)")
+                    self.logger.info("SecItemCopyMatching called and status is \(status) and   \(status.description)")
+                    self.logger.info("Got the key data as \(dataTypeRef as! CFData)")
                    
                     let str = String(decoding: dataTypeRef as! Data, as: UTF8.self)
-                    logger.info("Password is \(str)")
+                    self.logger.info("Password is \(str)")
                 }
                 
             } else {
-                logger.error("Error \(evaluationError!)")
+                self.logger.error("Error \(evaluationError!)")
                 if let errorObj = evaluationError {
                     let messageToDisplay = self.getErrorDescription(errorCode: errorObj._code)
-                    logger.error(messageToDisplay)
+                    self.logger.error(messageToDisplay)
                 }
             }
             sem.signal()
@@ -243,19 +245,6 @@ class SecureAccess {
         default:
             return "Error code \(errorCode) not found"
         }
-    }
-}
-
-
-extension OSStatus {
-
-    var error: NSError? {
-        guard self != errSecSuccess else { return nil }
-
-        let message = SecCopyErrorMessageString(self, nil) as String? ?? "Unknown error"
-
-        return NSError(domain: NSOSStatusErrorDomain, code: Int(self), userInfo: [
-            NSLocalizedDescriptionKey: message])
     }
 }
 

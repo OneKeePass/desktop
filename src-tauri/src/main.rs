@@ -5,10 +5,10 @@
 
 mod biometric;
 mod commands;
+mod key_secure;
 mod menu;
 mod preference;
 mod utils;
-mod key_secure;
 
 use log::info;
 use tauri::Manager;
@@ -32,6 +32,7 @@ fn main() {
     .invoke_handler(tauri::generate_handler![
       // Sorted alphabetically
       commands::analyzed_password,
+      commands::authenticate_with_biometric,
       commands::close_kdbx,
       commands::collect_entry_group_tags,
       commands::create_kdbx,
@@ -68,28 +69,25 @@ fn main() {
       commands::new_entry_form_data,
       commands::read_and_verify_db_file,
       commands::read_app_preference,
-      commands::read_key,
       commands::reload_kdbx,
       commands::remove_entry_permanently,
       commands::remove_group_permanently,
       commands::save_all_modified_dbs,
       commands::save_as_kdbx,
       commands::save_kdbx,
-      commands::save_key,
       commands::score_password,
       commands::search_term,
       commands::set_db_settings,
       commands::standard_paths,
+      commands::supported_biometric_type,
       commands::svg_file,
       commands::system_info_with_preference,
       commands::unlock_kdbx,
-      commands::unlock_kdbx_with_biometric_authentication,
+      commands::unlock_kdbx_on_biometric_authentication,
       commands::update_entry_from_form_data,
       commands::update_group,
       commands::upload_entry_attachment,
-      
-
-      /* 
+      /*
       commands::save_as_kdbx,
       commands::save_kdbx,
       commands::save_all_modified_dbs,
@@ -171,7 +169,7 @@ fn main() {
             WindowEventPayload {
               action: "CloseRequested".into(),
             },
-          ); 
+          );
           // "Main Window close requested"
           // use the exposed close api, and prevent the event loop to close
           // The window will be closed when UI side finally send the "Quit" event

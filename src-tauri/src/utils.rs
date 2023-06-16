@@ -20,6 +20,7 @@ use tauri::{
 };
 
 use crate::key_secure;
+use crate::biometric;
 use crate::preference::Preference;
 use onekeepass_core::db_service as kp_service;
 
@@ -104,6 +105,7 @@ pub struct SystemInfoWithPreference {
   pub os_name: String,
   pub path_sep: String,
   pub standard_dirs: StandardDirs,
+  pub biometric_type_available:String, 
   pub preference: Preference,
 }
 
@@ -118,6 +120,7 @@ impl SystemInfoWithPreference {
       standard_dirs: StandardDirs {
         document_dir: document_dir().and_then(|p| p.as_path().to_str().map(|s| s.into())),
       },
+      biometric_type_available:biometric::supported_biometric_type(),
       // document_dir().and_then(|d| Some(d.as_os_str().to_string_lossy().to_string())),
       preference: p.clone(),
     }

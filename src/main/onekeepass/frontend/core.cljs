@@ -23,7 +23,8 @@
                                                      mui-button
                                                      mui-css-baseline
                                                      mui-styled-engine-provider
-                                                     mui-theme-provider]]))
+                                                     mui-theme-provider]]
+   [onekeepass.frontend.constants :as const]))
 
 ;;(set! *warn-on-infer* true)
 
@@ -56,21 +57,32 @@
    [right-content]])
 
 (defn locked-content []
-  [mui-stack {:sx {:height "100%"
-                   :align-items "center"
-                   :justify-content "center"}}
-   [mui-box
-    [mui-stack {:sx {:align-items "center"}}
-     [mui-typography {:variant "h4"} "Database locked"]]
+  (let [biometric-type @(cmn-events/biometric-type-available)]
+    ;;(println "biometric-type is " biometric-type)
+    [mui-stack {:sx {:height "100%"
+                     :align-items "center"
+                     :justify-content "center"}}
+     [mui-box
+      [mui-stack {:sx {:align-items "center"}}
+       [mui-typography {:variant "h4"} "Database locked"]]
 
-    [mui-stack {:sx {:mt 2}}
-     [mui-typography {:variant "h6"}
-      @(cmn-events/active-db-key)]]
+      [mui-stack {:sx {:mt 2}}
+       [mui-typography {:variant "h6"}
+        @(cmn-events/active-db-key)]]
 
-    [mui-stack {:sx {:mt 3 :align-items "center"}}
-     [mui-button {:variant "outlined"
-                  :color "inherit"
-                  :on-click #(cmn-events/unlock-current-db)} "Unlock"]]]])
+      [mui-stack {:sx {:mt 3 :align-items "center"}}
+       [mui-button {:variant "outlined"
+                    :color "inherit"
+                    :on-click #(cmn-events/unlock-current-db biometric-type)}
+        (condp = biometric-type
+          const/TOUCH_ID
+          (str "TouchID" " Quick unlock")
+          
+          const/FACE_ID
+          (str "FaceID" " Quick unlock")
+
+          const/NO_BIOMETRIC
+          "Quick unlock")]]]]))
 
 (defn group-entry-content-tabs
   "Presents tabs for all opened dbs.The actual content of a selected 

@@ -1,6 +1,103 @@
 import SwiftRs
-import AppKit
 
+import LocalAuthentication
+
+
+let logger = OkpLogger(tag: "FFI Call")
+
+@_cdecl("available_biometric_type")
+func availableBiometricType() -> Int {
+    let localAuthenticationContext = LAContext()
+    var authorizationError: NSError?
+    var supportedType:Int?
+    
+    if localAuthenticationContext.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &authorizationError) {
+        switch localAuthenticationContext.biometryType {
+        case .faceID:
+            logger.info("Supported Biometric type is: faceID")
+            supportedType = 2
+        case .touchID:
+            logger.info("Supported Biometric type is: touchID")
+            supportedType = 1
+        case .none:
+            logger.info("No biometeric")
+            supportedType = 0
+        @unknown default:
+            logger.info("@unknown biometeric")
+            supportedType = 0
+        }
+    }
+    
+    if authorizationError != nil {
+        logger.error("authorizationError is \(String(describing: authorizationError))")
+        return 0
+    }
+    
+    return supportedType ?? 0
+}
+
+@_cdecl("biometric_authentication")
+func biometricAuthentication() -> Bool {
+    let localAuthenticationContext = LAContext()
+    let reason = "Authentication is required to continue"
+    
+    let sem = DispatchSemaphore(value:0)
+    var authenticated:Bool?
+    
+    localAuthenticationContext.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { success, evaluationError in
+        if success {
+            authenticated = success
+        } else {
+            logger.error("Error \(evaluationError!)")
+            if let errorObj = evaluationError {
+                let messageToDisplay = getErrorDescription(errorCode: errorObj._code)
+                logger.error(messageToDisplay)
+            }
+            authenticated = false
+        }
+        sem.signal()
+    }
+    
+    sem.wait()
+    return authenticated ?? false
+}
+
+func getErrorDescription(errorCode: Int) -> String {
+    switch errorCode {
+    case LAError.authenticationFailed.rawValue:
+        return "Authentication was not successful, because user failed to provide valid credentials."
+        
+    case LAError.appCancel.rawValue:
+        return "Authentication was canceled by application (e.g. invalidate was called while authentication was in progress)."
+        
+    case LAError.invalidContext.rawValue:
+        return "LAContext passed to this call has been previously invalidated."
+        
+    case LAError.notInteractive.rawValue:
+        return "Authentication failed, because it would require showing UI which has been forbidden by using interactionNotAllowed property."
+        
+    case LAError.passcodeNotSet.rawValue:
+        return "Authentication could not start, because passcode is not set on the device."
+        
+    case LAError.systemCancel.rawValue:
+        return "Authentication was canceled by system (e.g. another application went to foreground)."
+        
+    case LAError.userCancel.rawValue:
+        return "Authentication was canceled by user (e.g. tapped Cancel button)."
+        
+    case LAError.userFallback.rawValue:
+        return "Authentication was canceled, because the user tapped the fallback button (Enter Password)."
+        
+    default:
+        return "Error code \(errorCode) not found"
+    }
+}
+
+
+// --------------------------------------------------------
+
+/*
+//import AppKit
 @_cdecl("get_file_thumbnail_base64")
 func getFileThumbnailBase64(path: SRString) -> SRString {
     let path = path.toString();
@@ -93,7 +190,7 @@ func returnNullable(null: Bool) -> Test? {
     return Test(null)
 }
 
-private let sa  = SecureAccess()
+private let sa  = SecureAccess2()
 
 @_cdecl("save_key_in_secure_store")
 func storeKey() {
@@ -104,3 +201,4 @@ func storeKey() {
 func getKey() {
     sa.getKey()
 }
+*/

@@ -12,7 +12,8 @@
    [cljs.core.async :refer [go-loop timeout <!]]
    [onekeepass.frontend.constants :refer [ADD_TAG_PREFIX DB_CHANGED]]
    [onekeepass.frontend.utils :refer [contains-val? str->int utc-to-local-datetime-str]]
-   [onekeepass.frontend.background :as bg]))
+   [onekeepass.frontend.background :as bg]
+   [onekeepass.frontend.constants :as const]))
 
 (declare check-error)
 (declare on-error)
@@ -44,6 +45,9 @@
 (defn recent-files []
   (subscribe [:recent-files]))
 
+(defn biometric-type-available []
+  (subscribe [:biometric-type-available]))
+
 (reg-event-db
  :load-system-info-with-preference
  (fn [db [_event-id]]
@@ -55,12 +59,15 @@
 
 (reg-event-fx
  :load-system-info-with-preference-complete
- (fn [{:keys [db]} [_event-id {:keys [standard-dirs os-name path-sep preference]}]]
+ (fn [{:keys [db]} [_event-id {:keys [standard-dirs os-name path-sep 
+                                      biometric-type-available
+                                      preference]}]]
    (set-session-timeout (:session-timeout preference))
    ;;(println "document-dir os-name path-sep preference " document-dir os-name path-sep preference)
    {:db (-> db (assoc :app-preference preference)
             (assoc :standard-dirs standard-dirs)
             (assoc :path-sep path-sep)
+            (assoc :biometric-type-available biometric-type-available)
             (assoc :os-name os-name))}))
 
 (reg-event-db
@@ -87,6 +94,11 @@
  :app-preference
  (fn [db _query-vec]
    (:app-preference db)))
+
+(reg-sub
+ :biometric-type-available
+ (fn [db _query-vec]
+   (:biometric-type-available db)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -302,8 +314,10 @@
 (defn locked? []
   (subscribe [:common/current-db-locked]))
 
-(defn unlock-current-db []
-  (dispatch [:open-db-form/dialog-show-on-current-db-unlock-request]))
+(defn unlock-current-db [biometric-type] 
+  (if (= biometric-type const/NO_BIOMETRIC)
+    (dispatch [:open-db-form/dialog-show-on-current-db-unlock-request])
+    (dispatch [:open-db-form/authenticate-with-biometric])))
 
 (reg-event-fx
  :common/lock-current-db

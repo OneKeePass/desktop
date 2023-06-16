@@ -6,8 +6,8 @@ use crate::utils::*;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct BackupPreference {
-  pub (crate) enabled: bool,
-  pub (crate) dir: Option<String>,
+  pub(crate) enabled: bool,
+  pub(crate) dir: Option<String>,
 }
 
 impl Default for BackupPreference {
@@ -45,8 +45,8 @@ impl Default for Preference {
 
 impl Preference {
   /// Reads the previously stored preference if any and returns the newly created Preference instance
-  pub fn read_toml(version:String) -> Self {
-    // As read_toml is called before log setup, any log calls will not work. 
+  pub fn read_toml(version: String) -> Self {
+    // As read_toml is called before log setup, any log calls will not work.
     // May need to use println if we want to see any console output during development
 
     let pref_file_name = app_home_dir().join("preference.toml");
@@ -81,7 +81,6 @@ impl Preference {
       }
     };
 
-    
     if pref.version != version {
       // The read preference from file system has version whic is not the same as current one
       // So we need to write the new one

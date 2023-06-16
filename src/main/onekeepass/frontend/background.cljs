@@ -184,8 +184,11 @@
                              :password password
                              :key-file-name key-file-name} dispatch-fn))
 
-(defn unlock-kdbx-with_biometric-authentication [db-key dispatch-fn]
-  (invoke-api "unlock_kdbx_with_biometric_authentication" {:db-key db-key} dispatch-fn ))
+(defn unlock-kdbx-on-biometric-authentication [db-key dispatch-fn]
+  (invoke-api "unlock_kdbx_on_biometric_authentication" {:db-key db-key} dispatch-fn ))
+
+(defn authenticate-with-biometric [db-key dispatch-fn]
+  (invoke-api "authenticate_with_biometric" {:db-key db-key} dispatch-fn))
 
 (defn read-and-verify-db-file [db-key dispatch-fn]
   (invoke-api "read_and_verify_db_file" {:db-key db-key} dispatch-fn))

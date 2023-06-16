@@ -161,6 +161,9 @@
 (defn unlock-current-db []
   (dispatch [:open-db-form/dialog-show-on-current-db-unlock-request]))
 
+(defn authenticate-with-biometric []
+  (dispatch [:open-db-form/authenticate-with-biometric]))
+
 ;;;;;;;;;;;;;;;;;;;;;; Save on the current db closing ;;;;;;;;;
 
 (defn close-current-db-on-click []

@@ -35,3 +35,7 @@
 (def ADD_TAG_PREFIX "Add New Tag:")
 
 (def DB_CHANGED "DbFileContentChangeDetected")
+
+(def TOUCH_ID "TouchID")
+(def FACE_ID "FaceID")
+(def NO_BIOMETRIC "None")

@@ -15,6 +15,10 @@
 	                	"underline": false,
 	            }
 	        }
-    	}	
+		},
+		"rust-analyzer.linkedProjects": [
+			"./src-tauri/Cargo.toml",
+			"./src-tauri/Cargo.toml"
+		]
     }
 }

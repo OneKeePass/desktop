@@ -41,7 +41,7 @@ pub(crate) async fn load_kdbx(
   app_state: State<'_, utils::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
   // key_file_name.as_deref() converts Option<String> to Option<&str> - https://stackoverflow.com/questions/31233938/converting-from-optionstring-to-optionstr
-  
+
   let r = kp_service::load_kdbx(db_file_name, password, key_file_name.as_deref());
 
   // let r = kp_service::load_kdbx_NEW(
@@ -395,11 +395,11 @@ pub(crate) async fn save_as_kdbx(
   app_state: State<'_, utils::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
   //key_secure::copy_key(db_key, db_file_name)?;
-  
-  let r = kp_service::save_as_kdbx(db_key, db_file_name,)?;
-  
+
+  let r = kp_service::save_as_kdbx(db_key, db_file_name)?;
+
   //key_secure::delete_key(db_key);
-  
+
   // Appends this file name to the most recently opned file list
   app_state
     .preference
@@ -443,7 +443,6 @@ pub(crate) async fn save_all_modified_dbs(
 #[command]
 pub(crate) async fn close_kdbx(db_key: &str) -> Result<()> {
   kp_service::close_kdbx(db_key)?;
-  key_secure::delete_key(db_key);
   Ok(())
 }
 
@@ -457,13 +456,12 @@ pub(crate) async fn lock_kdbx(db_key: &str) -> Result<()> {
 }
 
 #[command]
-pub(crate) async fn unlock_kdbx_with_biometric_authentication(db_key: &str) -> Result<()> {
-  // Need to initiate Touch ID call sequence
-  // On successful Touch ID return, the session ecryption key is restored and 'Result<kp_service::KdbxLoaded>' returned
-
-  // In case, user cancels the Touch ID UI, we need to present the passord based and key file authentication
-
-  Ok(())
+pub(crate) async fn unlock_kdbx_on_biometric_authentication(
+  db_key: &str,
+) -> Result<kp_service::KdbxLoaded> {
+  Ok(kp_service::unlock_kdbx_on_biometric_authentication(
+    db_key,
+  )?)
 }
 
 #[command]
@@ -571,17 +569,12 @@ pub async fn svg_file<R: Runtime>(app: tauri::AppHandle<R>, name: &str) -> Resul
   Ok(s)
 }
 
-// #[tauri::command]
-// pub fn sample_call() {
-//   biometric::store_key();
-// }
-
 #[tauri::command]
-pub async fn save_key() {
-  biometric::save_key();
+pub async fn supported_biometric_type() -> Result<String> {
+  Ok(biometric::supported_biometric_type())
 }
 
 #[tauri::command]
-pub async fn read_key() {
-  biometric::read_key();
+pub async fn authenticate_with_biometric(db_key: &str) -> Result<bool> {
+  Ok(biometric::authenticate_with_biometric(db_key))
 }
