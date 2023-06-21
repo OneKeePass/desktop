@@ -209,7 +209,7 @@
 (reg-event-fx
  :open-db-biometric-login-success
  (fn [{:keys [db]} [_event-id]]
-   (println ":open-db-biometric-login-success called")
+   ;;(println ":open-db-biometric-login-success called")
    {:fx [[:bg-unlock-kdbx-on-biometric-authentication [(active-db-key db)]]]}))
 
 (reg-fx
@@ -226,7 +226,7 @@
 (reg-event-fx
  :open-db-biometric-login-fail
  (fn [{:keys [db]} [_event-id]]
-   (println "open-db-biometric-login-fail is called ")
+   ;;(println "open-db-biometric-login-fail is called ")
    {:fx [[:dispatch [:common/message-snackbar-error-open "Biometric authentication is not successful"]]
          [:dispatch [:open-db-form/dialog-show-on-current-db-unlock-request]]]}))
 

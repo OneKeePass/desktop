@@ -59,7 +59,7 @@
 
 (reg-event-fx
  :load-system-info-with-preference-complete
- (fn [{:keys [db]} [_event-id {:keys [standard-dirs os-name path-sep 
+ (fn [{:keys [db]} [_event-id {:keys [standard-dirs os-name path-sep
                                       biometric-type-available
                                       preference]}]]
    (set-session-timeout (:session-timeout preference))
@@ -107,7 +107,7 @@
   The args are the re-frame 'app-db' and KdbxLoaded struct returned by backend API.
   Returns the updated app-db
   "
-  [app-db {:keys [db-key database-name]}] ;;kdbx-loaded
+  [app-db {:keys [db-key database-name file-name]}] ;;kdbx-loaded
   (let [app-db  (if (nil? (:opened-db-list app-db)) (assoc app-db :opened-db-list []) app-db)]
     (-> app-db
         (assoc :current-db-file-name db-key)
@@ -115,6 +115,7 @@
          ;;       This should be done in open db dialog validation itself (?)
         (update-in [:opened-db-list] conj {:db-key db-key
                                            :database-name database-name
+                                           :file-name file-name
                                            :user-action-time (js/Date.now)
                                            ;;:database-name (:database-name meta)
                                            }))))
@@ -182,6 +183,12 @@
   "Gets the list of db keys of all opened dbs in UI"
   [app-db]
   (mapv (fn [m] (:db-key m)) (:opened-db-list app-db)))
+
+(defn current-opened-db
+  "Called to get the currently active database's info from the opened db list "
+  [app-db]
+  (let [db-key (active-db-key app-db)]
+    (first (filter (fn [m] (= db-key (:db-key m))) (:opened-db-list app-db)))))
 
 (defn is-in-opend-db-list [db-file-name db-list]
   ;; Using (boolean (seq a)) instead of (not (empty? a))
@@ -251,6 +258,26 @@
 (reg-event-db
  :common/save-db-file-as
  (fn [db [_event-id]]
+   (let [
+         save-as-file-name  (-> db current-opened-db :file-name (str/split #"\.") first)
+         save-as-file-name (str save-as-file-name
+                                "-"
+                                (utc-to-local-datetime-str (js/Date.) "yyyy-MM-dd HH mm ss")
+                                ".kdbx") 
+         f (fn [file-name]
+            ;;(println "file-name is " file-name)
+             (when-not (nil? file-name)
+               (bg/save-as-kdbx (active-db-key db) file-name on-save-as)))]
+    ;; Pass something similar {:default-path (str database-name ".kdbx")} to save as done in New database dialog
+    ;; Now the user is presented with the default "Untitled"
+     (bg/save-file-dialog {:default-path save-as-file-name} f)
+
+     db)))
+
+
+#_(reg-event-db
+ :common/save-db-file-as
+ (fn [db [_event-id]]
    (let [{:keys [current-db-file-name path-sep]} db
          ;; Extracts the file name from  the database full file path 
          ;; "/Users/jjklsdf/Documents/OneKeePass/Mypasswords.kdbx" to Mypasswords
@@ -314,7 +341,9 @@
 (defn locked? []
   (subscribe [:common/current-db-locked]))
 
-(defn unlock-current-db [biometric-type] 
+(defn unlock-current-db
+  "Unlocks the database using biometric option if available"
+  [biometric-type]
   (if (= biometric-type const/NO_BIOMETRIC)
     (dispatch [:open-db-form/dialog-show-on-current-db-unlock-request])
     (dispatch [:open-db-form/authenticate-with-biometric])))
@@ -332,7 +361,8 @@
    (bg/lock-kdbx db-key (fn [api-response]
                           (when-not (on-error api-response)
                             ;; Add any relevant dispatch calls here
-                            (println "Database is locked"))))))
+                            ;;(println "Database is locked")
+                            #())))))
 
 ;; Dispatched from a open-db-form event
 (reg-event-fx
@@ -360,19 +390,20 @@
  (fn [[db-key]]
    (bg/read-and-verify-db-file db-key
                                (fn [api-response]
+                                 ;; If the database change detected, we receive 
+                                 ;; {:error const/DB_CHANGED }
                                  (when-not (on-error
                                             api-response
                                             #(dispatch [:database-change-detected %]))
-                                   #()
-                                   #_(dispatch [:common/message-snackbar-open ""])
-                                   #_(println "No change in database"))))))
+                                   ;; When there is no database change, nothing is done
+                                   #())))))
 
 (reg-event-fx
  :database-change-detected
  (fn [{:keys [db]} [_event-id error]]
    ;; Need to check error code for specific value ''
    ;; if we have unsaved data, need to give user options for the next actions
-   (if (and (= error DB_CHANGED) (get-in-key-db db [:db-modification :save-pending]) )
+   (if (and (= error DB_CHANGED) (get-in-key-db db [:db-modification :save-pending]))
      {:fx [[:dispatch [:common/error-info-box-show {:title "Database changed"
                                                     :message (str "The database content of the file has changed since the last opening."
                                                                   " Please save to see options availble to resolve this")}]]]}
@@ -412,7 +443,6 @@
          [:dispatch [:open-db-form/login-dialog-show-on-reload-error
                      {:file-name (active-db-key db)
                       :error-text error}]]]}))
-
 
 (reg-sub
  :common/current-db-locked

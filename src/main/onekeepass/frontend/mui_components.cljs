@@ -237,6 +237,7 @@
   DeleteOutline
   DoneAll
   EditOutlined
+  Fingerprint
   Folder
   FolderOutlined
   FavoriteBorder

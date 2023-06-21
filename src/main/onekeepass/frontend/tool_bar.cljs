@@ -145,6 +145,7 @@
   (fn []
     (let [save-action-data @(tb-events/save-current-db-data)
           locked? @(cmn-events/locked?)
+          biometric-type @(cmn-events/biometric-type-available)
           save-disabled? (or locked? (not @(cmn-events/db-save-pending?)))]
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE (not save-disabled?))
       ;; React useEffect 
@@ -196,7 +197,7 @@
             [mui-tooltip {:title "Unlock Database" :enterDelay 2000}
              [mui-icon-button
               {:edge "start" :color "inherit"
-               :on-click tb-events/unlock-current-db}
+               :on-click #(tb-events/unlock-current-db biometric-type)}
               [mui-icon-lock-outlined]]]
             [mui-tooltip {:title "Lock Database" :enterDelay 2000}
              [mui-icon-button

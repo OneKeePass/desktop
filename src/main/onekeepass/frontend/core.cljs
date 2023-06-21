@@ -15,12 +15,14 @@
 
    [onekeepass.frontend.mui-components :as m :refer [split-pane
                                                      custom-theme-atom
+                                                     mui-icon-fingerprint
                                                      mui-stack
                                                      mui-box
                                                      mui-tabs
                                                      mui-tab
                                                      mui-typography
                                                      mui-button
+                                                     mui-icon-button
                                                      mui-css-baseline
                                                      mui-styled-engine-provider
                                                      mui-theme-provider]]
@@ -71,18 +73,19 @@
         @(cmn-events/active-db-key)]]
 
       [mui-stack {:sx {:mt 3 :align-items "center"}}
+       (cond
+         (or (= biometric-type const/TOUCH_ID) (= biometric-type const/FACE_ID))
+         [mui-icon-button {:aria-label "fingerprint"
+                           :color "secondary"
+                           :on-click #(cmn-events/unlock-current-db biometric-type)}
+          [mui-icon-fingerprint {:sx {:font-size 40}}]]
+
+         :else nil)
+
        [mui-button {:variant "outlined"
                     :color "inherit"
                     :on-click #(cmn-events/unlock-current-db biometric-type)}
-        (condp = biometric-type
-          const/TOUCH_ID
-          (str "TouchID" " Quick unlock")
-          
-          const/FACE_ID
-          (str "FaceID" " Quick unlock")
-
-          const/NO_BIOMETRIC
-          "Quick unlock")]]]]))
+        "Quick unlock"]]]]))
 
 (defn group-entry-content-tabs
   "Presents tabs for all opened dbs.The actual content of a selected 

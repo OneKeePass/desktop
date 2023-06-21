@@ -6,6 +6,7 @@
                           reg-sub
                           dispatch
                           subscribe]]
+   [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.events.common :as cmn-events :refer [active-db-key
                                                              opened-db-keys
                                                              db-save-pending?
@@ -158,11 +159,11 @@
 (defn lock-current-db []
   (dispatch [:common/lock-current-db]))
 
-(defn unlock-current-db []
-  (dispatch [:open-db-form/dialog-show-on-current-db-unlock-request]))
-
-(defn authenticate-with-biometric []
-  (dispatch [:open-db-form/authenticate-with-biometric]))
+(defn unlock-current-db [biometric-type]
+  (println "biometric-type passed " biometric-type)
+  (if (= biometric-type const/NO_BIOMETRIC)
+    (dispatch [:open-db-form/dialog-show-on-current-db-unlock-request])
+    (dispatch [:open-db-form/authenticate-with-biometric])))
 
 ;;;;;;;;;;;;;;;;;;;;;; Save on the current db closing ;;;;;;;;;
 
