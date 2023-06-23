@@ -10,16 +10,14 @@
                           subscribe]]
    [clojure.string :as str]
    [cljs.core.async :refer [go-loop timeout <!]]
-   [onekeepass.frontend.constants :refer [ADD_TAG_PREFIX DB_CHANGED]]
+   [onekeepass.frontend.constants :as const :refer [ADD_TAG_PREFIX DB_CHANGED]]
    [onekeepass.frontend.utils :refer [contains-val? str->int utc-to-local-datetime-str]]
-   [onekeepass.frontend.background :as bg]
-   [onekeepass.frontend.constants :as const]))
+   [onekeepass.frontend.background :as bg]))
 
 (declare check-error)
 (declare on-error)
 (declare active-db-key)
 (declare assoc-in-key-db)
-
 
 (defn sync-initialize
   "Called just before rendering to set all requied values in re-frame db"
@@ -107,7 +105,7 @@
   The args are the re-frame 'app-db' and KdbxLoaded struct returned by backend API.
   Returns the updated app-db
   "
-  [app-db {:keys [db-key database-name file-name]}] ;;kdbx-loaded
+  [app-db {:keys [db-key database-name file-name key-file-name]}] ;;kdbx-loaded
   (let [app-db  (if (nil? (:opened-db-list app-db)) (assoc app-db :opened-db-list []) app-db)]
     (-> app-db
         (assoc :current-db-file-name db-key)
@@ -116,45 +114,10 @@
         (update-in [:opened-db-list] conj {:db-key db-key
                                            :database-name database-name
                                            :file-name file-name
+                                           :key-file-name key-file-name
                                            :user-action-time (js/Date.now)
                                            ;;:database-name (:database-name meta)
                                            }))))
-
-;; Called after creating a new database or after opening an existing database
-(reg-event-fx
- :common/kdbx-database-opened
- (fn [{:keys [db]} [_event-id kdbx-loaded]]
-   {:db (db-opened db kdbx-loaded)
-    :fx [[:dispatch [:common/kdbx-database-loading-complete kdbx-loaded]]]}))
-
-(reg-event-fx
- :common/kdbx-database-loading-complete
- (fn [{:keys [db]} [_event-id kdbx-loaded]]
-   {:fx [[:dispatch [:load-all-tags]]
-         [:dispatch [:group-tree-content/load-groups]]
-         [:dispatch [:entry-category/category-data-load-start
-                     (-> db :app-preference :default-entry-category-groupings)]]
-         [:dispatch [:common/load-entry-type-headers]]
-         [:dispatch [:common/message-snackbar-open
-                     (str "Opened database " (:db-key kdbx-loaded))]]]}))
-
-;; A common refresh all forms after an entry form changes - delete, put back , delete permanent
-(reg-event-fx
- :common/refresh-forms
- (fn [{:keys [_db]} [_event-id]]
-   {:fx [[:dispatch [:entry-form-ex/show-welcome]]
-         [:dispatch [:group-tree-content/load-groups]]
-         [:dispatch [:entry-category/show-groups-as-tree-or-category]]
-         [:dispatch [:entry-list/entry-updated]]]}))
-
-;; A common refresh all forms after an entry form changes - delete, put back , delete permanent
-(reg-event-fx
- :common/refresh-forms-2
- (fn [{:keys [_db]} [_event-id]]
-   {:fx [[:dispatch [:entry-form-ex/show-welcome]]
-         [:dispatch [:group-tree-content/load-groups]]
-         [:dispatch [:entry-category/show-groups-as-tree-or-category]]
-         [:dispatch [:entry-list/clear-entry-items]]]}))
 
 (defn active-db-key
   ;; To be called only in react components as it used 'subscribe' (i.e in React context)
@@ -185,7 +148,9 @@
   (mapv (fn [m] (:db-key m)) (:opened-db-list app-db)))
 
 (defn current-opened-db
-  "Called to get the currently active database's info from the opened db list "
+  "Called to get the currently active database's info 
+   as map - keys are [db-key database-name file-name key-file-name]
+   from the opened db list (found in :opened-db-list ) "
   [app-db]
   (let [db-key (active-db-key app-db)]
     (first (filter (fn [m] (= db-key (:db-key m))) (:opened-db-list app-db)))))
@@ -251,6 +216,42 @@
   []
   (dispatch [:common/save-db-file-as]))
 
+;; Called after creating a new database or after opening an existing database
+(reg-event-fx
+ :common/kdbx-database-opened
+ (fn [{:keys [db]} [_event-id kdbx-loaded]]
+   {:db (db-opened db kdbx-loaded)
+    :fx [[:dispatch [:common/kdbx-database-loading-complete kdbx-loaded]]]}))
+
+(reg-event-fx
+ :common/kdbx-database-loading-complete
+ (fn [{:keys [db]} [_event-id kdbx-loaded]]
+   {:fx [[:dispatch [:load-all-tags]]
+         [:dispatch [:group-tree-content/load-groups]]
+         [:dispatch [:entry-category/category-data-load-start
+                     (-> db :app-preference :default-entry-category-groupings)]]
+         [:dispatch [:common/load-entry-type-headers]]
+         [:dispatch [:common/message-snackbar-open
+                     (str "Opened database " (:db-key kdbx-loaded))]]]}))
+
+;; A common refresh all forms after an entry form changes - delete, put back , delete permanent
+(reg-event-fx
+ :common/refresh-forms
+ (fn [{:keys [_db]} [_event-id]]
+   {:fx [[:dispatch [:entry-form-ex/show-welcome]]
+         [:dispatch [:group-tree-content/load-groups]]
+         [:dispatch [:entry-category/show-groups-as-tree-or-category]]
+         [:dispatch [:entry-list/entry-updated]]]}))
+
+;; A common refresh all forms after an entry form changes - delete, put back , delete permanent
+(reg-event-fx
+ :common/refresh-forms-2
+ (fn [{:keys [_db]} [_event-id]]
+   {:fx [[:dispatch [:entry-form-ex/show-welcome]]
+         [:dispatch [:group-tree-content/load-groups]]
+         [:dispatch [:entry-category/show-groups-as-tree-or-category]]
+         [:dispatch [:entry-list/clear-entry-items]]]}))
+
 (defn- on-save-as [m]
   (when-let [new-db-key (check-error m)]
     (dispatch [:save-as-completed new-db-key])))
@@ -264,35 +265,6 @@
                                 "-"
                                 (utc-to-local-datetime-str (js/Date.) "yyyy-MM-dd HH mm ss")
                                 ".kdbx") 
-         f (fn [file-name]
-            ;;(println "file-name is " file-name)
-             (when-not (nil? file-name)
-               (bg/save-as-kdbx (active-db-key db) file-name on-save-as)))]
-    ;; Pass something similar {:default-path (str database-name ".kdbx")} to save as done in New database dialog
-    ;; Now the user is presented with the default "Untitled"
-     (bg/save-file-dialog {:default-path save-as-file-name} f)
-
-     db)))
-
-
-#_(reg-event-db
- :common/save-db-file-as
- (fn [db [_event-id]]
-   (let [{:keys [current-db-file-name path-sep]} db
-         ;; Extracts the file name from  the database full file path 
-         ;; "/Users/jjklsdf/Documents/OneKeePass/Mypasswords.kdbx" to Mypasswords
-         save-as-file-name (-> current-db-file-name
-                               (str/split (re-pattern
-                                           (str path-sep)))
-                               last (str/split #"\.") first)
-         ;; Appends timestamp and add back the extension 
-         ;; Mypasswords to  Mypasswords-2023-05-12 16 36 30.kdbx
-         save-as-file-name (if (= save-as-file-name current-db-file-name)
-                             "Mypassword.kdbx"
-                             (str save-as-file-name
-                                  "-"
-                                  (utc-to-local-datetime-str (js/Date.) "yyyy-MM-dd HH mm ss")
-                                  ".kdbx"))
          f (fn [file-name]
             ;;(println "file-name is " file-name)
              (when-not (nil? file-name)

@@ -5,21 +5,18 @@
    [onekeepass.frontend.open-db-form :as od-form]
    [onekeepass.frontend.new-database :as nd-form]
    [onekeepass.frontend.common-components :refer [message-dialog]]
-   
+
    [onekeepass.frontend.events.new-database :as nd-events]
    [onekeepass.frontend.events.open-db-form :as od-events]
-   [onekeepass.frontend.events.common :as cmn-events]
-   
-   [onekeepass.frontend.background :as bg]
-   
+   [onekeepass.frontend.events.common :as cmn-events] 
    [onekeepass.frontend.mui-components :as m :refer [mui-link
                                                      mui-typography
-                                                     mui-container 
-                                                     mui-icon-button 
-                                                     mui-icon-folder-outlined 
+                                                     mui-container
+                                                     mui-icon-button
+                                                     mui-icon-folder-outlined
                                                      mui-box
                                                      mui-divider
-                                                     mui-stack 
+                                                     mui-stack
                                                      mui-tooltip]]))
 
 (set! *warn-on-infer* true)
@@ -36,7 +33,7 @@
     [mui-box {:sx {:display "flex" :width "50%" :height "100%" :flexDirection "column"}}
      [mui-typography {:variant "h6"} "Start"]
      [mui-stack {:direction "row" :gap 2 :alignItems "center"}
-      [mui-icon-button  {:edge "start" :color "inherit" :sx {:ml 0}} 
+      [mui-icon-button  {:edge "start" :color "inherit" :sx {:ml 0}}
        [cust-icons/database-cog-outline]]
       [mui-link  {:variant "subtitle1"
                   :onClick nd-events/new-database-dialog-show}
@@ -66,17 +63,8 @@
                    :width "50%"
                    :justify-content "flex-start"
                    :flexDirection "column"}}
-     #_[mui-stack {:direction "row" :align-self "center"} ;;:sx {:mt "25%"}
-        [mui-typography {:variant "h4" :sx {:color "text.primary"}} "OneKeePass"]]
      [mui-stack {:direction "row" :align-self "center"} ;;:sx {:mt "25%"}
-      [mui-typography {:variant "h4" :sx {:color "text.primary"}} "OneKeePass..."]]
-     
-     [mui-stack
-      [mui-link {:on-click #(bg/test-save-key)} "Save key"]
-[mui-link {:on-click #(bg/test-read-key)} "Read key"]
-      ]
-     
-     ]]])
+      [mui-typography {:variant "h4" :sx {:color "text.primary"}} "OneKeePass"]]]]])
 
 (defn welcome-content []
   [:div {:class "box" :style {:overflow "hidden" :background-color "ghostwhite"}} ;; hidden used so to avoid showing scrollbar 

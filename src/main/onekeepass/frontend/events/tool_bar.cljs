@@ -157,13 +157,38 @@
 ;;;;;;;;;;;;;;;;;;;;;; Lock/Unlock db ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn lock-current-db []
-  (dispatch [:common/lock-current-db]))
+  (dispatch [:tool-bar/lock-current-db])
+  #_(dispatch [:common/lock-current-db]))
+
+(defn on-lock-ask-save-dialog-hide []
+  (dispatch [:on-lock-ask-save-dialog-show false]))
+
+(defn on-lock-ask-save-dialog-data []
+  (subscribe [:on-lock-ask-save-dialog-data]))
 
 (defn unlock-current-db [biometric-type]
   (println "biometric-type passed " biometric-type)
   (if (= biometric-type const/NO_BIOMETRIC)
     (dispatch [:open-db-form/dialog-show-on-current-db-unlock-request])
     (dispatch [:open-db-form/authenticate-with-biometric])))
+
+(reg-event-fx
+ :tool-bar/lock-current-db
+ (fn [{:keys [db]} [_query-id]]
+   (let [save-pending (db-save-pending? db)]
+     (if save-pending
+       {:fx [[:dispatch [:on-lock-ask-save-dialog-show true]]]}
+       {:fx [[:dispatch [:common/lock-current-db]]]}))))
+
+(reg-event-fx
+ :on-lock-ask-save-dialog-show
+ (fn [{:keys [db]} [_query-id show?]]
+   {:db (assoc-in db [:ask-save-on-lock :data] {:dialog-show show?})}))
+
+(reg-sub
+ :on-lock-ask-save-dialog-data
+ (fn [db _query-vec]
+   (get-in db [:ask-save-on-lock :data])))
 
 ;;;;;;;;;;;;;;;;;;;;;; Save on the current db closing ;;;;;;;;;
 
@@ -322,3 +347,8 @@
  :ask-save
  (fn [db _query-vec]
    (get-in db [:ask-save])))
+
+(comment 
+  (-> @re-frame.db/app-db keys)
+  (def db-key (:current-db-file-name @re-frame.db/app-db))
+  )

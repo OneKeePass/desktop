@@ -1,9 +1,8 @@
 (ns onekeepass.frontend.db-settings
   (:require
-   [reagent.core :as r] 
-   [onekeepass.frontend.events.db-settings :as settings-events] 
-   [onekeepass.frontend.mui-components :as m :refer [
-                                                     color-primary-main
+   [reagent.core :as r]
+   [onekeepass.frontend.events.db-settings :as settings-events]
+   [onekeepass.frontend.mui-components :as m :refer [color-primary-main
                                                      mui-list
                                                      mui-list-item-button
                                                      mui-list-item-icon
@@ -11,7 +10,7 @@
                                                      mui-tooltip
                                                      mui-menu-item
                                                      mui-alert
-                                                     mui-linear-progress 
+                                                     mui-linear-progress
                                                      mui-input-adornment
                                                      mui-icon-button
                                                      mui-icon-feed-outlined
@@ -38,7 +37,7 @@
 (defn list-items [{:keys [panel]}]
   [mui-box {:sx {"& .MuiListItemButton-root" {:padding-left "8px"}
                  "& .MuiListItemIcon-root" {:min-width 0 :margin-right "25px"}
-                 "& .MuiSvgIcon-root" {:color color-primary-main } ;; primary main "#1976d2"
+                 "& .MuiSvgIcon-root" {:color color-primary-main} ;; primary main "#1976d2"
                  }}
    [mui-list
     [mui-list-item-button {:on-click #(settings-events/db-settings-panel-select :general-info)
@@ -138,6 +137,10 @@
                                                               [mui-icon-button {:edge "end" :sx {:mr "-8px"}
                                                                                 :onClick settings-events/open-key-file-explorer-on-click}
                                                                [mui-icon-folder-outlined]]])}}]]
+    [mui-stack
+     [mui-button  {:sx {:m 1}
+                   :variant "text"
+                   :on-click settings-events/generate-key-file} "Generate new key file"]]
     (when @(settings-events/password-changed?)
       [mui-alert {:severity "warning" :sx {:mt 1}} "Password is going to be changed.."])
 
@@ -209,7 +212,8 @@
                      :variant "standard" :fullWidth true}]]]]])
 
 (defn settings-dialog [{:keys [dialog-show status api-error-text panel] :as dialog-data}]
-  (let [in-progress? (= :in-progress status)]
+  (let [in-progress? (= :in-progress status)
+        modified @(settings-events/db-settings-modified)]
     [mui-dialog {:open (if (nil? dialog-show) false dialog-show)  :on-click #(.stopPropagation %)
                  :sx {:min-width "600px"
                       "& .MuiDialog-paper" {:max-width "650px" :width "90%"}}
@@ -218,7 +222,7 @@
      [mui-dialog-title "Database Settings"]
      [mui-dialog-content {:sx {:padding-left "10px"}}
       [mui-stack
-       [mui-stack {:direction "row" :sx {:height "300px " :min-height "300px"}}
+       [mui-stack {:direction "row" :sx {:height "350px " :min-height "300px"}}
         [mui-box {:sx {:width "30%"  :background "#F1F1F1"}} [list-items dialog-data]  #_"List comes here"]
         [mui-box {:sx {:width "70%"  :height "100%"
                        :align-self "center"
@@ -252,7 +256,7 @@
                    :disabled in-progress?
                    :on-click settings-events/cancel-on-click} "Cancel"]
       [mui-button {:variant "contained" :color "secondary"
-                   :disabled in-progress?
+                   :disabled (or (not modified) in-progress?)
                    :on-click settings-events/ok-on-click} "Ok"]]]))
 
 (defn settings-dialog-main []

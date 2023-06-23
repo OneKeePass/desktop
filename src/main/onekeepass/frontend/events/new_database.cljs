@@ -3,7 +3,7 @@
    [re-frame.core :refer [reg-event-db reg-event-fx reg-fx reg-sub dispatch subscribe]]
    [clojure.string :as str]
    [onekeepass.frontend.utils :as utils :refer [str->int]]
-   [onekeepass.frontend.events.common :as cmn-events :refer [check-error]]
+   [onekeepass.frontend.events.common :as cmn-events :refer [check-error on-error]]
    [onekeepass.frontend.background :as bg]))
 
 
@@ -21,6 +21,16 @@
 
 (defn open-key-file-explorer-on-click []
   (cmn-events/open-file-explorer-on-click :new-database-key-file-name-selected))
+
+(defn save-as-key-file-explorer-on-click [database-name]
+  (bg/save-file-dialog {:default-path (str database-name ".keyx")}
+                       (fn [key-file-name]
+                         ;; key-file-name is not updated if user cancels the 'Save As' file exploreer 
+                         (when (not (str/blank? key-file-name))
+                           (bg/generate-key-file key-file-name  (fn [api-response]
+                                                                  (when-not (on-error api-response)
+                                                                    (dispatch [:new-database-field-update  
+                                                                               :key-file-name key-file-name]))))))))
 
 (defn next-on-click []
   (dispatch [:new-database-next-panel]))
@@ -78,6 +88,7 @@
                     ;; Extra UI related fields
                     ;; These fields will be ignored by serde while doing json deserializing to NewDatabase struct
                     :dialog-show false
+                    :show-additional-protection false
                     :password-visible false
                     :password-confirm nil
                     :api-error-text nil
@@ -101,8 +112,8 @@
 
 (defn- validate-security-fields
   [app-db]
-  (let [{:keys [iterations memory parallelism]} (-> app-db :new-database :kdf :Argon2) 
-        [iterations memory parallelism] (mapv str->int [iterations memory parallelism]) 
+  (let [{:keys [iterations memory parallelism]} (-> app-db :new-database :kdf :Argon2)
+        [iterations memory parallelism] (mapv str->int [iterations memory parallelism])
         errors (if (or (nil? iterations) (or (< iterations 5) (> iterations 100)))
                  {:iterations "Valid values should be in the range 5 - 100"} {})
         errors (merge errors
@@ -143,7 +154,7 @@
   [app-db next-panel]
   (let [existing-val (get-in app-db [:new-database :database-file-name])]
     (if (and (= next-panel :file-info) (str/blank? existing-val))
-      (cmn-events/new-db-full-file-name app-db (get-in app-db [:new-database :database-name])) 
+      (cmn-events/new-db-full-file-name app-db (get-in app-db [:new-database :database-name]))
       nil)))
 
 (reg-event-fx
@@ -176,7 +187,7 @@
 (reg-event-db
  :new-database-field-update
  ;; kw-field-name is single kw or a vec of kws
- (fn [db [_event-id kw-field-name value]] 
+ (fn [db [_event-id kw-field-name value]]
    (when (= kw-field-name :database-file-name)
      (check-file-exists value))
    (-> db

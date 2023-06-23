@@ -43,6 +43,14 @@
 
 (set! *warn-on-infer* true)
 
+;; TODO: Something similar to what we do for close database
+(defn ask-save-on-lock [dialog-data]
+  [confirm-text-dialog
+   "Unsaved Changes"
+   "There are changes yet to be saved. Please save before locking the database"
+   [{:label "Ok" :on-click #(tb-events/on-lock-ask-save-dialog-hide)}]
+   dialog-data])
+
 (defn ask-save-dialog [dialog-data]
   [confirm-text-dialog
    "Unsaved Changes"
@@ -85,8 +93,11 @@
 
     [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
     [mui-stack {:style {:align-items "center"}}
-     [mui-typography {:sx  {} #_{"&.MuiTypography-root" {:color "secondary"}}
-                      :color "secondary" :variant  "button"} "Save as"]]
+     [mui-button {:color "secondary"
+                  :variant "text"
+                  :on-click tb-events/conflict-action-save-as} "Save as"]
+     #_[mui-typography {:sx  {} #_{"&.MuiTypography-root" {:color "secondary"}}
+                        :color "secondary" :variant  "button"} "Save as"]]
     [mui-stack
      [mui-typography {:sx {"&.MuiTypography-root" {:color color-primary-main}}}
       "You can save your changes to a new database and manually merge (auto merge feature will be added in the  future release)"]]
@@ -94,8 +105,11 @@
     [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
     [mui-stack  {:direction "column"}
      [mui-stack {:style {:align-items "center"}}
-      [mui-typography {:sx {}
-                       :color "error" :variant  "button"} "Overwrite"]]
+      [mui-button {:color "error"
+                   :variant "text"
+                   :on-click tb-events/confirm-overwrite-external-db} "Overwrite"]
+      #_[mui-typography {:sx {}
+                         :color "error" :variant  "button"} "Overwrite"]]
      [mui-typography {:sx {"&.MuiTypography-root" {:color color-primary-main}}}
       "You can overwrite the database with your changes"]]
 
@@ -103,21 +117,28 @@
     [mui-stack  {:direction "column"}
 
      [mui-stack {:style {:align-items "center"}}
-      [mui-typography {:sx {"&.MuiTypography-root"
-                            {:margin-left "5px"}}
-                       :color "error" :variant  "button"} "Discard & Close database"]]
+      [mui-button {:color "error"
+                   :variant "text"
+                   :on-click tb-events/confirm-discard-current-db} "Discard & Close database"]
+      #_[mui-typography {:sx {"&.MuiTypography-root"
+                              {:margin-left "5px"}}
+                         :color "error" :variant  "button"} "Discard & Close database"]]
 
      [mui-typography {:sx {"&.MuiTypography-root" {:color color-primary-main}}}
       "You can discard your changes and close the database "]]
     [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]]
 
    [mui-dialog-actions
-    [mui-button {:color "error"
-                 :on-click tb-events/confirm-overwrite-external-db} "Overwrite"]
-    [mui-button {:color "error"
-                 :on-click tb-events/confirm-discard-current-db} "Discard & Close database"]
+
     [mui-button {:color "secondary"
-                 :on-click tb-events/conflict-action-save-as} "Save as"]]])
+                 :on-click tb-events/save-current-db-msg-dialog-hide} "Cancel"]
+    ;; [mui-button {:color "error"
+    ;;              :on-click tb-events/confirm-overwrite-external-db} "Overwrite"]
+    ;; [mui-button {:color "error"
+    ;;              :on-click tb-events/confirm-discard-current-db} "Discard & Close database"]
+    ;; [mui-button {:color "secondary"
+    ;;              :on-click tb-events/conflict-action-save-as} "Save as"]
+    ]])
 
 (defn save-info-dialog [{:keys [status api-error-text]}]
   (if (= api-error-text DB_CHANGED)
@@ -194,7 +215,7 @@
             [mui-icon-cancel-presentation]]]
 
           (if locked?
-            [mui-tooltip {:title "Unlock Database" :enterDelay 2000}
+            [mui-tooltip {:title "Quick Unlock Database" :enterDelay 2000}
              [mui-icon-button
               {:edge "start" :color "inherit"
                :on-click #(tb-events/unlock-current-db biometric-type)}
@@ -231,4 +252,5 @@
        [search/search-dialog-main]
        [conflict-action-confirm-dialog @(tb-events/conflict-action-confirm-dialog-data)]
        [ask-save-dialog @(tb-events/ask-save-dialog-data)]
+       [ask-save-on-lock @(tb-events/on-lock-ask-save-dialog-data)]
        [close-current-db-save-dialog @(tb-events/close-current-db-dialog-data)]])))

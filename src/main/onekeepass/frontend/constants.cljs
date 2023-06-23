@@ -39,3 +39,5 @@
 (def TOUCH_ID "TouchID")
 (def FACE_ID "FaceID")
 (def NO_BIOMETRIC "None")
+
+(def PASSWORD "Password")

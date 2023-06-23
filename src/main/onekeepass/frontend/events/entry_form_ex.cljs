@@ -16,6 +16,9 @@
 
 (def Favorites "Favorites")
 
+(defn password-generator-show []
+  (dispatch [:password-generator/start]))
+
 (def entry-form-key :entry-form-data)
 
 (defn update-section-value-on-change

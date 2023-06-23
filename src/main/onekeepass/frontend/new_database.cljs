@@ -12,6 +12,7 @@
                                                      mui-icon-visibility
                                                      mui-icon-visibility-off
                                                      mui-link
+                                                     mui-tooltip
                                                      mui-typography
                                                      mui-dialog
                                                      mui-dialog-title
@@ -43,9 +44,30 @@
                     :value database-description
                     :on-change (nd-events/field-update-factory :database-description)
                     :variant "standard" :fullWidth true}]]]])
-(def show-addition-protection (r/atom false))
 
-(defn- credentials-info [{:keys [password password-confirm password-visible key-file-name error-fields]}]
+
+
+#_(when @show-addition-protection
+    [mui-box {:sx {:width "80%"}}
+     [m/text-field {:label "Key File Name"
+                    :value key-file-name
+                    :placeholder "Optional"
+                    :helperText "Any random small file. A hash of the file's content is used as an additional passsord. This is just an optional one and not required"
+                    :on-change (nd-events/field-update-factory :key-file-name)
+                    :variant "standard" :fullWidth true
+                    :InputProps {:endAdornment (r/as-element [mui-input-adornment {:position "end"}
+                                                              [mui-icon-button {:edge "end" :sx {:mr "-8px"}
+                                                                                :onClick nd-events/open-key-file-explorer-on-click}
+                                                               [mui-icon-folder-outlined]]])}}]])
+
+(defn- credentials-info [{:keys [password 
+                                 password-confirm 
+                                 password-visible 
+                                 key-file-name 
+                                 database-name
+                                 show-additional-protection 
+                                 error-fields]}]
+
   [mui-stack {:spacing 2}
    [mui-typography "Database Credentials"]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
@@ -84,38 +106,39 @@
     [mui-box
      [mui-link {:variant "subtitle1"
                 :color "primary"
-                :onClick (fn [] (reset! show-addition-protection (not @show-addition-protection)))}
-      (if-not @show-addition-protection  "Add additional protection(optional)" "Hide additional protection")]]
+                :onClick (fn []
+                           (nd-events/database-field-update :show-additional-protection (not show-additional-protection)))}
+      (if-not show-additional-protection  "Add additional protection(optional)" "Hide additional protection")]]
 
-    (when @show-addition-protection
+    (when show-additional-protection
       [mui-stack {:sx {:width "80%" :border ".001px solid"}}
        [mui-typography {:sx {:text-align "center"}
                         :variant "h6"} "Key file"]
        [mui-divider {:sx {:margin 1}}]
-       [mui-button  {:sx {:m 1}
-                     :variant "text"
-                     :on-click #()} "Browse"]
 
-       [mui-typography {:variant "caption"} "Any random small file. A hash of the file's content is used as an additional passsord. This is just an optional one and not required"]
+       (if-not (nil? key-file-name)
+         [mui-stack
+          [mui-tooltip {:title key-file-name :enterDelay 1500}
+           [mui-typography {:sx {:mt 1 :white-space "nowrap" :text-overflow "ellipsis" :overflow "hidden"}} key-file-name]]
 
-       [mui-button  {:sx {:m 1}
-                     :variant "text"
-                     :on-click #()} "Generate"]
+          [mui-button  {:sx {:m 1}
+                        :variant "text"
+                        :on-click #(nd-events/database-field-update :key-file-name nil)} "Remove"]]
 
-       [mui-typography {:variant "caption"} "Alternatively, OneKeePass can generate a random key to use as additional key"]])
+         [mui-stack
+          [mui-button  {:sx {:m 1}
+                        :variant "text"
+                        :on-click nd-events/open-key-file-explorer-on-click} "Browse"]
 
-    #_(when @show-addition-protection
-        [mui-box {:sx {:width "80%"}}
-         [m/text-field {:label "Key File Name"
-                        :value key-file-name
-                        :placeholder "Optional"
-                        :helperText "Any random small file. A hash of the file's content is used as an additional passsord. This is just an optional one and not required"
-                        :on-change (nd-events/field-update-factory :key-file-name)
-                        :variant "standard" :fullWidth true
-                        :InputProps {:endAdornment (r/as-element [mui-input-adornment {:position "end"}
-                                                                  [mui-icon-button {:edge "end" :sx {:mr "-8px"}
-                                                                                    :onClick nd-events/open-key-file-explorer-on-click}
-                                                                   [mui-icon-folder-outlined]]])}}]])]])
+          [mui-typography {:variant "caption"}
+           "Any random file that does not change. A hash of the file's content is used as an additional passsord."]
+
+          [mui-button  {:sx {:m 1}
+                        :variant "text"
+                        :on-click #(nd-events/save-as-key-file-explorer-on-click database-name)} "Generate"]
+
+          [mui-typography {:variant "caption"}
+           "Alternatively, OneKeePass can generate a random key to use as additional key"]])])]])
 
 (defn- file-info [{:keys [database-file-name db-file-file-exists database-name]}]
   [mui-stack {:spacing 2}

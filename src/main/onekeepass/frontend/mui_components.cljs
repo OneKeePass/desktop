@@ -149,7 +149,7 @@
   Accordion
   AccordionSummary
   AccordionDetails
-  Autocomplete
+  Autocomplete 
   Avatar
   Box
   Button
@@ -227,6 +227,7 @@
   ArrowDropDown
   ArrowRight
   AccountBalanceOutlined   ;; for bank
+  Autorenew
   CancelPresentation
   CancelPresentationSharp
   CancelPresentationOutlined

@@ -152,6 +152,12 @@ pub(crate) async fn set_db_settings(
   Ok(kp_service::set_db_settings(db_key, db_settings)?)
 }
 
+//generate_key_file
+#[tauri::command]
+pub(crate) async fn generate_key_file(key_file_name: &str,) -> Result<()> {
+  Ok(kp_service::generate_key_file(key_file_name)?)
+}
+
 #[tauri::command]
 pub(crate) async fn create_kdbx(
   new_db: kp_service::NewDatabase,

@@ -44,6 +44,7 @@ fn main() {
       commands::entry_type_headers,
       commands::export_as_xml,
       commands::export_main_content_as_xml,
+      commands::generate_key_file,
       commands::get_categories_to_show,
       commands::get_db_settings,
       commands::get_entry_form_data_by_id,

@@ -366,6 +366,11 @@
                     (csk/->snake_case k)))]
     (cske/transform-keys t new-db)))
 
+(defn generate-key-file  
+  "Called to generate 32 bytes random key ans tsored in version 2.0 keepass xml file"
+  [key-file-name dispatch-fn]
+  (invoke-api "generate_key_file" {:key-file-name key-file-name} dispatch-fn ))
+
 (defn create-kdbx
   "Called to create new database.
   The arg new-db is deserializable as json as expected by NewDatabase struct
