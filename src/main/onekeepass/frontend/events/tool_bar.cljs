@@ -6,6 +6,7 @@
                           reg-sub
                           dispatch
                           subscribe]]
+   [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.events.common :as cmn-events :refer [active-db-key
                                                              opened-db-keys
                                                              db-save-pending?
@@ -59,12 +60,12 @@
  (fn [[db-key overwrite?]]
    (bg/save-kdbx db-key
                  overwrite?
-                 (fn [api-response] 
+                 (fn [api-response]
                    (when-let [kdbx-saved
                               (check-error
                                api-response
                                #(dispatch [:save-current-db-error %]))]
-                     (dispatch [:save-current-db-completed kdbx-saved]) 
+                     (dispatch [:save-current-db-completed kdbx-saved])
                      (dispatch [:common/db-modification-saved kdbx-saved]))))))
 ;; TODO: 
 ;; combine save-current-db and :save-and-close-current-db; also bg-save-kdbx and bg-save-kdbx-before-close
@@ -156,10 +157,38 @@
 ;;;;;;;;;;;;;;;;;;;;;; Lock/Unlock db ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn lock-current-db []
-  (dispatch [:common/lock-current-db]))
+  (dispatch [:tool-bar/lock-current-db])
+  #_(dispatch [:common/lock-current-db]))
 
-(defn unlock-current-db []
-  (dispatch [:open-db-form/dialog-show-on-current-db-unlock-request]))
+(defn on-lock-ask-save-dialog-hide []
+  (dispatch [:on-lock-ask-save-dialog-show false]))
+
+(defn on-lock-ask-save-dialog-data []
+  (subscribe [:on-lock-ask-save-dialog-data]))
+
+(defn unlock-current-db [biometric-type]
+  ;; (println "biometric-type passed " biometric-type)
+  (if (= biometric-type const/NO_BIOMETRIC)
+    (dispatch [:open-db-form/dialog-show-on-current-db-unlock-request])
+    (dispatch [:open-db-form/authenticate-with-biometric])))
+
+(reg-event-fx
+ :tool-bar/lock-current-db
+ (fn [{:keys [db]} [_query-id]]
+   (let [save-pending (db-save-pending? db)]
+     (if save-pending
+       {:fx [[:dispatch [:on-lock-ask-save-dialog-show true]]]}
+       {:fx [[:dispatch [:common/lock-current-db]]]}))))
+
+(reg-event-fx
+ :on-lock-ask-save-dialog-show
+ (fn [{:keys [db]} [_query-id show?]]
+   {:db (assoc-in db [:ask-save-on-lock :data] {:dialog-show show?})}))
+
+(reg-sub
+ :on-lock-ask-save-dialog-data
+ (fn [db _query-vec]
+   (get-in db [:ask-save-on-lock :data])))
 
 ;;;;;;;;;;;;;;;;;;;;;; Save on the current db closing ;;;;;;;;;
 
@@ -269,7 +298,7 @@
      ;;            :save-status {:failed Writing failed with error DbFileContentChangeDetected}} 
      ;;           {:db-key /Users/asdfghr/Documents/OneKeePass/Test2.kdbx, 
      ;;            :save-status {:message The db file is not in modified status. No saving was done}}]}
-      
+
       (when-let [result (check-error
                          api-response
                          #(dispatch [:ask-save-dialog-save-error %]))]
@@ -288,8 +317,8 @@
             (assoc-in [:ask-save :status] :completed))
     ;; Open the error info
     :fx [[:dispatch [:common/error-info-box-show
-                     "Quit error"
-                     "Could not save databases and close the application. Please close all opened databases and then quit the application"]]]}))
+                     {:title "Quit error"
+                      :error-text "Could not save databases and close the application. Please close all opened databases and then quit the application"}]]]}))
 
 (reg-event-fx
  :ask-save-dialog-do-not-save
@@ -318,3 +347,8 @@
  :ask-save
  (fn [db _query-vec]
    (get-in db [:ask-save])))
+
+(comment 
+  (-> @re-frame.db/app-db keys)
+  (def db-key (:current-db-file-name @re-frame.db/app-db))
+  )

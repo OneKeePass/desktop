@@ -32,7 +32,7 @@
       (dispatch [:entry-form-ex/edit true])
 
       (= menu-id const/MENU_ID_LOCK_DATABASE)
-      (dispatch [:common/lock-current-db])
+      (dispatch [:tool-bar/lock-current-db])
 
       (= menu-id const/MENU_ID_CLOSE_DATABASE)
       (dispatch [:tool-bar/close-current-db-start])

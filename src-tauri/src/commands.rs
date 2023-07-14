@@ -12,6 +12,7 @@ use std::fs::read_to_string;
 use std::path::Path;
 use uuid::Uuid;
 
+use crate::biometric;
 use crate::menu::{self, MenuActionRequest};
 use crate::utils::SystemInfoWithPreference;
 use crate::{preference, utils};
@@ -39,7 +40,16 @@ pub(crate) async fn load_kdbx(
   app_state: State<'_, utils::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
   // key_file_name.as_deref() converts Option<String> to Option<&str> - https://stackoverflow.com/questions/31233938/converting-from-optionstring-to-optionstr
+
   let r = kp_service::load_kdbx(db_file_name, password, key_file_name.as_deref());
+
+  // let r = kp_service::load_kdbx_NEW(
+  //   db_file_name,
+  //   password,
+  //   key_file_name.as_deref(),
+  //   key_secure::store_key,
+  //   &key_secure::get_key,
+  // );
 
   if let Err(kp_service::error::Error::DbFileIoError(m, ioe)) = &r {
     // Remove from the recent list only if the file opening failed because of the file is not found in the passed file path
@@ -139,6 +149,12 @@ pub(crate) async fn set_db_settings(
   db_settings: kp_service::DbSettings,
 ) -> Result<()> {
   Ok(kp_service::set_db_settings(db_key, db_settings)?)
+}
+
+//generate_key_file
+#[tauri::command]
+pub(crate) async fn generate_key_file(key_file_name: &str,) -> Result<()> {
+  Ok(kp_service::generate_key_file(key_file_name)?)
 }
 
 #[tauri::command]
@@ -305,7 +321,7 @@ pub(crate) async fn get_group_by_id(db_key: String, group_uuid: Uuid) -> Result<
 pub(crate) async fn update_group(
   db_key: String,
   group: kp_service::Group,
-  window: tauri::Window,
+  _window: tauri::Window,
 ) -> Result<()> {
   kp_service::update_group(&db_key, group)?;
   // Leaving it here as example to send an event from a command
@@ -325,7 +341,6 @@ pub(crate) async fn update_entry_from_form_data(
 ) -> Result<()> {
   Ok(kp_service::update_entry_from_form_data(db_key, form_data)?)
 }
-
 
 #[tauri::command]
 pub(crate) async fn insert_entry_from_form_data(
@@ -384,7 +399,12 @@ pub(crate) async fn save_as_kdbx(
   db_file_name: &str,
   app_state: State<'_, utils::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
+  //key_secure::copy_key(db_key, db_file_name)?;
+
   let r = kp_service::save_as_kdbx(db_key, db_file_name)?;
+
+  //key_secure::delete_key(db_key);
+
   // Appends this file name to the most recently opned file list
   app_state
     .preference
@@ -397,7 +417,7 @@ pub(crate) async fn save_as_kdbx(
 #[command]
 pub(crate) async fn save_kdbx(
   db_key: &str,
-  overwrite:bool,
+  overwrite: bool,
   app_state: State<'_, utils::AppState>,
 ) -> Result<kp_service::KdbxSaved> {
   // db_key is the full database file name and backup file name is derived from that
@@ -414,7 +434,7 @@ pub(crate) async fn save_all_modified_dbs(
   db_keys: Vec<String>,
   app_state: State<'_, utils::AppState>,
 ) -> Result<Vec<kp_service::SaveAllResponse>> {
-  // Need to prepare back file paths for all db_keys 
+  // Need to prepare back file paths for all db_keys
   let dbs_with_backups: Vec<(String, Option<String>)> = db_keys
     .iter()
     .map(|s| (s.clone(), app_state.get_backup_file(s)))
@@ -427,7 +447,26 @@ pub(crate) async fn save_all_modified_dbs(
 
 #[command]
 pub(crate) async fn close_kdbx(db_key: &str) -> Result<()> {
-  Ok(kp_service::close_kdbx(db_key)?)
+  kp_service::close_kdbx(db_key)?;
+  Ok(())
+}
+
+#[command]
+pub(crate) async fn lock_kdbx(_db_key: &str) -> Result<()> {
+  //TODO:
+  // Need to remove the session encryption key from memory in 'key_secure' module
+  // This key need to be retreived during 'unlock_kdbx' call
+
+  Ok(())
+}
+
+#[command]
+pub(crate) async fn unlock_kdbx_on_biometric_authentication(
+  db_key: &str,
+) -> Result<kp_service::KdbxLoaded> {
+  Ok(kp_service::unlock_kdbx_on_biometric_authentication(
+    db_key,
+  )?)
 }
 
 #[command]
@@ -436,7 +475,21 @@ pub(crate) async fn unlock_kdbx(
   password: &str,
   key_file_name: Option<&str>,
 ) -> Result<kp_service::KdbxLoaded> {
+  // We need to get the session encryption key from KeyChain(macOS)
+  // In case of Linux and Windows, the key is kept in memory and need to use Linux and Windows specific credential stores
+  // similiar to macOS KeyChain
+
   Ok(kp_service::unlock_kdbx(db_key, password, key_file_name)?)
+}
+
+#[command]
+pub(crate) async fn read_and_verify_db_file(db_key: &str) -> Result<()> {
+  Ok(kp_service::read_and_verify_db_file(db_key)?)
+}
+
+#[command]
+pub(crate) async fn reload_kdbx(db_key: &str) -> Result<kp_service::KdbxLoaded> {
+  Ok(kp_service::reload_kdbx(db_key)?)
 }
 
 #[command]
@@ -519,4 +572,14 @@ pub async fn svg_file<R: Runtime>(app: tauri::AppHandle<R>, name: &str) -> Resul
   let s = read_to_string(svg_path).unwrap();
   //Ok("Done".into())
   Ok(s)
+}
+
+#[tauri::command]
+pub async fn supported_biometric_type() -> Result<String> {
+  Ok(biometric::supported_biometric_type())
+}
+
+#[tauri::command]
+pub async fn authenticate_with_biometric(db_key: &str) -> Result<bool> {
+  Ok(biometric::authenticate_with_biometric(db_key))
 }

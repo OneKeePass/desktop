@@ -38,6 +38,9 @@
 (defn ok-on-click []
   (dispatch [:db-settings-write-start]))
 
+(defn generate-key-file []
+  (dispatch [:db-settings-generate-key-file]))
+
 (defn dialog-data []
   (subscribe [:db-settings]))
 
@@ -47,13 +50,15 @@
 (defn password-changed? []
   (subscribe [:password-changed]))
 
+(defn db-settings-modified []
+  (subscribe [:db-settings-modified]))
+
 (defn- validate-security-fields
   [app-db]
   (let [{:keys [iterations memory parallelism]} (get-in-key-db app-db [:db-settings :data :kdf :Argon2])
-        ;;_ (println "Before iterations memory parallelism " iterations memory parallelism)
         ;; Need to convert incoming str values to the proper int values
-        [iterations memory parallelism] (mapv str->int [iterations memory parallelism])
-        ;;_ (println "After iterations memory parallelism " iterations memory parallelism)
+        ;; [iterations memory parallelism] (mapv str->int [iterations memory parallelism])
+
         errors (if (or (nil? iterations) (or (< iterations 5) (> iterations 100)))
                  {:iterations "Valid values should be in the range 5 - 100"} {})
         errors (merge errors
@@ -118,9 +123,9 @@
  (fn [[db-key settings]] ;; settings is from [:db-settings :data]
    ;; Need to do some str to int and blank str handling
    (let [settings  (-> settings
-                       (update-in [:kdf :Argon2 :iterations] str->int)
-                       (update-in [:kdf :Argon2 :parallelism] str->int)
-                       (update-in [:kdf :Argon2 :memory] str->int)
+                       #_(update-in [:kdf :Argon2 :iterations] str->int)
+                       #_(update-in [:kdf :Argon2 :parallelism] str->int)
+                       #_(update-in [:kdf :Argon2 :memory] str->int)
                        (update-in [:kdf :Argon2 :memory] * 1048576)
                        (update-in [:password] #(if (str/blank? %) nil %))
                        (update-in [:key-file-name] #(if (str/blank? %) nil %)))]
@@ -176,6 +181,7 @@
                   (assoc-in [:org-key-file-name] key-file-name))]
      ;;(println "Data is " data)
      (-> db (assoc-in-key-db  [:db-settings :data] data)
+         (assoc-in-key-db  [:db-settings :undo-data] data)
          (assoc-in-key-db [:db-settings :status] :completed)
          (assoc-in-key-db [:db-settings :panel] :general-info)))))
 
@@ -185,16 +191,57 @@
    (-> db (assoc-in-key-db [:db-settings :api-error-text] error)
        (assoc-in-key-db [:db-settings :status] :completed))))
 
+(reg-event-fx
+ :db-settings-generate-key-file
+ (fn [{:keys [db]} [_event-id]]
+   {:fx [[:bg-db-settings-generate-key-file [(get-in-key-db db [:db-settings :data :meta :database-name])]]]}))
+
+(reg-fx
+ :bg-db-settings-generate-key-file
+ (fn [[database-name]]
+   (bg/save-file-dialog {:default-path (str database-name ".keyx")
+                         :title "Save Key File"}
+                        (fn [key-file-name]
+                         ;; key-file-name is not updated if user cancels the 'Save As' file exploreer 
+                          (when (not (str/blank? key-file-name))
+                            (bg/generate-key-file key-file-name
+                                                  (fn [api-response]
+                                                    (when-not (on-error api-response)
+                                                      (dispatch [:db-settings-field-update
+                                                                 [:data :key-file-name] key-file-name])))))))))
+
+(defn- convert-value
+  "(->  e .-target .-value) returns a string value 
+  and to make comparision with undo-data, we need to make sure both values 
+  are 'int' type
+  "
+  [ks value]
+  (cond (or (= ks [:db-settings :data :kdf :Argon2 :iterations])
+            (= ks [:db-settings :data :kdf :Argon2 :parallelism])
+            (= ks [:db-settings :data :kdf :Argon2 :memory]))
+        (str->int value)
+
+        (and (str/blank? value)
+             (or (= ks [:db-settings :data :password])
+                 (= ks [:db-settings :data :key-file-name])))
+        nil
+
+        :else
+        value))
+
 (reg-event-db
  :db-settings-field-update
  ;; kw-field-name is single kw or a vec of kws  
  (fn [db [_event-id kw-field-name value]]
-   (let [ks (into [:db-settings] (if (vector? kw-field-name)
+   (let [;;ks will be a vector. Eg [:db-settings :data :kdf ...]
+         ks (into [:db-settings] (if (vector? kw-field-name)
                                    kw-field-name
                                    [kw-field-name]))
+         value (convert-value ks value)
          db (assoc-in-key-db db ks value)]
      (if (and (contains-val? ks :password) (str/blank? value))
-       (assoc-in-key-db db [:db-settings :password-confirm] nil)
+       (-> db
+           (assoc-in-key-db  [:db-settings :password-confirm] nil))
        db))))
 
 (reg-event-db
@@ -244,8 +291,21 @@
  (fn [{{:keys [password]} :data} _query-vec]
    (not (str/blank? password))))
 
+(reg-sub
+ :db-settings-modified
+ (fn [db _query-vec]
+   (let [undo-data (get-in-key-db db [:db-settings :undo-data])
+         data (get-in-key-db db [:db-settings :data])]
+     (if (and (seq undo-data) (not= undo-data data))
+       true
+       false))))
+
 (comment
 
   (def db-key (:current-db-file-name @re-frame.db/app-db))
-
+  (def a1 (-> (get @re-frame.db/app-db db-key) :db-settings :data))
+  (def a2 (-> (get @re-frame.db/app-db db-key) :db-settings :undo-data))
+  (-> a1 :kdf)
+  (-> a2 :kdf)
+  (= a1 a2)
   (-> (get @re-frame.db/app-db db-key) :db-settings))

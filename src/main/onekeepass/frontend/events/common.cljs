@@ -3,19 +3,21 @@
   (:require
    [re-frame.core :refer [reg-event-db
                           reg-event-fx
+                          reg-fx
                           reg-sub
                           dispatch
                           dispatch-sync
                           subscribe]]
    [clojure.string :as str]
    [cljs.core.async :refer [go-loop timeout <!]]
-   [onekeepass.frontend.constants :refer [ADD_TAG_PREFIX]]
+   [onekeepass.frontend.constants :as const :refer [ADD_TAG_PREFIX DB_CHANGED]]
    [onekeepass.frontend.utils :refer [contains-val? str->int utc-to-local-datetime-str]]
    [onekeepass.frontend.background :as bg]))
 
 (declare check-error)
+(declare on-error)
+(declare active-db-key)
 (declare assoc-in-key-db)
-
 
 (defn sync-initialize
   "Called just before rendering to set all requied values in re-frame db"
@@ -41,6 +43,9 @@
 (defn recent-files []
   (subscribe [:recent-files]))
 
+(defn biometric-type-available []
+  (subscribe [:biometric-type-available]))
+
 (reg-event-db
  :load-system-info-with-preference
  (fn [db [_event-id]]
@@ -52,12 +57,15 @@
 
 (reg-event-fx
  :load-system-info-with-preference-complete
- (fn [{:keys [db]} [_event-id {:keys [standard-dirs os-name path-sep preference]}]]
+ (fn [{:keys [db]} [_event-id {:keys [standard-dirs os-name path-sep
+                                      biometric-type-available
+                                      preference]}]]
    (set-session-timeout (:session-timeout preference))
    ;;(println "document-dir os-name path-sep preference " document-dir os-name path-sep preference)
    {:db (-> db (assoc :app-preference preference)
             (assoc :standard-dirs standard-dirs)
             (assoc :path-sep path-sep)
+            (assoc :biometric-type-available biometric-type-available)
             (assoc :os-name os-name))}))
 
 (reg-event-db
@@ -85,6 +93,11 @@
  (fn [db _query-vec]
    (:app-preference db)))
 
+(reg-sub
+ :biometric-type-available
+ (fn [db _query-vec]
+   (:biometric-type-available db)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn db-opened
@@ -92,7 +105,7 @@
   The args are the re-frame 'app-db' and KdbxLoaded struct returned by backend API.
   Returns the updated app-db
   "
-  [app-db {:keys [db-key database-name]}] ;;kdbx-loaded
+  [app-db {:keys [db-key database-name file-name key-file-name]}] ;;kdbx-loaded
   (let [app-db  (if (nil? (:opened-db-list app-db)) (assoc app-db :opened-db-list []) app-db)]
     (-> app-db
         (assoc :current-db-file-name db-key)
@@ -100,49 +113,11 @@
          ;;       This should be done in open db dialog validation itself (?)
         (update-in [:opened-db-list] conj {:db-key db-key
                                            :database-name database-name
+                                           :file-name file-name
+                                           :key-file-name key-file-name
                                            :user-action-time (js/Date.now)
                                            ;;:database-name (:database-name meta)
                                            }))))
-
-;; Called after creating a new database or after opening an existing database
-(reg-event-fx
- :common/kdbx-database-opened
- (fn [{:keys [db]} [_event-id kdbx-loaded]]
-   {:db (db-opened db kdbx-loaded)
-    :fx [[:dispatch [:load-all-tags]]
-         [:dispatch [:group-tree-content/load-groups]]
-         [:dispatch [:entry-category/category-data-load-start (-> db :app-preference :default-entry-category-groupings)]]
-         [:dispatch [:common/load-entry-type-headers]]
-         [:dispatch [:common/message-snackbar-open (str "Opened database " (:db-key kdbx-loaded))]]]}))
-
-(reg-event-fx
- :common/kdbx-database-unlocked
- (fn [{:keys [db]} [_event-id _kdbx-loaded]]
-   ;;(println "kdbx-loaded in kdbx-database-opened" kdbx-loaded)
-   {:db (assoc-in-key-db db [:locked] false)
-    :fx [[:dispatch [:load-all-tags]]
-         [:dispatch [:group-tree-content/load-groups]]
-         [:dispatch [:entry-category/category-data-load-start (-> db :app-preference :default-entry-category-groupings)]]
-         [:dispatch [:common/load-entry-type-headers]]
-         [:dispatch [:common/show-content :group-entry]]]}))
-
-;; A common refresh all forms after an entry form changes - delete, put back , delete permanent
-(reg-event-fx
- :common/refresh-forms
- (fn [{:keys [_db]} [_event-id]]
-   {:fx [[:dispatch [:entry-form-ex/show-welcome]]
-         [:dispatch [:group-tree-content/load-groups]]
-         [:dispatch [:entry-category/show-groups-as-tree-or-category]]
-         [:dispatch [:entry-list/entry-updated]]]}))
-
-;; A common refresh all forms after an entry form changes - delete, put back , delete permanent
-(reg-event-fx
- :common/refresh-forms-2
- (fn [{:keys [_db]} [_event-id]]
-   {:fx [[:dispatch [:entry-form-ex/show-welcome]]
-         [:dispatch [:group-tree-content/load-groups]]
-         [:dispatch [:entry-category/show-groups-as-tree-or-category]]
-         [:dispatch [:entry-list/clear-entry-items]]]}))
 
 (defn active-db-key
   ;; To be called only in react components as it used 'subscribe' (i.e in React context)
@@ -171,6 +146,14 @@
   "Gets the list of db keys of all opened dbs in UI"
   [app-db]
   (mapv (fn [m] (:db-key m)) (:opened-db-list app-db)))
+
+(defn current-opened-db
+  "Called to get the currently active database's info 
+   as map - keys are [db-key database-name file-name key-file-name]
+   from the opened db list (found in :opened-db-list ) "
+  [app-db]
+  (let [db-key (active-db-key app-db)]
+    (first (filter (fn [m] (= db-key (:db-key m))) (:opened-db-list app-db)))))
 
 (defn is-in-opend-db-list [db-file-name db-list]
   ;; Using (boolean (seq a)) instead of (not (empty? a))
@@ -204,7 +187,7 @@
      (do
        (if  (nil? error-fn)
          #_(println "API returned error: " error)
-         ;; Should we create a gedneric error dialog instead of snackbar ?
+         ;; Should we use a generic error dialog instead of snackbar ?
          (dispatch [:common/message-snackbar-error-open error])
          (error-fn error))
        true)
@@ -233,6 +216,42 @@
   []
   (dispatch [:common/save-db-file-as]))
 
+;; Called after creating a new database or after opening an existing database
+(reg-event-fx
+ :common/kdbx-database-opened
+ (fn [{:keys [db]} [_event-id kdbx-loaded]]
+   {:db (db-opened db kdbx-loaded)
+    :fx [[:dispatch [:common/kdbx-database-loading-complete kdbx-loaded]]]}))
+
+(reg-event-fx
+ :common/kdbx-database-loading-complete
+ (fn [{:keys [db]} [_event-id kdbx-loaded]]
+   {:fx [[:dispatch [:load-all-tags]]
+         [:dispatch [:group-tree-content/load-groups]]
+         [:dispatch [:entry-category/category-data-load-start
+                     (-> db :app-preference :default-entry-category-groupings)]]
+         [:dispatch [:common/load-entry-type-headers]]
+         [:dispatch [:common/message-snackbar-open
+                     (str "Opened database " (:db-key kdbx-loaded))]]]}))
+
+;; A common refresh all forms after an entry form changes - delete, put back , delete permanent
+(reg-event-fx
+ :common/refresh-forms
+ (fn [{:keys [_db]} [_event-id]]
+   {:fx [[:dispatch [:entry-form-ex/show-welcome]]
+         [:dispatch [:group-tree-content/load-groups]]
+         [:dispatch [:entry-category/show-groups-as-tree-or-category]]
+         [:dispatch [:entry-list/entry-updated]]]}))
+
+;; A common refresh all forms after an entry form changes - delete, put back , delete permanent
+(reg-event-fx
+ :common/refresh-forms-2
+ (fn [{:keys [_db]} [_event-id]]
+   {:fx [[:dispatch [:entry-form-ex/show-welcome]]
+         [:dispatch [:group-tree-content/load-groups]]
+         [:dispatch [:entry-category/show-groups-as-tree-or-category]]
+         [:dispatch [:entry-list/clear-entry-items]]]}))
+
 (defn- on-save-as [m]
   (when-let [new-db-key (check-error m)]
     (dispatch [:save-as-completed new-db-key])))
@@ -240,21 +259,12 @@
 (reg-event-db
  :common/save-db-file-as
  (fn [db [_event-id]]
-   (let [{:keys [current-db-file-name path-sep]} db
-         ;; Extracts the file name from  the database full file path 
-         ;; "/Users/jjklsdf/Documents/OneKeePass/Mypasswords.kdbx" to Mypasswords
-         save-as-file-name (-> current-db-file-name
-                               (str/split (re-pattern
-                                           (str path-sep)))
-                               last (str/split #"\.") first)
-         ;; Appends timestamp and add back the extension 
-         ;; Mypasswords to  Mypasswords-2023-05-12 16 36 30.kdbx
-         save-as-file-name (if (= save-as-file-name current-db-file-name)
-                             "Mypassword.kdbx"
-                             (str save-as-file-name
-                                  "-"
-                                  (utc-to-local-datetime-str (js/Date.) "yyyy-MM-dd HH mm ss")
-                                  ".kdbx"))
+   (let [
+         save-as-file-name  (-> db current-opened-db :file-name (str/split #"\.") first)
+         save-as-file-name (str save-as-file-name
+                                "-"
+                                (utc-to-local-datetime-str (js/Date.) "yyyy-MM-dd HH mm ss")
+                                ".kdbx") 
          f (fn [file-name]
             ;;(println "file-name is " file-name)
              (when-not (nil? file-name)
@@ -294,23 +304,117 @@
               (assoc :opened-db-list dbs)
               (assoc :current-db-file-name next-active-db-key)
               (dissoc db-key))
-      :fx [[:dispatch [:common/load-app-preference]]]})))
-
-
+      :fx [[:dispatch [:common/message-snackbar-open
+                       (str "Closed database " db-key)]]
+           [:dispatch [:common/load-app-preference]]]})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; DB Lock/Unlock ;;;;;;;;;;;;;;;;;;;;;
 
 (defn locked? []
   (subscribe [:common/current-db-locked]))
 
-(defn unlock-current-db []
-  (dispatch [:open-db-form/dialog-show-on-current-db-unlock-request]))
+(defn unlock-current-db
+  "Unlocks the database using biometric option if available"
+  [biometric-type]
+  (if (= biometric-type const/NO_BIOMETRIC)
+    (dispatch [:open-db-form/dialog-show-on-current-db-unlock-request])
+    (dispatch [:open-db-form/authenticate-with-biometric])))
 
 (reg-event-fx
  :common/lock-current-db
  (fn [{:keys [db]} [_event-id]]
    {:db (assoc-in-key-db db [:locked] true)
-    :fx [[:dispatch [:common/show-content :locked-content]]]}))
+    :fx [[:bg-lock-kdbx [(active-db-key db)]]
+         [:dispatch [:common/show-content :locked-content]]]}))
+
+(reg-fx
+ :bg-lock-kdbx
+ (fn [[db-key]]
+   (bg/lock-kdbx db-key (fn [api-response]
+                          (when-not (on-error api-response)
+                            ;; Add any relevant dispatch calls here
+                            ;;(println "Database is locked")
+                            #())))))
+
+;; Dispatched from a open-db-form event
+(reg-event-fx
+ :common/kdbx-database-unlocked
+ (fn [{:keys [db]} [_event-id _kdbx-loaded]]
+   {:db (assoc-in-key-db db [:locked] false)
+    :fx [;; TODO: Combine these reset calls with 'common/kdbx-database-loading-complete'
+         [:dispatch [:load-all-tags]]
+         [:dispatch [:group-tree-content/load-groups]]
+         [:dispatch [:entry-category/category-data-load-start
+                     (-> db :app-preference :default-entry-category-groupings)]]
+         [:dispatch [:common/load-entry-type-headers]]
+         [:dispatch [:common/show-content :group-entry]]
+
+         ;; Quick unlock, just gets the data from memory on successful
+         ;; authentication using existing credential
+         ;; We need to make sure, the data are not stale by checking whether database 
+         ;; has been changed externally and load accordingly
+         [:bg-read-and-verify-db-file [(active-db-key db)]]]}))
+
+
+;; Called to detect whether databae has been changed externally or not
+(reg-fx
+ :bg-read-and-verify-db-file
+ (fn [[db-key]]
+   (bg/read-and-verify-db-file db-key
+                               (fn [api-response]
+                                 ;; If the database change detected, we receive 
+                                 ;; {:error const/DB_CHANGED }
+                                 (when-not (on-error
+                                            api-response
+                                            #(dispatch [:database-change-detected %]))
+                                   ;; When there is no database change, nothing is done
+                                   #())))))
+
+(reg-event-fx
+ :database-change-detected
+ (fn [{:keys [db]} [_event-id error]]
+   ;; Need to check error code for specific value ''
+   ;; if we have unsaved data, need to give user options for the next actions
+   (if (and (= error DB_CHANGED) (get-in-key-db db [:db-modification :save-pending]))
+     {:fx [[:dispatch [:common/error-info-box-show {:title "Database changed"
+                                                    :message (str "The database content of the file has changed since the last opening."
+                                                                  " Please save to see options availble to resolve this")}]]]}
+     {:fx [[:dispatch [:reload-database]]]})))
+
+(reg-event-fx
+ :reload-database
+ (fn [{:keys [db]} [_event-id]]
+   {;; Here we are clearing all previous values of the current database 
+    ;; before reading database from file and decrypting
+    :db (assoc-in db [(active-db-key db)] nil)
+    :fx [[:dispatch [:common/progress-message-box-show
+                     "Database modification detected"
+                     "Reloading the modified database. Please wait..."]]
+         [:bg-reload-kdbx [(active-db-key db)]]]}))
+
+;; reads database from file and decrypts
+(reg-fx
+ :bg-reload-kdbx
+ (fn [[db-key]]
+   (bg/reload-kdbx db-key (fn [api-response]
+                            (when-let [kdbx-loaded (check-error
+                                                    api-response
+                                                    #(dispatch [:reload-database-error %]))]
+                              (dispatch [:common/kdbx-database-loading-complete kdbx-loaded])
+                              (dispatch [:common/progress-message-box-hide]))))))
+
+;; On quick unlock, if the reloading tried fails, then we show 
+;; the login dialog
+;; Reloading can fail if the credentials to decrypt the database database has changed
+;; Or if the database moved/deleetd/renamed from its last known location
+(reg-event-fx
+ :reload-database-error
+ (fn [{:keys [db]} [_event-id error]]
+   {:fx [[:dispatch [:common/progress-message-box-hide]]
+         [:dispatch [:common/close-kdbx-db (active-db-key db)]]
+         [:dispatch [:open-db-form/login-dialog-show-on-reload-error
+                     {:file-name (active-db-key db)
+                      :error-text error}]]]}))
 
 (reg-sub
  :common/current-db-locked
@@ -481,12 +585,9 @@
 
 ;;;;;;;;;;;;;;; Message dialog ;;;;;;;;;;;;;
 
-;; TODO:  
-;; Need to see how effectively the message-box is used and use more or remove
-
-(defn show-message
-  [title message]
-  (dispatch [:common/message-box-show title message]))
+#_(defn show-message
+    [title message]
+    (dispatch [:common/message-box-show title message]))
 
 (defn close-message-dialog []
   (dispatch [:message-box-hide]))
@@ -513,6 +614,33 @@
  (fn [db _query-vec]
    (-> db :message-box)))
 
+;;;;;;;;;;;;;;;;;; Progress message dialog ;;;;;;;;;;;;
+
+(defn progress-message-dialog-data []
+  (subscribe [:progress-message-box]))
+
+;; IMPORTANT: Need to ensure that :common/progress-message-box-hide is called for every
+;; :common/progress-message-box-show. Otherwise user can not do anhything on the page
+(reg-event-db
+ :common/progress-message-box-show
+ (fn [db [_event-id title message]]
+   (-> db
+       (assoc-in [:progress-message-box :dialog-show] true)
+       (assoc-in [:progress-message-box :title] title)
+       (assoc-in [:progress-message-box :message] message))))
+
+
+(reg-event-db
+ :common/progress-message-box-hide
+ (fn [db [_event-id]]
+   (-> db
+       (assoc-in [:progress-message-box :dialog-show] false))))
+
+(reg-sub
+ :progress-message-box
+ (fn [db _query-vec]
+   (-> db :progress-message-box)))
+
 ;;;;;;;;;;;;;;;; error-info-dialog ;;;;;;;;;;;;;;;;;;;
 
 (defn close-error-info-dialog []
@@ -523,7 +651,7 @@
 
 (reg-event-db
  :common/error-info-box-show
- (fn [db [_event-id title error-text message]]
+ (fn [db [_event-id {:keys [title error-text message]}]]
    (-> db
        (assoc-in [:error-info-box :dialog-show] true)
        (assoc-in [:error-info-box :title] title)

@@ -4,12 +4,15 @@
    [onekeepass.frontend.events.new-database :as nd-events]
    [onekeepass.frontend.mui-components :as m :refer [mui-menu-item
                                                      mui-alert
+                                                     mui-divider
                                                      mui-linear-progress
                                                      mui-input-adornment
                                                      mui-icon-button
                                                      mui-icon-folder-outlined
                                                      mui-icon-visibility
                                                      mui-icon-visibility-off
+                                                     mui-link
+                                                     mui-tooltip
                                                      mui-typography
                                                      mui-dialog
                                                      mui-dialog-title
@@ -21,7 +24,7 @@
 (set! *warn-on-infer* true)
 
 (defn- basic-info
-  [{:keys [database-name database-description error-fields]}]  
+  [{:keys [database-name database-description error-fields]}]
   ;; error-fields is a map
   [mui-stack
    [mui-typography "Basic Database Information"]
@@ -42,7 +45,29 @@
                     :on-change (nd-events/field-update-factory :database-description)
                     :variant "standard" :fullWidth true}]]]])
 
-(defn- credentials-info [{:keys [password password-confirm password-visible key-file-name error-fields]}]
+
+
+#_(when @show-addition-protection
+    [mui-box {:sx {:width "80%"}}
+     [m/text-field {:label "Key File Name"
+                    :value key-file-name
+                    :placeholder "Optional"
+                    :helperText "Any random small file. A hash of the file's content is used as an additional passsord. This is just an optional one and not required"
+                    :on-change (nd-events/field-update-factory :key-file-name)
+                    :variant "standard" :fullWidth true
+                    :InputProps {:endAdornment (r/as-element [mui-input-adornment {:position "end"}
+                                                              [mui-icon-button {:edge "end" :sx {:mr "-8px"}
+                                                                                :onClick nd-events/open-key-file-explorer-on-click}
+                                                               [mui-icon-folder-outlined]]])}}]])
+
+(defn- credentials-info [{:keys [password 
+                                 password-confirm 
+                                 password-visible 
+                                 key-file-name 
+                                 database-name
+                                 show-additional-protection 
+                                 error-fields]}]
+
   [mui-stack {:spacing 2}
    [mui-typography "Database Credentials"]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
@@ -77,17 +102,43 @@
                       :type "password"
                       :variant "standard" :fullWidth true}]])
 
-    [mui-box {:sx {:width "80%"}}
-     [m/text-field {:label "Key File Name"
-                    :value key-file-name
-                    :placeholder "Optional"
-                    :helperText "Any random small file. A hash of the file's content is used as an additional passsord. This is just an optional one and not required"
-                    :on-change (nd-events/field-update-factory :key-file-name)
-                    :variant "standard" :fullWidth true
-                    :InputProps {:endAdornment (r/as-element [mui-input-adornment {:position "end"}
-                                                              [mui-icon-button {:edge "end" :sx {:mr "-8px"}
-                                                                                :onClick nd-events/open-key-file-explorer-on-click}
-                                                               [mui-icon-folder-outlined]]])}}]]]])
+    ;; aligns to the center
+    [mui-box
+     [mui-link {:variant "subtitle1"
+                :color "primary"
+                :onClick (fn []
+                           (nd-events/database-field-update :show-additional-protection (not show-additional-protection)))}
+      (if-not show-additional-protection  "Add additional protection(optional)" "Hide additional protection")]]
+
+    (when show-additional-protection
+      [mui-stack {:sx {:width "80%" :border ".001px solid"}}
+       [mui-typography {:sx {:text-align "center"}
+                        :variant "h6"} "Key file"]
+       [mui-divider {:sx {:margin 1}}]
+
+       (if-not (nil? key-file-name)
+         [mui-stack
+          [mui-tooltip {:title key-file-name :enterDelay 1500}
+           [mui-typography {:sx {:mt 1 :white-space "nowrap" :text-overflow "ellipsis" :overflow "hidden"}} key-file-name]]
+
+          [mui-button  {:sx {:m 1}
+                        :variant "text"
+                        :on-click #(nd-events/database-field-update :key-file-name nil)} "Remove"]]
+
+         [mui-stack
+          [mui-button  {:sx {:m 1}
+                        :variant "text"
+                        :on-click nd-events/open-key-file-explorer-on-click} "Browse"]
+
+          [mui-typography {:variant "caption"}
+           "You can pick any random file that does not change. A hash of the file's content is used as an additional passsord."]
+
+          [mui-button  {:sx {:m 1}
+                        :variant "text"
+                        :on-click #(nd-events/save-as-key-file-explorer-on-click database-name)} "Generate"]
+
+          [mui-typography {:variant "caption"}
+           "Alternatively, OneKeePass can generate a random key to use as an additional key"]])])]])
 
 (defn- file-info [{:keys [database-file-name db-file-file-exists database-name]}]
   [mui-stack {:spacing 2}
@@ -152,7 +203,7 @@
 
      [mui-stack {:sx {:width "33.33%" :ml 3}}
       [m/text-field {:label "Memory Usage"
-                     :value memory 
+                     :value memory
                      :type "number"
                      :error (contains? error-fields :memory)
                      :helperText (get error-fields :memory)
@@ -160,7 +211,7 @@
                      :variant "standard" :fullWidth true}]]
      [mui-stack {:sx {:width "33.33%" :ml 3}}
       [m/text-field {:label "Parallelism"
-                     :value parallelism 
+                     :value parallelism
                      :type "number"
                      :error (contains? error-fields :parallelism)
                      :helperText (get error-fields :parallelism)
@@ -173,8 +224,8 @@
                      :variant "standard" :fullWidth true}]]]]])
 
 (defn new-database-dialog [{:keys [dialog-show panel call-to-create-status api-error-text] :as m}]
-  (let [in-progress? (= :in-progress call-to-create-status)] 
-    [mui-dialog {:open (if (nil? dialog-show) false dialog-show) 
+  (let [in-progress? (= :in-progress call-to-create-status)]
+    [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
                  :on-click #(.stopPropagation ^js/Event %)
                  :classes {:paper "pwd-dlg-root"}}
 
@@ -195,8 +246,8 @@
 
         (= panel :security-info)
         [security-info m])
-      (when api-error-text 
-            [mui-alert {:severity "error" :sx {:mt 1}} api-error-text])
+      (when api-error-text
+        [mui-alert {:severity "error" :sx {:mt 1}} api-error-text])
 
       (when (and (nil? api-error-text) in-progress?)
         [mui-linear-progress {:sx {:mt 2}}])]

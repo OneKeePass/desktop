@@ -4,6 +4,7 @@
    [re-frame.core :refer [reg-event-db reg-event-fx reg-fx reg-sub dispatch subscribe]]
    [onekeepass.frontend.events.common :as cmn-events :refer [check-error
                                                              active-db-key
+                                                             current-opened-db
                                                              active-db-file-name]]
    [onekeepass.frontend.background :as bg]))
 
@@ -44,6 +45,9 @@
 (defn password-visible-change [^boolean t]
   (dispatch [:open-db-password-visible t]))
 
+(defn key-file-visible-change [^boolean t]
+  (dispatch [:open-db-key-file-visible t]))
+
 (defn dialog-data []
   (subscribe [:open-db-dialog-data]))
 
@@ -56,6 +60,7 @@
       (assoc-in [:open-db :dialog-show] false)
       (assoc-in [:open-db :unlock-request] false)
       (assoc-in [:open-db :password-visibility-on] false)
+      (assoc-in [:open-db :key-file-visibility-on] false)
       (assoc-in [:open-db :status] nil)
       (assoc-in [:open-db :error-fields] {})
       (assoc-in [:open-db :error-text] nil)
@@ -67,6 +72,11 @@
  :open-db-password-visible
  (fn [db [_event-id visible?]]
    (assoc-in db [:open-db :password-visibility-on] visible?)))
+
+(reg-event-db
+ :open-db-key-file-visible
+ (fn [db [_event-id visible?]]
+   (assoc-in db [:open-db :key-file-visibility-on] visible?)))
 
 (reg-event-db
  :open-db-update-file-name
@@ -104,10 +114,24 @@
 (reg-event-fx
  :open-db-form/dialog-show-on-current-db-unlock-request
  (fn [{:keys [db]} [_event-id]]
-   (let [file-name (active-db-file-name db)]
+   (let [file-name (active-db-file-name db)
+         key-file-name (-> db current-opened-db :key-file-name)]
      {:db (-> db (assoc-in [:open-db :dialog-show] true)
               (assoc-in [:open-db :unlock-request] true)
+              (assoc-in [:open-db :key-file-name] key-file-name)
               (assoc-in [:open-db :file-name] file-name))})))
+
+;; After unlock, we detected databse change. But reloading of database fails  
+;; because the credentials of database has been changed outside our app
+;; Need to do relogin
+(reg-event-fx
+ :open-db-form/login-dialog-show-on-reload-error
+ (fn [{:keys [db]} [_event-id {:keys [file-name error-text]}]]
+   {:db (-> db (assoc-in [:open-db :dialog-show] true)
+            (assoc-in [:open-db :unlock-request] false)
+            (assoc-in [:open-db :file-name] file-name)
+            #_(assoc-in [:open-db :key-file-name] key-file-name)
+            (assoc-in [:open-db :error-text] error-text))}))
 
 (reg-event-db
  :open-db-dialog-hide
@@ -131,7 +155,7 @@
 
 (reg-event-db
  :open-db-error
- (fn [db [_event-id error]] 
+ (fn [db [_event-id error]]
    (-> db (assoc-in [:open-db :error-text] error)
        (assoc-in [:open-db :status] :error))))
 
@@ -144,7 +168,7 @@
 
 (defn- on-file-loading [api-response]
   (let [error-fn (fn [err] (dispatch [:open-db-error err]))]
-    (when-let [kdbx-loaded (check-error api-response error-fn)] 
+    (when-let [kdbx-loaded (check-error api-response error-fn)]
       (dispatch [:open-db-file-loading-done kdbx-loaded]))))
 
 ;;IMPORTANT reg-fx handler fn takes single argument. So we need to use vec [file-name pwd]
@@ -169,6 +193,54 @@
                                              api-response
                                              #(dispatch [:open-db-error %]))]
                        (dispatch [:unlock-db-file-loading-done kdbx-loaded]))))))
+
+(reg-event-fx
+ :open-db-form/authenticate-with-biometric
+ (fn [{:keys [db]} [_event-id]]
+   {:fx [[:bg-authenticate-with-biometric [(active-db-key db)]]]}))
+
+(reg-fx
+ :bg-authenticate-with-biometric
+ (fn [[db-key]]
+   (bg/authenticate-with-biometric db-key
+                                   (fn [api-response]
+                                     ;; IMPORTANT we can not use when-let as we get {:result true} or {:result false}
+                                     ;; When we use when-let and the api-reponse is {:result false}, the whole clause 
+                                     ;; will be skipped as the when-let evaluates to false 
+                                     (let [autheticated? (check-error
+                                                          api-response
+                                                          (fn [error]
+                                                            ;;(println "error is " error)
+                                                            (dispatch [:open-db-biometric-login-fail])))]
+                                       (when-not (nil? autheticated?)
+                                         (if autheticated?
+                                           (dispatch [:open-db-biometric-login-success])
+                                           (dispatch [:open-db-biometric-login-fail]))))))))
+
+
+(reg-event-fx
+ :open-db-biometric-login-success
+ (fn [{:keys [db]} [_event-id]]
+   ;;(println ":open-db-biometric-login-success called")
+   {:fx [[:bg-unlock-kdbx-on-biometric-authentication [(active-db-key db)]]]}))
+
+(reg-fx
+ :bg-unlock-kdbx-on-biometric-authentication
+ (fn [[db-key]]
+   (bg/unlock-kdbx-on-biometric-authentication db-key
+                                               (fn [api-response]
+                                                 (when-let [kdbx-loaded (check-error
+                                                                         api-response
+                                                                         #(dispatch [:open-db-error %]))]
+                                                   (dispatch [:unlock-db-file-loading-done kdbx-loaded]))))))
+
+
+(reg-event-fx
+ :open-db-biometric-login-fail
+ (fn [{:keys [db]} [_event-id]]
+   ;;(println "open-db-biometric-login-fail is called ")
+   {:fx [[:dispatch [:common/message-snackbar-error-open "Biometric authentication is not successful"]]
+         [:dispatch [:open-db-form/dialog-show-on-current-db-unlock-request]]]}))
 
 (reg-sub
  :open-db-dialog-data

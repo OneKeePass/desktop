@@ -26,13 +26,13 @@
                               password
                               key-file-name
                               password-visibility-on
+                              key-file-visibility-on
                               status error-text error-fields]} opened-db-list]
   (let [in-progress? (= :in-progress status)
         passord-error-text (:password error-fields)
         ok-action (if unlock-request
                     #(od-events/unlock-ok-on-click password key-file-name)
-                    #(od-events/ok-on-click file-name password key-file-name opened-db-list))
-        ]
+                    #(od-events/ok-on-click file-name password key-file-name opened-db-list))]
     [mui-dialog {:open (if (nil? dialog-show) false dialog-show) :on-click #(.stopPropagation %)
                  :classes {:paper "pwd-dlg-root"}}
      [mui-dialog-title (if unlock-request "Unlock Database" "Open Database")]
@@ -80,9 +80,17 @@
                          :placeholder "Optional"
                          :helperText "This is required if you had used any random file as key in addition to password"
                          :InputProps {:endAdornment (r/as-element [mui-input-adornment {:position "end"}
+                                                                   (if key-file-visibility-on
+                                                                     [mui-icon-button {:edge "end" :sx {:mr "-8px"}
+                                                                                       :on-click #(od-events/key-file-visible-change false)}
+                                                                      [mui-icon-visibility]]
+                                                                     [mui-icon-button {:edge "end" :sx {:mr "-8px"}
+                                                                                       :on-click #(od-events/key-file-visible-change true)}
+                                                                      [mui-icon-visibility-off]])
                                                                    [mui-icon-button {:edge "end" :sx {:mr "-8px"}
                                                                                      :onClick od-events/open-key-file-explorer-on-click}
-                                                                    [mui-icon-folder-outlined]]])}}]]
+                                                                    [mui-icon-folder-outlined]]])}
+                         :type (if key-file-visibility-on "text" "password")}]]
          [mui-stack "Databse openining is in progress"])
        (cond
          (= status :in-progress)
@@ -106,7 +114,7 @@
       [mui-button {:color "secondary"
                    :disabled in-progress?
                    :on-click
-                   ok-action } "Ok"]]]))
+                   ok-action} "Ok"]]]))
 
 (defn open-db-dialog-main []
   [open-db-dialog @(od-events/dialog-data) @(cmn-events/opened-db-list)])

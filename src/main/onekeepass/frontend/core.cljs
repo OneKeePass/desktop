@@ -15,15 +15,18 @@
 
    [onekeepass.frontend.mui-components :as m :refer [split-pane
                                                      custom-theme-atom
+                                                     mui-icon-fingerprint
                                                      mui-stack
                                                      mui-box
                                                      mui-tabs
                                                      mui-tab
                                                      mui-typography
                                                      mui-button
+                                                     mui-icon-button
                                                      mui-css-baseline
                                                      mui-styled-engine-provider
-                                                     mui-theme-provider]]))
+                                                     mui-theme-provider]]
+   [onekeepass.frontend.constants :as const]))
 
 ;;(set! *warn-on-infer* true)
 
@@ -56,21 +59,33 @@
    [right-content]])
 
 (defn locked-content []
-  [mui-stack {:sx {:height "100%"
-                   :align-items "center"
-                   :justify-content "center"}}
-   [mui-box
-    [mui-stack {:sx {:align-items "center"}}
-     [mui-typography {:variant "h4"} "Database locked"]]
+  (let [biometric-type @(cmn-events/biometric-type-available)]
+    ;;(println "biometric-type is " biometric-type)
+    [mui-stack {:sx {:height "100%"
+                     :align-items "center"
+                     :justify-content "center"}}
+     [mui-box
+      [mui-stack {:sx {:align-items "center"}}
+       [mui-typography {:variant "h4"} "Database locked"]]
 
-    [mui-stack {:sx {:mt 2}}
-     [mui-typography {:variant "h6"}
-      @(cmn-events/active-db-key)]]
+      [mui-stack {:sx {:mt 2}}
+       [mui-typography {:variant "h6"}
+        @(cmn-events/active-db-key)]]
 
-    [mui-stack {:sx {:mt 3 :align-items "center"}}
-     [mui-button {:variant "outlined"
-                  :color "inherit"
-                  :on-click #(cmn-events/unlock-current-db)} "Unlock"]]]])
+      [mui-stack {:sx {:mt 3 :align-items "center"}}
+       (cond
+         (or (= biometric-type const/TOUCH_ID) (= biometric-type const/FACE_ID))
+         [mui-icon-button {:aria-label "fingerprint"
+                           :color "secondary"
+                           :on-click #(cmn-events/unlock-current-db biometric-type)}
+          [mui-icon-fingerprint {:sx {:font-size 40}}]]
+
+         :else nil)
+
+       [mui-button {:variant "outlined"
+                    :color "inherit"
+                    :on-click #(cmn-events/unlock-current-db biometric-type)}
+        "Quick unlock"]]]]))
 
 (defn group-entry-content-tabs
   "Presents tabs for all opened dbs.The actual content of a selected 
@@ -140,6 +155,13 @@
 (defn header-bar []
   [:div  [:f> tool-bar/top-bar]])
 
+(defn common-snackbars []
+  [:<>
+   ;; message-sanckbar shows generic message
+   [cc/message-sanckbar]
+   ;; message-sanckbar-alert mostly for error notification
+   [cc/message-sanckbar-alert]])
+
 (defn root-content
   "A functional component"
   []
@@ -147,19 +169,18 @@
     #_(m/react-use-effect (fn [] (println " called effect")) [])
 
     (if @(cmn-events/show-start-page)
-      [sp/welcome-content]
+      [:<>
+       [sp/welcome-content]
+       [common-snackbars]]
       [:div {:class "box"}  ;;:style {:height "100vh"}
        [:div {:class "cust_row header"}
         [header-bar]
-        ;; message-sanckbar shows generic message
-        [cc/message-sanckbar]
-        ;; message-sanckbar-alert mostly for error notification
-        [cc/message-sanckbar-alert]]
+        [common-snackbars]]
 
        [:div {:class "cust_row content" :style {:height "80%"}} ;;height "80%" added for WebKit
         [:f> main-content]]
 
-       ;;At this no use case for the footer
+       ;;At this time, no use case for the footer
        #_[:div {:class "cust_row footer"}
           #_[:span "footer (fixed height)"]
           ;;need to make tag p's margin 0px if we use tag p. Include {:style {:margin 0}}

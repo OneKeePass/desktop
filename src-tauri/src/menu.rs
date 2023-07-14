@@ -4,6 +4,7 @@ use tauri::{
   AboutMetadata, AppHandle, CustomMenuItem, Manager, Menu, MenuItem, Runtime, Submenu,
   WindowMenuEvent,
 };
+use onekeepass_core::db_service as kp_service; 
 
 #[allow(dead_code)]
 pub mod menu_ids {
@@ -158,6 +159,7 @@ pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app: AppHan
   match menu_id {
     QUIT => {
       info!("Quit requested from UI {:?}", request);
+      let _r = kp_service::close_all_databases();
       app.exit(0);
     }
     EDIT_ENTRY | SAVE_DATABASE | SAVE_DATABASE_AS | LOCK_DATABASE | LOCK_ALL_DATABASES
@@ -185,7 +187,7 @@ pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app: AppHan
 }
 
 // This handles all menu events for any window ('main' window or any other window if used) for now
-// All requested menu_id are just forwareded to the UI layer and UI layer decides what to do
+// All requested menu_id are just forwarded to the UI layer and UI layer decides what to do
 // See functions in 'onekeepass.frontend.events.tauri-events' particularly 'handle-menu-events'
 pub fn handle_menu_events(menu_event: &WindowMenuEvent) {
   menu_event

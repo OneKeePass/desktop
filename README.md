@@ -22,6 +22,7 @@ All created database files are encrypted using the best and most secure encrypti
 - Custom fields can be organized as sections
 - Any number of databases can be created and used
 - Fully offline 
+- Quick database unlock feature using TouchID for Mac OS
 
 ## Todo
 - [ ] Upload attachments to an entry 

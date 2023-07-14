@@ -19,6 +19,8 @@ use tauri::{
   App, Env, Manager, Runtime,
 };
 
+use crate::biometric;
+use crate::key_secure;
 use crate::preference::Preference;
 use onekeepass_core::db_service as kp_service;
 
@@ -33,6 +35,9 @@ impl AppState {
   pub fn new() -> Self {
     Self {
       preference: Arc::new(Mutex::new(Preference::default())),
+      // We keep any previously determined backup file name for easy lookup and avoids
+      // generating the name again
+      // TODO: How to handle this when we want to include time info in the file name
       backup_files: Mutex::new(HashMap::default()),
     }
   }
@@ -54,6 +59,7 @@ impl AppState {
     *store_pref = pref;
   }
 
+  /// Gets the full backfile name
   pub fn get_backup_file(&self, db_file_name: &str) -> Option<String> {
     let store_pref = self.preference.lock().unwrap();
     if !store_pref.backup.enabled {
@@ -99,6 +105,7 @@ pub struct SystemInfoWithPreference {
   pub os_name: String,
   pub path_sep: String,
   pub standard_dirs: StandardDirs,
+  pub biometric_type_available: String,
   pub preference: Preference,
 }
 
@@ -113,6 +120,7 @@ impl SystemInfoWithPreference {
       standard_dirs: StandardDirs {
         document_dir: document_dir().and_then(|p| p.as_path().to_str().map(|s| s.into())),
       },
+      biometric_type_available: biometric::supported_biometric_type(),
       // document_dir().and_then(|d| Some(d.as_os_str().to_string_lossy().to_string())),
       preference: p.clone(),
     }
@@ -155,16 +163,24 @@ pub fn generate_backup_file_name(backup_dir_path: PathBuf, db_file_name: &str) -
   if db_file_name.trim().is_empty() {
     return None;
   }
-  let (dir_name, file_name) = db_file_name
-    .rsplit_once("/")
-    .map_or_else(|| ("", ""), |s| s);
-  let n = kp_service::string_to_simple_hash(dir_name).to_string();
 
-  let fname_no_extension = file_name.strip_suffix(".kdbx").map_or(file_name, |s| s);
+  let db_path = Path::new(db_file_name);
+  let parent_dir = db_path.parent().map_or_else(
+    || "Root".into(),
+    |p| p.as_os_str().to_string_lossy().to_string(),
+  );
+  
+  let fname_no_extension = db_path.file_stem().map_or_else(
+    || "DB_FILE_NAME".into(),
+    |s| s.to_string_lossy().to_string(),
+  );
 
+  let n = kp_service::string_to_simple_hash(&parent_dir).to_string();
+
+  
   // The backup_file_name will be of form "MyPassword_10084644638414928086.kdbx" for
   // the original file name "MyPassword.kdbx" where 10084644638414928086 is a hash of the dir part of full path
-  let backup_file_name = vec![fname_no_extension, "_", &n, ".kdbx"].join("");
+  let backup_file_name = vec![fname_no_extension.as_str(), "_", &n, ".kdbx"].join("");
 
   debug!("backup_file_name is {}", backup_file_name);
   // Should not use any explicit /  like .join("/") while joing components
@@ -205,6 +221,9 @@ pub fn init_app(app: &App) {
 
   init_log(&log_dir);
   // Now onwards all loggings calls will be effective
+
+  key_secure::init_key_main_store();
+
   info!("{}", "Intit app is done");
 }
 

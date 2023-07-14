@@ -52,6 +52,7 @@
                                                      mui-icon-visibility-off
                                                      mui-icon-visibility
                                                      mui-icon-delete-outline
+                                                     mui-icon-autorenew
                                                      mui-icon-edit-outlined
                                                      mui-date-time-picker
                                                      mui-desktop-date-picker
@@ -296,16 +297,25 @@
                  :inputProps  {:readOnly (not edit)
                                :style {:resize "vertical"}}}])
 
-(defn end-icons [key value protected visibile?]
+(defn end-icons [key value protected visibile? edit]
   [:<>
    (when protected
      (if visibile?
-       [mui-icon-button {:edge "end"
+       [mui-icon-button {:sx {:margin-right "-8px"}
+                         :edge "end"
                          :on-click #(form-events/entry-form-field-visibility-toggle key)}
         [mui-icon-visibility]]
-       [mui-icon-button {:edge "end"
+       [mui-icon-button {:sx {:margin-right "-8px"}
+                         :edge "end"
                          :on-click #(form-events/entry-form-field-visibility-toggle key)}
         [mui-icon-visibility-off]]))
+   ;; Password generator 
+   (when (and edit protected (= key const/PASSWORD))
+     [mui-icon-button {:sx {:margin-right "-8px"}
+                       :edge "end"
+                       :on-click form-events/password-generator-show}
+      [mui-icon-autorenew]])
+   ;; Copy 
    [(cc/copy-icon-factory) value]])
 
 (defn text-field [{:keys [key
@@ -350,7 +360,7 @@
                                  ;;:sx (if editing {} read-sx1)
                               :endAdornment (r/as-element
                                              [mui-input-adornment {:position "end"}
-                                              [end-icons key value protected visible]
+                                              [end-icons key value protected visible edit]
                                               #_(seq icons)])
                               :type (if (or (not protected) visible) "text" "password")}
                          ;;attributes for 'input' tag can be added here
