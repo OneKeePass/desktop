@@ -167,7 +167,7 @@
   (subscribe [:on-lock-ask-save-dialog-data]))
 
 (defn unlock-current-db [biometric-type]
-  (println "biometric-type passed " biometric-type)
+  ;; (println "biometric-type passed " biometric-type)
   (if (= biometric-type const/NO_BIOMETRIC)
     (dispatch [:open-db-form/dialog-show-on-current-db-unlock-request])
     (dispatch [:open-db-form/authenticate-with-biometric])))
