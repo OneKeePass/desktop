@@ -15,7 +15,7 @@ jobs:
 
       - name: Query version number
         #run: echo "version=${GITHUB_REF:11}" >> $GITHUB_ENV
-        run: echo "version=0.6.0" >> $GITHUB_ENV
+        run: echo "version=0.7.0" >> $GITHUB_ENV
 
       # - name: Download x86_64 artifacts
       #   uses: actions/download-artifact@v3
