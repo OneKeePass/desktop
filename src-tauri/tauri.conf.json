@@ -36,7 +36,7 @@
         "exceptionDomain": "",
         "signingIdentity": null,
         "providerShortName": null,
-        "entitlements": "entitlements.plist"
+        "entitlements": null
       },
       "windows": {
         "certificateThumbprint": null,

@@ -131,14 +131,14 @@
                         :on-click nd-events/open-key-file-explorer-on-click} "Browse"]
 
           [mui-typography {:variant "caption"}
-           "Any random file that does not change. A hash of the file's content is used as an additional passsord."]
+           "You can pick any random file that does not change. A hash of the file's content is used as an additional passsord."]
 
           [mui-button  {:sx {:m 1}
                         :variant "text"
                         :on-click #(nd-events/save-as-key-file-explorer-on-click database-name)} "Generate"]
 
           [mui-typography {:variant "caption"}
-           "Alternatively, OneKeePass can generate a random key to use as additional key"]])])]])
+           "Alternatively, OneKeePass can generate a random key to use as an additional key"]])])]])
 
 (defn- file-info [{:keys [database-file-name db-file-file-exists database-name]}]
   [mui-stack {:spacing 2}

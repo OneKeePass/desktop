@@ -220,30 +220,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 
 [[package]]
-name = "botan"
-version = "0.10.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "892c489ddae46dd4748fff8b41ad1fb17d405892fb6978ef470441eddb2df4ef"
-dependencies = [
- "botan-sys",
-]
-
-[[package]]
-name = "botan-src"
-version = "0.21903.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "beb7bc6140fe563408b7ac7593897bbd589a284887a1d7a55f106df008a5d0a5"
-
-[[package]]
-name = "botan-sys"
-version = "0.10.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8f94a43f34344aabf27d50838a2b38aa8aad7c7d1e941e8abb015f608c972b1"
-dependencies = [
- "botan-src",
-]
-
-[[package]]
 name = "brotli"
 version = "3.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1975,14 +1951,14 @@ checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
 
 [[package]]
 name = "onekeepass-core"
-version = "0.6.0"
+version = "0.7.0"
+source = "git+https://github.com/OneKeePass/onekeepass-core.git?tag=v0.7.0#ce2a4111586fd6dd7358aba6701ec15920b7910e"
 dependencies = [
  "aes 0.7.5",
  "aes-gcm",
  "argon2-sys",
  "base64 0.21.2",
  "block-modes",
- "botan",
  "chacha20",
  "chrono",
  "chrono-tz",

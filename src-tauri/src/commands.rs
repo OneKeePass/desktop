@@ -13,7 +13,6 @@ use std::path::Path;
 use uuid::Uuid;
 
 use crate::biometric;
-use crate::key_secure;
 use crate::menu::{self, MenuActionRequest};
 use crate::utils::SystemInfoWithPreference;
 use crate::{preference, utils};
@@ -322,7 +321,7 @@ pub(crate) async fn get_group_by_id(db_key: String, group_uuid: Uuid) -> Result<
 pub(crate) async fn update_group(
   db_key: String,
   group: kp_service::Group,
-  window: tauri::Window,
+  _window: tauri::Window,
 ) -> Result<()> {
   kp_service::update_group(&db_key, group)?;
   // Leaving it here as example to send an event from a command
@@ -453,7 +452,7 @@ pub(crate) async fn close_kdbx(db_key: &str) -> Result<()> {
 }
 
 #[command]
-pub(crate) async fn lock_kdbx(db_key: &str) -> Result<()> {
+pub(crate) async fn lock_kdbx(_db_key: &str) -> Result<()> {
   //TODO:
   // Need to remove the session encryption key from memory in 'key_secure' module
   // This key need to be retreived during 'unlock_kdbx' call

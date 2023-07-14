@@ -39,7 +39,7 @@ func availableBiometricType() -> Int {
 @_cdecl("biometric_authentication")
 func biometricAuthentication() -> Bool {
     let localAuthenticationContext = LAContext()
-    let reason = "Authentication is required to continue"
+    let reason = "unlock the database"  // Prefix "OneKeePass is trying to " is added by os this text
     
     let sem = DispatchSemaphore(value:0)
     var authenticated:Bool?
