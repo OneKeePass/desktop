@@ -9,11 +9,11 @@ pub fn authenticate_with_biometric(db_key: &str) -> bool {
   macos::authenticate_with_biometric(db_key)
 }
 
-#[cfg(any(target_os = "windows", target_os = "unix"))]
+#[cfg(any(target_os = "windows", target_os = "linux"))]
 pub fn supported_biometric_type() -> String {
     "None".into()
 }
-#[cfg(any(target_os = "windows", target_os = "unix"))]
+#[cfg(any(target_os = "windows", target_os = "linux"))]
 pub fn authenticate_with_biometric(db_key: &str) -> bool {
   false
 }

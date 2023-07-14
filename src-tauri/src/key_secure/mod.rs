@@ -3,8 +3,8 @@
 #[path = "macos.rs"]
 mod imp;
 
-#[cfg(any(target_os = "windows", target_os = "unix"))]
-//#[cfg(any(target_os = "windows", target_os = "unix", feature = "onekeepass-dev"))]
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+//#[cfg(any(target_os = "windows", target_os = "linux", feature = "onekeepass-dev"))]
 #[path = "other.rs"]
 mod imp;
 
@@ -68,7 +68,7 @@ impl KeyStoreService for KeyStoreServiceImpl {
       macos::store_key(db_key, data)
     }
 
-    #[cfg(any(target_os = "windows", target_os = "unix", feature = "onekeepass-dev"))]
+    #[cfg(any(target_os = "windows", target_os = "linux", feature = "onekeepass-dev"))]
     {
       self.store.insert(db_key.into(), SecVec::new(data));
       debug!("Encrypted key is stored for other cfg");
@@ -82,7 +82,7 @@ impl KeyStoreService for KeyStoreServiceImpl {
       macos::get_key(db_key)
     }
 
-    #[cfg(any(target_os = "windows", target_os = "unix", feature = "onekeepass-dev"))]
+    #[cfg(any(target_os = "windows", target_os = "linux", feature = "onekeepass-dev"))]
     {
       self.store.get(db_key).map(|v| Vec::from(v.unsecure()))
     }
@@ -94,7 +94,7 @@ impl KeyStoreService for KeyStoreServiceImpl {
       macos::delete_key(db_key)
     }
 
-    #[cfg(any(target_os = "windows", target_os = "unix", feature = "onekeepass-dev"))]
+    #[cfg(any(target_os = "windows", target_os = "linux", feature = "onekeepass-dev"))]
     {
       self.store.remove(db_key);
       debug!("Keys are deleted..");
