@@ -3,6 +3,7 @@
   windows_subsystem = "windows"
 )]
 
+mod auto_type;
 mod biometric;
 mod commands;
 mod key_secure;
