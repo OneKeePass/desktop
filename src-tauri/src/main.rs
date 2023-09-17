@@ -31,6 +31,9 @@ fn main() {
       menu::handle_menu_events(&menu_event);
     })
     .invoke_handler(tauri::generate_handler![
+      // dev test calll
+      commands::test_call,
+
       // Sorted alphabetically
       commands::analyzed_password,
       commands::authenticate_with_biometric,

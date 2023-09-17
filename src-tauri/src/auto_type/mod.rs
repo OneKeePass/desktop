@@ -1,3 +1,7 @@
+mod macos;
+
+pub use macos::*;
+
 use std::{collections::HashSet, sync::OnceLock};
 
 use nom::{

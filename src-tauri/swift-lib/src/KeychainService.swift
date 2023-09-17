@@ -67,8 +67,9 @@ class KeychainService {
             logger.error("SecItemAdd error is  \(error)")
             /*
              // SecItemUpdate call did not work though query and attr are created and passed to SecItemUpdate
-             // call as per all vaiable documents. The 'SecItemDelete' call followed by 'SecItemAdd' again worked
-             // This delete and add again is done now in rust side
+             // call as per all avaiable documents. 
+             // However, the 'SecItemDelete' call followed by 'SecItemAdd' again worked
+             // This 'delete' and 'add' again is done now in rust side
              // Leaving the code here for future refernce
              if error.code == errSecDuplicateItem {
                 let query: [String: AnyObject] = [kSecAttrService as String: "Jey test service" as AnyObject,

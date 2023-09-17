@@ -489,11 +489,10 @@
 (defn export-as-xml [db-key xml-file-name]
   (invoke-api "export_as_xml"  {:db-key db-key :xml-file-name xml-file-name} #(println %)))
 
-(defn test-save-key []
-  (invoke-api "save_key" {} #(println %)))
-
-(defn test-read-key []
-  (invoke-api "read_key" {} #(println %)))
+(defn test-call [arg-m]
+  ;; test_call is a tauri command function that accetps TestArg in "arg" parameter
+  ;; Useful during development 
+  (invoke-api "test_call" (clj->js {:arg arg-m}) #(println %)))
 
 (comment
   (-> @re-frame.db/app-db keys)
@@ -503,56 +502,3 @@
   (-> @re-frame.db/app-db (get db-key) keys)
   
   )
-
-#_(defn unregister-event-listener
-    "Unregisters the previously registered event handler"
-    ([caller-name event-name]
-     (let [unlisten-fn (get @tauri-event-listeners [caller-name event-name])]
-       (if (nil? unlisten-fn)
-         (println "No existing listener found for the event name " event-name " and unlisten is not called")
-         (do
-           (unlisten-fn)
-           (swap! tauri-event-listeners assoc [caller-name event-name] nil)))))
-    ([event-name]
-     (unregister-event-listener :common event-name)))
-
-#_(defn open-file
-    "Opens a file passed as 'file-name' from the local file system with the system's default app
-   The arg 'file-name' expected to be the complete path.
-   Any error in opening is passed as {:error msg} to the 'dispatch-fn'
-  "
-    [file-name dispatch-fn]
-    (go
-      (try
-        (let [f (<p! (tauri-shell/open file-name))]
-          (dispatch-fn {:result f}))
-      ;;TODO Add returning error to dispatch-fn
-        (catch js/Error err
-          (dispatch-fn {:error (ex-cause err)})
-          (js/console.log (ex-cause err))))))
-
-#_(defn get-standard-path
-  "Called to get the standard platform specific dir.
-   The arg kw-name identifies what backend api to call and used as key to indentify the dir"
-  [kw-name dispatch-fn]
-  (let [call-fn (cond
-                  (= :document-dir kw-name)
-                  tauri-path/documentDir
-
-                  (= :home-dir kw-name)
-                  tauri-path/homeDir
-
-                  :else
-                  :unknown-name)]
-    (if (= call-fn :unknown-name)
-      (dispatch-fn {:error "Unknown standard path requested"})
-      (go
-        (try
-          (let [dir-name (<p! (call-fn))]
-            (dispatch-fn {:result {kw-name dir-name}}))
-          (catch js/Error err
-            (dispatch-fn {:error (ex-cause err)})
-            (js/console.log (ex-cause err))))))))
-
-#_(defn standard-paths [dispatch-fn]
-    (invoke-api "standard_paths" {} dispatch-fn))

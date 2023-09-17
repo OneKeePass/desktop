@@ -27,3 +27,5 @@ src/.clj-kondo/.cache/
 .rebel_readline_history
 figwheel-main.log.lck
 figwheel-main.log*
+
+**/.swiftpm/*

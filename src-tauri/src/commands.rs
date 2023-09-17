@@ -32,6 +32,16 @@ pub struct UpdatePayload {
 
 pub type Result<T> = std::result::Result<T, String>;
 
+//
+#[tauri::command]
+pub(crate) async fn test_call(
+  arg:crate::auto_type::TestArg
+) -> Result<()> {
+  //Ok(kp_service::set_db_settings(db_key, db_settings)?)
+  Ok(crate::auto_type::test_call(arg))
+}
+//
+
 #[command]
 pub(crate) async fn load_kdbx(
   db_file_name: &str,
