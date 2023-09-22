@@ -1408,6 +1408,20 @@
    (get-in-key-db db [:entry-delete])))
 
 ;;;;;;;;;;;;;;; Entry delete End ;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;; Auto type ;;;;;;;;;;;;;;;;;;;;;;
+
+(defn perform-auto-type-start []
+  (dispatch [:entry-perform-auto-type]))
+
+(defn auto-type-perform-dialog-data []
+  (subscribe [:auto-type/perform-dialog]))
+
+(reg-event-fx
+ :entry-perform-auto-type
+ (fn [{:keys [db]} [_event-id  entry-id]]
+   (println "Calling auto-type/perform-dialog-show ....")
+   {:db db
+    :fx [[:dispatch [:auto-type/perform-dialog-show true ]]]}))
 
 (comment
   (keys @re-frame.db/app-db)

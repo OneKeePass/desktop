@@ -93,7 +93,7 @@ func getErrorDescription(errorCode: Int) -> String {
     }
 }
 
-
+// TODO: Remove
 // --------------------------------------------------------
 
 /*

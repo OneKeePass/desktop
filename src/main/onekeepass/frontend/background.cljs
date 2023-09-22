@@ -483,6 +483,15 @@
               dispatch-fn
               :convert-request false))
 
+(defn parse-sequence [sequence dispatch-fn]
+  (invoke-api "parse_auto_type_sequence" {:sequence sequence} dispatch-fn ))
+
+(defn platform-window-titles [dispatch-fn]
+  (invoke-api "platform_window_titles" {} dispatch-fn))
+
+(defn active-window-to-auto-type [dispatch-fn]
+  (invoke-api "active_window_to_auto_type" {} dispatch-fn))
+
 (defn export-main-content-as-xml [db-key xml-file-name]
   (invoke-api "export_main_content_as_xml"  {:db-key db-key :xml-file-name xml-file-name} #(println %)))
 

@@ -32,9 +32,10 @@ fn main() {
     })
     .invoke_handler(tauri::generate_handler![
       // dev test calll
-      commands::test_call,
+      // commands::test_call,
 
       // Sorted alphabetically
+      commands::active_window_to_auto_type,
       commands::analyzed_password,
       commands::authenticate_with_biometric,
       commands::close_kdbx,
@@ -72,6 +73,8 @@ fn main() {
       commands::move_group_to_recycle_bin,
       commands::new_blank_group,
       commands::new_entry_form_data,
+      commands::parse_auto_type_sequence,
+      commands::platform_window_titles,
       commands::read_and_verify_db_file,
       commands::read_app_preference,
       commands::reload_kdbx,

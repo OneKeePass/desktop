@@ -22,7 +22,6 @@ func getKeyFromKeyChain(dbKey: SRString) -> SRString {
     ks.getKey(dbKey: dbKey)
 }
 
-
 class KeychainActionResult: NSObject {
     var errorCode: Int
     init(_ errorCode: Int) {

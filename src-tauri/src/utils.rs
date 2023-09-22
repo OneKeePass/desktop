@@ -19,6 +19,8 @@ use tauri::{
   App, Env, Manager, Runtime,
 };
 
+
+
 use crate::biometric;
 use crate::key_secure;
 use crate::preference::Preference;
@@ -191,6 +193,11 @@ pub fn generate_backup_file_name(backup_dir_path: PathBuf, db_file_name: &str) -
 }
 
 pub fn init_app(app: &App) {
+  use tauri::GlobalShortcutManager;
+  let _r = app.app_handle().global_shortcut_manager().register("Alt+Shift+R", move || {
+    println!("⌥⇧R is pressed");
+  });
+
   let app_dir = app_home_dir();
   let log_dir = app_logs_dir();
   let backups_dir = app_backup_dir();

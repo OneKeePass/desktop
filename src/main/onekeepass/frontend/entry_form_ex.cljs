@@ -128,7 +128,12 @@
                      :sx {:padding-left "1px"}
                      :on-click (menu-action anchor-el form-events/entry-delete-start entry-uuid)}
       [mui-list-item-text {:inset true} "Delete"]]
-     #_[mui-menu-item {:divider false} "Info"]
+     
+     [mui-menu-item {:divider true
+                     :sx {:padding-left "1px"}
+                     :on-click (menu-action anchor-el form-events/perform-auto-type-start entry-uuid)}
+      [mui-list-item-text {:inset true} "Perform auto type"]]
+     
      [mui-menu-item {:divider false
                      :sx {:padding-left "1px"}
                      :on-click (menu-action anchor-el form-events/load-history-entries-summary entry-uuid)
@@ -246,7 +251,7 @@
 
 (def ENTRY_DATETIME_FORMAT "dd MMM yyyy pp")
 
-(defn times-content []
+(defn uuid-times-content []
   (let [edit @(form-events/form-edit-mode)
         expiry-duration-selection @(form-events/entry-form-field :expiry-duration-selection)
         expiry-dt @(form-events/entry-form-data-fields :expiry-time)
@@ -254,6 +259,11 @@
         last-modification-time @(form-events/entry-form-data-fields :last-modification-time)]
     (when-not edit
       [mui-box {:sx content-sx}
+       
+       [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
+        [mui-typography "Uuid:"]
+        [mui-typography @(form-events/entry-form-data-fields :uuid)]]
+       
        [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
         [mui-typography "Created:"]
         [mui-typography (u/to-local-datetime-str creation-time ENTRY_DATETIME_FORMAT)]]
@@ -962,7 +972,7 @@
      [tags-selection]
      ;; attachments-content is not yet complete
      #_[attachments-content]
-     [times-content]
+     [uuid-times-content]
      [expiry-content]]))
 
 (defn delete-permanent-dialog [dialog-data entry-uuid]
@@ -999,8 +1009,7 @@
                              :align "center" :paragraph false :variant "h6"} title]]
            [mui-stack {:direction "row" :sx {:width "5%"}}
             [:div {:style {:margin-right "8px"}}
-             [form-menu entry-uuid]
-             #_[entry-form-top-menu]]]])]
+             [form-menu entry-uuid]]]])]
 
        [:div {:class "gcontent" :style {:overflow-y "scroll"
                                         :background background-color1}}

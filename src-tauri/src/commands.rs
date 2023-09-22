@@ -12,7 +12,7 @@ use std::fs::read_to_string;
 use std::path::Path;
 use uuid::Uuid;
 
-use crate::biometric;
+use crate::{biometric, auto_type};
 use crate::menu::{self, MenuActionRequest};
 use crate::utils::SystemInfoWithPreference;
 use crate::{preference, utils};
@@ -33,13 +33,13 @@ pub struct UpdatePayload {
 pub type Result<T> = std::result::Result<T, String>;
 
 //
-#[tauri::command]
-pub(crate) async fn test_call(
-  arg:crate::auto_type::TestArg
-) -> Result<()> {
-  //Ok(kp_service::set_db_settings(db_key, db_settings)?)
-  Ok(crate::auto_type::test_call(arg))
-}
+// #[tauri::command]
+// pub(crate) async fn test_call(
+//   arg:crate::auto_type::TestArg
+// ) -> Result<()> {
+  
+//   Ok(crate::auto_type::test_call(arg))
+// }
 //
 
 #[command]
@@ -592,4 +592,20 @@ pub async fn supported_biometric_type() -> Result<String> {
 #[tauri::command]
 pub async fn authenticate_with_biometric(db_key: &str) -> Result<bool> {
   Ok(biometric::authenticate_with_biometric(db_key))
+}
+
+#[tauri::command]
+pub async fn parse_auto_type_sequence(sequence:&str) -> Result<Vec<auto_type::ParsedPlaceHolderVal>> {
+  auto_type::parse_auto_type_sequence(sequence)
+}
+
+#[tauri::command]
+pub async fn platform_window_titles() -> Result<Vec<auto_type::WindowInfo>> {
+  Ok(auto_type::window_titles()?)
+}
+
+#[tauri::command]
+pub async fn active_window_to_auto_type() -> Option<auto_type::WindowInfo> {
+  // None is returned if there is no other window is open other than the app
+  auto_type::active_window_to_auto_type()
 }
