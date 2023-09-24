@@ -86,6 +86,7 @@ fn main() {
       commands::score_password,
       commands::search_term,
       commands::set_db_settings,
+      commands::send_sequence_to_winow,
       commands::standard_paths,
       commands::supported_biometric_type,
       commands::svg_file,

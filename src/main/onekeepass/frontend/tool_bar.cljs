@@ -244,8 +244,12 @@
                             :disabled locked?
                             :on-click srch-event/search-dialog-show}
            [mui-icon-search]]]]] 
-       [gen-form/password-generator-dialog @(gen-events/generator-dialog-data)] 
+       
+       ;; Auto type dialogs
        [at-form/perform-auto-type-dialog @(at-events/auto-type-perform-dialog-data)]
+       [at-form/auto-type-edit-dialog @(at-events/auto-type-edit-dialog-data)]
+       
+       [gen-form/password-generator-dialog @(gen-events/generator-dialog-data)] 
        [message-dialog]
        [progress-message-dialog]
        [error-info-dialog]

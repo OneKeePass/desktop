@@ -633,7 +633,7 @@
 (reg-event-db
  :section-delete
  (fn [db [_event-id section-name]]
-   (assoc-in-key-db db [entry-form-key :section-delete-dialog-data] 
+   (assoc-in-key-db db [entry-form-key :section-delete-dialog-data]
                     {:dialog-show true
                      :section-name section-name})))
 
@@ -1413,15 +1413,35 @@
 (defn perform-auto-type-start []
   (dispatch [:entry-perform-auto-type]))
 
+(defn entry-auto-type-edit []
+  (dispatch [:entry-auto-type-edit]))
+
 (defn auto-type-perform-dialog-data []
   (subscribe [:auto-type/perform-dialog]))
 
 (reg-event-fx
  :entry-perform-auto-type
- (fn [{:keys [db]} [_event-id  entry-id]]
-   (println "Calling auto-type/perform-dialog-show ....")
-   {:db db
-    :fx [[:dispatch [:auto-type/perform-dialog-show true ]]]}))
+ (fn [{:keys [db]} [_event-id]]
+   (let [{:keys [uuid auto-type]} (get-in-key-db db [entry-form-key :data])]
+     {:fx [[:auto-type/bg-active-window-to-auto-type [uuid auto-type]]]})))
+
+
+(defn extract-form-field-names-values [form-data]
+  ;; :section-fields returns a map with section name as keys
+  ;; vals fn return 'values' ( a vec of field info map) for all sections. Once vec for each section. 
+  ;; And need to use flatten to combine all section values
+  ;; For example if two sections, vals call will return a two member ( 2 vec)
+  ;; sequence. Flatten combines both vecs and returns a single sequence of field info maps
+  (let [fields (-> form-data :section-fields vals flatten)
+        names-values (into {} (for [{:keys [key value]} fields] [key value]))]
+    names-values))
+
+(reg-event-fx
+ :entry-auto-type-edit
+ (fn [{:keys [db]} [_event-id]]
+   (let [{:keys [uuid auto-type] :as form-data} (get-in-key-db db [entry-form-key :data])
+         entry-form-fields (extract-form-field-names-values form-data)]
+     {:fx [[:dispatch [:auto-type/edit-init uuid auto-type entry-form-fields]]]})))
 
 (comment
   (keys @re-frame.db/app-db)

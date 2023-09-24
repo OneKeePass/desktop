@@ -1,16 +1,15 @@
-use std::{collections::HashSet, sync::OnceLock};
+use std::{collections::{HashSet, HashMap}, sync::OnceLock};
 
 use nom::{
   branch::alt,
   bytes::complete::{tag, tag_no_case, take_until},
   character::complete::{alpha0, char, multispace0},
-  character::complete::{alphanumeric1, digit0, digit1, multispace1, one_of},
-  combinator::{cut, map, map_parser, map_res, opt, recognize, rest, verify},
-  complete::take,
-  error::{Error, ParseError},
-  multi::{many0, many1},
-  sequence::{terminated, tuple},
-  Err, IResult, Parser,
+  character::complete::{alphanumeric1, digit0,  multispace1},
+  combinator::{map, map_parser, map_res, opt, rest, verify},
+  error::Error,
+  multi::many1,
+  sequence::tuple,
+  IResult,
 };
 use serde::{Serialize, Deserialize};
 
@@ -85,7 +84,7 @@ fn standard_field_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceH
 }
 
 // Extracts the attribute name and verifies that the name is accepted one
-fn custom_field_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder> {
+fn custom_field_parser<'a>(entry_fields:&'a HashMap<String,String>) -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder> {
     map(
       verify(
         map(
@@ -102,7 +101,10 @@ fn custom_field_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHol
           |x| x.4,
         ),
         // Verifies that the map call returned value
-        move |v: &str| true,
+        // TODO: 
+        // Need to add verification of this extracted attribute existence in the entry form's fields
+        // like stadard attributes check is done
+        move |v: &str| entry_fields.contains_key(v),
       ),
       // The input 'x' is the returned value from the earlier 'map' parser on successful verification
       |x| PlaceHolder::Attribute(x),
@@ -199,7 +201,7 @@ fn key_delay_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder
         |(_v, r)| r.trim().is_empty(),
       ),
       // Fn called by outer map parser. The arg is the output of inner map parser
-      |(v, _)| PlaceHolder::Delay(v),
+      |(v, _)| PlaceHolder::KeyPressDelay(v),
     ),
   )
 }
@@ -207,11 +209,12 @@ fn key_delay_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder
 #[derive(Debug)]
 pub struct PlaceHolderParser<'a> {
   input: &'a str,
+  entry_fields:&'a HashMap<String,String>,
 }
 
 impl<'a> PlaceHolderParser<'a> {
-  fn new(input: &'a str) -> Self {
-    Self { input }
+  fn new(input: &'a str,entry_fields:&'a HashMap<String,String>) -> Self {
+    Self { input,entry_fields }
   }
 
   fn parse(&mut self) -> Result<Vec<PlaceHolder>, String> {
@@ -222,7 +225,7 @@ impl<'a> PlaceHolderParser<'a> {
       delay_parser(),
       key_delay_parser(),
       standard_field_parser(),
-      custom_field_parser(),
+      custom_field_parser(&self.entry_fields),
       key_name_opt_repeat_parser(),
     ));
 
@@ -272,8 +275,8 @@ impl<'a>  From<PlaceHolder<'_>> for ParsedPlaceHolderVal {
     }
 }
 
-pub fn parse_auto_type_sequence<'a>(sequence:&'a str) -> Result<Vec<ParsedPlaceHolderVal>, String> {
-    let mut ph = PlaceHolderParser::<'a>::new(sequence);
+pub fn parse_auto_type_sequence<'a>(sequence:&'a str,entry_fields:&'a HashMap<String,String>) -> Result<Vec<ParsedPlaceHolderVal>, String> {
+    let mut ph = PlaceHolderParser::<'a>::new(sequence,entry_fields);
     let r = ph.parse();
 
     match r {
@@ -298,8 +301,14 @@ mod tests {
   #[test]
   fn verify_parsing() {
     let sample1 =
-      "^+d  {USERNAMe} {S:Mainden name} {delay 5}  {tab 4   } %#M {delay=10 } {SPACE} {PASSWORD} {enter}             ";
-    let mut ph = PlaceHolderParser::new(sample1);
+      "^+d  {USERNAMe} {S:Maiden name} {delay 5}  {tab 4   } %#M {delay=10 } {SPACE} {PASSWORD} {enter}   ";
+
+      // All custom fields (other than standard fileds) are required to be present
+      let fields = HashMap::from([
+        ("Maiden name".to_string(), "Some value".to_string()),
+        // add other fields
+      ]);          
+    let mut ph = PlaceHolderParser::new(sample1,&fields);
     let r = ph.parse();
     println!("Parsed output is {:?}", r);
     assert!(r.is_ok())

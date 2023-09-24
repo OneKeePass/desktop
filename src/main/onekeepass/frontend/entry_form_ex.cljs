@@ -128,12 +128,17 @@
                      :sx {:padding-left "1px"}
                      :on-click (menu-action anchor-el form-events/entry-delete-start entry-uuid)}
       [mui-list-item-text {:inset true} "Delete"]]
-     
-     [mui-menu-item {:divider true
+
+     [mui-menu-item {:divider false
                      :sx {:padding-left "1px"}
                      :on-click (menu-action anchor-el form-events/perform-auto-type-start entry-uuid)}
       [mui-list-item-text {:inset true} "Perform auto type"]]
      
+     [mui-menu-item {:divider true
+                     :sx {:padding-left "1px"}
+                     :on-click (menu-action anchor-el form-events/entry-auto-type-edit)}
+      [mui-list-item-text {:inset true} "Edit auto type"]]
+
      [mui-menu-item {:divider false
                      :sx {:padding-left "1px"}
                      :on-click (menu-action anchor-el form-events/load-history-entries-summary entry-uuid)
@@ -259,11 +264,11 @@
         last-modification-time @(form-events/entry-form-data-fields :last-modification-time)]
     (when-not edit
       [mui-box {:sx content-sx}
-       
+
        [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
         [mui-typography "Uuid:"]
         [mui-typography @(form-events/entry-form-data-fields :uuid)]]
-       
+
        [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
         [mui-typography "Created:"]
         [mui-typography (u/to-local-datetime-str creation-time ENTRY_DATETIME_FORMAT)]]

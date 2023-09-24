@@ -381,7 +381,7 @@ pub(crate) async fn get_categories_to_show(
 pub(crate) async fn mark_group_as_category(
   db_key: String,
   group_id: String,
-  window: tauri::Window,
+  _window: tauri::Window,
 ) -> Result<()> {
   kp_service::mark_group_as_category(&db_key, &group_id)?;
   //As the group data is modified, the "group_update" event is emitted and appropriate listener
@@ -595,8 +595,8 @@ pub async fn authenticate_with_biometric(db_key: &str) -> Result<bool> {
 }
 
 #[tauri::command]
-pub async fn parse_auto_type_sequence(sequence:&str) -> Result<Vec<auto_type::ParsedPlaceHolderVal>> {
-  auto_type::parse_auto_type_sequence(sequence)
+pub async fn parse_auto_type_sequence(sequence:&str,entry_fields:HashMap<String,String>) -> Result<Vec<auto_type::ParsedPlaceHolderVal>> {
+  auto_type::parse_auto_type_sequence(sequence,&entry_fields)
 }
 
 #[tauri::command]
@@ -608,4 +608,10 @@ pub async fn platform_window_titles() -> Result<Vec<auto_type::WindowInfo>> {
 pub async fn active_window_to_auto_type() -> Option<auto_type::WindowInfo> {
   // None is returned if there is no other window is open other than the app
   auto_type::active_window_to_auto_type()
+}
+
+#[tauri::command]
+pub async fn send_sequence_to_winow(db_key: &str,entry_uuid: Uuid,window_info:auto_type::WindowInfo,sequence:&str) -> Result<()> {
+  let entry_fields = kp_service::entry_key_value_fields(db_key,&entry_uuid)?;
+  Ok(auto_type::send_sequence_to_winow(window_info, sequence, entry_fields)?)
 }

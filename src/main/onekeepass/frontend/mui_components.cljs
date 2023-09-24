@@ -116,6 +116,11 @@
 
 (def color-primary-main (-> ^js/Mui.Theme @custom-theme-atom .-palette .-primary .-main))
 
+;; This set color-primary-dark as rgb(17, 82, 147). But using this did not work
+#_(def color-primary-dark (-> ^js/Mui.Theme @custom-theme-atom .-palette .-primary .-dark))
+
+(def color-primary-dark  "#115293") ;; rgb(17, 82, 147) to hex value works
+
 (def color-secondary-main (-> ^js/Mui.Theme @custom-theme-atom .-palette .-secondary .-main))
 
 (def color-grey-200 (gobj/get color-grey 200)) ;; replacement for var (--mui-color-grey-200)
