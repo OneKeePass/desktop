@@ -1,24 +1,27 @@
-use std::{collections::{HashSet, HashMap}, sync::OnceLock};
+use std::{
+  collections::{HashMap, HashSet},
+  sync::OnceLock,
+};
 
 use nom::{
   branch::alt,
   bytes::complete::{tag, tag_no_case, take_until},
   character::complete::{alpha0, char, multispace0},
-  character::complete::{alphanumeric1, digit0,  multispace1},
+  character::complete::{alphanumeric1, digit0, multispace1},
   combinator::{map, map_parser, map_res, opt, rest, verify},
   error::Error,
   multi::many1,
   sequence::tuple,
   IResult,
 };
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 // From nom::internal  type IResult<I, O, E = (I, ErrorKind)> = Result<(I, O), Err<E>>;
 
 static STANDARD_FIELDS: OnceLock<HashSet<&'static str>> = OnceLock::new();
 
 fn standard_fields() -> &'static HashSet<&'static str> {
-    STANDARD_FIELDS.get_or_init(|| HashSet::from(["title", "username", "password", "url"]))
+  STANDARD_FIELDS.get_or_init(|| HashSet::from(["TITLE", "USERNAME", "PASSWORD", "URL"]))
 }
 
 static KEY_NAMES: OnceLock<HashSet<&'static str>> = OnceLock::new();
@@ -27,7 +30,7 @@ fn key_names() -> &'static HashSet<&'static str> {
   KEY_NAMES.get_or_init(|| HashSet::from(["TAB", "ENTER", "SPACE"]))
 }
 
-#[derive(Debug,PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum PlaceHolder<'a> {
   Attribute(&'a str),
   KeyName(&'a str, i32), //include optional repeat field
@@ -76,7 +79,7 @@ fn standard_field_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceH
         |x| x.2,
       ),
       // Verifies that the map call returned value
-      move |v: &str| standard_fields().contains(&v.to_string().to_lowercase().as_str()),
+      move |v: &str| standard_fields().contains(&v.to_string().to_uppercase().as_str()),
     ),
     // The input 'x' is the returned value from the earlier 'map' parser on successful verification
     |x| PlaceHolder::Attribute(x),
@@ -100,11 +103,8 @@ fn custom_field_parser<'a>(entry_fields:&'a HashMap<String,String>) -> impl FnMu
           // x is a tuple and map call returns the actual extracted value from fifth member ( indx 5) of tuple
           |x| x.4,
         ),
-        // Verifies that the map call returned value
-        // TODO: 
-        // Need to add verification of this extracted attribute existence in the entry form's fields
-        // like stadard attributes check is done
-        move |v: &str| entry_fields.contains_key(v),
+        // Verifies that the map call returned key value that is found in 'entry_fields'
+        move |v: &str| entry_fields.contains_key(v.to_uppercase().as_str()),
       ),
       // The input 'x' is the returned value from the earlier 'map' parser on successful verification
       |x| PlaceHolder::Attribute(x),
@@ -213,6 +213,8 @@ pub struct PlaceHolderParser<'a> {
 }
 
 impl<'a> PlaceHolderParser<'a> {
+  // IMPORTANT: All keys in entry_fields map are expected to be in upper case only
+  // Caller needs to convert to uppercase
   fn new(input: &'a str,entry_fields:&'a HashMap<String,String>) -> Self {
     Self { input,entry_fields }
   }
@@ -250,22 +252,27 @@ impl<'a> PlaceHolderParser<'a> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ParsedPlaceHolderVal {
-    Attribute(String),
-    KeyName(String, i32), //include optional repeat field
-    Delay(i32),
-    KeyPressDelay(i32),
-    Modfier(Vec<char>),
+  Attribute(String),
+  KeyName(String, i32), //include optional repeat field
+  Delay(i32),
+  KeyPressDelay(i32),
+  Modfier(Vec<char>),
 }
 
 impl ParsedPlaceHolderVal {
-    fn from_vals(vals:Vec<PlaceHolder<'_>>) -> Vec<ParsedPlaceHolderVal> {
-        vals.into_iter().map(|v| v.into() ).collect::<Vec<ParsedPlaceHolderVal>>()
-    }
+  fn from_vals(vals: Vec<PlaceHolder<'_>>) -> Vec<ParsedPlaceHolderVal> {
+    vals
+      .into_iter()
+      .map(|v| v.into())
+      .collect::<Vec<ParsedPlaceHolderVal>>()
+  }
 }
 
 impl<'a>  From<PlaceHolder<'_>> for ParsedPlaceHolderVal {
     fn from(val:PlaceHolder<'_>) -> ParsedPlaceHolderVal {
         match val {
+            // ensure that the attribute name is in upper case as this is used as key to 
+            // look up value from entru_fields hash map
             PlaceHolder::Attribute(s) => Self::Attribute(s.to_string().to_uppercase()),
             PlaceHolder::KeyName(s,v) => Self::KeyName(s.to_string(),v),
             PlaceHolder::Delay(v) => Self::Delay(v),
@@ -275,24 +282,33 @@ impl<'a>  From<PlaceHolder<'_>> for ParsedPlaceHolderVal {
     }
 }
 
-pub fn parse_auto_type_sequence<'a>(sequence:&'a str,entry_fields:&'a HashMap<String,String>) -> Result<Vec<ParsedPlaceHolderVal>, String> {
-    let mut ph = PlaceHolderParser::<'a>::new(sequence,entry_fields);
-    let r = ph.parse();
+pub fn parse_auto_type_sequence(
+  sequence: &str,
+  entry_fields: &HashMap<String, String>,
+) -> Result<Vec<ParsedPlaceHolderVal>, String> {
 
-    match r {
-        Ok(vals) => Ok(ParsedPlaceHolderVal::from_vals(vals)),
-        Err(e) => Err(e)
-    }
+  let entry_fields_case_converted: HashMap<String, String> = entry_fields
+      .iter()
+      .map(|(k, v)| (k.to_uppercase().clone(), v.clone()))
+      .collect();
+
+  let mut ph = PlaceHolderParser::new(sequence, &entry_fields_case_converted);
+  let r = ph.parse();
+
+  match r {
+    Ok(vals) => Ok(ParsedPlaceHolderVal::from_vals(vals)),
+    Err(e) => Err(e),
+  }
 }
 
-// This fn is not working 
-// Error is :  
+// This fn is not working
+// Error is :
 // cannot return value referencing local variable `ph`returns a value referencing data owned by the current function
 // So returning Vec<PlaceHolderVal> is used
 // pub fn parse_auto_type_sequence_not_working<'a>(sequence:&'a str) -> Result<Vec<PlaceHolder<'_>>, String> {
 //     let mut ph = PlaceHolderParser::<'a>::new(sequence);
 //     let r = ph.parse();
-//     r 
+//     r
 // }
 
 #[cfg(test)]
@@ -301,15 +317,16 @@ mod tests {
   #[test]
   fn verify_parsing() {
     let sample1 =
-      "^+d  {USERNAMe} {S:Maiden name} {delay 5}  {tab 4   } %#M {delay=10 } {SPACE} {PASSWORD} {enter}   ";
+      "^+d  {USERNAMe} {S:maiden name} {delay 5}  {tab 4   } %#M {delay=10 } {SPACE} {PASSWORD} {enter}   ";
 
-      // All custom fields (other than standard fileds) are required to be present
-      let fields = HashMap::from([
-        ("Maiden name".to_string(), "Some value".to_string()),
-        // add other fields
-      ]);          
-    let mut ph = PlaceHolderParser::new(sample1,&fields);
-    let r = ph.parse();
+    // All custom fields (other than standard fileds) are required to be present
+    let entry_fields = HashMap::from([
+      ("Maiden name".to_string(), "Some value".to_string()),
+      // add other fields
+    ]);
+    
+    let r = parse_auto_type_sequence(sample1,&entry_fields);
+    
     println!("Parsed output is {:?}", r);
     assert!(r.is_ok())
   }

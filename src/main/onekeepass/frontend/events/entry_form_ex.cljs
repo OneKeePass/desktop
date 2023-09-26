@@ -246,8 +246,7 @@
 
 (reg-event-db
  :entry-form-data-load-completed
- (fn [db [_event-id status result]] ;;result is 
-   ;;(println "In entry-form-data-load-completed result is " result)
+ (fn [db [_event-id status result]] ;;result is )
    (if (= status :ok)
      (-> db
          #_(assoc-in-key-db [entry-form-key] {})
@@ -266,6 +265,23 @@
          section-kvs (mapv (fn [m] (if (= (:key m) key) (assoc m :value value) m)) section-kvs)]
 
      (assoc-in-key-db db [entry-form-key :data :section-fields section] section-kvs))))
+
+(defn has-password-field [field-maps ]
+  (->> field-maps (filter (fn [m] 
+                            (println "m is " m)
+                            (= (:key m) "Password")))  ) )
+
+(reg-event-db
+ :entry-form-update-section-password-score
+ (fn [db [_event-id password-score]]
+   ;;(println "section key value " section key value)
+   (let [section-fields  (get-in-key-db db [entry-form-key :data :section-fields])
+         section (filter (fn [[k m]] ) section-fields)
+         section-kvs (get-in-key-db db [entry-form-key :data :section-fields section])
+         section-kvs (mapv (fn [m] (if (= (:key "Password") key) (assoc m :password-score password-score) m)) section-kvs)]
+
+     (assoc-in-key-db db [entry-form-key :data :section-fields section] section-kvs))))
+
 
 ;; Update a field found in :data
 (reg-event-db
@@ -351,6 +367,7 @@
  (fn [{:keys [db]} [_event-id]]
    (let [form-data (get-in-key-db db [entry-form-key :data])
          error-fields (validate-all form-data)]
+     ;;(println "auto type is " (:auto-type form-data))
      (if (boolean (seq error-fields))
        {:db (assoc-in-key-db db [entry-form-key :error-fields] error-fields)}
        ;; TODO: Move update-entry call to a reg-fx
@@ -360,6 +377,15 @@
                               (dispatch [:entry-update-complete-ex]))))
          ;; clear any previous errors as 'error-fields' will be empty at this time
          {:db (assoc-in-key-db db [entry-form-key :error-fields] error-fields)})))))
+
+(reg-event-fx
+ :entry-form/auto-type-updated
+ (fn [{:keys [db]} [_event-id auto-type-m]] 
+   {;; First set the changed incoming auto-type map to entry form data
+    :db (-> db (assoc-in-key-db [entry-form-key :data :auto-type] auto-type-m))
+    ;; For now, the 'ok-entry-edit-ex' event is reused for this save. It is assumed there will not 
+    ;; be any validation error!
+    :fx [[:dispatch [:ok-entry-edit-ex]]]}))
 
 (reg-event-fx
  :entry-update-complete-ex
@@ -1439,7 +1465,7 @@
 (reg-event-fx
  :entry-auto-type-edit
  (fn [{:keys [db]} [_event-id]]
-   (let [{:keys [uuid auto-type] :as form-data} (get-in-key-db db [entry-form-key :data])
+   (let [{:keys [uuid auto-type] :as form-data} (get-in-key-db db [entry-form-key :data]) 
          entry-form-fields (extract-form-field-names-values form-data)]
      {:fx [[:dispatch [:auto-type/edit-init uuid auto-type entry-form-fields]]]})))
 
@@ -1448,8 +1474,7 @@
 
   (def db-key (:current-db-file-name @re-frame.db/app-db))
   (-> @re-frame.db/app-db (get db-key) keys)
-
-  (-> (get @re-frame.db/app-db db-key) :entry-form) ;; old one 
+  
   (-> (get @re-frame.db/app-db db-key) :entry-form-data) ;; for now
   )
 

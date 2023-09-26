@@ -168,11 +168,13 @@ mod tests {
       process_id: 965,
     };
 
-    let seq = "{USERNAME}{TAB 3}{delay=50} {PASSWORD} {SPACE} {ENTEr}";
+    let seq = "{USERNAME}{TAB 3} {PASSWORD} {SPACE} {S:Maiden Name} {ENTEr}";
 
     let fields = HashMap::from([
       ("USERNAME".to_string(), "aTesterAcct".to_string()),
-      ("PASSWORD".to_string(), "qdadasdada".to_string()),
+      ("PASSWOrd".to_string(), "qdadasdada".to_string()),
+      ("maiden name".to_string(), "mary".to_string()),
+
     ]);
 
     let r = send_sequence_to_winow(w, seq, fields);

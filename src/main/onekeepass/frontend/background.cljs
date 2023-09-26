@@ -266,7 +266,7 @@
   [entry-form-data]
   (let [keys_exclude (->  entry-form-data :section-fields keys vec)
        ;; _ (println "keys_exclude are " keys_exclude)
-        t-fn (fn [k]
+        t-fn (fn [k] 
                (if (contains-val? keys_exclude k)
                  k
                  (csk/->snake_case k)))]
@@ -482,6 +482,9 @@
                      (cske/transform-keys csk/->snake_case))})
               dispatch-fn
               :convert-request false))
+
+(defn score-passwprd [password dispatch-fn]
+  (invoke-api "score_password" {:password password} dispatch-fn))
 
 (defn parse-auto-type-sequence [sequence entry-fields dispatch-fn]
   (invoke-api "parse_auto_type_sequence" {:sequence sequence :entry-fields entry-fields} dispatch-fn))
