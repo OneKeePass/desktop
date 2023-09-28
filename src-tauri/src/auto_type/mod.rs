@@ -5,6 +5,11 @@ mod parsing;
 #[path = "macos/mod.rs"]
 mod platform;
 
+
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+#[path = "other.rs"]
+mod platform;
+
 use std::collections::HashMap;
 
 pub use parsing::{parse_auto_type_sequence, ParsedPlaceHolderVal};

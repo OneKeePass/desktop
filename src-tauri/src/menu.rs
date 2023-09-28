@@ -1,10 +1,10 @@
 use log::info;
+use onekeepass_core::db_service as kp_service;
 use serde::{Deserialize, Serialize};
 use tauri::{
   AboutMetadata, AppHandle, CustomMenuItem, Manager, Menu, MenuItem, Runtime, Submenu,
   WindowMenuEvent,
 };
-use onekeepass_core::db_service as kp_service; 
 
 #[allow(dead_code)]
 pub mod menu_ids {
@@ -16,6 +16,9 @@ pub mod menu_ids {
   pub const CLOSE_DATABASE: &str = "CloseDatabase";
   pub const LOCK_DATABASE: &str = "LockDatabase";
   pub const LOCK_ALL_DATABASES: &str = "LockAllDatabases";
+
+  pub const NEW_GROUP: &str = "NewGroup";
+  pub const EDIT_GROUP: &str = "EditGroup";
 
   pub const SEARCH: &str = "Search";
   pub const NEW_ENTRY: &str = "NewEntry";
@@ -96,7 +99,15 @@ pub fn get_app_menu() -> Menu {
       .into(),
   ]);
 
-  let groups_sub_menu = Menu::with_items([]);
+  let groups_sub_menu = Menu::with_items([
+    CustomMenuItem::new(NEW_GROUP, "New Group")
+      .disabled()
+      .into(),
+    MenuItem::Separator.into(),
+    CustomMenuItem::new(EDIT_GROUP, "Edit Group")
+      .disabled()
+      .into(),
+  ]);
 
   let tools_sub_menu =
     Menu::with_items([
@@ -162,8 +173,8 @@ pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app: AppHan
       let _r = kp_service::close_all_databases();
       app.exit(0);
     }
-    EDIT_ENTRY | SAVE_DATABASE | SAVE_DATABASE_AS | LOCK_DATABASE | LOCK_ALL_DATABASES
-    | CLOSE_DATABASE | PASSWORD_GENERATOR | SEARCH => {
+    EDIT_ENTRY | NEW_ENTRY | EDIT_GROUP | NEW_GROUP | SAVE_DATABASE | SAVE_DATABASE_AS
+    | LOCK_DATABASE | LOCK_ALL_DATABASES | CLOSE_DATABASE | PASSWORD_GENERATOR | SEARCH => {
       if let Some(main_window) = app.get_window("main") {
         let menu_handle = main_window.menu_handle();
         let t = match request.menu_action {

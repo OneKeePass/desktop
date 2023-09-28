@@ -28,7 +28,7 @@
   (fn [^js/Event e]
     (let [val (-> e .-target  .-value)
           ;; Need to ensure that length is an int as expected by backend api
-          val (if (= :length field-name-kw) (str->int val) val)]
+          val (if (= :length field-name-kw) (str->int val) val)] 
       (handler-name field-name-kw val))))
 
 (defn on-check-factory [handler-name field-name-kw]
@@ -45,9 +45,10 @@
                        :on-click #(gen-events/generator-dialog-data-update :password-visible (not visibile?))}
       [mui-icon-visibility-off]])
    [(cc/copy-icon-factory (fn []
-                            (cc/write-to-clipboard value)
+                            (gen-events/generator-password-copied)
+                            #_(cc/write-to-clipboard value)
                             ;; This call will provide an alert to the user
-                            (gen-events/generator-dialog-data-update :text-copied true)))]])
+                            #_(gen-events/generator-dialog-data-update :text-copied true)))]])
 
 (defn password-generator-dialog [{:keys [dialog-show
                                          password-visible
@@ -59,10 +60,12 @@
                                           symbols]} :password-options
                                   {:keys [analyzed-password
                                           score]} :password-result}]
+  
   [mui-dialog {:open dialog-show :on-click #(.stopPropagation ^js/Event %)
                ;; This will set the Paper width in all child components 
                ;; and is equivalent to :classes {:paper "pwd-dlg-root"}
                :sx {"& .MuiPaper-root" {:width "80%"}}}
+   
    [mui-dialog-title "Password Generator"]
    [mui-dialog-content {:dividers true}
     [mui-stack {:sx {:align-items "center"}}
@@ -76,18 +79,20 @@
                      :valueLabelDisplay "auto"
                      :min 8
                      :max 100
-                     :on-change (fn [_e value]
+                     :on-change (fn [_e value] 
                                   (gen-events/password-options-update :length value))}]]
-       [mui-stack {:direction "row" :sx {:width "25%"}}
-        [mui-input {:value length
+       [mui-stack {:direction "row" :sx {:width "25%"}} 
+        [mui-input {:value length 
                     :on-change (on-change-factory gen-events/password-options-update :length)
-                    :on-blur (fn [] (cond
-                                      (< length 8)
-                                      (gen-events/password-options-update :length 8)
+                    :on-blur (fn [] 
+                               (cond 
+                                 (< length 8)
+                                 (gen-events/password-options-update :length 8)
 
-                                      (> length 100)
-                                      (gen-events/password-options-update :length 100)))
-                    :inputProps {:min 8 :max 100 :type "number"}}]]]
+                                 (> length 100)
+                                 (gen-events/password-options-update :length 100)))
+                    :inputProps {:min 8 :max 100 :type "number"}
+                    }]]]
 
       [mui-stack {:direction "row"}
        [mui-stack {:sx {:width "50%"}}

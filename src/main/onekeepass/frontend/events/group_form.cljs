@@ -34,7 +34,7 @@
   "
   [uuid mode]
   ;; mode is either :edit or :info
-  (dispatch [:find-group-by-id uuid mode]))
+  (dispatch [:group-form/find-group-by-id uuid mode]))
 
 (defn edit-form
   "Puts the form to the edit mode"
@@ -110,7 +110,7 @@
 
 ;;;;
 (reg-event-fx
- :find-group-by-id
+ :group-form/find-group-by-id
  (fn [{:keys [db]} [_event-id group-id mode]]
    (bg/get-group-by-id (active-db-key db) group-id (partial find-group-callback mode))
    {}))

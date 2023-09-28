@@ -104,7 +104,7 @@
     (.stopPropagation ^js/Event e)))
 
 (defn entry-form-top-menu-items []
-  (fn [anchor-el entry-uuid favorites?]
+  (fn [anchor-el entry-uuid favorites? os-name]
     [mui-menu {:anchorEl @anchor-el
                :open (if @anchor-el true false)
                :on-close #(reset! anchor-el nil)}
@@ -128,16 +128,18 @@
                      :sx {:padding-left "1px"}
                      :on-click (menu-action anchor-el form-events/entry-delete-start entry-uuid)}
       [mui-list-item-text {:inset true} "Delete"]]
+     ;; Auto type related menu options are avilable only for macos
+     (when (= os-name const/MACOS)
+       [:<>
+        [mui-menu-item {:divider false
+                        :sx {:padding-left "1px"}
+                        :on-click (menu-action anchor-el form-events/perform-auto-type-start entry-uuid)}
+         [mui-list-item-text {:inset true} "Perform auto type"]]
 
-     [mui-menu-item {:divider false
-                     :sx {:padding-left "1px"}
-                     :on-click (menu-action anchor-el form-events/perform-auto-type-start entry-uuid)}
-      [mui-list-item-text {:inset true} "Perform auto type"]]
-     
-     [mui-menu-item {:divider true
-                     :sx {:padding-left "1px"}
-                     :on-click (menu-action anchor-el form-events/entry-auto-type-edit)}
-      [mui-list-item-text {:inset true} "Edit auto type"]]
+        [mui-menu-item {:divider true
+                        :sx {:padding-left "1px"}
+                        :on-click (menu-action anchor-el form-events/entry-auto-type-edit)}
+         [mui-list-item-text {:inset true} "Edit auto type"]]])
 
      [mui-menu-item {:divider false
                      :sx {:padding-left "1px"}
@@ -147,12 +149,13 @@
 
 (defn entry-form-top-menu [entry-uuid]
   (let [anchor-el (r/atom nil)
-        favorites? @(form-events/favorites?)]
+        favorites? @(form-events/favorites?)
+        os-name @(ce/os-name)]
     [:div
      [mui-icon-button {:edge "start"
                        :on-click (fn [^js/Event e] (reset! anchor-el (-> e .-currentTarget)))
                        :style {:color "#000000"}} [mui-icon-more-vert]]
-     [entry-form-top-menu-items anchor-el entry-uuid favorites?]
+     [entry-form-top-menu-items anchor-el entry-uuid favorites? os-name]
      [cc/info-dialog "Entry Delete" "Deleting entry is in progress"
       form-events/entry-delete-info-dialog-close
       @(form-events/entry-delete-dialog-data)]]))
@@ -331,7 +334,7 @@
                        :on-click form-events/password-generator-show}
       [mui-icon-autorenew]])
    ;; Copy 
-   [(cc/copy-icon-factory) value]])
+   [(cc/copy-icon-factory) value {:sx {:mr "-1px"}}]])
 
 (defn text-field [{:keys [key
                           value
@@ -350,6 +353,7 @@
                         protected false
                         on-change-handler #(println (str "No on change handler yet registered for " key))
                         required false}}]
+  ;;(println "Password score " (:score-text password-score) "for key " key)
   [m/text-field {:sx   (merge {} (cc/password-helper-text-sx (:name password-score)))
                  :fullWidth true
                  :label key :variant "standard"

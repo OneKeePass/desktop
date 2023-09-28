@@ -4,6 +4,8 @@
    [onekeepass.frontend.constants :refer [UUID_OF_ENTRY_TYPE_LOGIN]]
    [onekeepass.frontend.events.entry-list :as el-events]
    [onekeepass.frontend.events.group-tree-content :as gt-events]
+   [onekeepass.frontend.events.tauri-events :as tauri-events]
+   [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.entry-form-ex :as entry-form-ex]
    [onekeepass.frontend.common-components :refer [list-items-factory]]
    [onekeepass.frontend.db-icons :refer [entry-icon]]
@@ -48,17 +50,38 @@
                                     :overflow "hidden"}
          :primary (:title  item) :secondary (:secondary-title item)}]])))
 
-
-(defn entry-list-content
+;; A functional component to use react useEffect
+(defn fn-entry-list-content
   []
   (let [;; See common-components for :div-style use
-        entry-items (list-items-factory (el-events/get-selected-entry-items) 
+        entry-items (list-items-factory (el-events/get-selected-entry-items)
                                         row-item :div-style {:min-width 225})
         recycle-bin? (gt-events/recycle-group-selected?)
         deleted-cat? (el-events/deleted-category-showing)
         group-in-recycle-bin? (gt-events/selected-group-in-recycle-bin?)
         group-info @(el-events/initial-group-selection-info)
-        entry-type-uuid @(el-events/selected-entry-type)]
+        entry-type-uuid @(el-events/selected-entry-type)
+        disable-action (or @recycle-bin? @group-in-recycle-bin? @deleted-cat?)
+
+        entry-type-uuid (if (nil? entry-type-uuid)
+                          UUID_OF_ENTRY_TYPE_LOGIN
+                          entry-type-uuid)]
+    ;;;;;;; 
+    ;; Note: Menu enable is called everytime there is new cat selection
+    (tauri-events/enable-app-menu const/MENU_ID_NEW_ENTRY 
+                                  (not disable-action) 
+                                  {:callback-fn
+                                   (fn [] 
+                                     (el-events/add-new-entry
+                                      group-info
+                                      entry-type-uuid))})
+    (m/react-use-effect 
+     (fn []
+       ;;cleanup fn is returned which is called when this component unmounts
+       (fn []
+         (tauri-events/enable-app-menu const/MENU_ID_NEW_ENTRY false))) (clj->js []))
+    ;;;;;;;
+    
     [:div {:class "gbox"
            :style {;;:margin 0
                    :width "100%"}}
@@ -68,7 +91,7 @@
      ;; Need to check in Windows,Linux 
      [:div {:class "gcontent" :style {:margin-bottom 2 :height "200px"}}
       [entry-items]]
-     [:div {:class "gfooter" :style {:margin-top 5 
+     [:div {:class "gfooter" :style {:margin-top 5
                                      :background "var(--mui-color-grey-200)"}}
       [mui-stack {:style {:alignItems "center"
                           ;; need this to align this footer with entry form footer
@@ -76,12 +99,16 @@
        [:div {:style {:margin-top 10 :margin-bottom 10 :margin-right 5 :margin-left 5}}
         [mui-button {:variant "outlined"
                      :color "inherit"
-                     :disabled (or @recycle-bin? @group-in-recycle-bin? @deleted-cat?)
+                     :disabled disable-action
                      ;; We need to use derefenced group-info in event call. If we use @group-info directly in on-click,
                      ;; there will be a re-frame warning indicating reg-sub is called out of context
                      :on-click #(el-events/add-new-entry
                                  group-info
-                                 (if (nil? entry-type-uuid) 
-                                   UUID_OF_ENTRY_TYPE_LOGIN 
-                                   entry-type-uuid))} 
+                                 entry-type-uuid
+                                 #_(if (nil? entry-type-uuid)
+                                     UUID_OF_ENTRY_TYPE_LOGIN
+                                     entry-type-uuid))}
          "Add Entry"]]]]]))
+
+(defn entry-list-content []
+  [:f> fn-entry-list-content])

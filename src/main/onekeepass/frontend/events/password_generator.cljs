@@ -1,6 +1,7 @@
 (ns onekeepass.frontend.events.password-generator
   (:require
    [re-frame.core :refer [reg-event-db reg-event-fx reg-fx reg-sub dispatch subscribe]]
+   [clojure.string :as str]
    [onekeepass.frontend.events.common :as cmn-events :refer [check-error]]
    [onekeepass.frontend.background :as bg]))
 
@@ -11,6 +12,9 @@
 (defn password-options-update [kw value]
   (dispatch [:password-options-update kw value]))
 
+(defn generator-password-copied []
+  (dispatch [:generator-password-copied]))
+
 (defn generator-dialog-data []
   (subscribe [:generator-dialog-data]))
 
@@ -18,6 +22,7 @@
 (def generator-dialog-init-data {:dialog-show false
                                  :password-visible false
                                  :text-copied false
+                                 :callback-on-copy-fn nil
                                  :password-options {;; All fields from struct PasswordGenerationOptions
                                                     :length 8
                                                     :numbers true
@@ -62,14 +67,19 @@
    (let [db (-> db
                 (to-password-options-data field-name-kw value)
                 (to-generator-dialog-data :text-copied false))
-         po (get-in db [:generator :dialog-data :password-options])]
-     {:db db
-      :fx [[:bg-analyzed-password po]]})))
+         {:keys [length] :as po} (get-in db [:generator :dialog-data :password-options])] 
+     (if (empty? (str/trim (str length)))
+       {:db db
+        :fx [[:dispatch [:common/message-snackbar-error-open "A valid length number is required and it should be 8 or above"]]]}
+       {:db db
+        :fx [[:dispatch [:common/message-snackbar-error-close]]
+             [:bg-analyzed-password po]]}))))
 
 (reg-event-fx
  :password-generator/start
- (fn [{:keys [db]} [_event-id]]
-   (let [db (init-dialog-data db)
+ (fn [{:keys [db]} [_event-id callback-on-copy-fn]]
+   (let [db (-> db init-dialog-data
+                (assoc-in [:generator :dialog-data :callback-on-copy-fn] callback-on-copy-fn))
          po (get-in db [:generator :dialog-data :password-options])]
      {:db db
       :fx [[:bg-analyzed-password po]]})))
@@ -88,6 +98,21 @@
    (-> db
        (assoc-in  [:generator :dialog-data :password-result] password-result)
        (assoc-in  [:generator :dialog-data :dialog-show] true))))
+
+(reg-event-fx
+ :generator-password-copied
+ (fn [{:keys [db]} [_event-id]]
+   (let [data (get-in db [:generator :dialog-data])
+         callback-on-copy-fn (:callback-on-copy-fn data)
+         password (-> data :password-result :password)
+         score (-> data :password-result :score)]
+     (if (nil? callback-on-copy-fn)
+       (do
+         (bg/write-to-clipboard password) ;; side effect!
+         {:fx [[:dispatch [:generator-dialog-data-update :text-copied true]]]})
+       (do
+         (callback-on-copy-fn password score) ;; side effect!
+         {:fx [[:dispatch [:generator-dialog-data-update :dialog-show false]]]})))))
 
 
 (reg-sub

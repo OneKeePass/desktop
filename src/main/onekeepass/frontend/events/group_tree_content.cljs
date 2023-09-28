@@ -34,7 +34,7 @@
   (subscribe [:group-tree-content/selected-group-in-recycle-bin]))
 
 (defn root-group-selected? []
-  (subscribe [:group-tree-content/root-group-selected])) 
+  (subscribe [:group-tree-content/root-group-selected]))
 
 (defn root-group-uuid []
   (subscribe [:group-tree-content/root-group-uuid]))
@@ -95,6 +95,24 @@
     ;;:fx [[:dispatch [:onekeepass.frontend.events.entry-list/show {:group group-uuid}]]]
     }))
 
+;; Called from system menu
+(reg-event-fx
+ :group-tree-content/new-group
+ (fn [{:keys [db]} [_id]]
+   (let [parent-group-uuid (get-in-key-db db [:groups-tree :selected-group-uuid])]
+     (if-not (nil? parent-group-uuid)
+       {:fx [[:dispatch [:group-form/create-blank-group parent-group-uuid]]]}
+       {}))))
+
+;; Called from system menu
+(reg-event-fx
+ :group-tree-content/edit-group
+ (fn [{:keys [db]} [_id]]
+   (let [group-uuid (get-in-key-db db [:groups-tree :selected-group-uuid])]
+     (if-not (nil? group-uuid)
+       {:fx [[:dispatch [:group-form/find-group-by-id group-uuid :edit]]]}
+       {}))))
+
 ;; Called when nodes are expanded or collapsed in Treeview 
 (reg-event-db
  :mark-expanded-nodes
@@ -147,7 +165,7 @@
 
 (reg-event-fx
  :group-tree-content/entry-inserted
- (fn [{:keys [_db]} [_event-id entry-uuid  group-uuid ]]
+ (fn [{:keys [_db]} [_event-id entry-uuid  group-uuid]]
    {:fx [[:dispatch [:group-selected group-uuid]]
          [:dispatch [:entry-list/entry-inserted entry-uuid {:group group-uuid}]]]}))
 
@@ -272,7 +290,7 @@
 
 
 (comment
- 
+
   (def db-key (:current-db-file-name @re-frame.db/app-db))
   (-> @re-frame.db/app-db (get db-key) :groups-tree)
   (re-frame.core/clear-subscription-cache!))

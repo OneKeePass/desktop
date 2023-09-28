@@ -483,7 +483,7 @@
               dispatch-fn
               :convert-request false))
 
-(defn score-passwprd [password dispatch-fn]
+(defn score-password [password dispatch-fn]
   (invoke-api "score_password" {:password password} dispatch-fn))
 
 (defn parse-auto-type-sequence [sequence entry-fields dispatch-fn]

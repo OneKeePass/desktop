@@ -46,6 +46,9 @@
 (defn biometric-type-available []
   (subscribe [:biometric-type-available]))
 
+(defn os-name []
+  (subscribe [:os-name]))
+
 (reg-event-db
  :load-system-info-with-preference
  (fn [db [_event-id]]
@@ -61,7 +64,7 @@
                                       biometric-type-available
                                       preference]}]]
    (set-session-timeout (:session-timeout preference))
-   ;;(println "document-dir os-name path-sep preference " document-dir os-name path-sep preference)
+   ;;(println "os-name path-sep preference "  os-name path-sep preference)
    {:db (-> db (assoc :app-preference preference)
             (assoc :standard-dirs standard-dirs)
             (assoc :path-sep path-sep)
@@ -97,6 +100,11 @@
  :biometric-type-available
  (fn [db _query-vec]
    (:biometric-type-available db)))
+
+(reg-sub
+ :os-name
+ (fn [db _query-vec]
+   (:os-name db)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -722,6 +730,12 @@
        (assoc-in [:message-snackbar-alert-data :open] true)
        (assoc-in [:message-snackbar-alert-data :severity] "error")
        (assoc-in [:message-snackbar-alert-data :message] message))))
+
+(reg-event-db
+ :common/message-snackbar-error-close
+ (fn [db [_event-id]]
+   (-> db
+       (assoc-in [:message-snackbar-alert-data :open] false))))
 
 (reg-event-db
  :message-snackbar-alert-close

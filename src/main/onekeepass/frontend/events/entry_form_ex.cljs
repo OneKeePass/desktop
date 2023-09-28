@@ -8,6 +8,7 @@
                                                              assoc-in-key-db
                                                              get-in-key-db
                                                              fix-tags-selection-prefix]]
+   [onekeepass.frontend.constants :refer [PASSWORD]]
    [onekeepass.frontend.utils :as u :refer [contains-val?]]
    [onekeepass.frontend.background :as bg]))
 
@@ -17,7 +18,10 @@
 (def Favorites "Favorites")
 
 (defn password-generator-show []
-  (dispatch [:password-generator/start]))
+  (dispatch [:password-generator/start
+             ;; A call back fn that is to be called with the new generated password and score
+             (fn [password score]
+               (dispatch [:entry-form-update-generated-password password score]))]))
 
 (def entry-form-key :entry-form-data)
 
@@ -257,31 +261,91 @@
 
      (-> db (assoc-in-key-db [entry-form-key :api-error-text] result)))))
 
-(reg-event-db
+(reg-event-fx
  :entry-form-update-section-value
- (fn [db [_event-id section key value]]
-   ;;(println "section key value " section key value)
+ (fn [{:keys [db]} [_event-id section key value]]
    (let [section-kvs (get-in-key-db db [entry-form-key :data :section-fields section])
          section-kvs (mapv (fn [m] (if (= (:key m) key) (assoc m :value value) m)) section-kvs)]
 
-     (assoc-in-key-db db [entry-form-key :data :section-fields section] section-kvs))))
+     (if-not (= key PASSWORD)
+       {:db (assoc-in-key-db db [entry-form-key :data :section-fields section] section-kvs)}
+       ;; Recalculate the password score for its strength
+       {:db (assoc-in-key-db db [entry-form-key :data :section-fields section] section-kvs)
+        :fx [[:bg-score-password [value]]]}))))
 
-(defn has-password-field [field-maps ]
-  (->> field-maps (filter (fn [m] 
-                            (println "m is " m)
-                            (= (:key m) "Password")))  ) )
+(reg-fx
+ :bg-score-password
+ (fn [[password]]
+   (bg/score-password password
+                      (fn [api-response]
+                        (when-let [password-score (check-error api-response)]
+                          ;; password-score is a map from struct 'PasswordScore'
+                          (dispatch [:entry-form-update-section-password-score password-score]))))))
 
+(defn- has-password-field
+  "Checks whether the arg 'field-maps-vec' has a map with entry form entry field map 
+  (struct KeyValueData) has a 'key' for password
+  Reurns true if the passed vec of maps has a map with :key = Password
+  "
+  [field-maps-vec]
+  (->> field-maps-vec (filter
+                       (fn [m] (= (:key m) PASSWORD))) empty? boolean not))
+
+(defn- section-with-password-score
+  "Returns a vector of two elements [section-name [{:key..} {:key ..}]] or empty vector
+  if no PASSWORD field is found
+  "
+  [db]
+  (let [section-fields  (get-in-key-db db [entry-form-key :data :section-fields])
+        ;; filter returns a seq with 0 or 1 member vec [k v]
+        section-name-with-kvs (->> section-fields
+                                   (filterv (fn [[_section-name field-maps-vec]]
+                                              (has-password-field field-maps-vec))) first)]
+    section-name-with-kvs))
+
+;; Updates the new score 
 (reg-event-db
  :entry-form-update-section-password-score
  (fn [db [_event-id password-score]]
-   ;;(println "section key value " section key value)
-   (let [section-fields  (get-in-key-db db [entry-form-key :data :section-fields])
-         section (filter (fn [[k m]] ) section-fields)
-         section-kvs (get-in-key-db db [entry-form-key :data :section-fields section])
-         section-kvs (mapv (fn [m] (if (= (:key "Password") key) (assoc m :password-score password-score) m)) section-kvs)]
+   ;; password-score is a map from struct 'PasswordScore'
+   (let [[section-name section-kvs] (section-with-password-score db)
+         section-kvs (mapv (fn [m] (if (= (:key m) PASSWORD)
+                                     (assoc m :password-score password-score) m)) section-kvs)]
 
-     (assoc-in-key-db db [entry-form-key :data :section-fields section] section-kvs))))
+     ;; section-name should not be nil as we expect entry-form-update-section-password-score called only for passwords 
+     (if-not (nil? section-name)
+       (assoc-in-key-db db [entry-form-key :data :section-fields section-name] section-kvs)
+       db))))
 
+
+#_(reg-event-db
+   :entry-form-update-section-password-score
+   (fn [db [_event-id password-score]]
+   ;; password-score is a map from struct 'PasswordScore'
+     (let [section-fields  (get-in-key-db db [entry-form-key :data :section-fields])
+         ;; filter returns a seq with 0 or 1 member vec [k v]
+         ;; First first call returns that seq. The second first call returns the 'k' which is the 
+         ;; section name that has the password field 
+           section-name (->> section-fields (filter (fn [[_section-name field-maps-vec]]
+                                                      (has-password-field field-maps-vec))) first first)
+
+           section-kvs (get-in-key-db db [entry-form-key :data :section-fields section-name])
+           section-kvs (mapv (fn [m] (if (= (:key m) PASSWORD)
+                                       (assoc m :password-score password-score) m)) section-kvs)]
+
+     ;; section-name shoul not be nil as we expect entry-form-update-section-password-score called only for passwords 
+       (if-not (nil? section-name)
+         (assoc-in-key-db db [entry-form-key :data :section-fields section-name] section-kvs)
+         db))))
+
+;; Called whenever a new password is generated using a password generator dialog
+(reg-event-db
+ :entry-form-update-generated-password
+ (fn [db [_event-id password password-score]]
+   (let [[section-name section-kvs] (section-with-password-score db)
+         section-kvs (mapv (fn [m] (if (= (:key m) PASSWORD)
+                                     (assoc m :value password :password-score password-score) m)) section-kvs)]
+     (assoc-in-key-db db [entry-form-key :data :section-fields section-name] section-kvs))))
 
 ;; Update a field found in :data
 (reg-event-db
@@ -380,7 +444,7 @@
 
 (reg-event-fx
  :entry-form/auto-type-updated
- (fn [{:keys [db]} [_event-id auto-type-m]] 
+ (fn [{:keys [db]} [_event-id auto-type-m]]
    {;; First set the changed incoming auto-type map to entry form data
     :db (-> db (assoc-in-key-db [entry-form-key :data :auto-type] auto-type-m))
     ;; For now, the 'ok-entry-edit-ex' event is reused for this save. It is assumed there will not 
@@ -1465,7 +1529,7 @@
 (reg-event-fx
  :entry-auto-type-edit
  (fn [{:keys [db]} [_event-id]]
-   (let [{:keys [uuid auto-type] :as form-data} (get-in-key-db db [entry-form-key :data]) 
+   (let [{:keys [uuid auto-type] :as form-data} (get-in-key-db db [entry-form-key :data])
          entry-form-fields (extract-form-field-names-values form-data)]
      {:fx [[:dispatch [:auto-type/edit-init uuid auto-type entry-form-fields]]]})))
 
@@ -1474,7 +1538,7 @@
 
   (def db-key (:current-db-file-name @re-frame.db/app-db))
   (-> @re-frame.db/app-db (get db-key) keys)
-  
+
   (-> (get @re-frame.db/app-db db-key) :entry-form-data) ;; for now
   )
 

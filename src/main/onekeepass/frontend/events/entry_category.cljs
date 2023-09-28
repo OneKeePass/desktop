@@ -31,8 +31,10 @@
   "Called to load all entries for a category that is clicked in entry category view.
   The the category info map of the selected category is passed and also what set of 
   categories this map belongs as categories-kind
+
+  This is not called when 'Groups' tree is selected
   "
-  [{:keys [uuid title entry-type-uuid]} categories-kind]
+  [{:keys [uuid title entry-type-uuid]} categories-kind] 
   (dispatch [:entry-category/selected-category-title title])
   ;; selected-category-info is used only for :type for now
   (dispatch [:selected-category-info (if (= categories-kind :type-categories) :type nil) {:entry-type-uuid entry-type-uuid}])
@@ -290,7 +292,7 @@
  :<- [:selected-category-info]
  (fn [info [_query-id type-uuid]]
    (let [id (get-in info [:type :entry-type-uuid])]
-     (and (not (nil? type-uuid)) (= type-uuid id)) )))
+     (and (not (nil? type-uuid)) (= type-uuid id)))))
 
 
 ;; Is the category selected is deleted one?
@@ -354,4 +356,5 @@
 (comment
   (def db-key (:current-db-file-name @re-frame.db/app-db))
   (-> @re-frame.db/app-db (get db-key) keys)
-  (-> @re-frame.db/app-db (get db-key) :entry-category))
+  (-> @re-frame.db/app-db (get db-key) :entry-category)
+  (select-keys (-> @re-frame.db/app-db (get db-key) :entry-category) [:showing-groups-as :selected-category-title :selected-category-info]))
