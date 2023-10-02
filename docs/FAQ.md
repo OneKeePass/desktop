@@ -69,6 +69,9 @@ You can create a custom type with sections and fields. Such custom entry type ca
 ## What is a key file ?
 A key file is a file containing random bytes that is used in addition to your master key for additional security. You can basically use any file you want as a key file. Such a file should have random bytes data and the content of this random data remains the same as long as it is used as key file.
 
+## Is Auto-Type supported ?
+Yes. For now few basic features are supported for macOS and soon supports for other platforms will be added. See [here](./AUTO-TYPE.md) for additional details
+
 
 
 

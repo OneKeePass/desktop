@@ -7,7 +7,7 @@ pub fn active_window_titles() -> kp_service::Result<Vec<WindowInfo>> {
     todo!()
 }
 
-pub fn send_sequence_to_winow(
+pub async fn send_sequence_to_winow_async(
     window: WindowInfo,
     sequence: &str,
     entry_fields: HashMap<String, String>,

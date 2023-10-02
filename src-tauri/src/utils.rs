@@ -19,8 +19,6 @@ use tauri::{
   App, Env, Manager, Runtime,
 };
 
-
-
 use crate::biometric;
 use crate::key_secure;
 use crate::preference::Preference;
@@ -105,6 +103,8 @@ pub struct StandardDirs {
 #[derive(Serialize, Deserialize)]
 pub struct SystemInfoWithPreference {
   pub os_name: String,
+  pub os_version: String,
+  pub arch:String,
   pub path_sep: String,
   pub standard_dirs: StandardDirs,
   pub biometric_type_available: String,
@@ -114,10 +114,17 @@ pub struct SystemInfoWithPreference {
 impl SystemInfoWithPreference {
   pub fn init(app_state: &AppState) -> Self {
     let p = app_state.preference.lock().unwrap();
-    // let sep = std::path::MAIN_SEPARATOR.to_string();
-    // let dd = document_dir().and_then(|p| p.join(path) );
+    
+    let os_name = std::env::consts::OS.into();
+    let os_version = os_info::get().version().to_string();
+    let arch = std::env::consts::ARCH.to_string();
+
+    info!("OS details: name: {}, version: {}, arch: {} ",&os_name,&os_version,&arch);
+
     Self {
-      os_name: std::env::consts::OS.into(),
+      os_name,
+      os_version,
+      arch,
       path_sep: std::path::MAIN_SEPARATOR.to_string(),
       standard_dirs: StandardDirs {
         document_dir: document_dir().and_then(|p| p.as_path().to_str().map(|s| s.into())),
@@ -313,7 +320,7 @@ fn init_log(log_dir: &PathBuf) {
 
 #[cfg(test)]
 mod tests {
-  use crate::utils::{app_backup_dir, app_home_dir, Preference};
+  use crate::utils::Preference;
   use std::{fs, path::PathBuf};
   use toml::Value;
 

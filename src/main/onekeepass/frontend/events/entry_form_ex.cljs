@@ -1516,7 +1516,9 @@
      {:fx [[:auto-type/bg-active-window-to-auto-type [uuid auto-type]]]})))
 
 
-(defn extract-form-field-names-values [form-data]
+(defn extract-form-field-names-values 
+  "Returns a map with field name as key and field value as value"
+  [form-data]
   ;; :section-fields returns a map with section name as keys
   ;; vals fn return 'values' ( a vec of field info map) for all sections. Once vec for each section. 
   ;; And need to use flatten to combine all section values

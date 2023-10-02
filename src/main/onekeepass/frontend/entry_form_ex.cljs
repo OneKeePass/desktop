@@ -313,6 +313,7 @@
                               }
 
                  :inputProps  {:readOnly (not edit)
+                               :sx {:ml ".5em" :mr ".5em"}
                                :style {:resize "vertical"}}}])
 
 (defn end-icons [key value protected visibile? edit]
@@ -742,7 +743,7 @@
     (when edit
       [mui-box {:sx content-sx}
        [mui-stack {:direction "row" :spacing 1}
-        [mui-stack {:direction "row" :sx {:width "90%" :justify-content "center"}}
+        [mui-stack {:direction "row" :sx {:width "88%" :justify-content "center"}}
          [text-field {:key "Title"
                       :value (:title fields)
                       :edit true
@@ -752,8 +753,8 @@
                       :on-change-handler #(form-events/entry-form-data-update-field-value
                                            :title (-> % .-target  .-value))}]]
 
-        [mui-stack {:direction "row" :sx {:width "10%" :justify-content "center" :align-items "center"}}
-         [mui-typography {:align "center" :paragraph false :variant "subtitle1"} "Icon"]
+        [mui-stack {:direction "row" :sx {:width "12%" :justify-content "center" :align-items "center"}}
+         [mui-typography {:sx {:padding-left "5px"}:align "center" :paragraph false :variant "subtitle1"} "Icon"]
          [mui-icon-button {:edge "end" :color "primary" :sx {;;:margin-top "16px"
                                                              ;;:margin-right "-8px"
                                                              }

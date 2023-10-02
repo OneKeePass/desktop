@@ -611,7 +611,24 @@ pub async fn active_window_to_auto_type() -> Option<auto_type::WindowInfo> {
 }
 
 #[tauri::command]
+pub async fn send_sequence_to_winow_async(db_key: &str,entry_uuid: Uuid,window_info:auto_type::WindowInfo,sequence:&str) -> Result<()> {
+  let entry_fields = kp_service::entry_key_value_fields(db_key,&entry_uuid)?;
+  Ok(auto_type::send_sequence_to_winow_async(window_info, sequence, entry_fields).await?)
+}
+
+
+// Tried these to use with macOS 13 and macOS 10. Only the async version will work with all macOS
+/*
+#[tauri::command]
 pub async fn send_sequence_to_winow(db_key: &str,entry_uuid: Uuid,window_info:auto_type::WindowInfo,sequence:&str) -> Result<()> {
   let entry_fields = kp_service::entry_key_value_fields(db_key,&entry_uuid)?;
   Ok(auto_type::send_sequence_to_winow(window_info, sequence, entry_fields)?)
 }
+
+#[tauri::command]
+pub fn send_sequence_to_winow_sync(db_key: &str,entry_uuid: Uuid,window_info:auto_type::WindowInfo,sequence:&str) -> Result<()> {
+  let entry_fields = kp_service::entry_key_value_fields(db_key,&entry_uuid)?;
+  Ok(auto_type::send_sequence_to_winow(window_info, sequence, entry_fields)?)
+}
+
+*/

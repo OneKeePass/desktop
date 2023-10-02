@@ -13,10 +13,7 @@ use self::imp::KeyStoreServiceImpl;
 use log::debug;
 use std::sync::{Arc, Mutex};
 
-use onekeepass_core::{
-  db_service as kp_service,
-  db_service::{KeyStoreOperation, KeyStoreService},
-};
+use onekeepass_core::db_service::KeyStoreOperation;
 
 pub fn init_key_main_store() {
   let kss = Arc::new(Mutex::new(KeyStoreServiceImpl::default()));

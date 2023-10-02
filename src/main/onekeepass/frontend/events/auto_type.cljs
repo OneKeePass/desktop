@@ -81,7 +81,7 @@
 
 (reg-fx
  :bg-send-sequence-to-winow
- (fn [[db-key entry-uuid window-info sequence]]
+ (fn [[db-key entry-uuid window-info sequence ]]
    (bg/send-sequence-to-winow db-key
                               entry-uuid
                               window-info
@@ -158,7 +158,7 @@
 (reg-fx
  :bg-parse-auto-type-sequence
  (fn [[sequence entry-form-fields]]
-   ;; Check sequence parsing error. If no error call entry form events to save
+   ;; Check sequence parsing error. If no error call entry form events to save 
    (bg/parse-auto-type-sequence sequence entry-form-fields
                                 (fn [api-response]
                                   (when-not (on-error api-response

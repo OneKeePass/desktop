@@ -60,7 +60,7 @@
    "
   [entry-fields]
   (let [flds (reduce (fn [acc k]
-                       (if (contains-val? acc (str "{" (str/upper-case k) "}"))
+                       (if (or (= k "Additional URLs") (contains-val? acc (str "{" (str/upper-case k) "}"))) 
                          acc
                          (conj acc (str "{S:" (str/upper-case k) "}"))))
                      standard-fields (keys entry-fields))]
@@ -94,7 +94,7 @@
     [mui-stack
      [mui-typography typography-porps1 "Supported Auto-Type Actions:"]
      [mui-stack
-      [mui-typography "{TAB}, {ENTER},{SPACE} or {TAB 3}..,"]]]
+      [mui-typography "{TAB}, {ENTER},{SPACE} or {TAB 3}..,{DELAY X} {DELAY=X}"]]]
 
     [mui-stack {:sx {:margin-bottom 2}}]
     [mui-divider]

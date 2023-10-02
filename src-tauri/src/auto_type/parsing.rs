@@ -59,7 +59,7 @@ fn modifier_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder>
       verify(opt(alpha0), |x| x.map_or(true, |v: &str| v.len() == 1)),
       multispace0,
     )),
-    |(_, chrs, letter, _)| PlaceHolder::Modfier(chrs),
+    |(_, chrs, _letter, _)| PlaceHolder::Modfier(chrs),
   )
 }
 
@@ -87,29 +87,31 @@ fn standard_field_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceH
 }
 
 // Extracts the attribute name and verifies that the name is accepted one
-fn custom_field_parser<'a>(entry_fields:&'a HashMap<String,String>) -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder> {
-    map(
-      verify(
-        map(
-          tuple((
-            multispace0,
-            tag("{"),
-            multispace0,
-            tag("S:"),
-            take_until("}"),
-            tag("}"),
-            multispace0,
-          )),
-          // x is a tuple and map call returns the actual extracted value from fifth member ( indx 5) of tuple
-          |x| x.4,
-        ),
-        // Verifies that the map call returned key value that is found in 'entry_fields'
-        move |v: &str| entry_fields.contains_key(v.to_uppercase().as_str()),
+fn custom_field_parser<'a>(
+  entry_fields: &'a HashMap<String, String>,
+) -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder> {
+  map(
+    verify(
+      map(
+        tuple((
+          multispace0,
+          tag("{"),
+          multispace0,
+          tag("S:"),
+          take_until("}"),
+          tag("}"),
+          multispace0,
+        )),
+        // x is a tuple and map call returns the actual extracted value from fifth member ( indx 5) of tuple
+        |x| x.4,
       ),
-      // The input 'x' is the returned value from the earlier 'map' parser on successful verification
-      |x| PlaceHolder::Attribute(x),
-    )
-  }
+      // Verifies that the map call returned key value that is found in 'entry_fields'
+      move |v: &str| entry_fields.contains_key(v.to_uppercase().as_str()),
+    ),
+    // The input 'x' is the returned value from the earlier 'map' parser on successful verification
+    |x| PlaceHolder::Attribute(x),
+  )
+}
 
 fn to_num<'a>(default_val: i32) -> impl FnMut(&'a str) -> IResult<&'a str, i32> {
   map_res(digit0, move |d: &str| {
@@ -209,14 +211,17 @@ fn key_delay_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder
 #[derive(Debug)]
 pub struct PlaceHolderParser<'a> {
   input: &'a str,
-  entry_fields:&'a HashMap<String,String>,
+  entry_fields: &'a HashMap<String, String>,
 }
 
 impl<'a> PlaceHolderParser<'a> {
   // IMPORTANT: All keys in entry_fields map are expected to be in upper case only
   // Caller needs to convert to uppercase
-  fn new(input: &'a str,entry_fields:&'a HashMap<String,String>) -> Self {
-    Self { input,entry_fields }
+  fn new(input: &'a str, entry_fields: &'a HashMap<String, String>) -> Self {
+    Self {
+      input,
+      entry_fields,
+    }
   }
 
   fn parse(&mut self) -> Result<Vec<PlaceHolder>, String> {
@@ -268,36 +273,42 @@ impl ParsedPlaceHolderVal {
   }
 }
 
-impl<'a>  From<PlaceHolder<'_>> for ParsedPlaceHolderVal {
-    fn from(val:PlaceHolder<'_>) -> ParsedPlaceHolderVal {
-        match val {
-            // ensure that the attribute name is in upper case as this is used as key to 
-            // look up value from entru_fields hash map
-            PlaceHolder::Attribute(s) => Self::Attribute(s.to_string().to_uppercase()),
-            PlaceHolder::KeyName(s,v) => Self::KeyName(s.to_string(),v),
-            PlaceHolder::Delay(v) => Self::Delay(v),
-            PlaceHolder::KeyPressDelay(v)  => Self::KeyPressDelay(v),
-            PlaceHolder::Modfier(v) => Self::Modfier(v),
-        }
+impl<'a> From<PlaceHolder<'_>> for ParsedPlaceHolderVal {
+  fn from(val: PlaceHolder<'_>) -> ParsedPlaceHolderVal {
+    match val {
+      // ensure that the attribute name is in upper case as this is used as key to
+      // look up value from entru_fields hash map
+      PlaceHolder::Attribute(s) => Self::Attribute(s.to_string().to_uppercase()),
+      PlaceHolder::KeyName(s, v) => Self::KeyName(s.to_string(), v),
+      PlaceHolder::Delay(v) => Self::Delay(v),
+      PlaceHolder::KeyPressDelay(v) => Self::KeyPressDelay(v),
+      PlaceHolder::Modfier(v) => Self::Modfier(v),
     }
+  }
 }
 
 pub fn parse_auto_type_sequence(
   sequence: &str,
   entry_fields: &HashMap<String, String>,
 ) -> Result<Vec<ParsedPlaceHolderVal>, String> {
-
   let entry_fields_case_converted: HashMap<String, String> = entry_fields
-      .iter()
-      .map(|(k, v)| (k.to_uppercase().clone(), v.clone()))
-      .collect();
+    .iter()
+    .map(|(k, v)| (k.to_uppercase().clone(), v.clone()))
+    .collect();
 
   let mut ph = PlaceHolderParser::new(sequence, &entry_fields_case_converted);
   let r = ph.parse();
 
   match r {
     Ok(vals) => Ok(ParsedPlaceHolderVal::from_vals(vals)),
-    Err(e) => Err(e),
+    Err(e) => {
+      // TODO: Print only keys !
+      // debug!(
+      //   "Parsing failed with error {} for the sequence {} , entry_fields {:?}, entry_fields_case_converted {:?} ",
+      //   &e, sequence, &entry_fields, &entry_fields_case_converted
+      // );
+      Err(e)
+    }
   }
 }
 
@@ -317,16 +328,17 @@ mod tests {
   #[test]
   fn verify_parsing() {
     let sample1 =
-      "^+d  {USERNAMe} {S:maiden name} {delay 5}  {tab 4   } %#M {delay=10 } {SPACE} {PASSWORD} {enter}   ";
+      "^+d  {USERNAMe} {S:maiden name} {delay 5}  {tab 4   } %#M {delay=10 } {SPACE} {S:CUSTOMER NAME} {PASSWORD} {enter}   ";
 
     // All custom fields (other than standard fileds) are required to be present
     let entry_fields = HashMap::from([
       ("Maiden name".to_string(), "Some value".to_string()),
+      ("CUSTOMER NAME".to_string(), "Some value".to_string()),
       // add other fields
     ]);
-    
-    let r = parse_auto_type_sequence(sample1,&entry_fields);
-    
+
+    let r = parse_auto_type_sequence(sample1, &entry_fields);
+
     println!("Parsed output is {:?}", r);
     assert!(r.is_ok())
   }

@@ -1,4 +1,3 @@
-mod macos;
 mod parsing;
 
 #[cfg(target_os = "macos")]
@@ -35,6 +34,17 @@ pub fn active_window_to_auto_type() -> Option<WindowInfo> {
   window_titles().ok().map(|v| v.first().cloned()).flatten()
 }
 
+pub async fn send_sequence_to_winow_async(
+  window: WindowInfo,
+  sequence: &str,
+  entry_fields: HashMap<String, String>,
+) -> kp_service::Result<()> {
+  platform::send_sequence_to_winow_async(window, sequence, entry_fields).await?;
+  Ok(())
+}
+
+
+/*
 pub fn send_sequence_to_winow(
   window: WindowInfo,
   sequence: &str,
@@ -43,3 +53,6 @@ pub fn send_sequence_to_winow(
   platform::send_sequence_to_winow(window, sequence, entry_fields)?;
   Ok(())
 }
+
+
+*/

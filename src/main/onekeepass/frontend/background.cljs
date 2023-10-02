@@ -266,7 +266,7 @@
   [entry-form-data]
   (let [keys_exclude (->  entry-form-data :section-fields keys vec)
        ;; _ (println "keys_exclude are " keys_exclude)
-        t-fn (fn [k] 
+        t-fn (fn [k]
                (if (contains-val? keys_exclude k)
                  k
                  (csk/->snake_case k)))]
@@ -487,29 +487,38 @@
   (invoke-api "score_password" {:password password} dispatch-fn))
 
 (defn parse-auto-type-sequence [sequence entry-fields dispatch-fn]
-  (invoke-api "parse_auto_type_sequence" {:sequence sequence :entry-fields entry-fields} dispatch-fn))
+  (let [api-args {:sequence sequence
+                  :entryFields entry-fields}] 
+    ;; We need to use convert-request as false to ensure that 'keys' in entry-fields map 
+    ;; are not converted to camelCase by the default converter and should remain as string key
+    
+    ;; Otherwise the map (entry-fields) keys like "Customer Name" will get converted to "customerName" 
+    
+    ;; api-args map's keys are now in a format as expected tauri serde
+    (invoke-api "parse_auto_type_sequence"  (clj->js api-args) dispatch-fn :convert-request false)))
 
 (defn platform-window-titles [dispatch-fn]
   (invoke-api "platform_window_titles" {} dispatch-fn))
 
-(defn active-window-to-auto-type 
-  "Gets the topmost window to which auto type sequence will be sent"
+(defn active-window-to-auto-type
+  "Gets the top most window to which auto type sequence will be sent"
   [dispatch-fn]
   (invoke-api "active_window_to_auto_type" {} dispatch-fn))
 
-(defn send-sequence-to-winow 
+(defn send-sequence-to-winow
   "Called to send the sequence for a selected entry to a window as given in window-info"
   [db-key entry-uuid window-info sequence dispatch-fn]
   ;; api-args keys (dbKey...) are to be in camelCase as expected by tauri 
   ;; Here we are converting cljs object's keys instead of using the default conversion 
   ;; Note :convert-request false
-  (let [api-args {:dbKey db-key
+  (let [api-to-call "send_sequence_to_winow_async" 
+        api-args {:dbKey db-key
                   :entryUuid entry-uuid
-                  :sequence sequence 
+                  :sequence sequence
                   ;; We need to convert window-info map's keys to be snake_case instead of cljs kebab-case
                   ;; as expected by serde's deserialization of 'WindowInfo' struct
                   :windowInfo (->> window-info (cske/transform-keys csk/->snake_case))}]
-    (invoke-api "send_sequence_to_winow" (clj->js api-args) dispatch-fn
+    (invoke-api api-to-call (clj->js api-args) dispatch-fn
                 :convert-request false)))
 
 (defn export-main-content-as-xml [db-key xml-file-name]
@@ -525,7 +534,7 @@
 
 (comment
   (-> @re-frame.db/app-db keys)
-
   (def db-key (:current-db-file-name @re-frame.db/app-db))
-
-  (-> @re-frame.db/app-db (get db-key) keys))
+  (-> @re-frame.db/app-db (get db-key) keys)
+  ;; (-> "13.6.0" (str/split ".") first str->int )
+  )

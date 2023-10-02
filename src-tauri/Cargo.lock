@@ -1968,6 +1968,7 @@ checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
 [[package]]
 name = "onekeepass-core"
 version = "0.8.0"
+source = "git+https://github.com/OneKeePass/onekeepass-core.git?tag=v0.8.0#4fac4452fa0a4892ac626944fc09bf512754fbb1"
 dependencies = [
  "aes 0.7.5",
  "aes-gcm",
@@ -2012,12 +2013,14 @@ dependencies = [
  "nom",
  "once_cell",
  "onekeepass-core",
+ "os_info",
  "secstr",
  "serde",
  "serde_json",
  "swift-rs",
  "tauri",
  "tauri-build",
+ "tokio",
  "toml 0.5.11",
  "uuid 0.8.2",
 ]
@@ -2035,6 +2038,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7940cf2ca942593318d07fcf2596cdca60a85c9e7fab408a5e21a4f9dcd40d87"
 dependencies = [
  "num-traits",
+]
+
+[[package]]
+name = "os_info"
+version = "3.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "006e42d5b888366f1880eda20371fedde764ed2213dc8496f49622fa0c99cd5e"
+dependencies = [
+ "log",
+ "serde",
+ "winapi",
 ]
 
 [[package]]

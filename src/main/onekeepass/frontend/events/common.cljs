@@ -60,16 +60,22 @@
 
 (reg-event-fx
  :load-system-info-with-preference-complete
- (fn [{:keys [db]} [_event-id {:keys [standard-dirs os-name path-sep
+ (fn [{:keys [db]} [_event-id {:keys [standard-dirs
+                                      os-name
+                                      os-version
+                                      arch
+                                      path-sep
                                       biometric-type-available
                                       preference]}]]
    (set-session-timeout (:session-timeout preference))
-   ;;(println "os-name path-sep preference "  os-name path-sep preference)
+   ;;(println "os-name os-version arch path-sep preference -- " os-name os-version arch path-sep preference)
    {:db (-> db (assoc :app-preference preference)
             (assoc :standard-dirs standard-dirs)
             (assoc :path-sep path-sep)
             (assoc :biometric-type-available biometric-type-available)
-            (assoc :os-name os-name))}))
+            (assoc :os-name os-name)
+            (assoc :os-version os-version)
+            (assoc :arch arch))}))
 
 (reg-event-db
  :common/load-app-preference
@@ -267,12 +273,11 @@
 (reg-event-db
  :common/save-db-file-as
  (fn [db [_event-id]]
-   (let [
-         save-as-file-name  (-> db current-opened-db :file-name (str/split #"\.") first)
+   (let [save-as-file-name  (-> db current-opened-db :file-name (str/split #"\.") first)
          save-as-file-name (str save-as-file-name
                                 "-"
                                 (utc-to-local-datetime-str (js/Date.) "yyyy-MM-dd HH mm ss")
-                                ".kdbx") 
+                                ".kdbx")
          f (fn [file-name]
             ;;(println "file-name is " file-name)
              (when-not (nil? file-name)
