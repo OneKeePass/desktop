@@ -1,5 +1,5 @@
 ### 0.8.0
-- Basic Auto-Type feature that sends simulated keypresses to other applications in MacOS and soon to be added for other platforms
+- Basic Auto-Type feature that sends simulated keypresses to other applications in macOS and soon to be added for other platforms.See [Auto-Type](./docs/AUTO-TYPE.md) doc for additional details
 #### Fixed
 -  Groups menu is empty #5  - Thanks [gregordinary](https://github.com/gregordinary)
 -  Password Generator Does Not Save Generated Value to Entry #6 - Thanks [gregordinary](https://github.com/gregordinary)
