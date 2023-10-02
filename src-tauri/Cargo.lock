@@ -1775,6 +1775,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "minimal-lexical"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
+
+[[package]]
 name = "miniz_oxide"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1823,6 +1829,16 @@ name = "nodrop"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
+
+[[package]]
+name = "nom"
+version = "7.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
+dependencies = [
+ "memchr",
+ "minimal-lexical",
+]
 
 [[package]]
 name = "nu-ansi-term"
@@ -1951,8 +1967,8 @@ checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
 
 [[package]]
 name = "onekeepass-core"
-version = "0.7.0"
-source = "git+https://github.com/OneKeePass/onekeepass-core.git?tag=v0.7.0#ce2a4111586fd6dd7358aba6701ec15920b7910e"
+version = "0.8.0"
+source = "git+https://github.com/OneKeePass/onekeepass-core.git?tag=v0.8.0#4fac4452fa0a4892ac626944fc09bf512754fbb1"
 dependencies = [
  "aes 0.7.5",
  "aes-gcm",
@@ -1994,14 +2010,17 @@ dependencies = [
  "hex",
  "log",
  "log4rs",
+ "nom",
  "once_cell",
  "onekeepass-core",
+ "os_info",
  "secstr",
  "serde",
  "serde_json",
  "swift-rs",
  "tauri",
  "tauri-build",
+ "tokio",
  "toml 0.5.11",
  "uuid 0.8.2",
 ]
@@ -2019,6 +2038,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7940cf2ca942593318d07fcf2596cdca60a85c9e7fab408a5e21a4f9dcd40d87"
 dependencies = [
  "num-traits",
+]
+
+[[package]]
+name = "os_info"
+version = "3.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "006e42d5b888366f1880eda20371fedde764ed2213dc8496f49622fa0c99cd5e"
+dependencies = [
+ "log",
+ "serde",
+ "winapi",
 ]
 
 [[package]]

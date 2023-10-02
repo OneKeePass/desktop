@@ -1,4 +1,4 @@
-name: Release OneKeePass Windows and Linux - previous build 
+name: Release OneKeePass Windows and Linux using previous build artifacts
 
 on:
   workflow_dispatch:
@@ -13,9 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      # Typically we need to set the version number corresponding to the previously built artifacts
+      # We may need to use this only if for some reason, the build fails to upload the release
       - name: Query version number
         #run: echo "version=${GITHUB_REF:11}" >> $GITHUB_ENV
-        run: echo "version=0.7.0" >> $GITHUB_ENV
+        run: echo "version=0.8.0" >> $GITHUB_ENV
 
       # - name: Download x86_64 artifacts
       #   uses: actions/download-artifact@v3

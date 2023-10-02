@@ -7,12 +7,12 @@
    [camel-snake-kebab.extras :as cske]
    [camel-snake-kebab.core :as csk]
    [onekeepass.frontend.utils :refer [contains-val?]]
-   
+
    ["@tauri-apps/api/dialog" :refer (open,save)]
    ["@tauri-apps/api/tauri" :refer (invoke)]
    ["@tauri-apps/api/clipboard" :refer [writeText readText]]
    ["@tauri-apps/api/event" :as tauri-event]
-   
+
    #_["@tauri-apps/api/path" :as tauri-path]
    #_["@tauri-apps/api/event" :as tauri-event :refer [listen]]
    #_["@tauri-apps/api/shell" :as tauri-shell]
@@ -185,7 +185,7 @@
                              :key-file-name key-file-name} dispatch-fn))
 
 (defn unlock-kdbx-on-biometric-authentication [db-key dispatch-fn]
-  (invoke-api "unlock_kdbx_on_biometric_authentication" {:db-key db-key} dispatch-fn ))
+  (invoke-api "unlock_kdbx_on_biometric_authentication" {:db-key db-key} dispatch-fn))
 
 (defn authenticate-with-biometric [db-key dispatch-fn]
   (invoke-api "authenticate_with_biometric" {:db-key db-key} dispatch-fn))
@@ -343,7 +343,7 @@
   "Saves the opened kdbx file.
   The backend api returns KdbxSaved struct with the same db key on successfull saving with database-name.
   "
-  [db-key overwrite dispatch-fn] 
+  [db-key overwrite dispatch-fn]
   (invoke-api "save_kdbx" {:db-key db-key :overwrite overwrite} dispatch-fn))
 
 (defn save-all-modified-dbs
@@ -366,10 +366,10 @@
                     (csk/->snake_case k)))]
     (cske/transform-keys t new-db)))
 
-(defn generate-key-file  
+(defn generate-key-file
   "Called to generate 32 bytes random key ans tsored in version 2.0 keepass xml file"
   [key-file-name dispatch-fn]
-  (invoke-api "generate_key_file" {:key-file-name key-file-name} dispatch-fn ))
+  (invoke-api "generate_key_file" {:key-file-name key-file-name} dispatch-fn))
 
 (defn create-kdbx
   "Called to create new database.
@@ -483,76 +483,58 @@
               dispatch-fn
               :convert-request false))
 
+(defn score-password [password dispatch-fn]
+  (invoke-api "score_password" {:password password} dispatch-fn))
+
+(defn parse-auto-type-sequence [sequence entry-fields dispatch-fn]
+  (let [api-args {:sequence sequence
+                  :entryFields entry-fields}] 
+    ;; We need to use convert-request as false to ensure that 'keys' in entry-fields map 
+    ;; are not converted to camelCase by the default converter and should remain as string key
+    
+    ;; Otherwise the map (entry-fields) keys like "Customer Name" will get converted to "customerName" 
+    
+    ;; api-args map's keys are now in a format as expected tauri serde
+    (invoke-api "parse_auto_type_sequence"  (clj->js api-args) dispatch-fn :convert-request false)))
+
+(defn platform-window-titles [dispatch-fn]
+  (invoke-api "platform_window_titles" {} dispatch-fn))
+
+(defn active-window-to-auto-type
+  "Gets the top most window to which auto type sequence will be sent"
+  [dispatch-fn]
+  (invoke-api "active_window_to_auto_type" {} dispatch-fn))
+
+(defn send-sequence-to-winow
+  "Called to send the sequence for a selected entry to a window as given in window-info"
+  [db-key entry-uuid window-info sequence dispatch-fn]
+  ;; api-args keys (dbKey...) are to be in camelCase as expected by tauri 
+  ;; Here we are converting cljs object's keys instead of using the default conversion 
+  ;; Note :convert-request false
+  (let [api-to-call "send_sequence_to_winow_async" 
+        api-args {:dbKey db-key
+                  :entryUuid entry-uuid
+                  :sequence sequence
+                  ;; We need to convert window-info map's keys to be snake_case instead of cljs kebab-case
+                  ;; as expected by serde's deserialization of 'WindowInfo' struct
+                  :windowInfo (->> window-info (cske/transform-keys csk/->snake_case))}]
+    (invoke-api api-to-call (clj->js api-args) dispatch-fn
+                :convert-request false)))
+
 (defn export-main-content-as-xml [db-key xml-file-name]
   (invoke-api "export_main_content_as_xml"  {:db-key db-key :xml-file-name xml-file-name} #(println %)))
 
 (defn export-as-xml [db-key xml-file-name]
   (invoke-api "export_as_xml"  {:db-key db-key :xml-file-name xml-file-name} #(println %)))
 
-(defn test-save-key []
-  (invoke-api "save_key" {} #(println %)))
-
-(defn test-read-key []
-  (invoke-api "read_key" {} #(println %)))
+(defn test-call [arg-m]
+  ;; test_call is a tauri command function that accetps TestArg in "arg" parameter
+  ;; Useful during development 
+  (invoke-api "test_call" (clj->js {:arg arg-m}) #(println %)))
 
 (comment
   (-> @re-frame.db/app-db keys)
-  
   (def db-key (:current-db-file-name @re-frame.db/app-db))
-  
   (-> @re-frame.db/app-db (get db-key) keys)
-  
+  ;; (-> "13.6.0" (str/split ".") first str->int )
   )
-
-#_(defn unregister-event-listener
-    "Unregisters the previously registered event handler"
-    ([caller-name event-name]
-     (let [unlisten-fn (get @tauri-event-listeners [caller-name event-name])]
-       (if (nil? unlisten-fn)
-         (println "No existing listener found for the event name " event-name " and unlisten is not called")
-         (do
-           (unlisten-fn)
-           (swap! tauri-event-listeners assoc [caller-name event-name] nil)))))
-    ([event-name]
-     (unregister-event-listener :common event-name)))
-
-#_(defn open-file
-    "Opens a file passed as 'file-name' from the local file system with the system's default app
-   The arg 'file-name' expected to be the complete path.
-   Any error in opening is passed as {:error msg} to the 'dispatch-fn'
-  "
-    [file-name dispatch-fn]
-    (go
-      (try
-        (let [f (<p! (tauri-shell/open file-name))]
-          (dispatch-fn {:result f}))
-      ;;TODO Add returning error to dispatch-fn
-        (catch js/Error err
-          (dispatch-fn {:error (ex-cause err)})
-          (js/console.log (ex-cause err))))))
-
-#_(defn get-standard-path
-  "Called to get the standard platform specific dir.
-   The arg kw-name identifies what backend api to call and used as key to indentify the dir"
-  [kw-name dispatch-fn]
-  (let [call-fn (cond
-                  (= :document-dir kw-name)
-                  tauri-path/documentDir
-
-                  (= :home-dir kw-name)
-                  tauri-path/homeDir
-
-                  :else
-                  :unknown-name)]
-    (if (= call-fn :unknown-name)
-      (dispatch-fn {:error "Unknown standard path requested"})
-      (go
-        (try
-          (let [dir-name (<p! (call-fn))]
-            (dispatch-fn {:result {kw-name dir-name}}))
-          (catch js/Error err
-            (dispatch-fn {:error (ex-cause err)})
-            (js/console.log (ex-cause err))))))))
-
-#_(defn standard-paths [dispatch-fn]
-    (invoke-api "standard_paths" {} dispatch-fn))

@@ -1,3 +1,13 @@
+### 0.8.0
+- Basic Auto-Type feature that sends simulated keypresses to other applications in macOS and soon to be added for other platforms.See [Auto-Type](./docs/AUTO-TYPE.md) doc for additional details
+#### Fixed
+-  Groups menu is empty #5  - Thanks [gregordinary](https://github.com/gregordinary)
+-  Password Generator Does Not Save Generated Value to Entry #6 - Thanks [gregordinary](https://github.com/gregordinary)
+-  Password strength indicator does not update on password edit field. #7 Thanks [gregordinary](https://github.com/gregordinary)
+-  Error when attempting to clear password length in the password generator #8 Thanks [gregordinary](https://github.com/gregordinary)
+-  Text boxes lack left and right padding #9   - Thanks [gregordinary](https://github.com/gregordinary)
+
+
 ### 0.7.0
 - Quick database unlock feature using TouchID for Mac OS added 
 - Removed storing the original credentials in memory and added secured way of storing the keys in memory for quick access

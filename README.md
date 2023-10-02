@@ -22,7 +22,8 @@ All created database files are encrypted using the best and most secure encrypti
 - Custom fields can be organized as sections
 - Any number of databases can be created and used
 - Fully offline 
-- Quick database unlock feature using TouchID for Mac OS
+- Quick database unlock feature using TouchID for macOS
+- Basic Auto-Type feature that sends simulated keypresses to other applications in macOS
 
 ## Todo
 - [ ] Upload attachments to an entry 
@@ -32,8 +33,6 @@ All created database files are encrypted using the best and most secure encrypti
 - [ ] Merge changed entries
 - [ ] Synchronize the database between the devices 
 - [ ] Multi-language support
-- [ ] Support YubiKey 
-- [ ] Integrate with biometrics (fingerprint)
 
 
 ## Installation and Quick start

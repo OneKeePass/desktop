@@ -22,7 +22,7 @@ impl kp_service::KeyStoreService for KeyStoreServiceImpl {
   fn store_key(&mut self, db_key: &str, data: Vec<u8>) -> kp_service::Result<()> {
     debug!("Going to store ...");
 
-    #[allow(unused_mut)]
+    #[allow(unused_assignments)]
     let mut keychain_call_success = false;
 
     let sr_db_key: SRString = formatted_key(db_key); //db_key.into();

@@ -26,8 +26,10 @@
 (def MENU_ID_LOCK_DATABASE "LockDatabase")
 (def MENU_ID_CLOSE_DATABASE "CloseDatabase")
 (def MENU_ID_PASSWORD_GENERATOR "PasswordGenerator")
-#_(def MENU_ID_NEW_ENTRY "NewEntry")
+(def MENU_ID_NEW_ENTRY "NewEntry")
 (def MENU_ID_EDIT_ENTRY "EditEntry")
+(def MENU_ID_NEW_GROUP "NewGroup")
+(def MENU_ID_EDIT_GROUP "EditGroup")
 
 (def MENU_ENABLE "Enable")
 (def MENU_DISABLE "Disable")
@@ -41,3 +43,5 @@
 (def NO_BIOMETRIC "None")
 
 (def PASSWORD "Password")
+
+(def MACOS "macos")

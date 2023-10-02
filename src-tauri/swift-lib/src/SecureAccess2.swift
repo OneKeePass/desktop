@@ -7,9 +7,8 @@
 
 import Foundation
 import LocalAuthentication
-
-
-
+// TODO: Remove
+// Previously used for few API checking. Not used anymore
 class SecureAccess2 {
     
     let logger = OkpLogger(tag: "SecureAccess")
@@ -22,9 +21,7 @@ class SecureAccess2 {
             return
         }
         
-        
         logger.info("Calling SecAccessControlCreateWithFlags ....")
-        
         
         var access: SecAccessControl?
         var error: Unmanaged<CFError>?
@@ -39,8 +36,6 @@ class SecureAccess2 {
         }
         
         logger.info("access control returned is \(access)")
-        
-        
         
         let query: [String: AnyObject] = [
                 // kSecAttrService,  kSecAttrAccount, and kSecClass

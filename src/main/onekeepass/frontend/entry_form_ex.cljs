@@ -104,7 +104,7 @@
     (.stopPropagation ^js/Event e)))
 
 (defn entry-form-top-menu-items []
-  (fn [anchor-el entry-uuid favorites?]
+  (fn [anchor-el entry-uuid favorites? os-name]
     [mui-menu {:anchorEl @anchor-el
                :open (if @anchor-el true false)
                :on-close #(reset! anchor-el nil)}
@@ -128,7 +128,19 @@
                      :sx {:padding-left "1px"}
                      :on-click (menu-action anchor-el form-events/entry-delete-start entry-uuid)}
       [mui-list-item-text {:inset true} "Delete"]]
-     #_[mui-menu-item {:divider false} "Info"]
+     ;; Auto type related menu options are avilable only for macos
+     (when (= os-name const/MACOS)
+       [:<>
+        [mui-menu-item {:divider false
+                        :sx {:padding-left "1px"}
+                        :on-click (menu-action anchor-el form-events/perform-auto-type-start entry-uuid)}
+         [mui-list-item-text {:inset true} "Perform auto type"]]
+
+        [mui-menu-item {:divider true
+                        :sx {:padding-left "1px"}
+                        :on-click (menu-action anchor-el form-events/entry-auto-type-edit)}
+         [mui-list-item-text {:inset true} "Edit auto type"]]])
+
      [mui-menu-item {:divider false
                      :sx {:padding-left "1px"}
                      :on-click (menu-action anchor-el form-events/load-history-entries-summary entry-uuid)
@@ -137,12 +149,13 @@
 
 (defn entry-form-top-menu [entry-uuid]
   (let [anchor-el (r/atom nil)
-        favorites? @(form-events/favorites?)]
+        favorites? @(form-events/favorites?)
+        os-name @(ce/os-name)]
     [:div
      [mui-icon-button {:edge "start"
                        :on-click (fn [^js/Event e] (reset! anchor-el (-> e .-currentTarget)))
                        :style {:color "#000000"}} [mui-icon-more-vert]]
-     [entry-form-top-menu-items anchor-el entry-uuid favorites?]
+     [entry-form-top-menu-items anchor-el entry-uuid favorites? os-name]
      [cc/info-dialog "Entry Delete" "Deleting entry is in progress"
       form-events/entry-delete-info-dialog-close
       @(form-events/entry-delete-dialog-data)]]))
@@ -246,7 +259,7 @@
 
 (def ENTRY_DATETIME_FORMAT "dd MMM yyyy pp")
 
-(defn times-content []
+(defn uuid-times-content []
   (let [edit @(form-events/form-edit-mode)
         expiry-duration-selection @(form-events/entry-form-field :expiry-duration-selection)
         expiry-dt @(form-events/entry-form-data-fields :expiry-time)
@@ -254,6 +267,11 @@
         last-modification-time @(form-events/entry-form-data-fields :last-modification-time)]
     (when-not edit
       [mui-box {:sx content-sx}
+
+       [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
+        [mui-typography "Uuid:"]
+        [mui-typography @(form-events/entry-form-data-fields :uuid)]]
+
        [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
         [mui-typography "Created:"]
         [mui-typography (u/to-local-datetime-str creation-time ENTRY_DATETIME_FORMAT)]]
@@ -295,6 +313,7 @@
                               }
 
                  :inputProps  {:readOnly (not edit)
+                               :sx {:ml ".5em" :mr ".5em"}
                                :style {:resize "vertical"}}}])
 
 (defn end-icons [key value protected visibile? edit]
@@ -316,7 +335,7 @@
                        :on-click form-events/password-generator-show}
       [mui-icon-autorenew]])
    ;; Copy 
-   [(cc/copy-icon-factory) value]])
+   [(cc/copy-icon-factory) value {:sx {:mr "-1px"}}]])
 
 (defn text-field [{:keys [key
                           value
@@ -335,6 +354,7 @@
                         protected false
                         on-change-handler #(println (str "No on change handler yet registered for " key))
                         required false}}]
+  ;;(println "Password score " (:score-text password-score) "for key " key)
   [m/text-field {:sx   (merge {} (cc/password-helper-text-sx (:name password-score)))
                  :fullWidth true
                  :label key :variant "standard"
@@ -723,7 +743,7 @@
     (when edit
       [mui-box {:sx content-sx}
        [mui-stack {:direction "row" :spacing 1}
-        [mui-stack {:direction "row" :sx {:width "90%" :justify-content "center"}}
+        [mui-stack {:direction "row" :sx {:width "88%" :justify-content "center"}}
          [text-field {:key "Title"
                       :value (:title fields)
                       :edit true
@@ -733,8 +753,8 @@
                       :on-change-handler #(form-events/entry-form-data-update-field-value
                                            :title (-> % .-target  .-value))}]]
 
-        [mui-stack {:direction "row" :sx {:width "10%" :justify-content "center" :align-items "center"}}
-         [mui-typography {:align "center" :paragraph false :variant "subtitle1"} "Icon"]
+        [mui-stack {:direction "row" :sx {:width "12%" :justify-content "center" :align-items "center"}}
+         [mui-typography {:sx {:padding-left "5px"}:align "center" :paragraph false :variant "subtitle1"} "Icon"]
          [mui-icon-button {:edge "end" :color "primary" :sx {;;:margin-top "16px"
                                                              ;;:margin-right "-8px"
                                                              }
@@ -962,7 +982,7 @@
      [tags-selection]
      ;; attachments-content is not yet complete
      #_[attachments-content]
-     [times-content]
+     [uuid-times-content]
      [expiry-content]]))
 
 (defn delete-permanent-dialog [dialog-data entry-uuid]
@@ -999,8 +1019,7 @@
                              :align "center" :paragraph false :variant "h6"} title]]
            [mui-stack {:direction "row" :sx {:width "5%"}}
             [:div {:style {:margin-right "8px"}}
-             [form-menu entry-uuid]
-             #_[entry-form-top-menu]]]])]
+             [form-menu entry-uuid]]]])]
 
        [:div {:class "gcontent" :style {:overflow-y "scroll"
                                         :background background-color1}}

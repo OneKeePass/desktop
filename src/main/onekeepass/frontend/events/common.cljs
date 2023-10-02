@@ -46,6 +46,9 @@
 (defn biometric-type-available []
   (subscribe [:biometric-type-available]))
 
+(defn os-name []
+  (subscribe [:os-name]))
+
 (reg-event-db
  :load-system-info-with-preference
  (fn [db [_event-id]]
@@ -57,16 +60,22 @@
 
 (reg-event-fx
  :load-system-info-with-preference-complete
- (fn [{:keys [db]} [_event-id {:keys [standard-dirs os-name path-sep
+ (fn [{:keys [db]} [_event-id {:keys [standard-dirs
+                                      os-name
+                                      os-version
+                                      arch
+                                      path-sep
                                       biometric-type-available
                                       preference]}]]
    (set-session-timeout (:session-timeout preference))
-   ;;(println "document-dir os-name path-sep preference " document-dir os-name path-sep preference)
+   ;;(println "os-name os-version arch path-sep preference -- " os-name os-version arch path-sep preference)
    {:db (-> db (assoc :app-preference preference)
             (assoc :standard-dirs standard-dirs)
             (assoc :path-sep path-sep)
             (assoc :biometric-type-available biometric-type-available)
-            (assoc :os-name os-name))}))
+            (assoc :os-name os-name)
+            (assoc :os-version os-version)
+            (assoc :arch arch))}))
 
 (reg-event-db
  :common/load-app-preference
@@ -97,6 +106,11 @@
  :biometric-type-available
  (fn [db _query-vec]
    (:biometric-type-available db)))
+
+(reg-sub
+ :os-name
+ (fn [db _query-vec]
+   (:os-name db)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -259,12 +273,11 @@
 (reg-event-db
  :common/save-db-file-as
  (fn [db [_event-id]]
-   (let [
-         save-as-file-name  (-> db current-opened-db :file-name (str/split #"\.") first)
+   (let [save-as-file-name  (-> db current-opened-db :file-name (str/split #"\.") first)
          save-as-file-name (str save-as-file-name
                                 "-"
                                 (utc-to-local-datetime-str (js/Date.) "yyyy-MM-dd HH mm ss")
-                                ".kdbx") 
+                                ".kdbx")
          f (fn [file-name]
             ;;(println "file-name is " file-name)
              (when-not (nil? file-name)
@@ -722,6 +735,12 @@
        (assoc-in [:message-snackbar-alert-data :open] true)
        (assoc-in [:message-snackbar-alert-data :severity] "error")
        (assoc-in [:message-snackbar-alert-data :message] message))))
+
+(reg-event-db
+ :common/message-snackbar-error-close
+ (fn [db [_event-id]]
+   (-> db
+       (assoc-in [:message-snackbar-alert-data :open] false))))
 
 (reg-event-db
  :message-snackbar-alert-close

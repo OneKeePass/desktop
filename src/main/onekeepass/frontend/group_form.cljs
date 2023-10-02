@@ -14,7 +14,7 @@
                                                      mui-typography
                                                      mui-divider
                                                      mui-dialog-actions
-                                                     mui-dialog-content 
+                                                     mui-dialog-content
                                                      mui-dialog-title
                                                      mui-form-control-label
                                                      mui-checkbox
@@ -81,7 +81,14 @@
     [mui-grid {:item true :xs true}
      [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]]
 
-    [form-readonly-item "Notes" (replace-newline notes)]
+    ;;[form-readonly-item "Notes" (replace-newline notes)]
+    ;; TODO: Replace this with read only text area 
+    (when-not (empty? notes)
+      [mui-stack
+       [mui-typography "Notes"]
+       [mui-stack {:sx {:mt 1}}
+        [mui-typography notes]]])
+    
     [mui-grid {:item true :xs true}
      [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]]]
 
@@ -91,6 +98,7 @@
   [value on-change editing]
   [mui-stack
    [m/text-field {:fullWidth true
+
                   :id :notes :label "Notes";;name
                   :variant "standard"
                   :value value
@@ -100,6 +108,7 @@
                   :InputLabelProps {:shrink true}
                   :InputProps {:id :notes}
                   :inputProps  {:readOnly (not editing)
+                                :sx {:ml ".5em" :mr ".5em"}
                                 :style {:resize "vertical"}}}]])
 
 ;;;;;;;;;;;;;;;;; Copied from entry form ;;;;;;;;;;;;;;;;;

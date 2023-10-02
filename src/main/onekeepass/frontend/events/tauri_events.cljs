@@ -10,6 +10,17 @@
 (defn- to-cljs [js-event-repsonse]
   (->> js-event-repsonse js->clj (cske/transform-keys csk/->kebab-case-keyword)))
 
+;; a map of map 
+;; e.g  {MENU_ID_NEW_ENTRY {:callback-fn some-fn  :args args-map-for-callback  }}
+(def ^:private all-menu-args (atom {})) 
+
+(defn menu-action-call 
+  "Calls the menu specific callback function"
+  [menu-id]
+  (let [{:keys [callback-fn]} (get @all-menu-args menu-id)]
+    ;; For now empty args list is passed to the callback
+    (apply callback-fn '())))
+
 (defn handle-menu-events
   " The arg event-repsonse is of type 
     #js {:event TauriMenuEvent, :windowLabel main, :payload #js {:menu_id Quit}, :id 12011419863226083000}
@@ -30,6 +41,15 @@
 
       (= menu-id const/MENU_ID_EDIT_ENTRY)
       (dispatch [:entry-form-ex/edit true])
+      
+      (= menu-id const/MENU_ID_NEW_ENTRY)
+      (menu-action-call menu-id)
+      
+      (= menu-id const/MENU_ID_NEW_GROUP)
+      (dispatch [:group-tree-content/new-group])
+      
+      (= menu-id const/MENU_ID_EDIT_GROUP)
+      (dispatch [:group-tree-content/edit-group])
 
       (= menu-id const/MENU_ID_LOCK_DATABASE)
       (dispatch [:tool-bar/lock-current-db])
@@ -48,7 +68,6 @@
 
 (defn register-menu-events []
   (bg/register-event-listener "TauriMenuEvent" handle-menu-events))
-
 
 (defn handle-main-window-event
   "The arg js-event-repsonse is js object of format -  
@@ -72,7 +91,13 @@
   (register-menu-events)
   (register-main-window-events))
 
-(defn enable-app-menu [menu-id enable?]
+
+(defn enable-app-menu [menu-id enable? & {:as menu-args}]
+  ;;(println "Going to call for menu-id " menu-id enable? menu-args)
+  
+  ;; Stores any menu specific args and that is used when menu is selected in the menu bar
+  (swap! all-menu-args assoc menu-id menu-args)
+  
   (bg/menu-action-requested menu-id 
                             (if enable? const/MENU_ENABLE const/MENU_DISABLE) 
                             (fn [{:keys [error]}] 

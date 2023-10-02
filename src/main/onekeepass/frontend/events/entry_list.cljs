@@ -39,7 +39,7 @@
   (subscribe [:group-tree-content/group-summary-info]))
 
 
-(defn selected-entry-type 
+(defn selected-entry-type
   "Returns an atom for the entry type name if the entry type category is selected 
   in the category view."
   []
@@ -100,8 +100,7 @@
    (bg/entry-summary-data db-key category
                           (fn [api-response]
                             (when-let [result (check-error api-response)]
-                              (dispatch [:entry-list-load-complete result category])
-                              ))
+                              (dispatch [:entry-list-load-complete result category])))
                           #_(partial summary-entry-items-loaded category))))
 
 ;; When a list of all entry summary data is loaded successfully, this is called 
@@ -114,11 +113,9 @@
      {:db db
       :fx [[:dispatch [:update-selected-entry-items result]]
            [:dispatch [:update-category-source category]]
-           (if-not (boolean (seq found)) 
+           (if-not (boolean (seq found))
              [:dispatch [:entry-form-ex/show-welcome]]
-             (dispatch [:entry-form-ex/find-entry-by-id current-selected-entry-id])
-             )
-           ]})))
+             (dispatch [:entry-form-ex/find-entry-by-id current-selected-entry-id]))]})))
 
 ;; list of entry items returned by backend api when a category selected
 ;; or entry items returned in a search result - Work is yet to be done
@@ -163,11 +160,10 @@
 
 (comment
   @re-frame.db/app-db
-  (def my-db-key (:current-db-file-name @re-frame.db/app-db))
+  (def db-key (:current-db-file-name @re-frame.db/app-db))
 
-  (-> (get @re-frame.db/app-db my-db-key) keys)
-  (-> (get @re-frame.db/app-db my-db-key) :entry-list)
-  )
+  (-> (get @re-frame.db/app-db db-key) keys)
+  (-> (get @re-frame.db/app-db db-key) :entry-list))
 
 
 ;; (defn initiate-new-blank-entry-form

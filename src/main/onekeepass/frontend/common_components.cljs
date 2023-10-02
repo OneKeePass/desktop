@@ -410,14 +410,15 @@
 (defn copy-icon-factory
   "Returns a form-2 reagent component that on click copies the 'value' 
   field to clipboard"
-  ([on-click-fn]
+  ([on-click-fn ]
    (fn []
      [mui-icon-button {:edge "end"
                        :on-click #(on-click-fn)}
       [mui-icon-file-copy-outlined]]))
   ([]
-   (fn [value]
-     [mui-icon-button {:edge "end"
+   (fn [value & {:as props}] 
+     [mui-icon-button {:edge "end" 
+                       :sx (:sx props)
                        :on-click #(bg/write-to-clipboard value)}
       [mui-icon-file-copy-outlined]])))
 

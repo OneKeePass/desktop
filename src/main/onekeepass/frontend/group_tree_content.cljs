@@ -10,6 +10,8 @@
    [onekeepass.frontend.events.group-tree-content :as gt-events]
    [onekeepass.frontend.events.group-form :as gf-events]
    [onekeepass.frontend.events.move-group-entry :as move-events]
+   [onekeepass.frontend.events.tauri-events :as tauri-events]
+   [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.mui-components :as m :refer [mui-tree-view
                                                      mui-tree-item
                                                      mui-icon-arrow-right
@@ -145,11 +147,32 @@
                                  :margin-left 15}} [mui-icon-more-vert]]
        [tree-item-recycle-sub-group-menu-items anchor-el g-uuid]])))
 
+;; Keep the group uuid for which the system menu is active
+(def menu-event-uuid (atom nil))
+
+;; A functional component that uses react useEffect
 (defn tree-item-menu []
   (let [anchor-el (r/atom nil)]
     (fn [g-uuid]
       (let [recycle-bin? (gt-events/recycle-group-selected?)
             group-in-recycle-bin? (gt-events/selected-group-in-recycle-bin?)]
+        
+        ;;;;;; 
+        (m/react-use-effect (fn []
+                              (reset! menu-event-uuid g-uuid)
+                              (tauri-events/enable-app-menu const/MENU_ID_NEW_GROUP (not @recycle-bin?))
+                              (tauri-events/enable-app-menu const/MENU_ID_EDIT_GROUP (not @recycle-bin?))
+                              ;; cleanup fn is returned which is called when this component unmounts
+                              (fn []
+                                ;; Sometime this clean up call is called for the previous group after the build call for 
+                                ;; the new group is called  
+                                ;; Need to ensure that "Menu Disable" -> "Menu Enable" and not "Menu Enable" -> "Menu Disable"
+                                ;; when moving one group to another in the group tree view 
+                                (when (or (nil? @menu-event-uuid) (= g-uuid @menu-event-uuid))
+                                  (tauri-events/enable-app-menu const/MENU_ID_NEW_GROUP false)
+                                  (tauri-events/enable-app-menu const/MENU_ID_EDIT_GROUP false)))) (clj->js []))
+        ;;;;;;
+        
         [:div {:style {:height 24}}
          [mui-icon-button {:edge "start"
                            :on-click (fn [e]
@@ -184,11 +207,11 @@
            [tree-item-recycle-sub-group-menu @g-uuid]
 
            (not @recycle-bin?)
-           [tree-item-menu @g-uuid]))])))
+           [:f> tree-item-menu @g-uuid]))])))
 
 ;; Need to use :strs to retrive values from map argument 
 ;; as "uuid name icon_id" are the string keys in the map
-(defn make-tree-item [{:strs [uuid name icon_id]}] 
+(defn make-tree-item [{:strs [uuid name icon_id]}]
   [mui-tree-item {:nodeId uuid
                   ;; :label (r/as-element [:div name [mui-icon-more-vert]]) ;; Need more work
                   ;; :icon (r/as-element [mui-icon-more-vert]) ;; Not working; Replaces expand icon
@@ -214,7 +237,7 @@
            tree-item (make-tree-item g)]
       (if (nil? c-id)
         (if (nil? parent-tree-item)
-          tree-item 
+          tree-item
           (conj parent-tree-item tree-item))
         (recur (first remaining)
                (next remaining)
@@ -238,8 +261,8 @@
         ;; This ensures to clear any previous selection that when some other entry category item is selected
         :selected selected-group-uuid}
        ;; Form the children tree items 
-       (when-not (nil? gd) 
-         (group-visitor-action 
+       (when-not (nil? gd)
+         (group-visitor-action
           (get gd "root_uuid") nil (get gd "groups")))
 
        [delete-group-permanent-dialog @(move-events/delete-permanent-group-entry-dialog-data :group) selected-group-uuid]

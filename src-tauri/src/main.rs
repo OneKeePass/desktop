@@ -3,6 +3,7 @@
   windows_subsystem = "windows"
 )]
 
+mod auto_type;
 mod biometric;
 mod commands;
 mod key_secure;
@@ -30,7 +31,11 @@ fn main() {
       menu::handle_menu_events(&menu_event);
     })
     .invoke_handler(tauri::generate_handler![
+      // dev test calll
+      // commands::test_call,
+
       // Sorted alphabetically
+      commands::active_window_to_auto_type,
       commands::analyzed_password,
       commands::authenticate_with_biometric,
       commands::close_kdbx,
@@ -68,6 +73,8 @@ fn main() {
       commands::move_group_to_recycle_bin,
       commands::new_blank_group,
       commands::new_entry_form_data,
+      commands::parse_auto_type_sequence,
+      commands::platform_window_titles,
       commands::read_and_verify_db_file,
       commands::read_app_preference,
       commands::reload_kdbx,
@@ -79,6 +86,9 @@ fn main() {
       commands::score_password,
       commands::search_term,
       commands::set_db_settings,
+      // commands::send_sequence_to_winow,
+      // commands::send_sequence_to_winow_sync,
+      commands::send_sequence_to_winow_async,
       commands::standard_paths,
       commands::supported_biometric_type,
       commands::svg_file,

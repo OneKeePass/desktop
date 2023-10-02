@@ -8,6 +8,9 @@
    [onekeepass.frontend.events.password-generator :as gen-events]
    [onekeepass.frontend.constants :as const :refer [DB_CHANGED]]
    [onekeepass.frontend.events.tauri-events :as tauri-events]
+   [onekeepass.frontend.events.auto-type :as at-events]
+   [onekeepass.frontend.auto-type :as at-form]
+   
    [onekeepass.frontend.db-settings :as settings-form]
    [onekeepass.frontend.search :as search]
    [onekeepass.frontend.open-db-form :as od-form]
@@ -240,8 +243,13 @@
                             :color "inherit"
                             :disabled locked?
                             :on-click srch-event/search-dialog-show}
-           [mui-icon-search]]]]]
-       [gen-form/password-generator-dialog @(gen-events/generator-dialog-data)]
+           [mui-icon-search]]]]] 
+       
+       ;; Auto type dialogs
+       [at-form/perform-auto-type-dialog @(at-events/auto-type-perform-dialog-data)]
+       [at-form/auto-type-edit-dialog @(at-events/auto-type-edit-dialog-data)]
+       
+       [gen-form/password-generator-dialog @(gen-events/generator-dialog-data)] 
        [message-dialog]
        [progress-message-dialog]
        [error-info-dialog]
