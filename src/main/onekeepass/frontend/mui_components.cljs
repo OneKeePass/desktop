@@ -6,20 +6,24 @@
    [reagent.core :as r]
    [reagent.impl.template :as rtpl]
    [goog.object :as gobj]
+   ;; All these are loaded from node_modules using 'require' fn
+   ;; See target/public/cljs-out/dev/npm_deps.js in 
+   [react]
    ["@mui/material" :as mui]
    ["@mui/icons-material" :as mui-icons]
    ["@mui/material/colors" :as mui-colors]
    ["@mui/material/styles" :as mui-mat-styles]
    ["@mui/lab" :as mui-lab]
    ["@mui/x-date-pickers" :as mui-x-date-pickers]
+   ["@mui/x-date-pickers/AdapterDateFns" :as mui-x-adapter-date-fns] 
    ["@mui/material/Autocomplete" :as mui-ac]
-   ["react-split-pane" :as sp]
+
    ["@date-io/date-fns" :as DateAdapter]
 
+   ["react-split-pane" :as sp]
    ["react-window" :as rw]
    ["react-virtualized-auto-sizer" :as vas]
-   #_["react-idle-timer" :as react-idle-timer]
-   [react]))
+   #_["react-idle-timer" :as react-idle-timer]))
 
 (set! *warn-on-infer* true)
 
@@ -27,6 +31,10 @@
 (def react-use-effect (.-useEffect ^js/React react))
 
 #_(def use-idle-timer (.-useIdleTimer ^js/ReactIdleTimer react-idle-timer))
+
+;; datetime picker component v 5.x used date-fns DateAdapter
+;; datetime picker component v 6.x needs to use this
+(def adapter-date-fns (.-AdapterDateFns ^js/AdapterDateFns mui-x-adapter-date-fns))
 
 ;; https://github.com/dmtrKovalenko/date-io
 ;; DateAdapter is #js{:default #object[DateFnsUtils]}
@@ -60,6 +68,7 @@
   (.-createFilterOptions ^js/Mui.Autocomplete mui-ac))
 
 (def create-theme mui-mat-styles/createTheme)
+
 (def color-grey (.-grey  ^js/Mui.Colors mui-colors))
 
 ;; Theme customization based on the following
@@ -154,7 +163,7 @@
   Accordion
   AccordionSummary
   AccordionDetails
-  Autocomplete 
+  Autocomplete
   Avatar
   Box
   Button
@@ -224,6 +233,7 @@
   LocalizationProvider]
  "mui-", "mui-x-date-pickers/")
 
+;; Incon names can be found from https://mui.com/material-ui/material-icons/
 ;;All material icons are defined here
 (declare-mui-classes
  [Save

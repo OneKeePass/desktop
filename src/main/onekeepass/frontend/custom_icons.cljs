@@ -3,7 +3,7 @@
   (:require
    [hickory.core :as hc]
    [onekeepass.frontend.events.custom-icons :as cie]
-   [onekeepass.frontend.mui-components :as m :refer [mui-svg-icon mui-icon-vpn-key-outlined]]))
+   [onekeepass.frontend.mui-components :as m :refer [mui-svg-icon mui-icon-post-add-outlined]]))
 
 (set! *warn-on-infer* true)
 
@@ -12,17 +12,25 @@
   [s]
   (first (map hc/as-hiccup (hc/parse-fragment s))))
 
+;; See SvgIcon example in https://mui.com/material-ui/icons/#svgicon
+
 (defn to-custom-icon
   "Returns a reagent component after forming a hiccup from svg str"
   [name]
   (if (= @(cie/custom-svg-icons-status) :done)
     (if-let [svg-str (cie/svg-icon-str name)]
-      (let [h (to-svg svg-str)]
+      (let [h (to-svg svg-str)] 
         (if (vector? h)
-          [mui-svg-icon h]
-          [mui-icon-vpn-key-outlined]))
-      [mui-icon-vpn-key-outlined])
-    [mui-icon-vpn-key-outlined]))
+          ;; After mui upgrade to version 5.14.11, the cust-icons/database-cog-outline 
+          ;; drawn with thick lines in black. Using the fill prop solved that
+          [mui-svg-icon {:fill "currentColor"} h]
+          [mui-icon-post-add-outlined]))
+      [mui-icon-post-add-outlined])
+    [mui-icon-post-add-outlined]))
+
+;; SVGs downloaded from https://pictogrammers.com/library/mdi/ 
+;; In the mobile app, these icons are used. These are different source than 
+;; used by mui material icons which uses icons from https://fonts.google.com/icons
 
 ;; For now just one custom icon loaded using svg xml file as an example
 ;; We can use the same feature to load other svg based icons if required

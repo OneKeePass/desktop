@@ -103,6 +103,18 @@
     (apply action action-args)
     (.stopPropagation ^js/Event e)))
 
+(defn auto-type-menu-items [anchor-el entry-uuid]
+  [:<>
+   [mui-menu-item {:divider false
+                   :sx {:padding-left "1px"}
+                   :on-click (menu-action anchor-el form-events/perform-auto-type-start entry-uuid)}
+    [mui-list-item-text {:inset true} "Perform auto type"]]
+
+   [mui-menu-item {:divider true
+                   :sx {:padding-left "1px"}
+                   :on-click (menu-action anchor-el form-events/entry-auto-type-edit)}
+    [mui-list-item-text {:inset true} "Edit auto type"]]])
+
 (defn entry-form-top-menu-items []
   (fn [anchor-el entry-uuid favorites? os-name]
     [mui-menu {:anchorEl @anchor-el
@@ -128,19 +140,13 @@
                      :sx {:padding-left "1px"}
                      :on-click (menu-action anchor-el form-events/entry-delete-start entry-uuid)}
       [mui-list-item-text {:inset true} "Delete"]]
+     
      ;; Auto type related menu options are avilable only for macos
      (when (= os-name const/MACOS)
-       [:<>
-        [mui-menu-item {:divider false
-                        :sx {:padding-left "1px"}
-                        :on-click (menu-action anchor-el form-events/perform-auto-type-start entry-uuid)}
-         [mui-list-item-text {:inset true} "Perform auto type"]]
-
-        [mui-menu-item {:divider true
-                        :sx {:padding-left "1px"}
-                        :on-click (menu-action anchor-el form-events/entry-auto-type-edit)}
-         [mui-list-item-text {:inset true} "Edit auto type"]]])
-
+       ;; Need to use this reagent component instead of fragmets using :<> as MUI complains
+       ;; that Menu item child should not be a fragment and instead suggested to use an array of child
+       [auto-type-menu-items anchor-el entry-uuid])
+     
      [mui-menu-item {:divider false
                      :sx {:padding-left "1px"}
                      :on-click (menu-action anchor-el form-events/load-history-entries-summary entry-uuid)
@@ -187,23 +193,44 @@
   [mui-typography {:sx {"&.MuiTypography-root" {:color color-primary-main}}
                    :variant  "button"} text])
 
+;; This is based om mui x date time picker 5.x version and does not work with 6.x version
+#_(defn datetime-field
+    [{:keys [key value on-change-handler]
+      :or [on-change-handler #()]}]
+    [mui-localization-provider {:dateAdapter date-adapter}
+     (println "Value is " value)
+     [mui-date-time-picker {:label key
+                            :value value
+                            :onChange on-change-handler
+                            :renderInput (fn [props]
+                                           (let [p (js->clj props :keywordize-keys true)
+                                                 p (merge p {:variant "standard"
+                                                             :classes {:root "entry-cnt-field"}
+                                                             :fullWidth true})]
+                                             #_(println "Props called: " (-> p   keys))
+                                             (r/as-element [mui-text-field p])))}]])
+
+;; see https://mui.com/x/migration/migration-pickers-v5/ as we are using now "@mui/x-date-pickers": "^6.16.0"
+;; https://mui.com/x/migration/migration-pickers-v5/#component-slots-component-slot-props 
 (defn datetime-field
   [{:keys [key value on-change-handler]
     :or [on-change-handler #()]}]
-  [mui-localization-provider {:dateAdapter date-adapter}
+  [mui-localization-provider {:dateAdapter m/adapter-date-fns} 
    [mui-date-time-picker {:label key
-                          :value value
+                          ;; value should be of Date type (type value) => #object[Date]
+                          ;; and it is in UTC. The view side shown in local time 
+                          :value value 
                           :onChange on-change-handler
-                          :renderInput (fn [props]
-                                         (let [p (js->clj props :keywordize-keys true)
-                                               p (merge p {:variant "standard"
-                                                           :classes {:root "entry-cnt-field"}
-                                                           :fullWidth true})]
-                                           #_(println "Props called: " (-> p   keys))
-                                           (r/as-element [mui-text-field p])))}]])
+                          :slotProps {:textField {:variant "standard"
+                                                  :classes {:root "entry-cnt-field"}
+                                                  :fullWidth true}}
+                          
+                          }]])
 
 (declare text-field)
 
+;; Not used and it is based on old mui x datepicker version and also did not work 
+;; Need to replaced with new version based one if required
 (defn date-field
   [{:keys [key value edit on-change-handler]
     :or [on-change-handler #()]}]
@@ -249,7 +276,7 @@
         (when-not (= expiry-duration-selection "no-expiry")
           [mui-stack {:direction "row" :sx {:width "40%"}}
            [datetime-field {:key "Expiry Date"
-                            :value (u/to-local-datetime-str expiry-dt) ;; datetime str UTC to Local 
+                            :value (u/to-UTC expiry-dt) #_(u/to-local-datetime-str expiry-dt) ;; datetime str UTC to Local 
                             :on-change-handler (form-events/expiry-date-on-change-factory)}]])]]
 
       #_(when-not (= expiry-duration-selection "no-expiry")
@@ -754,7 +781,7 @@
                                            :title (-> % .-target  .-value))}]]
 
         [mui-stack {:direction "row" :sx {:width "12%" :justify-content "center" :align-items "center"}}
-         [mui-typography {:sx {:padding-left "5px"}:align "center" :paragraph false :variant "subtitle1"} "Icon"]
+         [mui-typography {:sx {:padding-left "5px"} :align "center" :paragraph false :variant "subtitle1"} "Icon"]
          [mui-icon-button {:edge "end" :color "primary" :sx {;;:margin-top "16px"
                                                              ;;:margin-right "-8px"
                                                              }

@@ -13,7 +13,7 @@
                                                      mui-typography
                                                      mui-container
                                                      mui-icon-button
-                                                     mui-icon-folder-outlined
+                                                     mui-icon-folder-outlined 
                                                      mui-box
                                                      mui-divider
                                                      mui-stack
@@ -33,17 +33,19 @@
     [mui-box {:sx {:display "flex" :width "50%" :height "100%" :flexDirection "column"}}
      [mui-typography {:variant "h6"} "Start"]
      [mui-stack {:direction "row" :gap 2 :alignItems "center"}
-      [mui-icon-button  {:edge "start" :color "inherit" :sx {:ml 0}}
+      [mui-icon-button  {:edge "start" :color "inherit" :sx {:ml 0} 
+                         :onClick nd-events/new-database-dialog-show} 
+       
+       #_[mui-icon-post-add-outlined]
        [cust-icons/database-cog-outline]]
       [mui-link  {:variant "subtitle1"
-                  :onClick nd-events/new-database-dialog-show}
-       "New Database"]
+                  :onClick nd-events/new-database-dialog-show} "New Database"]
       [nd-form/new-database-dialog-main]]
 
      [mui-stack {:direction "row" :gap 2 :alignItems "center"}
       [mui-icon-button  {:edge "start" :color "inherit" :sx {:ml 0}
                          :onClick od-events/open-file-explorer-on-click}
-       [mui-icon-folder-outlined]]
+       [mui-icon-folder-outlined {}]]
       [mui-link {:variant "subtitle1"
                  :onClick od-events/open-file-explorer-on-click}
        "Open Database"]
