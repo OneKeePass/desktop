@@ -13,9 +13,9 @@
    ["@mui/icons-material" :as mui-icons]
    ["@mui/material/colors" :as mui-colors]
    ["@mui/material/styles" :as mui-mat-styles]
-   ["@mui/lab" :as mui-lab]
+   ["@mui/x-tree-view" :as mui-x-tree-view]
    ["@mui/x-date-pickers" :as mui-x-date-pickers]
-   ["@mui/x-date-pickers/AdapterDateFns" :as mui-x-adapter-date-fns] 
+   ["@mui/x-date-pickers/AdapterDateFns" :as mui-x-adapter-date-fns]
    ["@mui/material/Autocomplete" :as mui-ac]
 
    ["@date-io/date-fns" :as DateAdapter]
@@ -223,7 +223,7 @@
 (declare-mui-classes
  [TreeItem
   TreeView]
- "mui-", "mui-lab/")
+ "mui-", "mui-x-tree-view/")
 
  ;; DateTimePicker and LocalizationProvider are moved from mui lab to mui-x date pickers
  ;; See https://mui.com/blog/lab-date-pickers-to-mui-x/
@@ -281,21 +281,20 @@
 
 ;;;;;;;;;;;;;;;;
 ;;; Follwings are based on this example
-;;; From https://github.com/reagent-project/reagent/blob/master/examples/material-ui/src/example/core.cljs
-;;; https://github.com/reagent-project/reagent/blob/1.1/examples/material-ui/src/example/core.cljs 
+;;; https://github.com/reagent-project/reagent/blob/v1.2.0/examples/material-ui/src/example/core.cljs
 (def ^:private input-component
-  (r/reactify-component
-   (fn [props]
-     [:input (-> props
-                 (assoc :ref (:inputRef props))
-                 (dissoc :inputRef))])))
+  (react/forwardRef
+   (fn [props ref]
+     (r/as-element
+      [:input (-> (js->clj props :keywordize-keys true)
+                  (assoc :ref ref))]))))
 
 (def ^:private textarea-component
-  (r/reactify-component
-   (fn [props]
-     [:textarea (-> props
-                    (assoc :ref (:inputRef props))
-                    (dissoc :inputRef))])))
+  (react/forwardRef
+   (fn [props ref]
+     (r/as-element
+      [:textarea (-> (js->clj props :keywordize-keys true)
+                     (assoc :ref ref))]))))
 
 ;; To fix cursor jumping when controlled input value is changed,
 ;; use wrapper input element created by Reagent instead of
@@ -329,5 +328,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (comment
+  ;; An example using reactify-component
+  #_(def ^:private textarea-component
+      (r/reactify-component
+       (fn [props]
+         [:textarea (-> props
+                        (assoc :ref (:inputRef props))
+                        (dissoc :inputRef))])))
   ;;To see all vars defined in this namespace
-  (clojure.repl/dir onekeepass.frontend.mui-components))
+  (clojure.repl/dir onekeepass.frontend.mui-components)
+  )
