@@ -2,7 +2,7 @@
   (:require
    [reagent.core :as r]
    [clojure.string :as str]
-   [onekeepass.frontend.utils :as u :refer [contains-val?]]
+   [onekeepass.frontend.utils :as u :refer [contains-val? to-file-size-str]]
    [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.events.tauri-events :as tauri-events]
    [onekeepass.frontend.events.common :as ce]
@@ -54,10 +54,14 @@
                                                      mui-icon-delete-outline
                                                      mui-icon-autorenew
                                                      mui-icon-edit-outlined
+                                                     mui-icon-article-outlined
+                                                     mui-icon-save-as-outlined
                                                      mui-date-time-picker
                                                      mui-desktop-date-picker
                                                      mui-localization-provider
                                                      date-adapter]]))
+
+;;(set! *warn-on-infer* true)
 
 (def background-color1 "#F1F1F1")
 (def popper-border-color "#E7EBF0")
@@ -140,13 +144,13 @@
                      :sx {:padding-left "1px"}
                      :on-click (menu-action anchor-el form-events/entry-delete-start entry-uuid)}
       [mui-list-item-text {:inset true} "Delete"]]
-     
+
      ;; Auto type related menu options are avilable only for macos
      (when (= os-name const/MACOS)
        ;; Need to use this reagent component instead of fragmets using :<> as MUI complains
        ;; that Menu item child should not be a fragment and instead suggested to use an array of child
        [auto-type-menu-items anchor-el entry-uuid])
-     
+
      [mui-menu-item {:divider false
                      :sx {:padding-left "1px"}
                      :on-click (menu-action anchor-el form-events/load-history-entries-summary entry-uuid)
@@ -215,17 +219,15 @@
 (defn datetime-field
   [{:keys [key value on-change-handler]
     :or [on-change-handler #()]}]
-  [mui-localization-provider {:dateAdapter m/adapter-date-fns} 
+  [mui-localization-provider {:dateAdapter m/adapter-date-fns}
    [mui-date-time-picker {:label key
                           ;; value should be of Date type (type value) => #object[Date]
                           ;; and it is in UTC. The view side shown in local time 
-                          :value value 
+                          :value value
                           :onChange on-change-handler
                           :slotProps {:textField {:variant "standard"
                                                   :classes {:root "entry-cnt-field"}
-                                                  :fullWidth true}}
-                          
-                          }]])
+                                                  :fullWidth true}}}]])
 
 (declare text-field)
 
@@ -375,9 +377,12 @@
                           password-score
                           placeholder
                           helper-text
-                          error-text]
+                          error-text
+                          no-end-icons
+                          ]
                    :or {visible true
                         edit false
+                        no-end-icons false
                         protected false
                         on-change-handler #(println (str "No on change handler yet registered for " key))
                         required false}}]
@@ -405,10 +410,12 @@
                               :classes {:root (if edit "entry-cnt-text-field-edit" "entry-cnt-text-field-read")
                                         :focused  (if edit "entry-cnt-text-field-edit-focused" "entry-cnt-text-field-read-focused")}
                                  ;;:sx (if editing {} read-sx1)
-                              :endAdornment (r/as-element
-                                             [mui-input-adornment {:position "end"}
-                                              [end-icons key value protected visible edit]
-                                              #_(seq icons)])
+                              :endAdornment (if no-end-icons nil
+                                               (r/as-element
+                                                [mui-input-adornment {:position "end"}
+                                                 [end-icons key value protected visible edit]
+                                                 #_(seq icons)]) 
+                                                )
                               :type (if (or (not protected) visible) "text" "password")}
                          ;;attributes for 'input' tag can be added here
                          ;;It seems adding these 'InputProps' also works
@@ -932,15 +939,13 @@
                                                    (form-events/section-add-done)
                                                    (reset! anchor-el nil))} "Close"]]]]))
 
-;; attachments-content is not yet complete and will be completed next release
 (defn attachments-content []
   (let [edit @(form-events/form-edit-mode)
-        attachments @(form-events/attachments)]
-
+        attachments @(form-events/attachments)] 
     (when (or edit (boolean (seq attachments)))
       [mui-box {:sx content-sx}
        [mui-stack {:direction "row"}
-        [mui-stack {:direction "row" :sx {:width "90%"}}
+        [mui-stack {:direction "row" :sx {:margin-bottom "10px" :width "90%"}}
          [box-caption "Attachments"]]
         (when edit
           [mui-stack {:direction "row"
@@ -952,23 +957,53 @@
              [mui-icon-add-circle-outline-outlined]]]])]
 
        (doall
-      ;; In case of attachment the 'key' has the file name
-      ;; and the 'value' field is empty
-        (for [{:keys [key] :as kv} attachments]
+
+        (for [{:keys [key value data-size data-hash] :as kv} attachments]
           ^{:key key} [mui-stack {:direction "row"}
-                       [mui-stack {:direction "row" :sx {:width (if edit "92%" "95%")}}
-                        [text-field (assoc kv
-                                           :edit false
-                                           :on-change-handler #())]]
-                       (when edit
-                         [mui-stack {:direction "row"
-                                     :sx {:width "8%"
-                                          :align-items "flex-end"
-                                          :justify-content "flex-end"}}
-                          [mui-tooltip  {:title "More"}
-                           [mui-icon-button {:edge "end"
-                                             :on-click #()}
-                            [mui-icon-more-vert]]]])]))])))
+                       (if-not edit
+                         ;; View
+                         [mui-stack {:direction "row" :sx {:width  "100%"}}
+                          [mui-stack {:direction "row" :sx {:width  "90%"}}
+                           [mui-stack {:direction "row" :sx {:width  "80%"}}
+                            [mui-link {:sx {:color "primary.dark"}
+                                       :underline "hover"
+                                       :on-click  #()}
+                             [mui-typography {:variant "h6" :sx {:font-size "1em" :align-self "center"}}
+                              value]]]
+                           [mui-stack {:direction "row" :sx {:width  "20%"}}
+                            [mui-typography {:variant "h1" :sx {:font-size ".9em" :align-self "center"}}
+                             (to-file-size-str data-size)]]]
+                          [mui-stack {:direction "row"
+                                      :sx {:width "10%"
+                                           :align-items "flex-end"
+                                           :justify-content "flex-end"}}
+                           [mui-tooltip  {:title "View" :enterDelay 2500}
+                            [mui-icon-button {:sx {:margin-right 0}
+                                              :edge "end"
+                                              :on-click #(form-events/view-attachment value data-hash)}
+                             [mui-icon-article-outlined]]]
+                           [mui-tooltip  {:title "SaveAs" :enterDelay 2500}
+                            [mui-icon-button {:sx {:margin-right 0}
+                                              :edge "end"
+                                              :on-click #(form-events/save-attachment value data-hash)}
+                             [mui-icon-save-as-outlined]]]]]
+
+                         ;; Edit
+                         [mui-stack {:direction "row" :sx {:width  "100%"}}
+                          [mui-stack {:direction "row" :sx {:width "92%"}}
+                           [text-field (assoc kv
+                                              :no-end-icons true
+                                              :edit true
+                                              :on-change-handler (on-change-factory2 #(form-events/attachment-name-changed data-hash %)) )]]
+                          [mui-stack {:direction "row"
+                                      :sx {:width "8%"
+                                           :align-items "flex-end"
+                                           :justify-content "flex-end"}}
+                           [mui-tooltip  {:title "Delete" :enterDelay 2500}
+                            [mui-icon-button {:sx {:margin-right 0}
+                                              :edge "end"
+                                              :on-click #(form-events/delete-attachment data-hash)}
+                             [mui-icon-delete-outline]]]]])]))])))
 
 (defn add-section-content []
   (let [edit @(form-events/form-edit-mode)]
@@ -1006,9 +1041,8 @@
      [all-sections-content]
      [add-section-content]
      [notes-content]
-     [tags-selection]
-     ;; attachments-content is not yet complete
-     #_[attachments-content]
+     [tags-selection] 
+     [attachments-content] 
      [uuid-times-content]
      [expiry-content]]))
 

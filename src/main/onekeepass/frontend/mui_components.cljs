@@ -238,10 +238,13 @@
 (declare-mui-classes
  [Save
   SaveAs
+  SaveAsOutlined
   AccessTime
   ArrowDropDown
   ArrowRight
   AccountBalanceOutlined   ;; for bank
+  ArticleOutlined
+  PreviewOutlined
   Autorenew
   CancelPresentation
   CancelPresentationSharp
@@ -277,6 +280,7 @@
   ChevronRight
   MoreHoriz
   GroupWorkOutlined
+  ;;TextSnippetOutlined
   WifiOutlined] "mui-icon-" "mui-icons/")
 
 ;;;;;;;;;;;;;;;;

@@ -288,6 +288,15 @@
 
      db)))
 
+
+(reg-event-fx 
+ :common/save-file-dialog
+ (fn [{:keys [_db]} [_event-id file-name callback-fn]]
+   ;; file-name is just the file name and not full path
+   ;; callback-fn is a function that receives the full-file-name on user selection or nil if the dialog is cancelled
+   (bg/save-file-dialog {:default-path file-name} callback-fn)
+   {}))
+
 (reg-event-fx
  :save-as-completed
  (fn [{:keys [db]} [_event-id kdbx-loaded]]

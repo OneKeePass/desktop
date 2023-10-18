@@ -62,6 +62,9 @@
       },
       "globalShortcut": {
         "all": true
+      },
+      "shell": {
+        "all": true 
       }
     },
     "windows": [

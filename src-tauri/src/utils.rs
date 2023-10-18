@@ -104,7 +104,7 @@ pub struct StandardDirs {
 pub struct SystemInfoWithPreference {
   pub os_name: String,
   pub os_version: String,
-  pub arch:String,
+  pub arch: String,
   pub path_sep: String,
   pub standard_dirs: StandardDirs,
   pub biometric_type_available: String,
@@ -114,12 +114,15 @@ pub struct SystemInfoWithPreference {
 impl SystemInfoWithPreference {
   pub fn init(app_state: &AppState) -> Self {
     let p = app_state.preference.lock().unwrap();
-    
+
     let os_name = std::env::consts::OS.into();
     let os_version = os_info::get().version().to_string();
     let arch = std::env::consts::ARCH.to_string();
 
-    info!("OS details: name: {}, version: {}, arch: {} ",&os_name,&os_version,&arch);
+    info!(
+      "OS details: name: {}, version: {}, arch: {} ",
+      &os_name, &os_version, &arch
+    );
 
     Self {
       os_name,
@@ -178,7 +181,7 @@ pub fn generate_backup_file_name(backup_dir_path: PathBuf, db_file_name: &str) -
     || "Root".into(),
     |p| p.as_os_str().to_string_lossy().to_string(),
   );
-  
+
   let fname_no_extension = db_path.file_stem().map_or_else(
     || "DB_FILE_NAME".into(),
     |s| s.to_string_lossy().to_string(),
@@ -186,7 +189,6 @@ pub fn generate_backup_file_name(backup_dir_path: PathBuf, db_file_name: &str) -
 
   let n = kp_service::string_to_simple_hash(&parent_dir).to_string();
 
-  
   // The backup_file_name will be of form "MyPassword_10084644638414928086.kdbx" for
   // the original file name "MyPassword.kdbx" where 10084644638414928086 is a hash of the dir part of full path
   let backup_file_name = vec![fname_no_extension.as_str(), "_", &n, ".kdbx"].join("");
@@ -201,9 +203,12 @@ pub fn generate_backup_file_name(backup_dir_path: PathBuf, db_file_name: &str) -
 
 pub fn init_app(app: &App) {
   use tauri::GlobalShortcutManager;
-  let _r = app.app_handle().global_shortcut_manager().register("Alt+Shift+R", move || {
-    println!("⌥⇧R is pressed");
-  });
+  let _r = app
+    .app_handle()
+    .global_shortcut_manager()
+    .register("Alt+Shift+R", move || {
+      println!("⌥⇧R is pressed");
+    });
 
   let app_dir = app_home_dir();
   let log_dir = app_logs_dir();
@@ -262,6 +267,18 @@ pub fn app_resources_dir<R: Runtime>(app: tauri::AppHandle<R>) -> Result<String,
 // TODO Return Result<HashMap<>>
 pub fn load_custom_svg_icons<R: Runtime>(app: tauri::AppHandle<R>) -> HashMap<String, String> {
   // Note: ../ in path will add _up_
+
+  // debug!("app.path_resolver() is {:?}", app.path_resolver().resource_dir());
+  // debug!(
+  //   "app.config() {:?}, app.package_info() {:?},Env::default() {:?}, BaseDirectory::Resource {:?} ",
+  //   &app.config(),
+  //   &app.package_info(),
+  //   &Env::default(),
+  //   BaseDirectory::Resource
+  // );
+
+  debug!(" BaseDirectory::Resource {:?} ",BaseDirectory::Resource);
+
   let path = resolve_path(
     &app.config(),
     app.package_info(),

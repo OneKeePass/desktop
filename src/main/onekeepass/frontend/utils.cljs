@@ -139,6 +139,28 @@
     [coll val]
     (boolean (seq (filter #(= % val)  coll))))
 
+(def KB 1024)
+
+(def MB 1048576) ;;1,048,576
+
+(def GB 1073741824) ;;1,073,741,824
+
+;;1,099,511,627,776 Terabyte
+
+(defn to-file-size-str [^js/Number number]
+  (cond
+    (< number KB)
+    (str (.toFixed number 2) " B")
+
+    (and (> number KB) (< number MB))
+    (str (.toFixed (/ number KB) 2) " KiB")
+
+    (and (> number MB) (< number GB))
+    (str (.toFixed (/ number MB) 2) " MiB")
+
+    :else
+    (str (.toFixed (/ number GB) 2) " GiB")))
+
 (comment
   (capitalize-words "custom fields") ;; => "Custom Fields"
   (capitalize-words "CUSTOM FIELDS") ;; => "Custom Fields"
@@ -146,7 +168,7 @@
   (str->int "3 3") ;; => nil
   (str->int "aa") ;; => nil
   (str->int "3aa") ;; => nil
-  
+
   (str->int 3) ;; => 3
   (str->int "33") ;; => 33
   ;;https://github.com/clj-commons/camel-snake-kebab/blob/version-0.4.3/src/camel_snake_kebab/extras.cljc
@@ -157,45 +179,44 @@
       (postwalk (fn [x] (if (map? x) (with-meta (into {} (map transform x)) (meta x)) x)) coll)))
 
   (.formatByString c/date-fns-utils (js/Date.) "yyyy-MM-dd") ;; => "2022-01-03"
-  
+
   (.formatByString c/date-fns-utils (js/Date.) "yyyy-MM-dd'T'HH:mm:ss.SSSxxx")
   ;; => "2022-01-03T16:53:17.311-08:00"  Local timezone Pacific
-  
+
   (.formatByString c/date-fns-utils (js/Date.) "yyyy-MM-dd'T'HH:mm:ss")
   ;; => "2022-09-09T18:48:22" Local timezone Pacific
-  
+
   (.formatByString c/date-fns-utils (js/Date.) "dd MMM yyyy HH:mm:ss")
 
   (.date c/date-fns-utils)
   ;; => #inst "2022-09-10T00:27:51.811-00:00" A date obj UTC timezone
-  
+
   (js/Date.)
   ;; => #inst "2022-01-04T00:43:40.691-00:00"  A date obj UTC timezone
-  
+
   (js/Date. "2022-09-10T05:29:28Z")  ;; Z indicates that the datetime string is a UTC datetime
   ;; => #inst "2022-09-10T05:29:28.000-00:00"
-  
+
   (js/Date. "2022-09-10T05:29:28")  ;; No Z at the end. The string is local timezone datetime str
   ;; => #inst "2022-09-10T12:29:28.000-00:00"
-  
+
   ;; Formats a UTC datetime to local datetime string
   (.formatByString c/date-fns-utils (js/Date. "2022-09-10T05:29:28Z") "yyyy-MM-dd'T'HH:mm:ss")
    ;; => "2022-09-09T22:29:28"
-  
+
   (to-UTC-ISO-string (js/Date. "2022-09-09T22:29:28"))
   ;; "2022-09-10T05:29:28.000Z"
-  
+
 
   (.parse c/date-fns-utils "2022-09-09T17:42:35" "yyyy-MM-dd'T'HH:mm:ss")
 
   ;; => #inst "2022-09-10T00:42:35.000-00:00" A date obj UTC timezone
-  
+
   (to-UTC-ISO-string (.parse c/date-fns-utils "2022-09-09T17:42:35" "yyyy-MM-dd'T'HH:mm:ss"))
   ;; => "2022-09-10T00:42:35.000Z" 
-  
+
   (.toISOString (js/Date.)) ;; => "2022-01-04T01:02:07.594Z"    This is in UTC 
-  
+
   (.toISO c/date-fns-utils (js/Date.)) ;; "2022-01-03T16:44:14-08:00" in Pacific time
-  
-  (utc-to-local-datetime-str (js/Date.) "yyyy-MM-dd HH mm ss")
-  )
+
+  (utc-to-local-datetime-str (js/Date.) "yyyy-MM-dd HH mm ss"))
