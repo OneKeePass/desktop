@@ -564,7 +564,7 @@
  (fn [data _query-vec]
    (contains-val? (:tags data) Favorites)))
 
-;;;;;;;;;;;;;;;;;;;;; Attachments ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Attachments ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn view-attachment
   "Calls the back end to save the attachment as temp file and lauch the system viewer
@@ -582,13 +582,25 @@
                (when-not (nil? full-file-name)
                  (dispatch [:save-attachment-file-selected full-file-name attachment-hash])))]))
 
-(defn delete-attachment [attachment-hash]
-  (dispatch [:delete-attachment attachment-hash]))
+(defn upload-attachment-start []
+  (cmn-events/open-file-explorer-on-click :attachment-upload-start))
+
+(defn attachment-delete-confirm-dialog-open [attachment-hash]
+  (dispatch [:attachment-delete-confirm-dialog-open attachment-hash]))
+
+(defn attachment-delete-dialog-ok []
+  (dispatch [:attachment-delete-dialog-ok]))
+
+(defn attachment-delete-dialog-close []
+  (dispatch [:attachment-delete-dialog-close]))
 
 (defn attachments
   "Gets an atom which on deref gives a map as in BinaryKeyValue struct"
   []
   (subscribe [:attachments]))
+
+(defn attachment-delete-dialog-data []
+  (subscribe [:attachment-delete-dialog-data]))
 
 (reg-event-fx
  :save-attachment-file-selected
@@ -601,7 +613,6 @@
                             (when-not (on-error api-response)
                               (dispatch [:common/message-snackbar-open "Attachment saved to the selected file"]))))
    {}))
-
 
 (reg-event-fx
  :attachment-view-start
@@ -619,6 +630,26 @@
                                                       (fn [api-response]
                                                         (on-error api-response))))))))
 
+;; Called with the user selected full file name
+(reg-event-fx
+ :attachment-upload-start
+ (fn [{:keys [db]} [_event-id full-file-name]]
+   ;; Side effect
+   (bg/upload-attachment (active-db-key db) full-file-name
+                         (fn [api-reponse]
+                           ;;Response has AttachmentUploadInfo on success 
+                           (when-let [attachment-upload-info (check-error api-reponse)]
+                             (dispatch [:attachment-uploaded attachment-upload-info]))))
+   {}))
+
+;; Handle the attachment upload
+(reg-event-fx
+ :attachment-uploaded
+ (fn [{:keys [db]} [_event-id {:keys [data-hash data-size name]}]]
+   (let [attachments (get-in-key-db db [entry-form-key :data :binary-key-values])
+         bkv {:data-hash data-hash :data-size data-size :key name :value "" :index_ref 0}
+         updated (conj attachments bkv)]
+     {:db (-> db (assoc-in-key-db [entry-form-key :data :binary-key-values] updated))})))
 
 (reg-event-fx
  :attachment-name-changed
@@ -629,14 +660,33 @@
                            (assoc m :key name) m)) attachments)]
      {:db (-> db (assoc-in-key-db [entry-form-key :data :binary-key-values] updated))})))
 
+(reg-event-db
+ :attachment-delete-confirm-dialog-open
+ (fn [db [_event-id attachment-hash]]
+   (-> db (assoc-in-key-db [entry-form-key :attachment-delete-dialog]
+                           {:dialog-show true
+                            :attachment-hash attachment-hash}))))
+
+(reg-event-db
+ :attachment-delete-dialog-close
+ (fn [db [_event-id]]
+   (-> db (assoc-in-key-db [entry-form-key :attachment-delete-dialog] {:dialog-show false}))))
+
 (reg-event-fx
- :delete-attachment
- (fn [{:keys [db]} [_event-id attachment-hash]]
-   (let [attachments (get-in-key-db db [entry-form-key :data :binary-key-values])
+ :attachment-delete-dialog-ok
+ (fn [{:keys [db]} [_event-id]]
+   (let [attachment-hash (get-in-key-db db [entry-form-key :attachment-delete-dialog :attachment-hash])
+         attachments (get-in-key-db db [entry-form-key :data :binary-key-values])
          updated (filterv (fn [{:keys [data-hash] :as m}]
                             (if (= attachment-hash data-hash)
                               false true)) attachments)]
-     {:db (-> db (assoc-in-key-db [entry-form-key :data :binary-key-values] updated))})))
+     {:db (-> db (assoc-in-key-db [entry-form-key :data :binary-key-values] updated))
+      :fx [[:dispatch [:attachment-delete-dialog-close]]]})))
+
+(reg-sub
+ :attachment-delete-dialog-data
+ (fn [db _query-vec]
+   (get-in-key-db db [entry-form-key :attachment-delete-dialog])))
 
 (reg-sub
  :attachments

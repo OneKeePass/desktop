@@ -350,8 +350,8 @@
   (invoke-api "remove_group_permanently" {:db-key db-key :group-uuid group-uuid} dispatch-fn))
 
 (defn upload-attachment
-  [db-key file-name dispatch-fn]
-  (invoke-api "upload_entry_attachment" {:db-key db-key :file-name file-name} dispatch-fn))
+  [db-key full-file-name dispatch-fn]
+  (invoke-api "upload_entry_attachment" {:db-key db-key :file-name full-file-name} dispatch-fn))
 
 (defn save-attachment-as-temp-file [db-key name data-hash-str dispatch-fn]
   ;; data-hash is string value and need to be coverted back to u64 in rust side
