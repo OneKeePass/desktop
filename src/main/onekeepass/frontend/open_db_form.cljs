@@ -6,6 +6,7 @@
    [onekeepass.frontend.common-components :refer [enter-key-pressed-factory]]
    [onekeepass.frontend.mui-components :as m :refer [mui-alert
                                                      mui-dialog
+                                                     ;;color-primary-main
                                                      mui-button
                                                      mui-dialog-actions
                                                      mui-dialog-content
@@ -15,6 +16,7 @@
                                                      mui-input-adornment
                                                      mui-icon-folder-outlined
                                                      mui-icon-button
+                                                     mui-typography
                                                      mui-icon-visibility
                                                      mui-icon-visibility-off]]))
 
@@ -39,7 +41,7 @@
      [mui-dialog-content {:dividers true}
       [mui-stack
        (if (not in-progress?)
-         [:<>
+         [mui-stack
           [m/text-field {:label "File Name" :value file-name
                          :on-change od-events/file-name-on-change
                          :disabled unlock-request
@@ -52,10 +54,12 @@
                                            {:edge "end" :sx {:mr "-8px"}
                                             :onClick od-events/open-file-explorer-on-click}
                                            [mui-icon-folder-outlined]]]))}}]
+          
+          [mui-stack {:sx { :margin-bottom "20px"} }]
 
           [m/text-field {:label "Password"
                          :value password
-                         :required true
+                         ;;:required true
                          :error (not (nil? passord-error-text))
                          :helperText passord-error-text
                          :on-change od-events/db-password-on-change
@@ -77,8 +81,9 @@
           [m/text-field {:label "Key File Name" :value key-file-name
                          :on-change od-events/key-file-name-on-change
                          :variant "standard" :fullWidth true
-                         :placeholder "Optional"
-                         :helperText "This is required if you had used any random file as key in addition to password"
+                         ;;:placeholder "Optional"
+                         ;; :helperText "Pleae enter a valid password or a key file or both"
+                         ;;:helperText "This is required if you had used any random file as key in addition to password"
                          :InputProps {:endAdornment (r/as-element [mui-input-adornment {:position "end"}
                                                                    (if key-file-visibility-on
                                                                      [mui-icon-button {:edge "end" :sx {:mr "-8px"}
@@ -90,7 +95,11 @@
                                                                    [mui-icon-button {:edge "end" :sx {:mr "-8px"}
                                                                                      :onClick od-events/open-key-file-explorer-on-click}
                                                                     [mui-icon-folder-outlined]]])}
-                         :type (if key-file-visibility-on "text" "password")}]]
+                         :type (if key-file-visibility-on "text" "password")}]
+          
+          [mui-stack {:sx {:margin-top "10px" :margin-bottom "5px"}} 
+           [mui-typography {:variant "caption"} "Pleae provide a valid password or a key file or both password and key file"]]
+          ]
          [mui-stack "Databse openining is in progress"])
        (cond
          (= status :in-progress)

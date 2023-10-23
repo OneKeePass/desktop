@@ -86,7 +86,8 @@
 (reg-event-db
  :open-db-update-password
  (fn [db [_event-id password]]
-   (assoc-in db [:open-db :password] password)))
+   ;; (empty? "") returns true
+   (assoc-in db [:open-db :password] (if (empty? password) nil password))))
 
 (reg-event-db
  :open-db-update-key-file-name
@@ -142,16 +143,12 @@
  :open-db-login-credential-entered
  (fn [{:keys [db]} [_event-id file-name pwd key-file-name]]
    (let [unlock-request (get-in db [:open-db :unlock-request])]
-     (if (str/blank? (get-in db [:open-db :password]))
-       {:db (-> db
-                (assoc-in [:open-db :error-fields]
-                          {:password "Valid password is required"}))}
-       {:db (-> db
-                (assoc-in [:open-db :error-fields] {})
-                (assoc-in [:open-db :status] :in-progress))
-        :fx [(if unlock-request
-               [:unlock-kdbx-file [(active-db-key db) pwd key-file-name]]
-               [:load-kdbx-file [file-name pwd key-file-name]])]}))))
+     {:db (-> db
+              (assoc-in [:open-db :error-fields] {})
+              (assoc-in [:open-db :status] :in-progress))
+      :fx [(if unlock-request
+             [:unlock-kdbx-file [(active-db-key db) pwd key-file-name]]
+             [:load-kdbx-file [file-name pwd key-file-name]])]})))
 
 (reg-event-db
  :open-db-error
@@ -237,8 +234,7 @@
 
 (reg-event-fx
  :open-db-biometric-login-fail
- (fn [{:keys [db]} [_event-id]]
-   ;;(println "open-db-biometric-login-fail is called ")
+ (fn [{:keys [_db]} [_event-id]] 
    {:fx [[:dispatch [:common/message-snackbar-error-open "Biometric authentication is not successful"]]
          [:dispatch [:open-db-form/dialog-show-on-current-db-unlock-request]]]}))
 
@@ -246,3 +242,10 @@
  :open-db-dialog-data
  (fn [db _query-vec]
    (-> db :open-db)))
+
+
+(comment
+  (keys @re-frame.db/app-db)
+
+  (def db-key (:current-db-file-name @re-frame.db/app-db))
+  (-> @re-frame.db/app-db (get db-key) keys))

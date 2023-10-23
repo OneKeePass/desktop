@@ -26,7 +26,12 @@
   (dispatch-sync [:custom-icons/load-custom-icons])
   (dispatch-sync [:load-system-info-with-preference]))
 
-(defn open-file-explorer-on-click [kw-dispatch-name]
+(defn open-file-explorer-on-click 
+  "Shows OS specific file explorer dialog to pick a from the local file system
+   The promise on resolve returns the picked file which is dispatched 
+   to the passed 'kw-dispatch-name'
+  "
+  [kw-dispatch-name]
   (bg/open-file-dialog (fn [api-response]
                          (let [file-name (check-error api-response)]
                            (dispatch [kw-dispatch-name file-name])))))

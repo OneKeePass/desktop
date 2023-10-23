@@ -22,12 +22,17 @@
   (dispatch [:db-settings-read-start]))
 
 (defn field-update-factory [kw-field-name]
-  (fn [^js/Event e]
-    ;;(println "db-settings-field-update is called ")
+  (fn [^js/Event e] 
     (dispatch [:db-settings-field-update kw-field-name (->  e .-target .-value)])))
 
 (defn database-field-update [kw-field-name value]
   (dispatch [:db-settings-field-update kw-field-name value]))
+
+(defn password-change-action [kw-action-name]
+  (dispatch [:db-settings-password-change-action kw-action-name]))
+
+(defn key-file-change-action [kw-action-name]
+  (dispatch [:db-settings-key-file-change-action kw-action-name]))
 
 (defn db-settings-panel-select [kw-panel]
   (dispatch [:db-settings-panel-select kw-panel]))
@@ -70,6 +75,21 @@
 
     errors))
 
+(def field-not-empty? (comp not empty?))
+
+(defn- validate-credential-fields [db]
+  (let [{:keys [password password-used key-file-used]} (get-in-key-db db [:db-settings :data])
+        cp (get-in-key-db db [:db-settings :password-confirm])
+        visible  (get-in-key-db db [:db-settings :password-visible])]
+
+    (cond
+      (and (field-not-empty? password) (not visible) (not= password cp))
+      {:password-confirm "Password and Confirm password are not matching"}
+
+      (and (not key-file-used) (not password-used))
+      {:no-credential-set 
+       "Database needs to be protected using a master key formed with a password or a key file or both"})))
+
 (defn- validate-required-fields
   [db panel]
   (cond
@@ -78,16 +98,8 @@
       {:database-name "A valid database name is required"})
 
     (= panel :credentials-info)
-    (let [p (get-in-key-db db [:db-settings :data :password])
-          cp (get-in-key-db db [:db-settings :password-confirm])
-          visible  (get-in-key-db db [:db-settings :password-visible])]
-      (cond
-        (and (not (str/blank? p)) (not visible) (not= p cp))
-        {:password-confirm "Password and Confirm password are not matching"}
-
-        (and (str/blank? p) (not (str/blank? cp)) (not visible))
-        {:password-confirm "Password and Confirm password are not matching"}))
-
+    (validate-credential-fields db)
+    
     (= panel :security-info)
     (validate-security-fields db)
 
@@ -102,10 +114,11 @@
                 (reduced [panel errors])
                 v))) [] panels))
 
-(reg-event-db
+;; Called on when user picks a key file
+(reg-event-fx
  :db-settings-key-file-name-selected
- (fn [db [_event-id key-file-name]]
-   (assoc-in-key-db db [:db-settings :data :key-file-name] key-file-name)))
+ (fn [{:keys [_db]} [_event-id key-file-name]] 
+   {:fx [[:dispatch [:db-settings-field-update  [:data :key-file-name] key-file-name]]]}))
 
 (reg-event-fx
  :db-settings-write-start
@@ -120,18 +133,23 @@
 
 (reg-fx
  :bg-set-db-settings
- (fn [[db-key settings]] ;; settings is from [:db-settings :data]
+ (fn [[db-key settings]]
+   ;; settings is from [:db-settings :data]
    ;; Need to do some str to int and blank str handling
    (let [settings  (-> settings
                        #_(update-in [:kdf :Argon2 :iterations] str->int)
                        #_(update-in [:kdf :Argon2 :parallelism] str->int)
                        #_(update-in [:kdf :Argon2 :memory] str->int)
                        (update-in [:kdf :Argon2 :memory] * 1048576)
-                       (update-in [:password] #(if (str/blank? %) nil %))
+                       ;; Allow space only password
+                       ;; (str/blank? "  ") true but (empty? "  ") is false
+                       ;; (str/blank? "") true but (empty? "") is true
+                       (update-in [:password] #(if (empty? %) nil %))
                        (update-in [:key-file-name] #(if (str/blank? %) nil %)))]
-     (bg/set-db-settings db-key settings (fn [api-response]
-                                           (when-not (on-error api-response #(dispatch [:db-settings-write-error %]))
-                                             (dispatch [:db-settings-write-completed])))))))
+     (bg/set-db-settings db-key settings 
+                         (fn [api-response]
+                           (when-not (on-error api-response #(dispatch [:db-settings-write-error %]))
+                             (dispatch [:db-settings-write-completed])))))))
 
 (reg-event-db
  :db-settings-write-completed
@@ -154,8 +172,18 @@
             (assoc-in-key-db [:db-settings :data :org-key-file-name] nil)
 
             (assoc-in-key-db [:db-settings :dialog-show] true)
+
             (assoc-in-key-db [:db-settings :password-confirm] nil)
             (assoc-in-key-db [:db-settings :password-visible] false)
+            ;; Toggles password field vs buttons
+            (assoc-in-key-db [:db-settings :password-field-show] false)
+            ;; Toggles showing Add/Remove Password button 
+            (assoc-in-key-db [:db-settings :password-use-removed] false)
+
+            (assoc-in-key-db [:db-settings :key-file-field-show] false)
+            ;; Toggles showing Add/Remove Key file button
+            (assoc-in-key-db [:db-settings :key-file-use-removed] false)
+
             (assoc-in-key-db [:db-settings :panel] :general-info)
             (assoc-in-key-db [:db-settings :status] :in-progress)
             (assoc-in-key-db [:db-settings :api-error-text] nil))
@@ -167,7 +195,8 @@
  ;; A vector arg typically used so that we can pass more than one input
  (fn [[db-key]]
    (bg/get-db-settings db-key (fn [api-response]
-                                (when-let [settings (check-error api-response #(dispatch [:db-settings-read-error %]))]
+                                (when-let [settings (check-error api-response 
+                                                                 #(dispatch [:db-settings-read-error %]))]
                                   (dispatch [:db-settings-read-completed settings]))))))
 
 (reg-event-db
@@ -221,10 +250,14 @@
             (= ks [:db-settings :data :kdf :Argon2 :memory]))
         (str->int value)
 
-        (and (str/blank? value)
-             (or (= ks [:db-settings :data :password])
-                 (= ks [:db-settings :data :key-file-name])))
+        ;;
+        (and (= ks [:db-settings :data :password]) (empty? value))
         nil
+
+        (and (= ks [:db-settings :data :key-file-name]) (str/blank? value))
+        nil
+        ;; (and (str/blank? value) (or (= ks [:db-settings :data :password]) (= ks [:db-settings :data :key-file-name])))
+        ;; nil
 
         :else
         value))
@@ -237,12 +270,67 @@
          ks (into [:db-settings] (if (vector? kw-field-name)
                                    kw-field-name
                                    [kw-field-name]))
-         value (convert-value ks value)
-         db (assoc-in-key-db db ks value)]
-     (if (and (contains-val? ks :password) (str/blank? value))
-       (-> db
-           (assoc-in-key-db  [:db-settings :password-confirm] nil))
+         val (convert-value ks value)
+         password-val? (contains-val? ks :password)
+         key-file-name-val? (contains-val? ks :key-file-name) 
+         db (assoc-in-key-db db ks val)] 
+     (cond
+       (and password-val? (field-not-empty? val))
+       (-> db (assoc-in-key-db [:db-settings :data :password-used] true)
+           (assoc-in-key-db [:db-settings :error-fields :no-credential-set] nil)
+           (assoc-in-key-db [:db-settings :data :password-changed] true))
+
+       key-file-name-val?
+       (if (field-not-empty? val)
+         (-> db (assoc-in-key-db [:db-settings :data :key-file-used] true)
+             (assoc-in-key-db [:db-settings :data :key-file-changed] true)
+             (assoc-in-key-db [:db-settings :error-fields :no-credential-set] nil))
+         (-> db (assoc-in-key-db [:db-settings :data :key-file-used] false)
+             (assoc-in-key-db [:db-settings :data :key-file-changed] true)
+             (assoc-in-key-db [:db-settings :data :key-file-name] nil)))
+       :else
        db))))
+
+(reg-event-db
+ :db-settings-password-change-action
+ (fn [db [_event-id kw-action-name]]
+   (cond
+     (= kw-action-name :change)
+     (-> db (assoc-in-key-db [:db-settings :password-field-show] true))
+
+     (= kw-action-name :add)
+     (-> db (assoc-in-key-db [:db-settings :password-field-show] true)
+         (assoc-in-key-db [:db-settings :error-fields :no-credential-set] nil))
+
+     (= kw-action-name :remove)
+     (-> db (assoc-in-key-db [:db-settings :password-use-removed] true)
+         (assoc-in-key-db [:db-settings :data :password-used] false)
+         (assoc-in-key-db [:db-settings :data :password] nil)
+         (assoc-in-key-db [:db-settings :data :password-changed] true)))))
+
+(reg-event-db
+ :db-settings-key-file-change-action
+ (fn [db [_event-id kw-action-name]]
+   (cond
+     (= kw-action-name :change)
+     (-> db (assoc-in-key-db [:db-settings :key-file-field-show] true))
+
+          ;; Add may be called after Remove call in the same screen
+     (= kw-action-name :add)
+     (let [existing-key-file-name (get-in-key-db db [:db-settings :undo-data :key-file-name])
+           k-used (if (field-not-empty? existing-key-file-name) true false)]
+       (-> db (assoc-in-key-db [:db-settings :key-file-field-show] true)
+           (assoc-in-key-db [:db-settings :data :key-file-name] existing-key-file-name)
+           (assoc-in-key-db [:db-settings :data :key-file-used] k-used)
+           (assoc-in-key-db [:db-settings :data :key-file-changed] false)
+           (assoc-in-key-db [:db-settings :error-fields :no-credential-set] nil)))
+
+
+     (= kw-action-name :remove)
+     (-> db (assoc-in-key-db [:db-settings :key-file-use-removed] true)
+         (assoc-in-key-db [:db-settings :data :key-file-used] false)
+         (assoc-in-key-db [:db-settings :data :key-file-changed] true)
+         (assoc-in-key-db [:db-settings :data :key-file-name] nil)))))
 
 (reg-event-db
  :db-settings-panel-select
@@ -286,10 +374,11 @@
      :some-to-some)))
 
 (reg-sub
- :password-changed
- :<- [:db-settings]
- (fn [{{:keys [password]} :data} _query-vec]
-   (not (str/blank? password))))
+   :password-changed
+   :<- [:db-settings]
+   (fn [{{:keys [password]} :data} _query-vec]
+     (field-not-empty? password)
+     #_(not (str/blank? password))))
 
 (reg-sub
  :db-settings-modified

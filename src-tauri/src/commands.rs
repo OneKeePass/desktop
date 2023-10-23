@@ -45,7 +45,7 @@ pub type Result<T> = std::result::Result<T, String>;
 #[command]
 pub(crate) async fn load_kdbx(
   db_file_name: &str,
-  password: &str,
+  password: Option<&str>,
   key_file_name: Option<&str>,
   app_state: State<'_, utils::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
@@ -506,7 +506,7 @@ pub(crate) async fn unlock_kdbx_on_biometric_authentication(
 #[command]
 pub(crate) async fn unlock_kdbx(
   db_key: &str,
-  password: &str,
+  password: Option<&str>,
   key_file_name: Option<&str>,
 ) -> Result<kp_service::KdbxLoaded> {
   // We need to get the session encryption key from KeyChain(macOS)

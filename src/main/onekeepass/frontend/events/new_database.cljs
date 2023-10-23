@@ -136,12 +136,8 @@
     (let [p (get-in db [:new-database :password])
           cp (get-in db [:new-database :password-confirm])
           visible  (get-in db [:new-database :password-visible])]
-      (cond
-        (str/blank? p)
-        {:password "A valid password is required"}
-
-        (and (not visible) (not= p cp))
-        {:password-confirm "Password and Confirm password are not matching"}))
+      (when (and (not visible) (not= p cp))
+            {:password-confirm "Password and Confirm password are not matching"}))
 
     ;; (= panel :security-info)
     ;; (validate-security-fields db)
