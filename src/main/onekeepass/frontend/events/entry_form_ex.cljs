@@ -643,13 +643,26 @@
    {}))
 
 ;; Handle the attachment upload
+;; This will attach the uploaded file content with the currrent entry form
+#_(reg-event-fx
+   :attachment-uploaded
+   (fn [{:keys [db]} [_event-id {:keys [data-hash data-size name]}]]
+     (let [attachments (get-in-key-db db [entry-form-key :data :binary-key-values])
+           bkv {:data-hash data-hash :data-size data-size :key name :value "" :index_ref 0}
+           updated (conj attachments bkv)]
+       {:db (-> db (assoc-in-key-db [entry-form-key :data :binary-key-values] updated))})))
+
 (reg-event-fx
  :attachment-uploaded
  (fn [{:keys [db]} [_event-id {:keys [data-hash data-size name]}]]
    (let [attachments (get-in-key-db db [entry-form-key :data :binary-key-values])
          bkv {:data-hash data-hash :data-size data-size :key name :value "" :index_ref 0}
-         updated (conj attachments bkv)]
-     {:db (-> db (assoc-in-key-db [entry-form-key :data :binary-key-values] updated))})))
+         existing (filterv (fn [{:keys [data-hash key]}]
+                             (if (and (= data-hash data-hash) (= key name)) true false)) attachments)
+         existing (boolean (seq existing))]
+     (if existing
+       {:fx [[:dispatch [:common/message-box-show "Upload status" "The uploaded attachment is the same as the existing one"]]]}
+       {:db (-> db (assoc-in-key-db [entry-form-key :data :binary-key-values] (conj attachments bkv)))}))))
 
 (reg-event-fx
  :attachment-name-changed

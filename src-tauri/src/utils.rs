@@ -65,7 +65,8 @@ impl AppState {
     if !store_pref.backup.enabled {
       return None;
     }
-    info!("backup_dir set is {:?}", &store_pref.backup.dir);
+    
+    debug!("backup_dir set is {:?}", &store_pref.backup.dir);
 
     let backup_dir_path = if let Some(pa) = &store_pref.backup.dir {
       PathBuf::from(pa)
