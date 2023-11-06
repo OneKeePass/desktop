@@ -26,7 +26,7 @@
   (dispatch-sync [:custom-icons/load-custom-icons])
   (dispatch-sync [:load-system-info-with-preference]))
 
-(defn open-file-explorer-on-click 
+(defn open-file-explorer-on-click
   "Shows OS specific file explorer dialog to pick a from the local file system
    The promise on resolve returns the picked file which is dispatched 
    to the passed 'kw-dispatch-name'
@@ -294,7 +294,7 @@
      db)))
 
 
-(reg-event-fx 
+(reg-event-fx
  :common/save-file-dialog
  (fn [{:keys [_db]} [_event-id file-name callback-fn]]
    ;; file-name is just the file name and not full path
@@ -883,12 +883,12 @@
   []
   (go-loop []
     ;; Every 30 sec, we send the tick
-    (<! (timeout 30000))
+    (<! (timeout 30000)) 
     (dispatch [:check-db-list-to-lock (js/Date.now)])
     (when @continue-tick
       (recur))))
 
-;; Called whenver user clicks on any part of the content of the current db
+;; Called whenever user clicks on any part of the content of the current db
 (reg-event-fx
  :user-action-detected
  (fn [{:keys [db]} []]
@@ -911,7 +911,10 @@
                         (-> db (assoc-in [db-key :locked] true)
                             (assoc-in [db-key :show-content] :locked-content))
                         db)) db (:opened-db-list db))]
-     {:db db})))
+     {:db db
+      ;; For now only db-settings dialog receives this and closes if user leaves it open
+      ;; and session timeout happens during that time
+      :fx [[:dispatch [:db-settings/notify-screen-locked]]]})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

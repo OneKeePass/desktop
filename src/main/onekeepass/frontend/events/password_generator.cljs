@@ -12,7 +12,9 @@
 (defn password-options-update [kw value]
   (dispatch [:password-options-update kw value]))
 
-(defn generator-password-copied []
+(defn generator-password-copied 
+  "Generated password is copied to the password field or to clipboard"
+  [] 
   (dispatch [:generator-password-copied]))
 
 (defn generator-dialog-data []

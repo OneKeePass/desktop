@@ -37,7 +37,8 @@ tokio = { version = "1", features = [ "time" ] }
 tauri = { version = "1.5.1", features = ["clipboard-all", "dialog-all", "global-shortcut-all", "path-all", "process-exit", "shell-all"] }
 
 ## using from the local crate during development
-onekeepass-core = {path = "../../onekeepass-core", version = "0.9.0"}
+## onekeepass-core = {path = "../../onekeepass-core", version = "0.9.0"} 
+onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , rev="95d41700b38d737e2c76d3bf06386314d6f9d273" }
 
 ## Need to use the git ref for release 
 ## onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.8.0" }
