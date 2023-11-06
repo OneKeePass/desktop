@@ -1,0 +1,43 @@
+name: OneKeePass cljs build
+
+on:
+  workflow_dispatch:
+  # push:
+  #   tags:
+  #     - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+jobs:
+  # First we build the cljs -> js bundle
+  build-cljs-bundle:
+    runs-on: macos-latest
+
+    steps:
+      - name: desktop repo
+        uses: actions/checkout@v3
+
+      - name: Setup Node and yarn cache
+        uses: actions/setup-node@v3
+        with:
+            node-version: 16
+            cache: 'yarn'
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: 17
+          distribution: 'zulu'
+
+      - name: Install clj
+        run:  brew install clojure/tools/clojure
+
+      - name: Install node dependencies
+        run:  yarn
+      
+      - name: Build cljs main bundle
+        run:  clojure -M:frontend:fw  -m figwheel.main -O advanced  -bo dev 
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: artifacts-cljs-main-bundle
+          path: |
+            ./target/public/cljs-out/dev/main_bundle.js
