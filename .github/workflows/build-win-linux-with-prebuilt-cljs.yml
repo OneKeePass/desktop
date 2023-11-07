@@ -70,6 +70,9 @@ jobs:
           name: artifacts-cljs-main-bundle
           path: ./resources/public/cljs-out/dev
 
+      - name: Configure msvc compiler etc 
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: App bundle
         run:  yarn tauri build --target ${{ matrix.target }}  
         env:
