@@ -1,5 +1,4 @@
-name: Builds OneKeePass Windows and Linux bundle
-
+name: Builds Windows and Linux bundle only
 on:
   workflow_dispatch:
   # push:
@@ -13,14 +12,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - build: linux
-          #   os: ubuntu-latest
-          #   arch: x86_64
-          #   target: x86_64-unknown-linux-gnu
-          - build: windows
-            os: windows-latest
+          - build: linux
+            os: ubuntu-latest
             arch: x86_64
-            target: x86_64-pc-windows-msvc
+            target: x86_64-unknown-linux-gnu
+          # - build: windows
+          #   os: windows-latest
+          #   arch: x86_64
+          #   target: x86_64-pc-windows-msvc
 
     steps:
       - name: desktop repo
@@ -44,13 +43,18 @@ jobs:
           key: ${{ matrix.target }}
 
 
-      # - name: Install dependencies (ubuntu only)
-      #   if: matrix.os == 'ubuntu-latest'
-      #   run: |
-      #     sudo apt-get update
-      #     sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential wget libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
-      #     #sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf
+      - name: Install dependencies (ubuntu only)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential wget libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          #sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf
 
+      # See https://stackoverflow.com/questions/64557292/how-can-i-use-the-msvc-compiler-from-github-actions
+      - name: Configure msvc compiler etc (windows specific)
+        if: matrix.os == 'windows-latest'
+        uses: ilammy/msvc-dev-cmd@v1
+      
       - name: Install rust target
         run: rustup target add ${{ matrix.target }}
 
@@ -60,7 +64,11 @@ jobs:
       #     name: artifacts-cljs-main-bundle
       #     path: ./resources/public/cljs-out/dev
 
-      - name: PreviousWF Download x86_64 artifacts
+      ## Need to use 'dawidd6/action-download-artifact@v2' instead of 'actions/download-artifact@v3' 
+      ## This uses GH Api and helps to download the artifacts from another work flow
+      ## https://stackoverflow.com/questions/60355925/share-artifacts-between-workflows-github-actions
+
+      - name: Download 'artifacts-cljs-main-bundle' artifacts
         uses: dawidd6/action-download-artifact@v2
         with:
           #workflow: ${{ github.event.workflow_run.workflow_id }}
@@ -69,9 +77,6 @@ jobs:
           workflow_conclusion: success
           name: artifacts-cljs-main-bundle
           path: ./resources/public/cljs-out/dev
-
-      - name: Configure msvc compiler etc 
-        uses: ilammy/msvc-dev-cmd@v1
 
       - name: App bundle
         run:  yarn tauri build --target ${{ matrix.target }}  
@@ -85,22 +90,22 @@ jobs:
       # https://stackoverflow.com/questions/74834752/upload-file-with-github-action-instead-of-folder
       # https://github.com/actions/upload-artifact#uploading-to-the-same-artifact
 
-      # - uses: actions/upload-artifact@v3
-      #   if: matrix.os == 'ubuntu-latest'
-      #   with:
-      #     name: artifacts-${{ matrix.arch }}
-      #     #path: ./src-tauri/target/${{ matrix.target }}/release/bundle/appimage/**.AppImage.*
-      #     path: ./src-tauri/target/${{ matrix.target }}/release/bundle/appimage/**.AppImage
-            
-      # - uses: actions/upload-artifact@v3
-      #   if: matrix.os == 'ubuntu-latest'
-      #   with:
-      #     name: artifacts-${{ matrix.arch }}
-      #     path: ./src-tauri/target/${{ matrix.target }}/release/bundle/deb/**.deb
-
       - uses: actions/upload-artifact@v3
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'ubuntu-latest'
         with:
           name: artifacts-${{ matrix.arch }}
-          path: |
-            ./src-tauri/target/${{ matrix.target }}/release/bundle/msi/**
+          #path: ./src-tauri/target/${{ matrix.target }}/release/bundle/appimage/**.AppImage.*
+          path: ./src-tauri/target/${{ matrix.target }}/release/bundle/appimage/**.AppImage
+            
+      - uses: actions/upload-artifact@v3
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: artifacts-${{ matrix.arch }}
+          path: ./src-tauri/target/${{ matrix.target }}/release/bundle/deb/**.deb
+
+      # - uses: actions/upload-artifact@v3
+      #   if: matrix.os == 'windows-latest'
+      #   with:
+      #     name: artifacts-${{ matrix.arch }}
+      #     path: |
+      #       ./src-tauri/target/${{ matrix.target }}/release/bundle/msi/**
