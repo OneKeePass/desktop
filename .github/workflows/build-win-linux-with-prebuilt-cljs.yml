@@ -65,7 +65,7 @@ jobs:
         with:
           #workflow: ${{ github.event.workflow_run.workflow_id }}
           workflow: build-cljs.yml
-          workflow_conclusion: failure
+          workflow_conclusion: success
           name: artifacts-cljs-main-bundle
           path: ./resources/public/cljs-out/dev
 
