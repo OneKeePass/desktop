@@ -23,25 +23,26 @@ jobs:
             target: x86_64-pc-windows-msvc
 
     steps:
-      - name: desktop repo
-        uses: actions/checkout@v3
+      # - name: desktop repo
+      #   uses: actions/checkout@v3
 
-      - name: Setup Node and yarn cache
-        uses: actions/setup-node@v3
-        with:
-            node-version: 16
-            cache: 'yarn'
+      # - name: Setup Node and yarn cache
+      #   uses: actions/setup-node@v3
+      #   with:
+      #       node-version: 16
+      #       cache: 'yarn'
 
-      - name: Install node dependencies
-        run:  yarn
+      # - name: Install node dependencies
+      #   run:  yarn
         
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+      # - name: Setup Rust
+      #   uses: dtolnay/rust-toolchain@stable
     
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.target }}
+      # - name: Rust cache
+      #   uses: swatinem/rust-cache@v2
+      #   with:
+      #     key: ${{ matrix.target }}
+
 
       # - name: Install dependencies (ubuntu only)
       #   if: matrix.os == 'ubuntu-latest'
@@ -50,21 +51,30 @@ jobs:
       #     sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential wget libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
       #     #sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf
 
-      - name: Install rust target
-        run: rustup target add ${{ matrix.target }}
+      # - name: Install rust target
+      #   run: rustup target add ${{ matrix.target }}
 
-      - name: Download main_bundle.js artifact
-        uses: actions/download-artifact@v3
+      # - name: Download main_bundle.js artifact
+      #   uses: actions/download-artifact@v3
+      #   with:
+      #     name: artifacts-cljs-main-bundle
+      #     path: ./resources/public/cljs-out/dev
+
+      - name: PreviousWF Download x86_64 artifacts
+        uses: dawidd6/action-download-artifact@v2
         with:
+          #workflow: ${{ github.event.workflow_run.workflow_id }}
+          workflow: build-cljs.yml
+          workflow_conclusion: success
           name: artifacts-cljs-main-bundle
           path: ./resources/public/cljs-out/dev
 
-      - name: App bundle
-        run:  yarn tauri build --target ${{ matrix.target }}  
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          # TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+      # - name: App bundle
+      #   run:  yarn tauri build --target ${{ matrix.target }}  
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     # TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+      #     # TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
 
       # Need to use two separate upload paths to the same artifact name;Otherwise only *.deb gets uploaded
       # See 
