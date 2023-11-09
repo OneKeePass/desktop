@@ -7,7 +7,9 @@ on:
   #     - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
 
 jobs:
-  # First we build the cljs -> js bundle
+  # Only the cljs -> js bundle is built and uploaded as artifacts 
+  # This bundle is downloaded in another workflow to build tauri app bundle
+  # See work flow - build-win-linux-with-prebuilt-cljs.yml
   build-cljs-bundle:
     runs-on: macos-latest
 
