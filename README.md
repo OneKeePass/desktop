@@ -20,16 +20,15 @@ All created database files are encrypted using the best and most secure encrypti
 - Custom entry type with any set of fields can be created as template and used to create entries
 - Any number of custom fields can be added
 - Custom fields can be organized as sections
+- Upload attachments to an entry
+- Basic Auto-Type feature that sends simulated keypresses to other applications in macOS
+- Quick database unlock feature using TouchID for macOS
 - Any number of databases can be created and used
 - Fully offline 
-- Quick database unlock feature using TouchID for macOS
-- Basic Auto-Type feature that sends simulated keypresses to other applications in macOS
 
 ## Todo
-- [ ] Upload attachments to an entry 
 - [ ] Browser extension and integration
 - [ ] TOTP storage and generation 
-- [ ] Autotype feature
 - [ ] Merge changed entries
 - [ ] Synchronize the database between the devices 
 - [ ] Multi-language support
