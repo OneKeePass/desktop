@@ -38,10 +38,9 @@ tauri = { version = "1.5.1", features = ["clipboard-all", "dialog-all", "global-
 
 ## using from the local crate during development
 ## onekeepass-core = {path = "../../onekeepass-core", version = "0.9.0"} 
-onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , rev="9cde4f74f21eaf5dd4d355d03ab1febf87eb446c" }
 
 ## Need to use the git ref for release 
-## onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.8.0" }
+onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.9.0" }
 
 [build-dependencies]
 tauri-build = { version = "1.5.0", features = [] }

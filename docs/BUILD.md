@@ -15,14 +15,34 @@ Please install the following for your platform of choice - macOS or Linux or Win
 - Install rust tool [just](https://github.com/casey/just). This is onetime install only
 ``` 
 cargo install just
+
+cargo install tauri-cli
 ```
-- Build bundle
+- Build bundle (Mac OS)
 ```
 yarn install  or npm install --legacy-peer-deps
 
-just mac-unv-bundle-build
+just build-mac-x86_64-bundle
+
+or 
+
+just build-mac-aarch64-bundle
+
 ```
-You can find the final release build dmg file in ./src-tauri/target/universal-apple-darwin/release/bundle/dmg
+You can find the final release build dmg file in ./src-tauri/target/x86_64-apple-darwin/release/bundle/dmg and in
+./src-tauri/target/aarch64-apple-darwin/release/bundle/dmg
+
+- Build bundle (Linux)
+```
+sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential wget libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf  (one time install)
+
+yarn install
+
+just build-cljs-bundle
+
+cargo tauri build --target x86_64-unknown-linux-gnu
+
+```
 
 ## Development
 
