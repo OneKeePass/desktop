@@ -10,6 +10,7 @@ jobs:
   # Only the cljs -> js bundle is built and uploaded as artifacts 
   # This bundle is downloaded in another workflow to build tauri app bundle
   # See work flow - build-win-linux-with-prebuilt-cljs.yml
+  
   build-cljs-bundle:
     runs-on: macos-latest
 

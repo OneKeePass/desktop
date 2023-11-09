@@ -16,6 +16,7 @@ jobs:
             os: ubuntu-latest
             arch: x86_64
             target: x86_64-unknown-linux-gnu
+
           - build: windows
             os: windows-latest
             arch: x86_64
@@ -57,7 +58,6 @@ jobs:
       - name: Install rust target
         run: rustup target add ${{ matrix.target }}
 
-    
       ## Need to use 'dawidd6/action-download-artifact@v2' instead of 'actions/download-artifact@v3' 
       ## This uses GH Api and helps to download the artifacts from another work flow
       ## https://stackoverflow.com/questions/60355925/share-artifacts-between-workflows-github-actions
@@ -103,3 +103,4 @@ jobs:
           name: artifacts-${{ matrix.arch }}
           path: |
             ./src-tauri/target/${{ matrix.target }}/release/bundle/msi/**
+
