@@ -317,27 +317,6 @@
        (assoc-in-key-db db [entry-form-key :data :section-fields section-name] section-kvs)
        db))))
 
-
-#_(reg-event-db
-   :entry-form-update-section-password-score
-   (fn [db [_event-id password-score]]
-   ;; password-score is a map from struct 'PasswordScore'
-     (let [section-fields  (get-in-key-db db [entry-form-key :data :section-fields])
-         ;; filter returns a seq with 0 or 1 member vec [k v]
-         ;; First first call returns that seq. The second first call returns the 'k' which is the 
-         ;; section name that has the password field 
-           section-name (->> section-fields (filter (fn [[_section-name field-maps-vec]]
-                                                      (has-password-field field-maps-vec))) first first)
-
-           section-kvs (get-in-key-db db [entry-form-key :data :section-fields section-name])
-           section-kvs (mapv (fn [m] (if (= (:key m) PASSWORD)
-                                       (assoc m :password-score password-score) m)) section-kvs)]
-
-     ;; section-name shoul not be nil as we expect entry-form-update-section-password-score called only for passwords 
-       (if-not (nil? section-name)
-         (assoc-in-key-db db [entry-form-key :data :section-fields section-name] section-kvs)
-         db))))
-
 ;; Called whenever a new password is generated using a password generator dialog
 (reg-event-db
  :entry-form-update-generated-password
@@ -585,18 +564,158 @@
  (fn [data _query-vec]
    (contains-val? (:tags data) Favorites)))
 
-;;;;;;;;;;;;;;;;;;;;; Attachemnts ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Attachments ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn view-attachment
+  "Calls the back end to save the attachment as temp file and lauch the system viewer
+   The args name is the attachment name and attachment-hash is the hash of the atatchment content as string
+  "
+  [name attachment-hash]
+  (dispatch [:attachment-view-start name attachment-hash]))
+
+(defn attachment-name-changed [attachment-hash name]
+  (dispatch [:attachment-name-changed attachment-hash name]))
+
+(defn save-attachment [file-name attachment-hash]
+  (dispatch [:common/save-file-dialog file-name
+             (fn [full-file-name]
+               (when-not (nil? full-file-name)
+                 (dispatch [:save-attachment-file-selected full-file-name attachment-hash])))]))
+
+(defn upload-attachment-start []
+  (cmn-events/open-file-explorer-on-click :attachment-upload-start))
+
+(defn attachment-delete-confirm-dialog-open [attachment-hash]
+  (dispatch [:attachment-delete-confirm-dialog-open attachment-hash]))
+
+(defn attachment-delete-dialog-ok []
+  (dispatch [:attachment-delete-dialog-ok]))
+
+(defn attachment-delete-dialog-close []
+  (dispatch [:attachment-delete-dialog-close]))
 
 (defn attachments
   "Gets an atom which on deref gives a map as in BinaryKeyValue struct"
   []
   (subscribe [:attachments]))
 
+(defn attachment-delete-dialog-data []
+  (subscribe [:attachment-delete-dialog-data]))
+
+(reg-event-fx
+ :save-attachment-file-selected
+ (fn [{:keys [db]} [_event-id full-file-name attachment-hash]]
+   ;; Side effect call
+   (bg/save-attachment-as (active-db-key db)
+                          full-file-name
+                          attachment-hash
+                          (fn [api-response]
+                            (when-not (on-error api-response)
+                              (dispatch [:common/message-snackbar-open "Attachment saved to the selected file"]))))
+   {}))
+
+(reg-event-fx
+ :attachment-view-start
+ (fn [{:keys [db]} [_event-id name attachment-hash]]
+   {:fx [[:bg-save-attachment-as-temp-file [(active-db-key db) name attachment-hash]]]}))
+
+(reg-fx
+ :bg-save-attachment-as-temp-file
+ (fn [[db-key name attachment-hash]]
+   (bg/save-attachment-as-temp-file db-key name attachment-hash
+                                    (fn [api-response]
+                                      (when-let [temp-file-name (check-error api-response)]
+                                        (dispatch [:common/message-snackbar-open "Lauching the system viewer"])
+                                        (bg/open-file temp-file-name
+                                                      (fn [api-response]
+                                                        (on-error api-response))))))))
+
+;; Called with the user selected full file name
+(reg-event-fx
+ :attachment-upload-start
+ (fn [{:keys [db]} [_event-id full-file-name]]
+   ;; Side effect
+   (bg/upload-attachment (active-db-key db) full-file-name
+                         (fn [api-reponse]
+                           ;;Response has AttachmentUploadInfo on success 
+                           (when-let [attachment-upload-info (check-error api-reponse)]
+                             (dispatch [:attachment-uploaded attachment-upload-info]))))
+   {}))
+
+;; Handle the attachment upload
+;; This will attach the uploaded file content with the currrent entry form
+#_(reg-event-fx
+   :attachment-uploaded
+   (fn [{:keys [db]} [_event-id {:keys [data-hash data-size name]}]]
+     (let [attachments (get-in-key-db db [entry-form-key :data :binary-key-values])
+           bkv {:data-hash data-hash :data-size data-size :key name :value "" :index_ref 0}
+           updated (conj attachments bkv)]
+       {:db (-> db (assoc-in-key-db [entry-form-key :data :binary-key-values] updated))})))
+
+(reg-event-fx
+ :attachment-uploaded
+ (fn [{:keys [db]} [_event-id {:keys [data-hash data-size name]}]]
+   (let [attachments (get-in-key-db db [entry-form-key :data :binary-key-values])
+         bkv {:data-hash data-hash :data-size data-size :key name :value "" :index_ref 0}
+         existing (filterv (fn [{:keys [data-hash key]}]
+                             (if (and (= data-hash data-hash) (= key name)) true false)) attachments)
+         existing (boolean (seq existing))]
+     (if existing
+       {:fx [[:dispatch [:common/message-box-show "Upload status" "The uploaded attachment is the same as the existing one"]]]}
+       {:db (-> db (assoc-in-key-db [entry-form-key :data :binary-key-values] (conj attachments bkv)))}))))
+
+(reg-event-fx
+ :attachment-name-changed
+ (fn [{:keys [db]} [_event-id attachment-hash name]]
+   (let [attachments (get-in-key-db db [entry-form-key :data :binary-key-values])
+         updated (mapv (fn [{:keys [data-hash] :as m}]
+                         (if (= attachment-hash data-hash)
+                           (assoc m :key name) m)) attachments)]
+     {:db (-> db (assoc-in-key-db [entry-form-key :data :binary-key-values] updated))})))
+
+(reg-event-db
+ :attachment-delete-confirm-dialog-open
+ (fn [db [_event-id attachment-hash]]
+   (-> db (assoc-in-key-db [entry-form-key :attachment-delete-dialog]
+                           {:dialog-show true
+                            :attachment-hash attachment-hash}))))
+
+(reg-event-db
+ :attachment-delete-dialog-close
+ (fn [db [_event-id]]
+   (-> db (assoc-in-key-db [entry-form-key :attachment-delete-dialog] {:dialog-show false}))))
+
+(reg-event-fx
+ :attachment-delete-dialog-ok
+ (fn [{:keys [db]} [_event-id]]
+   (let [attachment-hash (get-in-key-db db [entry-form-key :attachment-delete-dialog :attachment-hash])
+         attachments (get-in-key-db db [entry-form-key :data :binary-key-values])
+         updated (filterv (fn [{:keys [data-hash] :as m}]
+                            (if (= attachment-hash data-hash)
+                              false true)) attachments)]
+     {:db (-> db (assoc-in-key-db [entry-form-key :data :binary-key-values] updated))
+      :fx [[:dispatch [:attachment-delete-dialog-close]]]})))
+
+(reg-sub
+ :attachment-delete-dialog-data
+ (fn [db _query-vec]
+   (get-in-key-db db [entry-form-key :attachment-delete-dialog])))
+
 (reg-sub
  :attachments
  :<- [:entry-form-data-ex]
  (fn [data _query-vec]
-   (mapv (fn [{:keys [key]}] {:key "Name" :value key}) (:binary-key-values data))))
+   ;;binary-key-values is a vec of map of type 
+   ;; {:data-hash "4952851536318644461" 
+   ;;  :data-size 500 
+   ;;  :index-ref 0 
+   ;;  :key "Welcome Scan.jpg" :value ""}
+   ;; In case of attachment the 'key' has the file name and the 'value' field is empty
+   ;; But to reuse the custom "text-field" which expects the lable name in 'key' and field value in 'value'
+   ;; we need to form a new map for that
+   (mapv (fn [{:keys [key data-size] :as m}]
+           (assoc m :key "Name" :value key :data-size data-size #_(if (= 1 data-size) 0 data-size))) (:binary-key-values data))
+   #_(mapv (fn [{:keys [key]}] {:key "Name" :value key}) (:binary-key-values data))))
 
 ;;;;;;;;;;;;;;;;;;;;;;; Section name add/modify ;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1516,7 +1635,7 @@
      {:fx [[:auto-type/bg-active-window-to-auto-type [uuid auto-type]]]})))
 
 
-(defn extract-form-field-names-values 
+(defn extract-form-field-names-values
   "Returns a map with field name as key and field value as value"
   [form-data]
   ;; :section-fields returns a map with section name as keys
@@ -1792,3 +1911,25 @@
 ;;    (get-in-key-db db [entry-form-key :section-add])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+#_(reg-fx
+   :bg-save-attachment-as-temp-file
+   ;; => :bg-save-attachment-as-temp-file
+
+   (fn [[db-key name attachment-hash]]
+     (bg/save-attachment-as-temp-file db-key name attachment-hash
+                                      (fn [api-response]
+                                        (when-let [temp-file-name (check-error api-response)]
+                                          (dispatch [:save-attachment-as-temp-file-completed temp-file-name])
+                                          (dispatch [:common/message-snackbar-open "Lauching the system viewer"]))))))
+
+#_(reg-event-fx
+   :save-attachment-as-temp-file-completed
+   (fn [{:keys [db]} [_event-id temp-attachment-file-name]]
+     {:fx [[:open-attachment-temp-file [temp-attachment-file-name]]]}))
+
+#_(reg-fx
+   :open-attachment-temp-file
+   (fn [[attachment-file-name]]
+     (bg/open-file attachment-file-name (fn [api-response]
+                                          (on-error api-response)))))

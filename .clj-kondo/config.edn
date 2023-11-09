@@ -8,6 +8,7 @@
                                 AccordionDetails
                                 AccountBalanceOutlined
                                 Autocomplete
+                                Autorenew
                                 Avatar
                                 Button
                                 Backdrop
@@ -23,6 +24,7 @@
                                 DialogContentText
                                 DialogTitle
                                 Divider
+                                Fingerprint
                                 FormControlLabel
                                 FormGroup
                                 FormControl
@@ -63,6 +65,7 @@
 
                                 Save
                                 SaveAs
+                                SaveAsOutlined
                                 AccessTime
                                 ArrowDropDown
                                 ArrowRight
@@ -104,9 +107,14 @@
                                 TreeItem
                                 TreeView
                                 DateTimePicker
+                                ArticleOutlined
+                                PreviewOutlined
                                 LocalizationProvider]}
 
-  :unresolved-var {:exclude [onekeepass.frontend.mui-components]}
+  :unresolved-var {:exclude [onekeepass.frontend.mui-components 
+                             onekeepass.frontend.background/go
+                             ]}
+  
   
   ;;Following is not working 
   ;; :unused-import {:exclude [camel-snake-kebab.core]}

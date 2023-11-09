@@ -13,18 +13,35 @@ run-tauri-dev:
 advanced-compile-start-server:
     clojure -M:frontend:fw  -m figwheel.main -O advanced  -bo dev -s
 
-mac-build-common:
+build-cljs-bundle:
     clojure -M:frontend:fw  -m figwheel.main -O advanced  -bo dev
     mkdir  -p ./resources/public/cljs-out/dev
     cp  ./target/public/cljs-out/dev/main_bundle.js  ./resources/public/cljs-out/dev/main_bundle.js
 
-# tauri build --target 
-mac-unv-bundle-build:mac-build-common
-    cargo tauri build --target universal-apple-darwin
+mac-aarch64-bundle-build-only:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    export BOTAN_CONFIGURE_OS='macos'
+    export BOTAN_CONFIGURE_CC_ABI_FLAGS='-arch arm64'
+    export BOTAN_CONFIGURE_CC='clang'
+    export BOTAN_CONFIGURE_CPU='arm64'
+    export BOTAN_CONFIGURE_DISABLE_MODULES='tls,pkcs11,sodium,filters'
+    cargo tauri build --target aarch64-apple-darwin
 
-mac-x86_64-bundle-build:mac-build-common
+mac-x86_64-bundle-build-only:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    export BOTAN_CONFIGURE_OS='macos'
+    export BOTAN_CONFIGURE_CC_ABI_FLAGS='-arch x86_64'
+    export BOTAN_CONFIGURE_CC='clang'
+    export BOTAN_CONFIGURE_CPU='x86_64'
+    export BOTAN_CONFIGURE_DISABLE_MODULES='"tls,pkcs11,sodium,filters"'
     cargo tauri build --target x86_64-apple-darwin
 
 
-mac-aarch64-bundle-build:mac-build-common
-    cargo tauri build --target aarch64-apple-darwin
+build-mac-x86_64-bundle:build-cljs-bundle
+    just mac-x86_64-bundle-build-only
+
+build-mac-aarch64-bundle:build-cljs-bundle
+    mac-aarch64-bundle-build-only 
+

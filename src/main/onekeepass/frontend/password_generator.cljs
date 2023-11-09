@@ -4,11 +4,11 @@
    [onekeepass.frontend.utils :refer [str->int]]
    [onekeepass.frontend.events.password-generator :as gen-events]
    [onekeepass.frontend.common-components :as cc]
-   [onekeepass.frontend.mui-components :as m :refer [mui-text-field 
+   [onekeepass.frontend.mui-components :as m :refer [mui-text-field
                                                      mui-alert
-                                                     mui-alert-title 
+                                                     mui-alert-title
                                                      mui-input-adornment
-                                                     mui-icon-button 
+                                                     mui-icon-button
                                                      mui-icon-visibility
                                                      mui-icon-visibility-off
                                                      mui-checkbox
@@ -17,7 +17,7 @@
                                                      mui-dialog
                                                      mui-dialog-title
                                                      mui-dialog-actions
-                                                     mui-dialog-content 
+                                                     mui-dialog-content
                                                      mui-stack
                                                      mui-slider
                                                      mui-input
@@ -28,7 +28,7 @@
   (fn [^js/Event e]
     (let [val (-> e .-target  .-value)
           ;; Need to ensure that length is an int as expected by backend api
-          val (if (= :length field-name-kw) (str->int val) val)] 
+          val (if (= :length field-name-kw) (str->int val) val)]
       (handler-name field-name-kw val))))
 
 (defn on-check-factory [handler-name field-name-kw]
@@ -38,10 +38,12 @@
 (defn end-icons [value visibile?]
   [:<>
    (if visibile?
-     [mui-icon-button {:edge "end"
+     [mui-icon-button {:sx {:mr "-5px"}
+                       :edge "end"
                        :on-click #(gen-events/generator-dialog-data-update :password-visible (not visibile?))}
       [mui-icon-visibility]]
-     [mui-icon-button {:edge "end"
+     [mui-icon-button {:sx {:mr "-5px"}
+                       :edge "end"
                        :on-click #(gen-events/generator-dialog-data-update :password-visible (not visibile?))}
       [mui-icon-visibility-off]])
    [(cc/copy-icon-factory (fn []
@@ -60,12 +62,12 @@
                                           symbols]} :password-options
                                   {:keys [analyzed-password
                                           score]} :password-result}]
-  
+
   [mui-dialog {:open dialog-show :on-click #(.stopPropagation ^js/Event %)
                ;; This will set the Paper width in all child components 
                ;; and is equivalent to :classes {:paper "pwd-dlg-root"}
                :sx {"& .MuiPaper-root" {:width "80%"}}}
-   
+
    [mui-dialog-title "Password Generator"]
    [mui-dialog-content {:dividers true}
     [mui-stack {:sx {:align-items "center"}}
@@ -79,20 +81,19 @@
                      :valueLabelDisplay "auto"
                      :min 8
                      :max 100
-                     :on-change (fn [_e value] 
+                     :on-change (fn [_e value]
                                   (gen-events/password-options-update :length value))}]]
-       [mui-stack {:direction "row" :sx {:width "25%"}} 
-        [mui-input {:value length 
+       [mui-stack {:direction "row" :sx {:width "25%"}}
+        [mui-input {:value length
                     :on-change (on-change-factory gen-events/password-options-update :length)
-                    :on-blur (fn [] 
-                               (cond 
+                    :on-blur (fn []
+                               (cond
                                  (< length 8)
                                  (gen-events/password-options-update :length 8)
 
                                  (> length 100)
                                  (gen-events/password-options-update :length 100)))
-                    :inputProps {:min 8 :max 100 :type "number"}
-                    }]]]
+                    :inputProps {:min 8 :max 100 :type "number"}}]]]
 
       [mui-stack {:direction "row"}
        [mui-stack {:sx {:width "50%"}}
@@ -144,6 +145,9 @@
                          [mui-alert {:severity "success" :sx {"&.MuiAlert-root" {:width "100%"}}} ;; need to override the paper width 60% ;;:sx {"&.MuiAlert-root" {:width "100%"}}
                           [mui-alert-title "Success"] "Copied to clipboard"]])]]]
    [mui-dialog-actions
+    [mui-button {:on-click  (fn []
+                              (gen-events/generator-password-copied)
+                              (gen-events/generator-dialog-data-update :dialog-show false))} "Copy & Close"]
     [mui-button {:on-click #(gen-events/generator-dialog-data-update :dialog-show false)} "Close"]]])
 
 

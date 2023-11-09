@@ -86,6 +86,12 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential wget libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
           #sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf
 
+      # Need to setup msvc C/C++ compiler env for the botan lib build
+      # See https://stackoverflow.com/questions/64557292/how-can-i-use-the-msvc-compiler-from-github-actions
+      - name: Configure msvc compiler etc (windows specific)
+        if: matrix.os == 'windows-latest'
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Install rust target
         run: rustup target add ${{ matrix.target }}
 

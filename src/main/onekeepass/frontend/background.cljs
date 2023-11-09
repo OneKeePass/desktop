@@ -8,14 +8,19 @@
    [camel-snake-kebab.core :as csk]
    [onekeepass.frontend.utils :refer [contains-val?]]
 
+   ;; All tauri side corresponding endpoint command apis can be found in 
+   ;; https://github.com/tauri-apps/tauri/blob/tauri-v1.5.0/core/tauri/src/endpoints
+   ;; The api implementation is in 
+   ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.5.0/core/tauri/src/api
+
    ["@tauri-apps/api/dialog" :refer (open,save)]
    ["@tauri-apps/api/tauri" :refer (invoke)]
    ["@tauri-apps/api/clipboard" :refer [writeText readText]]
    ["@tauri-apps/api/event" :as tauri-event]
+   ["@tauri-apps/api/shell" :as tauri-shell]
 
    #_["@tauri-apps/api/path" :as tauri-path]
    #_["@tauri-apps/api/event" :as tauri-event :refer [listen]]
-   #_["@tauri-apps/api/shell" :as tauri-shell]
    #_["@tauri-apps/api/app"   :refer (getName getVersion)]
    #_["@tauri-apps/api/window" :refer (getCurrent)]))
 
@@ -141,6 +146,20 @@
         (dispatch-fn f))
       ;;TODO Add returning error to dispatch-fn
       (catch js/Error err (js/console.log (ex-cause err))))))
+
+(defn open-file
+  "Opens a file passed as 'file-name' from the local file system with the system's default app
+   The arg 'file-name' expected to be the complete path.
+   Any error in opening is passed as {:error msg} to the 'dispatch-fn'
+  "
+  [file-name dispatch-fn]
+  (go
+    (try
+      (let [f (<p! (tauri-shell/open file-name))]
+        (dispatch-fn {:result f}))
+      (catch js/Error err
+        (dispatch-fn {:error (ex-cause err)})
+        (js/console.log (ex-cause err))))))
 
 (defn write-to-clipboard
   "Copies given data to the clipboard - equivalent to Cmd + C"
@@ -331,8 +350,21 @@
   (invoke-api "remove_group_permanently" {:db-key db-key :group-uuid group-uuid} dispatch-fn))
 
 (defn upload-attachment
-  [db-key file-name dispatch-fn]
-  (invoke-api "upload_entry_attachment" {:db-key db-key :file-name file-name} dispatch-fn))
+  [db-key full-file-name dispatch-fn]
+  (invoke-api "upload_entry_attachment" {:db-key db-key :file-name full-file-name} dispatch-fn))
+
+(defn save-attachment-as-temp-file [db-key name data-hash-str dispatch-fn]
+  ;; data-hash is string value and need to be coverted back to u64 in rust side
+  (invoke-api "save_attachment_as_temp_file" {:db-key db-key
+                                              :name name
+                                              :data-hash-str data-hash-str}
+              dispatch-fn
+              :convert-response false))
+
+(defn save-attachment-as [db-key full-file-name data-hash-str dispatch-fn]
+  (invoke-api "save_attachment_as" {:db-key db-key
+                                    :full-file-name full-file-name
+                                    :data-hash-str data-hash-str} dispatch-fn))
 
 (defn save-as-kdbx
   "Saves the db using a new file name and returns the KdbxLoaded"
@@ -488,12 +520,12 @@
 
 (defn parse-auto-type-sequence [sequence entry-fields dispatch-fn]
   (let [api-args {:sequence sequence
-                  :entryFields entry-fields}] 
+                  :entryFields entry-fields}]
     ;; We need to use convert-request as false to ensure that 'keys' in entry-fields map 
     ;; are not converted to camelCase by the default converter and should remain as string key
-    
+
     ;; Otherwise the map (entry-fields) keys like "Customer Name" will get converted to "customerName" 
-    
+
     ;; api-args map's keys are now in a format as expected tauri serde
     (invoke-api "parse_auto_type_sequence"  (clj->js api-args) dispatch-fn :convert-request false)))
 
@@ -511,7 +543,7 @@
   ;; api-args keys (dbKey...) are to be in camelCase as expected by tauri 
   ;; Here we are converting cljs object's keys instead of using the default conversion 
   ;; Note :convert-request false
-  (let [api-to-call "send_sequence_to_winow_async" 
+  (let [api-to-call "send_sequence_to_winow_async"
         api-args {:dbKey db-key
                   :entryUuid entry-uuid
                   :sequence sequence

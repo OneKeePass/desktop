@@ -171,6 +171,12 @@ pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app: AppHan
     QUIT => {
       info!("Quit requested from UI {:?}", request);
       let _r = kp_service::close_all_databases();
+      
+      info!("Closed all databases");
+
+      let r = kp_service::remove_app_temp_dir_content();
+      info!("Temp cache dir removed - result {:?} ",r);
+      
       app.exit(0);
     }
     EDIT_ENTRY | NEW_ENTRY | EDIT_GROUP | NEW_GROUP | SAVE_DATABASE | SAVE_DATABASE_AS

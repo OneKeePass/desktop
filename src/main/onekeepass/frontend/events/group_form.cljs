@@ -18,7 +18,7 @@
   "Called to update whenever form text field data is changed"
   [field-name-kw]
   (fn [^js/Event e]
-    (dispatch [:update-form-data [field-name-kw (->  e  .-target  .-value)]])))
+    (dispatch [:update-form-data [field-name-kw (-> e .-target .-value)]])))
 
 (defn update-form-data [field-name-kw value] 
   (dispatch [:update-form-data [field-name-kw value]]))

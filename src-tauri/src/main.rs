@@ -83,6 +83,8 @@ fn main() {
       commands::save_all_modified_dbs,
       commands::save_as_kdbx,
       commands::save_kdbx,
+      commands::save_attachment_as_temp_file,
+      commands::save_attachment_as,
       commands::score_password,
       commands::search_term,
       commands::set_db_settings,

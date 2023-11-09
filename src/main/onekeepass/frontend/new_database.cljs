@@ -74,7 +74,7 @@
     [mui-box {:sx {:width "80%"}}
      [m/text-field {:label "Password"
                     :value password
-                    :required true
+                    ;;:required true
                     :error (contains? error-fields :password)
                     :helperText (get error-fields :password "Password for your database")
                     :autoFocus true
@@ -95,7 +95,7 @@
       [mui-box {:sx {:width "80%"}}
        [m/text-field {:label "Confirm Password"
                       :value password-confirm
-                      :required true
+                      ;;:required true
                       :error (contains? error-fields :password-confirm)
                       :helperText (get error-fields :password-confirm)
                       :on-change (nd-events/field-update-factory :password-confirm)
@@ -138,7 +138,7 @@
                         :on-click #(nd-events/save-as-key-file-explorer-on-click database-name)} "Generate"]
 
           [mui-typography {:variant "caption"}
-           "Alternatively, OneKeePass can generate a random key to use as an additional key"]])])]])
+           "Alternatively, OneKeePass can generate a key file with a random key to use as an additional key"]])])]])
 
 (defn- file-info [{:keys [database-file-name db-file-file-exists database-name]}]
   [mui-stack {:spacing 2}
