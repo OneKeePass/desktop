@@ -1,7 +1,7 @@
 ### 0.9.0
 - Entry attachments are now supported. You can attach any number of files to an entry,view and store securely
 - Password is now optional. Accordingly you can use only a master password or only a key file or both to secure your database
-- [Botan library](https://botan.randombit.net/) is now used for the database encryption/decryption. This improved the database read/write performace significantly
+- [Botan cryptography library](https://botan.randombit.net/) is now used for the database encryption/decryption. This improved the database read/write performance significantly
 
 ### 0.8.0
 - Basic Auto-Type feature that sends simulated keypresses to other applications in macOS and soon to be added for other platforms.See [Auto-Type](./docs/AUTO-TYPE.md) doc for additional details

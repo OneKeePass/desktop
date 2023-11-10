@@ -26,6 +26,8 @@ mac-aarch64-bundle-build-only:
     export BOTAN_CONFIGURE_CC='clang'
     export BOTAN_CONFIGURE_CPU='arm64'
     export BOTAN_CONFIGURE_DISABLE_MODULES='tls,pkcs11,sodium,filters'
+    
+    #cargo tauri build --verbose --target aarch64-apple-darwin
     cargo tauri build --target aarch64-apple-darwin
 
 mac-x86_64-bundle-build-only:
@@ -43,5 +45,5 @@ build-mac-x86_64-bundle:build-cljs-bundle
     just mac-x86_64-bundle-build-only
 
 build-mac-aarch64-bundle:build-cljs-bundle
-    mac-aarch64-bundle-build-only 
+    just mac-aarch64-bundle-build-only 
 
