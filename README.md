@@ -24,6 +24,7 @@ All created database files are encrypted using the best and most secure encrypti
 - Basic Auto-Type feature that sends simulated keypresses to other applications in macOS
 - Quick database unlock feature using TouchID for macOS
 - Any number of databases can be created and used
+- Optional additional security by using a key file with or without a master password
 - Fully offline 
 
 ## Todo
