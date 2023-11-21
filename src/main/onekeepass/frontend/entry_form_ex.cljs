@@ -796,10 +796,11 @@
         [icons-dialog @icons-dialog-flag]]])))
 
 (defn tags-selection []
-  (let [all-tags @(ce/all-tags)
-        tags @(form-events/entry-form-data-fields :tags) #_(:tags @(form-events/entry-form-data-fields [:tags]))
+  (let [;; Both all-tags and tags are vec
+        all-tags @(ce/all-tags)
+        tags @(form-events/entry-form-data-fields :tags)
         edit @(form-events/form-edit-mode)]
-    ;;(println "tags-selection called " tags)
+    ;;(println "tags-selection called tags:" tags " all-tags:" all-tags)
     (when (or edit (boolean (seq tags)))
       [mui-box {:sx content-sx}
        [mui-stack {:direction "row"}]

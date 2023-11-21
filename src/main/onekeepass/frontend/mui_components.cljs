@@ -63,7 +63,7 @@
 
 (def auto-complete-filter
   "Autocomplete component exposes a factory to create a filter method 
-   that can provided to the filterOptions prop. 
+   that can be provided to the filterOptions prop. 
    This is used to change the default option filter behavior."
   (.-createFilterOptions ^js/Mui.Autocomplete mui-ac))
 

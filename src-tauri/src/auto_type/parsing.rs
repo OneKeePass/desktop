@@ -288,7 +288,10 @@ impl<'a> From<PlaceHolder<'_>> for ParsedPlaceHolderVal {
 }
 
 pub fn parse_auto_type_sequence(
+  // This is the string that needs to be parsed
   sequence: &str,
+  // This maps the filed names to its values. 
+  // The parsed field names will be replaced with the actual value
   entry_fields: &HashMap<String, String>,
 ) -> Result<Vec<ParsedPlaceHolderVal>, String> {
   let entry_fields_case_converted: HashMap<String, String> = entry_fields

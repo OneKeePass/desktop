@@ -32,7 +32,8 @@
   The the category info map of the selected category is passed and also what set of 
   categories this map belongs as categories-kind
 
-  This is not called when 'Groups' tree is selected
+  This is not called when 'Groups' tree is selected. 
+  For 'Groups' tree, see 'group-tree-content/node-on-select'
   "
   [{:keys [uuid title entry-type-uuid]} categories-kind] 
   (dispatch [:entry-category/selected-category-title title])
@@ -161,7 +162,6 @@
      {:fx [[:dispatch [:load-category-data view]]]})))
 
 ;; This is called called after the db is opened and also when db is unlocked
-;; Initially we show the type categories by default for now
 (reg-event-fx
  :entry-category/category-data-load-start
  (fn [{:keys [_db]} [_event-id start-view-to-show]]
@@ -176,7 +176,7 @@
 (reg-event-fx
  :load-category-data
  (fn [{:keys [db]} [_event-id showing-groups-as]]
-   ;;valid  value is one of :category or :group or :type
+   ;; valid  value is one of :category or :group or :type
    {:db (assoc-in-key-db db [:entry-category :showing-groups-as] showing-groups-as)
     :fx [[:load-bg-category-data (active-db-key db)]]}))
 
@@ -234,7 +234,7 @@
            ;; The title will not be nil, if :type or :category is selected or  
            ;; general-category is selected
            ;; In case of :group, the title will be nil and 
-           ;; entry-inserted call is delgated to group-tree-content
+           ;; entry-inserted call is delegated to group-tree-content
            (if-not (nil? title)
              [:dispatch [:entry-list/entry-inserted entry-uuid category-source]]
              [:dispatch [:group-tree-content/entry-inserted entry-uuid group-uuid]])]})))

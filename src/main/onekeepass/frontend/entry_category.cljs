@@ -229,6 +229,7 @@
   [(get general-category-icons name mui-icon-access-time)])
 
 (defn category-item
+  "Returns form-2 reagent component"
   []
   (fn [{:keys [title display-title 
                entries-count icon-id 

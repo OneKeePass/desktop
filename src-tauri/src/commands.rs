@@ -378,6 +378,13 @@ pub(crate) async fn get_categories_to_show(
 }
 
 #[tauri::command]
+pub(crate) async fn tag_categories_to_show(
+  db_key: String,
+) -> Result<Vec<kp_service::CategoryDetail>> {
+  Ok(kp_service::tag_categories_to_show(&db_key)?)
+}
+
+#[tauri::command]
 pub(crate) async fn mark_group_as_category(
   db_key: String,
   group_id: String,

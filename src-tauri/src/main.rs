@@ -95,6 +95,7 @@ fn main() {
       commands::supported_biometric_type,
       commands::svg_file,
       commands::system_info_with_preference,
+      commands::tag_categories_to_show,
       commands::unlock_kdbx,
       commands::unlock_kdbx_on_biometric_authentication,
       commands::update_entry_from_form_data,

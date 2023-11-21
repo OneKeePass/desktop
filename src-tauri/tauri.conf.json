@@ -1,7 +1,7 @@
 {
   "package": {
     "productName": "OneKeePass",
-    "version": "0.9.0"
+    "version": "0.10.0"
   },
   "build": {
     "distDir": "../resources/public",

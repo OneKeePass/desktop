@@ -163,6 +163,7 @@
  (fn [db [_event-id v]]
    (assoc-in-key-db db [:groups-tree :data] v)))
 
+;; Called when a new entry is created under a gouup selected in the category view
 (reg-event-fx
  :group-tree-content/entry-inserted
  (fn [{:keys [_db]} [_event-id entry-uuid  group-uuid]]
