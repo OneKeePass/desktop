@@ -40,6 +40,7 @@ fn main() {
       commands::authenticate_with_biometric,
       commands::close_kdbx,
       commands::collect_entry_group_tags,
+      commands::combined_category_details,
       commands::create_kdbx,
       commands::delete_custom_entry_type,
       commands::delete_history_entries,

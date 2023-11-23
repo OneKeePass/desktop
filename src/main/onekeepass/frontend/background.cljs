@@ -420,6 +420,11 @@
   [db-key dispatch-fn & opts]
   (apply invoke-api "tag_categories_to_show" {:db-key db-key} dispatch-fn opts))
 
+(defn combined-category-details
+  [db-key grouping-kind dispatch-fn]
+  (invoke-api "combined_category_details" {:db-key db-key
+                                           :grouping-kind grouping-kind} dispatch-fn))
+
 (defn mark-group-as-category
   [db-key group-uuid dispatch-fn & opts]
   ;;TODO: Rename group_id to group_uuid in backend API and then change here the key group-id to group-uuid
@@ -482,7 +487,7 @@
 (defn is-file-exists [file-name dispatch-fn]
   (invoke-api "is_path_exists" {:in-path file-name} dispatch-fn))
 
-(defn collect-entry-group-tags 
+(defn collect-entry-group-tags
   "Collects all unique tags that are used in all active groups and entries
    If a tag is removed from an entry and that tag is not used in any other entry or group, then
    that tag is removed from the all tags list when next time this fn is called

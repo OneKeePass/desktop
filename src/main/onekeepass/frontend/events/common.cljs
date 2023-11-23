@@ -235,6 +235,12 @@
   []
   (dispatch [:common/save-db-file-as]))
 
+(defn default-entry-category
+  "Gets the default category option that is set in preference 
+   to show in the entry category bottom panel"
+  [app-db]
+  (-> app-db :app-preference :default-entry-category-groupings))
+
 ;; Called after creating a new database or after opening an existing database
 (reg-event-fx
  :common/kdbx-database-opened
@@ -883,7 +889,7 @@
   []
   (go-loop []
     ;; Every 30 sec, we send the tick
-    (<! (timeout 30000)) 
+    (<! (timeout 30000))
     (dispatch [:check-db-list-to-lock (js/Date.now)])
     (when @continue-tick
       (recur))))

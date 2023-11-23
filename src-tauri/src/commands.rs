@@ -385,6 +385,13 @@ pub(crate) async fn tag_categories_to_show(
 }
 
 #[tauri::command]
+pub(crate) async fn combined_category_details(
+  db_key: String,grouping_kind:kp_service::EntryCategoryGrouping) -> Result<kp_service::EntryCategories> {
+    Ok(kp_service::combined_category_details(&db_key,grouping_kind)?)
+  }
+
+
+#[tauri::command]
 pub(crate) async fn mark_group_as_category(
   db_key: String,
   group_id: String,

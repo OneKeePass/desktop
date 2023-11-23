@@ -1,27 +1,24 @@
 (ns onekeepass.frontend.events.entry-category
   "Various entry category related events"
-  (:require
-   [onekeepass.frontend.events.common
-    :as cmn-events
-    :refer [active-db-key
-            get-in-key-db
-            assoc-in-key-db]]
-   [onekeepass.frontend.constants :as const]
-   [re-frame.core :refer [reg-event-db
-                          reg-event-fx
-                          reg-fx
-                          reg-sub
-                          dispatch
-                          subscribe]]
-   [onekeepass.frontend.background :as bg]))
+  (:require [onekeepass.frontend.background :as bg]
+            [onekeepass.frontend.constants :as const]
+            [onekeepass.frontend.events.common
+             :as cmn-events
+             :refer [active-db-key
+                     assoc-in-key-db
+                     check-error
+                     default-entry-category
+                     get-in-key-db]]
+            [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-fx
+                                   reg-sub subscribe]]))
 
 (set! *warn-on-infer* true)
 
 ;; TODO
 ;; Currently we are using two set of keywords 
-;; :general-categories, :type-categories, group-categories to denote which field
+;; :general-categories, :type-categories, group-categories,tag-categories to denote which field
 ;; of [:entry-category :data] is used
-;; Also :type, :category, :group in :showing-groups-as
+;; Also :type, :category, :group, :tag in :showing-groups-as
 ;; Though the purpose appears slightly differ, need to exlore whether one set will do
 
 (defn initiate-new-blank-group-form [root-group-uuid]
@@ -35,15 +32,18 @@
   This is not called when 'Groups' tree is selected. 
   For 'Groups' tree, see 'group-tree-content/node-on-select'
   "
-  [{:keys [uuid title entry-type-uuid]} categories-kind] 
+  [{:keys [uuid title entry-type-uuid]} categories-kind]
   (dispatch [:entry-category/selected-category-title title])
   ;; selected-category-info is used only for :type for now
-  (dispatch [:selected-category-info (if (= categories-kind :type-categories) :type nil) {:entry-type-uuid entry-type-uuid}])
+  (dispatch [:selected-category-info (if (= categories-kind :type-categories)
+                                       :type
+                                       nil) {:entry-type-uuid entry-type-uuid}])
   (dispatch [:group-tree-content/clear-group-selection])
   (dispatch [:entry-form-ex/show-welcome])
   (dispatch [:entry-list/load-entry-items
              (condp = categories-kind
                :general-categories title
+               :tag-categories {:tag title}
                :type-categories {:entry-type-uuid entry-type-uuid}   ;;{:entrytype title}
                :group-categories {:group uuid})]))
 
@@ -51,37 +51,61 @@
   "Called to show the groups as tree when user wants to show 
   Groups in the lower left half"
   []
-  (dispatch [:group-tree-content/load-groups-once])
-  ;; clears selection
-  (dispatch [:entry-category/selected-category-title nil])
-  (dispatch [:selected-category-info nil nil])
+  (dispatch [:clear-and-show :group])
 
-  (dispatch [:entry-list/clear-entry-items])
-  (dispatch [:entry-form-ex/show-welcome])
-  (dispatch [:show-group-as :group]))
+  ;; (dispatch [:group-tree-content/load-groups-once])
+  ;; ;; clears selection
+  ;; (dispatch [:entry-category/selected-category-title nil])
+  ;; (dispatch [:selected-category-info nil nil])
+
+  ;; (dispatch [:entry-list/clear-entry-items])
+  ;; (dispatch [:entry-form-ex/show-welcome])
+  ;; (dispatch [:show-group-as :group])
+  )
 
 (defn show-as-group-category
   "Called to show the groups as category 
    when user wants to show Categories in the lower left half"
   []
-  (dispatch [:group-tree-content/clear-group-selection])
-  (dispatch [:entry-category/selected-category-title nil])
-  (dispatch [:selected-category-info nil nil])
 
-  (dispatch [:entry-list/clear-entry-items])
-  (dispatch [:entry-form-ex/show-welcome])
-  (dispatch [:show-group-as :category]))
+  (dispatch [:clear-and-show :category])
+
+  ;; (dispatch [:group-tree-content/clear-group-selection])
+  ;; (dispatch [:entry-category/selected-category-title nil])
+  ;; (dispatch [:selected-category-info nil nil])
+
+  ;; (dispatch [:entry-list/clear-entry-items])
+  ;; (dispatch [:entry-form-ex/show-welcome])
+  ;; (dispatch [:show-group-as :category])
+  )
 
 (defn show-as-type-category
   "Called to show entry type categories 
    when user wants to show Types in the lower left half"
   []
-  (dispatch [:group-tree-content/clear-group-selection])
-  (dispatch [:entry-category/selected-category-title nil])
-  (dispatch [:selected-category-info nil nil])
-  (dispatch [:entry-list/clear-entry-items])
-  (dispatch [:entry-form-ex/show-welcome])
-  (dispatch [:show-group-as :type]))
+  (dispatch [:clear-and-show :type])
+
+  ;; (dispatch [:group-tree-content/clear-group-selection])
+  ;; (dispatch [:entry-category/selected-category-title nil])
+  ;; (dispatch [:selected-category-info nil nil])
+  ;; (dispatch [:entry-list/clear-entry-items])
+  ;; (dispatch [:entry-form-ex/show-welcome])
+  ;; (dispatch [:show-group-as :type])
+  )
+
+(defn show-as-tag-category
+  "Called to show entry type categories 
+   when user wants to show Types in the lower left half"
+  []
+  (dispatch [:clear-and-show :tag])
+
+  ;; (dispatch [:group-tree-content/clear-group-selection])
+  ;; (dispatch [:entry-category/selected-category-title nil])
+  ;; (dispatch [:selected-category-info nil nil])
+  ;; (dispatch [:entry-list/clear-entry-items])
+  ;; (dispatch [:entry-form-ex/show-welcome])
+  ;; (dispatch [:load-tag-category-data])
+  )
 
 (defn delete-custom-entry-type [entry-type-uuid]
   (dispatch [:entry-form-ex/delete-custom-entry-type entry-type-uuid]))
@@ -103,6 +127,9 @@
 (defn type-categories []
   (subscribe [:type-categories]))
 
+(defn tag-categories []
+  (subscribe [:tag-categories]))
+
 (defn deleted-entries-category []
   (subscribe [:deleted-entries-category]))
 
@@ -114,6 +141,23 @@
 
 (defn root-group-uuid []
   (subscribe [:group-tree-content/root-group-uuid]))
+
+;; valid value for kind is one of :category,:group,:type,:tag
+(reg-event-fx
+ :clear-and-show
+ (fn [{:keys [_db]} [_event-id kind]]
+   (let [cmn-actions [(if (= kind :group)
+                        [:dispatch [:group-tree-content/load-groups-once]]
+                        [:dispatch [:group-tree-content/clear-group-selection]])
+                      [:dispatch [:entry-category/selected-category-title nil]]
+                      [:dispatch [:selected-category-info nil nil]]
+                      [:dispatch [:entry-list/clear-entry-items]]
+                      [:dispatch [:entry-form-ex/show-welcome]]
+                      (if (= kind :tag)
+                        [:dispatch [:load-tag-category-data]]
+                        [:dispatch [:show-group-as kind]])]]
+     ;; here cmn-actions is a vec of vec
+     {:fx cmn-actions})))
 
 (reg-event-db
  :show-group-as
@@ -140,14 +184,7 @@
      (assoc-in-key-db db [:entry-category :selected-category-info] nil)
      (assoc-in-key-db db [:entry-category :selected-category-info kw-kind] info-m))))
 
-;; Called after successful login with a lsit of map formed from struct EntryCategoryInfo
-(reg-event-db
- :update-category-data
- (fn [db [_ data]]
-   ;;(println "on-category-data-load called with data " data)
-   (assoc-in-key-db db [:entry-category :data] data)))
-
-;; Called from the group tree  view 
+;; Called from the group tree view 
 (reg-event-fx
  :entry-category/show-groups-as-tree
  (fn [{:keys [_db]} [_event-id]]
@@ -169,29 +206,80 @@
                               (= start-view-to-show "Types") :type
                               (= start-view-to-show "Categories") :category
                               (= start-view-to-show "Groups") :group
+                              (= start-view-to-show "Tags") :tag
                               :else :type)]
-     ;;valid value is one of :category or :group or :type
+     ;;valid value is one of :category or :group or :type or :tag
      {:fx [[:dispatch [:load-category-data start-view-to-show]]]})))
 
 (reg-event-fx
  :load-category-data
  (fn [{:keys [db]} [_event-id showing-groups-as]]
-   ;; valid  value is one of :category or :group or :type
+   ;; valid  value is one of :category or :group or :type or :tag
    {:db (assoc-in-key-db db [:entry-category :showing-groups-as] showing-groups-as)
-    :fx [[:load-bg-category-data (active-db-key db)]]}))
-
-(defn on-category-data-load [{:keys [result error]}]
-  (if (nil? error)
-    (dispatch [:update-category-data result])
-    ;; Need to send to an alert
-    (dispatch [:common/message-snackbar-error-open error])
-    #_(println "Error in on-category-data-load: " error)))
+    :fx [(if (= showing-groups-as :tag)
+           [:bg-tag-categories-to-show (active-db-key db)]
+           [:bg-load-category-data (active-db-key db)])]}))
 
 (reg-fx
- :load-bg-category-data
+ :bg-load-category-data
  (fn [db-key]
-   ;; Get all categories - list of a map as per struct EntryCategoryInfo - to show on the left most panel
-   (bg/get-categories-to-show db-key on-category-data-load)))
+   ;; Get all categories (except tag) - list of a map as per struct EntryCategoryInfo - to show on the left most panel
+   (bg/get-categories-to-show db-key (fn [api-reponse]
+                                       (when-let [category-info (check-error api-reponse)]
+                                         (dispatch [:update-category-data category-info]))))))
+
+(reg-event-fx
+ :load-tag-category-data
+ (fn [{:keys [db]} [_event-id]]
+   {:db (assoc-in-key-db db [:entry-category :showing-groups-as] :tag)
+    :fx [[:bg-tag-categories-to-show (active-db-key db)]]}))
+
+(reg-fx
+ :bg-tag-categories-to-show
+ (fn [db-key]
+   (bg/tag-categories-to-show db-key
+                              (fn [api-reponse]
+                                (when-let [tag-categories (check-error api-reponse)]
+                                  (dispatch [:update-tag-category-data tag-categories]))))))
+
+;; If the showing-as is :tag, we need also load that category
+;; by a separate backend call after calling the main category loading call
+(reg-fx
+ :bg-load-category-data-on-new-entry
+ (fn [[db-key showing-as]]
+   (bg/get-categories-to-show db-key (fn [api-reponse]
+                                       (when-let [category-info (check-error api-reponse)]
+                                         (dispatch [:update-category-data category-info])
+                                         ;; Need to call :tag cat if required on the previous 
+                                         ;; call success
+                                         (when (= showing-as :tag)
+                                           (bg/tag-categories-to-show db-key
+                                                                      (fn [api-reponse]
+                                                                        (when-let [tag-categories (check-error api-reponse)]
+                                                                          (dispatch [:update-tag-category-data tag-categories]))))))))))
+
+;; Called to update only the tag categories
+(reg-event-fx
+ :update-tag-category-data
+ (fn [{:keys [db]} [_event-id tag-categories]]
+   (let [data (get-in-key-db db [:entry-category :data])
+         updated-data (merge data {:tag-categories tag-categories})]
+     {:db (assoc-in-key-db db [:entry-category :data] updated-data)})))
+
+;; Called when categories to show call returns with a list of map formed from struct EntryCategoryInfo
+;; EntryCategoryInfo does not include tag-categories
+(reg-event-db
+ :update-category-data
+ (fn [db [_ data]]
+   ;;(println "on-category-data-load called with data " data)
+   (assoc-in-key-db db [:entry-category :data] data)))
+
+#_(defn on-category-data-load [{:keys [result error]}]
+    (if (nil? error)
+      (dispatch [:update-category-data result])
+    ;; Need to send to an alert
+      (dispatch [:common/message-snackbar-error-open error])
+      #_(println "Error in on-category-data-load: " error)))
 
 (defn- is-in-group-categories
   "Returns the category name if the group is shown in category view or nil"
@@ -201,7 +289,9 @@
     (-> found first :category-detail :title)))
 
 (defn- category-source-title-to-select
-  "Gets the title and category source based on current showing kind - :type :category or :group"
+  "Gets the title and category source based on current showing kind - :type :category or :group
+  Returns a map 
+  "
   [db group-uuid entry-type-uuid entry-type-name]
   (let [showing-as (get-in-key-db db [:entry-category :showing-groups-as])
         grp-title (is-in-group-categories db group-uuid)
@@ -217,6 +307,7 @@
                                  (= showing-as :group)
                                  nil
 
+                                 ;; for all other cases including showing-as = :tag
                                  :else
                                  {:title const/CATEGORY_ALL_ENTRIES
                                   :category-source const/CATEGORY_ALL_ENTRIES})]
@@ -226,11 +317,16 @@
 (reg-event-fx
  :entry-category/entry-inserted
  (fn [{:keys [db]} [_event-id entry-uuid group-uuid entry-type-uuid entry-type-name]]
-   (let [{:keys [title category-source]}
-         (category-source-title-to-select db group-uuid entry-type-uuid entry-type-name)]
+   (let [showing-as (get-in-key-db db [:entry-category :showing-groups-as]) 
+         {:keys [title category-source]} (category-source-title-to-select
+                                          db
+                                          group-uuid
+                                          entry-type-uuid
+                                          entry-type-name)]
      {:db (-> db  (assoc-in-key-db [:entry-category :selected-category-title] title))
       :fx [;; Need to reload category data so that entries count are recent
-           [:load-bg-category-data (active-db-key db)]
+           #_[:bg-load-category-data (active-db-key db)]
+           [:bg-load-category-data-on-new-entry [(active-db-key db) showing-as]]
            ;; The title will not be nil, if :type or :category is selected or  
            ;; general-category is selected
            ;; In case of :group, the title will be nil and 
@@ -246,7 +342,7 @@
    {:fx [[:dispatch [:entry-category/selected-category-title nil]]
          [:dispatch [:entry-list/clear-entry-items]]
          [:dispatch [:entry-form-ex/show-welcome]]
-         [:load-bg-category-data (active-db-key db)]
+         [:bg-load-category-data (active-db-key db)]
          [:dispatch [:show-group-as :type]]]}))
 
 ;;;;;;; 
@@ -320,6 +416,11 @@
  :type-categories
  (fn [db _query-vec]
    (get-in-key-db db [:entry-category :data :type-categories])))
+
+(reg-sub
+ :tag-categories
+ (fn [db _query-vec]
+   (get-in-key-db db [:entry-category :data :tag-categories])))
 
 ;; General categories are : AllEntries,Favorites,Deleted
 (reg-sub

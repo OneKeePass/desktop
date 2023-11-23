@@ -4,12 +4,12 @@
    [onekeepass.frontend.events.entry-category :as ec-events]
    [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.events.group-form :as gf-events]  ;;need to be replaced events from ec-events 
-   
+
    [onekeepass.frontend.db-icons :refer [group-icon entry-type-icon]]
    [onekeepass.frontend.group-form :as gf]
    [onekeepass.frontend.group-tree-content :as gt]
    [onekeepass.frontend.constants :as const]
-   [onekeepass.frontend.common-components :refer [overflow-tool-tip message-sanckbar-alert]] 
+   [onekeepass.frontend.common-components :refer [overflow-tool-tip message-sanckbar-alert]]
    [onekeepass.frontend.mui-components :as m :refer [color-primary-main
                                                      color-secondary-main
                                                      mui-icon-button
@@ -42,6 +42,7 @@
     (let [show-category? (or (nil? showing-groups-as) (= showing-groups-as :category))
           show-groups? (= showing-groups-as :group)
           show-types? (= showing-groups-as :type)
+          show-tags? (= showing-groups-as :tag)
           root-group-uuid @(ec-events/root-group-uuid)]
       [mui-menu {:anchorEl @anchor-el
                  :open (if @anchor-el true false)
@@ -53,6 +54,12 @@
         (when show-types?
           [mui-list-item-icon [mui-icon-check]])
         (if show-types? "Types" [mui-list-item-text {:inset true} "Types"])]
+       
+       [mui-menu-item {:sx {:padding-left "1px"} 
+                       :on-click (menu-action anchor-el ec-events/show-as-tag-category)}
+        (when show-tags?
+          [mui-list-item-icon [mui-icon-check]])
+        (if show-tags? "Tags" [mui-list-item-text {:inset true} "Tags"])]
 
        [mui-menu-item {:sx {:padding-left "1px"}
                        :divider false
@@ -193,6 +200,9 @@
                                                     (or (nil? showing-groups-as) (= showing-groups-as :type))
                                                     "Types"
 
+                                                    (= showing-groups-as :tag)
+                                                    "Tags"
+
                                                     (= showing-groups-as :category)
                                                     "Categories"
 
@@ -231,13 +241,13 @@
 (defn category-item
   "Returns form-2 reagent component"
   []
-  (fn [{:keys [title display-title 
-               entries-count icon-id 
-               icon-name uuid 
-               entry-type-uuid] :as category-detail-m} 
-       selected-title 
+  (fn [{:keys [title display-title
+               entries-count icon-id
+               icon-name uuid
+               entry-type-uuid] :as category-detail-m}
+       selected-title
        categories-kind]
-    
+
     (let [display-name (if (nil? display-title) title display-title)
           selected (category-title-matched? category-detail-m selected-title)
           icon-comp (condp = categories-kind
@@ -248,10 +258,13 @@
                       (general-category-icon title)
 
                       :group-categories
-                      [group-icon icon-id])
+                      [group-icon icon-id]
+
+                      :tag-categories
+                      [group-icon 0])
           group-category?  (= categories-kind :group-categories)
           type-category?  (= categories-kind :type-categories)
-          selected (if type-category? @(ec-events/is-entry-type-selected entry-type-uuid) selected )
+          selected (if type-category? @(ec-events/is-entry-type-selected entry-type-uuid) selected)
           custom-entry-type?  (if-not type-category? false @(cmn-events/is-custom-entry-type entry-type-uuid))]
 
       [mui-list-item-button {:sx {"&.MuiListItemButton-root" {:padding-right "1px"}}
@@ -301,7 +314,9 @@
         deleted @(ec-events/deleted-entries-category)
         gcats @(ec-events/group-categories)
         type-cats  @(ec-events/type-categories)
-        selected-title @(ec-events/selected-category-title)] 
+        tag-cats  @(ec-events/tag-categories)
+        ;; The title of any category selected - ( "Deleted" "AllEntries" etc or Group name, Type name, Tag name)
+        selected-title @(ec-events/selected-category-title)]
     [mui-box {:style {:height "100%"
                       ;; This will result in a vertical scroll bar for the entire 
                       ;; left side panel when the height of main window is small 
@@ -329,6 +344,12 @@
          (doall
           (for [type type-cats]
             ^{:key (:entry-type-uuid type)} [category-item type selected-title :type-categories]))]
+        
+        (= showing-groups-as :tag)
+        [mui-list
+         (doall
+          (for [tag-cat tag-cats]
+            ^{:key (:title tag-cat)} [category-item tag-cat selected-title :tag-categories]))]
 
         (= showing-groups-as :group)
         [gt/group-tree-panel])]]))
