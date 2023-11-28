@@ -81,7 +81,8 @@
          category (get-in-key-db db [:entry-list :category-source]) ;;category-source is const/CATEGORY_ALL_ENTRIES
          ]
      {:db db
-      :fx [[:dispatch [:entry-category/selected-category-title category]]
+      :fx [#_[:dispatch [:entry-category/selected-category-title category]]
+           [:dispatch [:entry-category/select-all-entries-category]]
            [:dispatch [:entry-list/update-selected-entry-id entry-uuid]]
            [:dispatch [:entry-form-ex/find-entry-by-id entry-uuid]]
            [:load-bg-entry-summary-data [(active-db-key db) category]]]})))

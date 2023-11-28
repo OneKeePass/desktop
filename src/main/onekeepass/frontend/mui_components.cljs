@@ -269,6 +269,7 @@
   Search
   SettingsOutlined
   SecurityOutlined
+  SellOutlined
   VpnKeyOutlined
   AccountBalance
   FileCopyOutlined

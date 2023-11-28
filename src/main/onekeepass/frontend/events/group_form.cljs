@@ -98,8 +98,8 @@
   [api-response]
   (when-not (on-error api-response)
     (dispatch [:group-tree-content/load-groups])
-    ;; entry-category needs to refresh afterany  group update
-    (dispatch [:entry-category/show-groups-as-tree-or-category])))
+    ;; entry-category needs to refresh after any group update
+    (dispatch [:entry-category/reload-category-data])))
 
 (defn- new-blank-group-callback [parent-group-uuid api-response]
   (when-let [group (check-error api-response)]

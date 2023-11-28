@@ -1104,7 +1104,40 @@
 
         [mui-stack {:sx {:align-items "flex-end"}}
          [:div.buttons1
-          (when (or deleted-cat? recycle-bin? group-in-recycle-bin?)
+
+          (cond
+            (or deleted-cat? recycle-bin? group-in-recycle-bin?)
+            [:<>
+             [mui-button {:variant "contained"
+                          :color "secondary"
+                          :on-click #(move-events/move-group-entry-dialog-show :entry true)} "Put back"]
+             [mui-button {:variant "contained"
+                          :color "secondary"
+                          :on-click #(move-events/delete-permanent-group-entry-dialog-show :entry true)} "Delete Permanently"]
+             [mui-button {:variant "contained"
+                          :color "secondary"
+                          :on-click form-events/close-on-click} "Close"]]
+
+            edit
+            [:<>
+             [mui-button {:variant "contained"
+                          :color "secondary"
+                          :on-click form-events/entry-update-cancel-on-click} "Cancel"]
+             [mui-button {:variant "contained"
+                          :color "secondary"
+                          :disabled  (not @(form-events/modified))
+                          :on-click form-events/ok-edit-on-click} "Apply"]]
+
+            :else
+            [:<>
+             [mui-button {:variant "contained"
+                          :color "secondary"
+                          :on-click form-events/close-on-click} "Close"]
+             [mui-button {:variant "contained"
+                          :color "secondary"
+                          :on-click form-events/edit-mode-menu-clicked} "Edit"]])
+
+          #_(when (or deleted-cat? recycle-bin? group-in-recycle-bin?)
             [:<>
              [mui-button {:variant "contained"
                           :color "secondary"
@@ -1112,7 +1145,7 @@
              [mui-button {:variant "contained"
                           :color "secondary"
                           :on-click #(move-events/delete-permanent-group-entry-dialog-show :entry true)} "Delete Permanently"]])
-          (if edit
+          #_(if edit
             [:<>
              [mui-button {:variant "contained"
                           :color "secondary"

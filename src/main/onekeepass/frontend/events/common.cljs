@@ -265,7 +265,7 @@
  (fn [{:keys [_db]} [_event-id]]
    {:fx [[:dispatch [:entry-form-ex/show-welcome]]
          [:dispatch [:group-tree-content/load-groups]]
-         [:dispatch [:entry-category/show-groups-as-tree-or-category]]
+         [:dispatch [:entry-category/reload-category-data]]
          [:dispatch [:entry-list/entry-updated]]]}))
 
 ;; A common refresh all forms after an entry form changes - delete, put back , delete permanent
@@ -274,7 +274,7 @@
  (fn [{:keys [_db]} [_event-id]]
    {:fx [[:dispatch [:entry-form-ex/show-welcome]]
          [:dispatch [:group-tree-content/load-groups]]
-         [:dispatch [:entry-category/show-groups-as-tree-or-category]]
+         [:dispatch [:entry-category/reload-category-data]]
          [:dispatch [:entry-list/clear-entry-items]]]}))
 
 (defn- on-save-as [m]
