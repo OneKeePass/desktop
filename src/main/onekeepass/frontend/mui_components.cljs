@@ -19,6 +19,8 @@
    ["@mui/material/Autocomplete" :as mui-ac]
 
    ["@date-io/date-fns" :as DateAdapter]
+   
+   ["onekeepass-local" :as okp-local]
 
    ["react-split-pane" :as sp]
    ["react-window" :as rw]
@@ -331,6 +333,13 @@
 ;; Make sure the `ref` prop is called with a HTMLInputElement.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+
+(def example-comp
+  "A reagent component formed from react componet AutoSizer"
+  (reagent.core/adapt-react-class (.-CustomizedBadges ^js/CustomizedBadges okp-local)))
 
 (comment
   ;; An example using reactify-component

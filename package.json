@@ -22,6 +22,7 @@
     "@mui/x-date-pickers": "^6.16.0",
     "@tauri-apps/api": "^1.5.0",
     "date-fns": "^2.25.0",
+    "onekeepass-local": "file:./src-js",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-idle-timer": "^5.4.1",
