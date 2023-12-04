@@ -506,3 +506,11 @@
 
     :else
     {}))
+
+(defn menu-action 
+  "Returns a fn that is used as on-click handler"
+  [anchor-el action & action-args]
+  (fn [^js/Event e]
+    (reset! anchor-el nil)
+    (apply action action-args)
+    (.stopPropagation ^js/Event e)))

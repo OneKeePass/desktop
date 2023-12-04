@@ -36,7 +36,7 @@
                          (let [file-name (check-error api-response)]
                            (dispatch [kw-dispatch-name file-name])))))
 
-;;;;;;;;;;;;;;;;;;;;;;;; One time System Info loading ;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;; System Info and Preference ;;;;;;;;;;;;;;;;;;;;
 
 (declare set-session-timeout)
 
@@ -74,7 +74,8 @@
                                       preference]}]]
    (set-session-timeout (:session-timeout preference))
    ;;(println "os-name os-version arch path-sep preference -- " os-name os-version arch path-sep preference)
-   {:db (-> db (assoc :app-preference preference)
+   {:db (-> db
+            (assoc :app-preference preference)
             (assoc :standard-dirs standard-dirs)
             (assoc :path-sep path-sep)
             (assoc :biometric-type-available biometric-type-available)

@@ -88,8 +88,6 @@
 (defn deleted-entries-category []
   (subscribe [:deleted-entries-category]))
 
-(defn selected-category-title []
-  (subscribe [:selected-category-title]))
 
 (defn is-selected-category [cat-detail-m]
   (subscribe [:is-selected-category cat-detail-m]))
@@ -201,15 +199,26 @@
                                    (when-let [entry-categories (check-error api-reponse)]
                                      (dispatch [:update-category-data entry-categories]))))))
 
+(defn sort-by-tag-name [grouped-categories]
+  ;; First fn provides the comparision key
+  ;; Second fn provides the comparator that uses the keys
+  (sort-by (fn [m] (:title m)) (fn [v1 v2] (compare v1 v2)) grouped-categories))
+
 ;; Called when categories to show call returns with a list of map formed from struct EntryCategories
-(reg-event-db
+(reg-event-fx
  :update-category-data
- (fn [db [_ entry-categories]]
+ (fn [{:keys [db]} [_ entry-categories]]
    ;; The map 'entry-categories' is a map with keys [general-categories grouped-categories grouping-kind] 
    ;; The value of general-categories is a vec of map formed from struct CategoryDetail 
    ;; The value of grouped-categories is a vec of map formed from struct CategoryDetail for kind identified 
    ;; in grouping-kind. The 'grouping-kind' has the same value as in fn show-as->grouping-kind 
-   (assoc-in-key-db db [:entry-category :data] entry-categories)))
+
+   (let [{:keys [grouping-kind grouped-categories]} entry-categories
+         sorted-grouped-categories (if (= grouping-kind "AsTags")
+                                     (sort-by-tag-name grouped-categories)
+                                     grouped-categories)
+         entry-categories (merge entry-categories {:grouped-categories sorted-grouped-categories})]
+     {:db (assoc-in-key-db db [:entry-category :data] entry-categories)})))
 
 (defn- is-in-group-categories
   "Returns the category name if the group is shown in category view or nil"

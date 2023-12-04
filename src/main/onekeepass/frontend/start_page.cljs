@@ -65,7 +65,11 @@
                    :width "50%"
                    :justify-content "flex-start"
                    :flexDirection "column"}}
-     [mui-stack [m/example-comp]]
+     
+     ;; The 'example-comp' is based on the react component 
+     ;; defined in a local package js file. 
+     #_[mui-stack [m/example-comp]]
+     
      [mui-stack {:direction "row" :align-self "center"} ;;:sx {:mt "25%"}
       [mui-typography {:variant "h4" :sx {:color "text.primary"}} "OneKeePass"]]]]])
 

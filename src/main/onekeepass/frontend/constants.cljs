@@ -23,6 +23,9 @@
 (def GROUPING_LABEL_CATEGORIES "Categories")
 (def GROUPING_LABEL_GROUPS "Groups")
 
+(def ASCENDING "Ascending")
+(def DESCENDING "Descending")
+
 (def MENU_ID_QUIT "Quit")
 (def MENU_ID_SEARCH "Search")
 (def MENU_ID_NEW_DATABASE "NewDatabase")
@@ -46,6 +49,10 @@
 (def TOUCH_ID "TouchID")
 (def FACE_ID "FaceID")
 (def NO_BIOMETRIC "None")
+
+(def TITLE "Title")
+(def MODIFIED_TIME "Modified Time")
+(def CREATED_TIME "Created Time")
 
 (def PASSWORD "Password")
 

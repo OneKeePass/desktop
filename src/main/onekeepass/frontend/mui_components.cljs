@@ -5,9 +5,9 @@
   (:require
    [reagent.core :as r]
    [reagent.impl.template :as rtpl]
-   [goog.object :as gobj]
-   ;; All these are loaded from node_modules using 'require' fn
-   ;; See target/public/cljs-out/dev/npm_deps.js in 
+   [goog.object :as gobj] 
+   
+   ;; All node package modules (npm)
    [react]
    ["@mui/material" :as mui]
    ["@mui/icons-material" :as mui-icons]
@@ -28,6 +28,12 @@
    #_["react-idle-timer" :as react-idle-timer]))
 
 (set! *warn-on-infer* true)
+
+;; All npm packages refered in :require above are loaded from node_modules using 'require' fn
+;; See target/public/cljs-out/dev/npm_deps.js 
+;; Refer https://figwheel.org/docs/npm.html to know how npm 
+;; modules are bundled for both dev time and production time using
+;; webpack
 
 (def react-use-state (.-useState ^js/React react))
 (def react-use-effect (.-useEffect ^js/React react))
@@ -238,7 +244,14 @@
 ;; Incon names can be found from https://mui.com/material-ui/material-icons/
 ;;All material icons are defined here
 (declare-mui-classes
- [Save
+ [ArrowDropUpOutlined
+  ArrowDropDownOutlined
+  ArrowUpwardOutlined
+  ArrowDownwardOutlined
+  KeyboardArrowDownOutlined
+  KeyboardArrowUpOutlined
+  NavigateNextOutlined
+  Save
   SaveAs
   SaveAsOutlined
   AccessTime
@@ -333,8 +346,6 @@
 ;; Make sure the `ref` prop is called with a HTMLInputElement.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
 
 
 (def example-comp
