@@ -371,20 +371,6 @@ pub(crate) async fn insert_group(db_key: String, group: kp_service::Group) -> Re
 }
 
 #[tauri::command]
-pub(crate) async fn get_categories_to_show(
-  db_key: String,
-) -> Result<kp_service::EntryCategoryInfo> {
-  Ok(kp_service::categories_to_show(&db_key)?)
-}
-
-#[tauri::command]
-pub(crate) async fn tag_categories_to_show(
-  db_key: String,
-) -> Result<Vec<kp_service::CategoryDetail>> {
-  Ok(kp_service::tag_categories_to_show(&db_key)?)
-}
-
-#[tauri::command]
 pub(crate) async fn combined_category_details(
   db_key: String,grouping_kind:kp_service::EntryCategoryGrouping) -> Result<kp_service::EntryCategories> {
     Ok(kp_service::combined_category_details(&db_key,grouping_kind)?)

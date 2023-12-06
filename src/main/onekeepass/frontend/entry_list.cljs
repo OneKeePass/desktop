@@ -4,22 +4,19 @@
    [onekeepass.frontend.constants :as const :refer [TITLE
                                                     MODIFIED_TIME
                                                     CREATED_TIME
-                                                    ASCENDING 
-                                                    UUID_OF_ENTRY_TYPE_LOGIN]] 
+                                                    ASCENDING
+                                                    UUID_OF_ENTRY_TYPE_LOGIN]]
    [onekeepass.frontend.events.entry-list :as el-events]
    [onekeepass.frontend.events.group-tree-content :as gt-events]
    [onekeepass.frontend.events.tauri-events :as tauri-events]
    [onekeepass.frontend.entry-form-ex :as entry-form-ex]
    [onekeepass.frontend.common-components :refer [list-items-factory menu-action]]
    [onekeepass.frontend.db-icons :refer [entry-icon]]
-   [onekeepass.frontend.mui-components :as m :refer [mui-icon-navigate-next-outlined
-                                                     mui-icon-arrow-drop-up-outlined
+   [onekeepass.frontend.mui-components :as m :refer [mui-icon-arrow-drop-up-outlined
                                                      mui-icon-arrow-drop-down-outlined
-                                                     mui-icon-arrow-upward-outlined
-                                                     mui-icon-arrow-downward-outlined
+
                                                      mui-icon-keyboard-arrow-down-outlined
-                                                     mui-icon-keyboard-arrow-up-outlined
-                                                     mui-icon-more-vert
+
                                                      mui-menu
                                                      mui-menu-item
                                                      mui-icon-button
@@ -140,7 +137,10 @@
                    :width "100%"}}
      [:div {:class "gheader"}
       (when entries-found?
-        [mui-stack {:style {:alignItems "center"
+        [mui-stack {;; box-shadow css found in https://mui.com/material-ui/react-stack/ example component
+                    ;; and copied here
+                    :sx {:box-shadow "rgba(0, 0, 0, 0.2) 0px 2px 1px -1px, rgba(0, 0, 0, 0.14) 0px 1px 1px 0px, rgba(0, 0, 0, 0.12) 0px 1px 3px 0px"}
+                    :style {:alignItems "center"
                             :background "var(--mui-color-grey-200)"
                             :margin-bottom 10
                             :margin-right 0
@@ -152,11 +152,7 @@
                        :on-click el-events/entry-list-sort-direction-toggle
                        :startIcon (if (= direction ASCENDING)
                                     (r/as-element [mui-icon-arrow-drop-up-outlined])
-                                    (r/as-element [mui-icon-arrow-drop-down-outlined]))
-                       
-                       #_(if (= direction ASCENDING)
-                         (r/as-element [mui-icon-arrow-drop-down-outlined])
-                         (r/as-element [mui-icon-arrow-drop-up-outlined]))}
+                                    (r/as-element [mui-icon-arrow-drop-down-outlined]))}
            key-name]
           [entries-sort-menu]]])]
      ;; Need to use some height for 'gcontent' div so that 

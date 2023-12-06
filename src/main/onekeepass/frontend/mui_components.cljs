@@ -20,7 +20,9 @@
 
    ["@date-io/date-fns" :as DateAdapter]
    
-   ["onekeepass-local" :as okp-local]
+   ;; This is for local node package to compile and install the local package
+   ;; See src-js/README.md for details. For now we are not using
+   #_["onekeepass-local" :as okp-local]
 
    ["react-split-pane" :as sp]
    ["react-window" :as rw]
@@ -347,8 +349,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; An example react component that uses JSX from the local node package 
+;; See src-js/README.md for details to compile and install the local package
+;; See the use of ["onekeepass-local" :as okp-local] in the package use above. For now we are not using
 
-(def example-comp
+#_(def example-comp
   "A reagent component formed from react componet AutoSizer"
   (reagent.core/adapt-react-class (.-CustomizedBadges ^js/CustomizedBadges okp-local)))
 
