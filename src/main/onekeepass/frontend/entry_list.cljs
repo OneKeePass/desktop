@@ -111,7 +111,7 @@
         disable-action (or @recycle-bin? @group-in-recycle-bin? @deleted-cat?)
 
         {:keys [key-name direction]} @(el-events/entry-list-sort-creteria)
-        entries-found? (boolean (seq @entries))
+        entries-found? (> (count @entries) 1) #_(boolean (seq @entries))
 
         entry-type-uuid (if (nil? entry-type-uuid)
                           UUID_OF_ENTRY_TYPE_LOGIN

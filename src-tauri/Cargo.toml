@@ -37,10 +37,10 @@ tokio = { version = "1", features = [ "time" ] }
 tauri = { version = "1.5.1", features = ["clipboard-all", "dialog-all", "global-shortcut-all", "path-all", "process-exit", "shell-all"] }
 
 ## using from the local crate during development
-onekeepass-core = {path = "../../onekeepass-core", version = "0.10.0"} 
+## onekeepass-core = {path = "../../onekeepass-core", version = "0.11.0"} 
 
 ## Need to use the git ref for release 
-##onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.9.1" }
+onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.11.0" }
 
 [build-dependencies]
 tauri-build = { version = "1.5.0", features = [] }

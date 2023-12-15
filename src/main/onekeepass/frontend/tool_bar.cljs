@@ -172,6 +172,8 @@
           biometric-type @(cmn-events/biometric-type-available)
           save-disabled? (or locked? (not @(cmn-events/db-save-pending?)))]
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE (not save-disabled?))
+      (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_AS (not locked?))
+      (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_BACKUP (not locked?))
       ;; React useEffect 
       (m/react-use-effect (fn []
                             (tauri-events/enable-app-menu const/MENU_ID_PASSWORD_GENERATOR true)

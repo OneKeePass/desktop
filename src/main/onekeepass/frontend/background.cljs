@@ -374,9 +374,20 @@
                                     :data-hash-str data-hash-str} dispatch-fn))
 
 (defn save-as-kdbx
-  "Saves the db using a new file name and returns the KdbxLoaded"
+  "Saves the db using a new file name and returns the KdbxLoaded to the dispatch-fn
+   On return the db-key is changed to the new full file name that is 
+   returned in KdbxLoaded
+   "
   [db-key db-file-name dispatch-fn]
   (invoke-api "save_as_kdbx" {:db-key db-key :db-file-name db-file-name} dispatch-fn))
+
+(defn save-to-db-file
+  "Saves the db using a new file name and the db-key remains the same 
+   after this saving  
+   The dispatch-fn gets the response as ok if there is no error
+  "
+  [db-key full-file-name dispatch-fn]
+  (invoke-api "save_to_db_file" {:db-key db-key :full-file-name full-file-name} dispatch-fn))
 
 (defn save-kdbx
   "Saves the opened kdbx file.

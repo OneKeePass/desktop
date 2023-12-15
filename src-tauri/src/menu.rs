@@ -13,6 +13,7 @@ pub mod menu_ids {
   pub const OPEN_DATABASE: &str = "OpenDatabase";
   pub const SAVE_DATABASE: &str = "SaveDatabase";
   pub const SAVE_DATABASE_AS: &str = "SaveDatabaseAs";
+  pub const SAVE_DATABASE_BACKUP: &str = "SaveDatabaseBackup";
   pub const CLOSE_DATABASE: &str = "CloseDatabase";
   pub const LOCK_DATABASE: &str = "LockDatabase";
   pub const LOCK_ALL_DATABASES: &str = "LockAllDatabases";
@@ -69,7 +70,10 @@ pub fn get_app_menu() -> Menu {
       .disabled()
       .into(),
     CustomMenuItem::new(SAVE_DATABASE_AS, "Save Database As")
-      .accelerator("CmdOrControl+S")
+      .accelerator("Shift+CmdOrControl+S")
+      .disabled()
+      .into(),
+    CustomMenuItem::new(SAVE_DATABASE_BACKUP, "Save Database Backup")
       .disabled()
       .into(),
     CustomMenuItem::new(CLOSE_DATABASE, "Close Database")
@@ -171,16 +175,17 @@ pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app: AppHan
     QUIT => {
       info!("Quit requested from UI {:?}", request);
       let _r = kp_service::close_all_databases();
-      
+
       info!("Closed all databases");
 
       let r = kp_service::remove_app_temp_dir_content();
-      info!("Temp cache dir removed - result {:?} ",r);
-      
+      info!("Temp cache dir removed - result {:?} ", r);
+
       app.exit(0);
     }
     EDIT_ENTRY | NEW_ENTRY | EDIT_GROUP | NEW_GROUP | SAVE_DATABASE | SAVE_DATABASE_AS
-    | LOCK_DATABASE | LOCK_ALL_DATABASES | CLOSE_DATABASE | PASSWORD_GENERATOR | SEARCH => {
+    | SAVE_DATABASE_BACKUP | LOCK_DATABASE | LOCK_ALL_DATABASES | CLOSE_DATABASE
+    | PASSWORD_GENERATOR | SEARCH => {
       if let Some(main_window) = app.get_window("main") {
         let menu_handle = main_window.menu_handle();
         let t = match request.menu_action {
