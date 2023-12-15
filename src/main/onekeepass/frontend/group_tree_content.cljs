@@ -5,7 +5,9 @@
    [onekeepass.frontend.group-form :as gf]
    [onekeepass.frontend.common-components :refer [selection-autocomplete
                                                   alert-dialog-factory
-                                                  dialog-factory]]
+                                                  dialog-factory
+                                                  confirm-text-dialog
+                                                  menu-action]]
    [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.events.group-tree-content :as gt-events]
    [onekeepass.frontend.events.group-form :as gf-events]
@@ -26,6 +28,27 @@
                                                      mui-linear-progress
                                                      mui-icon-more-vert]]))
 (set! *warn-on-infer* true)
+
+;;;;;;;;;;;;;;;;;;;;; empty-recycle-bin related ;;;;;;;;;;;;;;;;;;;;;
+(def empty-recycle-bin-confirm-dialog-data (r/atom {:dialog-show false}))
+
+(defn show-empty-recycle-bin-confirm-dialog []
+  (reset! empty-recycle-bin-confirm-dialog-data {:dialog-show true}))
+
+(defn empty-recycle-bin-confirm-dialog [dialog-data]
+  ;; we can use either 'alert-dialog-factory' or confirm-text-dialog for this
+  [confirm-text-dialog
+   "Empty recycle bin?"
+   "Are you sure you want to empty the recycle bin permanently?"
+   [{:label "Yes" :on-click (fn []
+                              (move-events/empty-trash)
+                              (reset! empty-recycle-bin-confirm-dialog-data {:dialog-show false}))}
+    {:label "No" :on-click (fn []
+                             (reset! empty-recycle-bin-confirm-dialog-data {:dialog-show false}))}]
+   dialog-data])
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 (defn- delete-group-permanent-dialog [dialog-data group-uuid]
   [(alert-dialog-factory "Group Delete Permanent"
@@ -74,43 +97,20 @@
     [mui-menu {:anchorEl @anchor-el
                :open (if @anchor-el true false)
                :on-close #(reset! anchor-el nil)}
-     ;;TODOD: Refactor the menu items to a fn (at least on-click handler)
-     #_[mui-menu-item {:divider false
-                       :on-click #(do
-                                    (reset! anchor-el nil)
-                                    (gt-events/mark-group-as-category db-key g-uuid)
-                                    (.stopPropagation ^js/Event %) ;;prevents tree collapsing
-                                    )}"Mark As Category"]
 
      [mui-menu-item {:divider true
-                     :on-click #(do
-                                  (reset! anchor-el nil)
-                                  (gt-events/initiate-new-blank-group-form g-uuid)
-                                  (.stopPropagation ^js/Event %) ;;prevents tree collapsing
-                                  )}
+                     :on-click  (menu-action anchor-el gt-events/initiate-new-blank-group-form g-uuid)}
       "Add Group"]
 
      [mui-menu-item {:divider false
-                     :on-click #(do
-                                  (reset! anchor-el nil)
-                                  (gf-events/find-group-by-id g-uuid :edit)
-                                  (.stopPropagation ^js/Event %) ;;prevents tree collapsing
-                                  )}
+                     :on-click (menu-action anchor-el gf-events/find-group-by-id g-uuid :edit)}
       "Edit"]
      [mui-menu-item {:divider true
-                     :on-click #(do
-                                  (reset! anchor-el nil)
-                                  (gf-events/find-group-by-id g-uuid :info)
-                                  (.stopPropagation ^js/Event %) ;;prevents tree collapsing
-                                  )}
+                     :on-click (menu-action anchor-el gf-events/find-group-by-id g-uuid :info)}
       "Info"]
      [mui-menu-item {:divider false
                      :disabled @(gt-events/root-group-selected?)
-                     :on-click #(do
-                                  (reset! anchor-el nil)
-                                  (gt-events/group-delete-start g-uuid)
-                                  (.stopPropagation ^js/Event %) ;;prevents tree collapsing
-                                  )}
+                     :on-click (menu-action anchor-el gt-events/group-delete-start g-uuid)}
       "Delete"]]))
 
 (defn tree-item-recycle-sub-group-menu-items []
@@ -119,18 +119,10 @@
                :open (if @anchor-el true false)
                :on-close #(reset! anchor-el nil)}
      [mui-menu-item {:divider false
-                     :on-click #(do
-                                  (reset! anchor-el nil)
-                                  (move-events/move-group-entry-dialog-show :group true)
-                                  ;;prevents tree collapsing
-                                  (.stopPropagation ^js/Event %))}
+                     :on-click (menu-action anchor-el move-events/move-group-entry-dialog-show :group true)}
       "Put Back"]
      [mui-menu-item {:divider false
-                     :on-click #(do
-                                  (reset! anchor-el nil)
-                                  (move-events/delete-permanent-group-entry-dialog-show :group true)
-                                  ;;prevents tree collapsing
-                                  (.stopPropagation ^js/Event %))}
+                     :on-click (menu-action anchor-el move-events/delete-permanent-group-entry-dialog-show :group true)}
       "Delete Permanent"]]))
 
 (defn tree-item-recycle-sub-group-menu []
@@ -147,6 +139,27 @@
                                  :margin-left 15}} [mui-icon-more-vert]]
        [tree-item-recycle-sub-group-menu-items anchor-el g-uuid]])))
 
+(defn tree-item-recycle-bin-menu-items [anchor-el]
+  [mui-menu {:anchorEl @anchor-el
+             :open (if @anchor-el true false)
+             :on-close #(reset! anchor-el nil)}
+   [mui-menu-item {:divider false
+                   :disabled @(gt-events/recycle-bin-empty-check)
+                   :on-click (menu-action anchor-el show-empty-recycle-bin-confirm-dialog)}
+    "Empty recycle bin"]])
+
+(defn tree-item-recycle-bin-menu []
+  (let [anchor-el (r/atom nil)]
+    [mui-stack
+     [mui-icon-button {:edge "start"
+                       :on-click (fn [e]
+                                   (reset! anchor-el (-> ^js/Event e .-currentTarget))
+                                   (.stopPropagation ^js/Event e))
+                       :style {:color "#000000"
+                               :padding 0
+                               :margin-left 15}} [mui-icon-more-vert]]
+     [tree-item-recycle-bin-menu-items anchor-el]]))
+
 ;; Keep the group uuid for which the system menu is active
 (def menu-event-uuid (atom nil))
 
@@ -156,7 +169,7 @@
     (fn [g-uuid]
       (let [recycle-bin? (gt-events/recycle-group-selected?)
             group-in-recycle-bin? (gt-events/selected-group-in-recycle-bin?)]
-        
+
         ;;;;;; 
         (m/react-use-effect (fn []
                               (reset! menu-event-uuid g-uuid)
@@ -172,7 +185,7 @@
                                   (tauri-events/enable-app-menu const/MENU_ID_NEW_GROUP false)
                                   (tauri-events/enable-app-menu const/MENU_ID_EDIT_GROUP false)))) (clj->js []))
         ;;;;;;
-        
+
         [:div {:style {:height 24}}
          [mui-icon-button {:edge "start"
                            :on-click (fn [e]
@@ -203,6 +216,9 @@
        [mui-typography {:variant "body1" :sx {:flex-grow 1}} name]
        (when (= uuid @g-uuid)
          (cond
+           @recycle-bin?
+           [tree-item-recycle-bin-menu]
+
            (and @group-in-recycle-bin? (not @recycle-bin?))
            [tree-item-recycle-sub-group-menu @g-uuid]
 
@@ -266,6 +282,8 @@
           (get gd "root_uuid") nil (get gd "groups")))
 
        [delete-group-permanent-dialog @(move-events/delete-permanent-group-entry-dialog-data :group) selected-group-uuid]
+
+       [empty-recycle-bin-confirm-dialog @empty-recycle-bin-confirm-dialog-data]
 
        [move-dialog
         {:dialog-data @(move-events/move-group-entry-dialog-data :group)

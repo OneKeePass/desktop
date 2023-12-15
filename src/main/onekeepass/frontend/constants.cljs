@@ -18,10 +18,20 @@
 
 #_(def GENERAL_CATEGORIES #{CATEGORY_ALL_ENTRIES CATEGORY_FAV_ENTRIES CATEGORY_DELETED_ENTRIES})
 
+(def GROUPING_LABEL_TYPES "Types")
+(def GROUPING_LABEL_TAGS "Tags")
+(def GROUPING_LABEL_CATEGORIES "Categories")
+(def GROUPING_LABEL_GROUPS "Groups")
+
+(def ASCENDING "Ascending")
+(def DESCENDING "Descending")
+
 (def MENU_ID_QUIT "Quit")
 (def MENU_ID_SEARCH "Search")
 (def MENU_ID_NEW_DATABASE "NewDatabase")
 (def MENU_ID_SAVE_DATABASE "SaveDatabase")
+(def MENU_ID_SAVE_DATABASE_AS "SaveDatabaseAs")
+(def MENU_ID_SAVE_DATABASE_BACKUP "SaveDatabaseBackup")
 (def MENU_ID_OPEN_DATABASE "OpenDatabase")
 (def MENU_ID_LOCK_DATABASE "LockDatabase")
 (def MENU_ID_CLOSE_DATABASE "CloseDatabase")
@@ -41,6 +51,10 @@
 (def TOUCH_ID "TouchID")
 (def FACE_ID "FaceID")
 (def NO_BIOMETRIC "None")
+
+(def TITLE "Title")
+(def MODIFIED_TIME "Modified Time")
+(def CREATED_TIME "Created Time")
 
 (def PASSWORD "Password")
 

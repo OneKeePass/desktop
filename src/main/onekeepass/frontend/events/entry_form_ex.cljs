@@ -445,7 +445,7 @@
          [:dispatch [:entry-list/entry-updated]]
           ;; In case of this entry's marked as Favorites by adding a tag,  
           ;; we need to refresh the entry-category view also
-         [:dispatch [:entry-category/show-groups-as-tree-or-category]]]}))
+         [:dispatch [:entry-category/reload-category-data]]]}))
 
 (reg-event-fx
  :entry-is-favorite-ex
@@ -1195,7 +1195,7 @@
            ;; A New Entry form with the newly created entry name is shown 
          [:dispatch [:entry-form-entry-type-uuid-selected-ex entry-type-uuid]]
            ;; Need to refresh entry-category as we have added a new custom entry type
-         [:dispatch [:entry-category/show-groups-as-tree-or-category]]
+         [:dispatch [:entry-category/reload-category-data]]
          [:dispatch [:common/message-snackbar-open "New custom entry type is created"]]]}))
 
 

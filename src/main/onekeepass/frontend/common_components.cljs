@@ -30,17 +30,33 @@
 
 #_(set! *warn-on-infer* true)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;; Using Autocomplte ;;;;;;;;;;;;;;;;;;;;;;;;;;;;  
+
 (def filter-fn (m/auto-complete-filter (clj->js {:matchFrom "start"})))
 
 ;; Also see onekeepass.frontend.events.common/fix-tags-selection-prefix how the added 
 ;; ADD_TAG_PREFIX is removed to form the final list 
 (defn tags-filter-options
+  "A function that determines the filtered options to be rendered on search
+   The arg 'options' is the options to render
+   The arg 'params' is the current state of the component
+   Returnse a js array 
+   "
   [^js/Okp.Options options ^js/Okp.Params params]
-  (let [value-entered (.-inputValue params)
-        ;; value-entered is the value entered in the Tag box instead of selecting any previous
-        ;; Tags from the list
+  (let [;; value-entered is the value entered in the Tag box  
+        ;; instead of selecting any previous Tags from the list
+        value-entered (.-inputValue params)
+        
+        ;; Find any matching value from the options if any 
+        ;; and that is returned in a seq if found
         existing (filter #(= % value-entered) options)
+        
+        ;; When user clicks to the input,
+        ;; all values are returned to show in select list
+        ;; As we type, all matching values are filtered and returned
+        ;; and shown in the select list. 
         filtered (js->clj (filter-fn options params))
+        
         final-filtered (if (and (boolean (seq value-entered))
                                 (empty? existing))
                          ;; If the option is one added by user, then we need add the prefix
@@ -49,7 +65,16 @@
                          filtered)]
     (clj->js final-filtered)))
 
-(defn tags-field [all-tags tags on-tags-selection editing]
+(defn tags-field 
+  "Returns a reagent component for the MUI Autocomplete (react component) with multiple 
+   values also known as tags
+
+   The arg 'all-tags' is a vector of all availble tags
+   The arg 'tags' is a vector of tags that is used as 'value' 
+   The arg 'on-tags-selection' is a fn that is called when the value changes 
+   and its Signature is function(event: React.SyntheticEvent, value: Value | Array, reason: string, details?: string) => void
+ "
+  [all-tags tags on-tags-selection editing]
   [mui-autocomplete
    {:disablePortal true
     :multiple true
@@ -59,33 +84,105 @@
     :ChipProps (when-not editing  {:onDelete nil})
     :disabled (not editing)
     ;;:readOnly (not editing) ;;Not working 
-
+    
     :id "tags-listing"
     :options (if (nil? all-tags) [] all-tags)
 
+    ;; A function that determines the filtered options to be rendered on search
     :filterOptions tags-filter-options
 
-    ;; a map of the same structure as 'option' passed to getOptionLabel or renderOption
+    ;; The same structure as 'option' passed to getOptionLabel or renderOption
     :value (clj->js tags)
     :on-change on-tags-selection
 
+    ;; Render the input - a fn that returns a ReactNode
     :render-input (fn [^js/Okp.params params]
                        ;; use an atom p in this ns and do (reset! p params)
                        ;; to see props of params in repl
-
+                    
                        ;; Don't call js->clj because that would recursively
                        ;; convert all JS objects (e.g. React ref objects)
                        ;; to Cljs maps, which breaks them
                     (set! (.-variant params) "standard")
                     (set! (.-label params) "Tags")
                        ;;(println "InputProps is " (.-label params)) results in stackoverflow
-
+                    
                        ;;Not working
                        ;;(set! (.-InputProps params) #js {:classes {:root (if editing "entry-cnt-text-field-edit" "entry-cnt-text-field-read")}})
                        ;;(set! (.-inputProps  params) {:readOnly (not editing)})
-
+                    
                     (r/create-element mui-text-field-type params)) ;;mui/TextField
     }])
+
+(defn selection-autocomplete
+  "All required fields and optional ones are passed in one map argument
+  Returns a form-1 reagent component 'mui-autocomplete' which lists of option for the user select or search and select
+  "
+  [{:keys [label options current-value on-change id
+           disablePortal required error error-text helper-text]
+    :or [disablePortal false]}]
+  [mui-autocomplete
+   {:disablePortal disablePortal
+    :disableClearable true
+    :id id
+    :options options
+
+    ;; The same structure as 'option' passed to getOptionLabel or renderOption
+    :value (clj->js current-value)
+
+    :on-change on-change ;; a callback function that accespts two parameters [event info]
+    :isOptionEqualToValue (fn [^js/Okp.Option option ^js/Okp.Value value]
+                              ;;(println "option" option " and value " value)
+                            (= (.-name option) (.-name value)))
+
+    ;; We need to use getOptionLabel if option does not have "label" property
+    :getOptionLabel (fn [^js/Okp.Option option] (.-name option))
+
+    ;; Custom rendering of each item in the selection list
+    :renderOption (fn [^js props ^js/Okp.Option option]
+                    (let [p (js->clj props :keywordize-keys true)
+                          p (merge p {:component "li"} p)]
+                      (r/as-element [mui-box p (.-name option) #_[:strong (str "Icon-" (.-title option))]])))
+
+    :render-input (fn [^js/Okp.Params params]
+                       ;;Calling (println "params " params) or (js/Object.entries params) itself results in Error:
+                       ;;RangeError: Maximum call stack size exceeded. 
+                       ;;It looks like calling directly or indirectly js->clj resulted in stack overflow 
+
+                       ;;(type params) works
+                       ;;(js/Object.keys params) 
+                       ;; => #js["id" "disabled" "fullWidth" "size" "InputLabelProps" "InputProps" "inputProps" "variant" "label"]
+
+                       ;;(.-InputProps params) resulted in stack overflow
+                       ;;(js/Object.keys (.-InputProps params)) 
+                       ;;=> #js["ref" "className" "startAdornment" "endAdornment"]
+                       ;;Same error when we do (.-endAdornment (.-InputProps params))
+                       ;;(js/Object.keys (.-endAdornment (.-InputProps @pa))) 
+                       ;;=> #js["$$typeof" "type" "key" "ref" "props" "_owner" "_store"]
+
+                       ;;Accessing some properties resulted "RangeError: Maximum call stack size exceeded".
+                       ;;Not sure why. May be a bug in clojurescript or javascript object circular references?
+
+                       ;;The :renderInput idea used for "mui-date-time-picker" did not work
+                       ;;A solution based on
+                       ;;From https://stackoverflow.com/questions/63944323/problem-with-autocomplete-material-ui-react-reagent-clojurescript
+
+                       ;; Don't call js->clj because that would recursively
+                       ;; convert all JS objects (e.g. React ref objects)
+                       ;; to Cljs maps, which breaks them, even when converted back to JS.
+                       ;; Best thing is to use r/create-element and
+                       ;; pass the JS params to it.
+                       ;; If necessary, use JS interop to modify params.
+                    ;;(println "required is " (.-required params))
+                    (set! (.-variant params) "standard")
+                    (set! (.-label params) label)
+                    (set! (.-error params) error)
+                    (set! (.-helperText params) (if error error-text helper-text))
+                    (set! (.-required params) required)
+                    (r/create-element mui-text-field-type params)) ;;mui/TextField
+    }])
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
 
 (defn- render-row-factory
   "Returns a function that can be used as child to fixed-size-list.
@@ -147,70 +244,6 @@
   [items row-component-fn & {:as opts}]
   ;;(println "opts is" opts)
   (row-items-factory items (render-row-factory row-component-fn) opts))
-
-(defn selection-autocomplete
-  "All required fields and optional ones are passed in one map argument
-  Reeturns a form-1 reagent component 'mui-autocomplete' which lists of option for the user select or search and select
-  "
-  [{:keys [label options current-value on-change id
-           disablePortal required error error-text helper-text]
-    :or [disablePortal false]}]
-  [mui-autocomplete
-   {:disablePortal disablePortal
-    :disableClearable true
-    :id id
-    :options options
-       ;;a map of the same structure as 'option' passed to getOptionLabel or renderOption
-    :value (clj->js current-value)
-    :on-change on-change ;; a callback function that accespts two parameters [event info]
-    :isOptionEqualToValue (fn [^js/Okp.Option option ^js/Okp.Value value]
-                              ;;(println "option" option " and value " value)
-                            (= (.-name option) (.-name value)))
-       ;;We need to use getOptionLabel if option does not have "label" property
-    :getOptionLabel (fn [^js/Okp.Option option] (.-name option))
-       ;;Custom rendering of each item in the selection list
-    :renderOption (fn [^js props ^js/Okp.Option option]
-                    (let [p (js->clj props :keywordize-keys true)
-                          p (merge p {:component "li"} p)]
-                      (r/as-element [mui-box p (.-name option) #_[:strong (str "Icon-" (.-title option))]])))
-
-    :render-input (fn [^js/Okp.Params params]
-                       ;;Calling (println "params " params) or (js/Object.entries params) itself results in Error:
-                       ;;RangeError: Maximum call stack size exceeded. 
-                       ;;It looks like calling directly or indirectly js->clj resulted in stack overflow 
-
-                       ;;(type params) works
-                       ;;(js/Object.keys params) 
-                       ;; => #js["id" "disabled" "fullWidth" "size" "InputLabelProps" "InputProps" "inputProps" "variant" "label"]
-
-                       ;;(.-InputProps params) resulted in stack overflow
-                       ;;(js/Object.keys (.-InputProps params)) 
-                       ;;=> #js["ref" "className" "startAdornment" "endAdornment"]
-                       ;;Same error when we do (.-endAdornment (.-InputProps params))
-                       ;;(js/Object.keys (.-endAdornment (.-InputProps @pa))) 
-                       ;;=> #js["$$typeof" "type" "key" "ref" "props" "_owner" "_store"]
-
-                       ;;Accessing some properties resulted "RangeError: Maximum call stack size exceeded".
-                       ;;Not sure why. May be a bug in clojurescript or javascript object circular references?
-
-                       ;;The :renderInput idea used for "mui-date-time-picker" did not work
-                       ;;A solution based on
-                       ;;From https://stackoverflow.com/questions/63944323/problem-with-autocomplete-material-ui-react-reagent-clojurescript
-
-                       ;; Don't call js->clj because that would recursively
-                       ;; convert all JS objects (e.g. React ref objects)
-                       ;; to Cljs maps, which breaks them, even when converted back to JS.
-                       ;; Best thing is to use r/create-element and
-                       ;; pass the JS params to it.
-                       ;; If necessary, use JS interop to modify params.
-                    ;;(println "required is " (.-required params))
-                    (set! (.-variant params) "standard")
-                    (set! (.-label params) label)
-                    (set! (.-error params) error)
-                    (set! (.-helperText params) (if error error-text helper-text))
-                    (set! (.-required params) required)
-                    (r/create-element mui-text-field-type params)) ;;mui/TextField
-    }])
 
 (defn alert-dialog-factory
   "
@@ -410,14 +443,14 @@
 (defn copy-icon-factory
   "Returns a form-2 reagent component that on click copies the 'value' 
   field to clipboard"
-  ([on-click-fn ]
+  ([on-click-fn]
    (fn []
      [mui-icon-button {:edge "end"
                        :on-click #(on-click-fn)}
       [mui-icon-file-copy-outlined]]))
   ([]
-   (fn [value & {:as props}] 
-     [mui-icon-button {:edge "end" 
+   (fn [value & {:as props}]
+     [mui-icon-button {:edge "end"
                        :sx (:sx props)
                        :on-click #(bg/write-to-clipboard value)}
       [mui-icon-file-copy-outlined]])))
@@ -473,3 +506,11 @@
 
     :else
     {}))
+
+(defn menu-action 
+  "Returns a fn that is used as on-click handler"
+  [anchor-el action & action-args]
+  (fn [^js/Event e]
+    (reset! anchor-el nil)
+    (apply action action-args)
+    (.stopPropagation ^js/Event e)))

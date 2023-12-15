@@ -59,6 +59,15 @@
 
       (= menu-id const/MENU_ID_OPEN_DATABASE)
       (dispatch [:open-db-form/open-db])
+      
+      (= menu-id const/MENU_ID_SAVE_DATABASE)
+      (dispatch [:save-current-db false])
+      
+      (= menu-id const/MENU_ID_SAVE_DATABASE_AS)
+      (dispatch [:common/save-db-file-as false])
+      
+      (= menu-id const/MENU_ID_SAVE_DATABASE_BACKUP)
+      (dispatch [:common/save-db-file-as true])
 
       (= menu-id const/MENU_ID_SEARCH)
       (dispatch [:search/dialog-show])

@@ -1,19 +1,65 @@
 (ns onekeepass.frontend.entry-list
   (:require
    [reagent.core :as r]
-   [onekeepass.frontend.constants :refer [UUID_OF_ENTRY_TYPE_LOGIN]]
+   [onekeepass.frontend.constants :as const :refer [TITLE
+                                                    MODIFIED_TIME
+                                                    CREATED_TIME
+                                                    ASCENDING
+                                                    UUID_OF_ENTRY_TYPE_LOGIN]]
    [onekeepass.frontend.events.entry-list :as el-events]
    [onekeepass.frontend.events.group-tree-content :as gt-events]
    [onekeepass.frontend.events.tauri-events :as tauri-events]
-   [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.entry-form-ex :as entry-form-ex]
-   [onekeepass.frontend.common-components :refer [list-items-factory]]
+   [onekeepass.frontend.common-components :refer [list-items-factory menu-action]]
    [onekeepass.frontend.db-icons :refer [entry-icon]]
-   [onekeepass.frontend.mui-components :as m :refer [mui-button
+   [onekeepass.frontend.mui-components :as m :refer [mui-icon-arrow-drop-up-outlined
+                                                     mui-icon-arrow-drop-down-outlined
+
+                                                     mui-icon-keyboard-arrow-down-outlined
+
+                                                     mui-menu
+                                                     mui-menu-item
+                                                     mui-icon-button
+                                                     mui-button
                                                      mui-stack
-                                                     mui-avatar mui-list-item mui-list-item-text
+                                                     mui-avatar
+                                                     mui-list-item
+                                                     mui-list-item-text
                                                      mui-list-item-avatar]]))
 (set! *warn-on-infer* true)
+
+;;;;;;;;;;;;;;;;;;;;;;;; Menu ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn entries-sort-menu-items []
+  (fn [anchor-el]
+    [mui-menu {:anchorEl @anchor-el
+               :open (if @anchor-el true false)
+               :on-close #(reset! anchor-el nil)}
+     [mui-menu-item {:sx {:padding-left "1px"}
+                     :divider false
+                     :on-click (menu-action anchor-el #(el-events/entry-list-sort-key-changed TITLE))}
+      [mui-list-item-text {:inset true} TITLE]]
+
+     [mui-menu-item {:sx {:padding-left "1px"}
+                     :divider false
+                     :on-click (menu-action anchor-el #(el-events/entry-list-sort-key-changed MODIFIED_TIME))}
+      [mui-list-item-text {:inset true} MODIFIED_TIME]]
+
+     [mui-menu-item {:sx {:padding-left "1px"}
+                     :divider false
+                     :on-click (menu-action anchor-el #(el-events/entry-list-sort-key-changed CREATED_TIME))}
+      [mui-list-item-text {:inset true} CREATED_TIME]]]))
+
+(defn entries-sort-menu []
+  (let [anchor-el (r/atom nil)]
+    [:div
+     [mui-icon-button {:sx {:ml "5px"}
+                       :edge "start"
+                       :on-click (fn [^js/Event e] (reset! anchor-el (-> e .-currentTarget)))
+                       :style {:color "#000000"}} [mui-icon-keyboard-arrow-down-outlined]]
+     [entries-sort-menu-items anchor-el]]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn row-item
   "Renders a list item. 
@@ -54,7 +100,8 @@
 (defn fn-entry-list-content
   []
   (let [;; See common-components for :div-style use
-        entry-items (list-items-factory (el-events/get-selected-entry-items)
+        entries (el-events/get-selected-entry-items)
+        entry-items (list-items-factory entries
                                         row-item :div-style {:min-width 225})
         recycle-bin? (gt-events/recycle-group-selected?)
         deleted-cat? (el-events/deleted-category-showing)
@@ -63,29 +110,51 @@
         entry-type-uuid @(el-events/selected-entry-type)
         disable-action (or @recycle-bin? @group-in-recycle-bin? @deleted-cat?)
 
+        {:keys [key-name direction]} @(el-events/entry-list-sort-creteria)
+        entries-found? (> (count @entries) 1) #_(boolean (seq @entries))
+
         entry-type-uuid (if (nil? entry-type-uuid)
                           UUID_OF_ENTRY_TYPE_LOGIN
                           entry-type-uuid)]
     ;;;;;;; 
     ;; Note: Menu enable is called everytime there is new cat selection
-    (tauri-events/enable-app-menu const/MENU_ID_NEW_ENTRY 
-                                  (not disable-action) 
+    (tauri-events/enable-app-menu const/MENU_ID_NEW_ENTRY
+                                  (not disable-action)
                                   {:callback-fn
-                                   (fn [] 
+                                   (fn []
                                      (el-events/add-new-entry
                                       group-info
                                       entry-type-uuid))})
-    (m/react-use-effect 
+    (m/react-use-effect
      (fn []
        ;;cleanup fn is returned which is called when this component unmounts
        (fn []
          (tauri-events/enable-app-menu const/MENU_ID_NEW_ENTRY false))) (clj->js []))
     ;;;;;;;
-    
+
     [:div {:class "gbox"
            :style {;;:margin 0
                    :width "100%"}}
-     [:div {:class "gheader"}]
+     [:div {:class "gheader"}
+      (when entries-found?
+        [mui-stack {;; box-shadow css found in https://mui.com/material-ui/react-stack/ example component
+                    ;; and copied here
+                    :sx {:box-shadow "rgba(0, 0, 0, 0.2) 0px 2px 1px -1px, rgba(0, 0, 0, 0.14) 0px 1px 1px 0px, rgba(0, 0, 0, 0.12) 0px 1px 3px 0px"}
+                    :style {:alignItems "center"
+                            :background "var(--mui-color-grey-200)"
+                            :margin-bottom 10
+                            :margin-right 0
+                            :margin-left 0}}
+         [mui-stack {:direction "row"}
+          [mui-button {:sx {:border "1px"}
+                       :variant "outlined"
+                       :color "inherit"
+                       :on-click el-events/entry-list-sort-direction-toggle
+                       :startIcon (if (= direction ASCENDING)
+                                    (r/as-element [mui-icon-arrow-drop-up-outlined])
+                                    (r/as-element [mui-icon-arrow-drop-down-outlined]))}
+           key-name]
+          [entries-sort-menu]]])]
      ;; Need to use some height for 'gcontent' div so that 
      ;; entry list is shown - particularly in mac Catalina OS (10.15+)
      ;; Need to check in Windows,Linux 

@@ -23,10 +23,10 @@
 
 (defn move-group-entry-group-selected-factory
   "A factory fn that returns a fn with two args"
-  [kind-kw] 
+  [kind-kw]
   ;; Called on selecting a group in auto complete box
   ;; The option selected in autocomplete component is passed as 'group-info' - a javacript object 
-  (fn [_e group-info] 
+  (fn [_e group-info]
     (dispatch [:move-group-entry-group-selected kind-kw (js->clj group-info :keywordize-keys true)])))
 
 (defn move-group-entry-dialog-data [kind-kw]
@@ -36,7 +36,7 @@
 (reg-event-fx
  :move-group-entry-start
  (fn [{:keys [db]} [_query-id kind-kw id]]
-   (let [g (get-in-key-db db [:move-group-entry kind-kw :group-selection-info])] 
+   (let [g (get-in-key-db db [:move-group-entry kind-kw :group-selection-info])]
      (if (empty? g)
        {:db (-> db (assoc-in-key-db [:move-group-entry kind-kw :field-error] true))}
        {:db (-> db (assoc-in-key-db [:move-group-entry kind-kw :field-error] false)
@@ -68,8 +68,7 @@
  :move-group-entry-error
  (fn [db [_query-id kind-kw error]]
    (-> db (assoc-in-key-db [:move-group-entry kind-kw :api-error-text] error)
-       (assoc-in-key-db [:move-group-entry kind-kw :status] :completed)
-       )))
+       (assoc-in-key-db [:move-group-entry kind-kw :status] :completed))))
 
 (reg-event-fx
  :move-group-entry-completed
@@ -80,9 +79,9 @@
             (assoc-in-key-db [:move-group-entry kind-kw :api-error-text] nil)
             (assoc-in-key-db [:move-group-entry kind-kw :field-error] false))
 
-    :fx [[:dispatch [:common/message-snackbar-open 
+    :fx [[:dispatch [:common/message-snackbar-open
                      (str (if (= kind-kw :group) "Group" "Entry") " is moved")]]
-         [:dispatch [:common/refresh-forms]]] }))
+         [:dispatch [:common/refresh-forms]]]}))
 
 
 (reg-event-db
@@ -102,7 +101,9 @@
 (defn delete-permanent-group-entry-dialog-data [kind-kw]
   (subscribe [:delete-permanent-group-entry kind-kw]))
 
-(defn delete-permanent-group-entry-dialog-show [kind-kw show?] ;; show or hide
+(defn delete-permanent-group-entry-dialog-show 
+  "The arg kind-kw is either :entry or :group"
+  [kind-kw show?] ;; show or hide
   (dispatch [:delete-permanent-group-entry-dialog-show kind-kw show?]))
 
 (defn delete-permanent-group-entry-ok [kind-kw id]
@@ -130,7 +131,7 @@
 (reg-fx
  :bg-permanent-delete
  (fn [[db-key kind-kw id]]
-   (if (= kind-kw :group) 
+   (if (= kind-kw :group)
      (bg/remove-group-permanently db-key id #(on-delete-permanent-complete kind-kw %))
      (bg/remove-entry-permanently db-key id #(on-delete-permanent-complete kind-kw %)))))
 
@@ -156,3 +157,20 @@
  :delete-permanent-group-entry
  (fn [db [_event-id kind-kw]]
    (get-in-key-db db [:delete-permanent-group-entry kind-kw])))
+
+;;;;;;;;;;;;;;;;;;;;;
+
+(defn empty-trash []
+  (dispatch [:empty-trash]))
+
+(reg-event-fx
+ :empty-trash
+ (fn [{:keys [db]} [_event-id]]
+   ;; Calls the backend directly
+   (bg/empty-trash (active-db-key db)
+                   (fn [api-response]
+                     (when-not (on-error api-response)
+                       (dispatch [:common/refresh-forms])
+                       (dispatch [:common/message-snackbar-open "Recycle bin is emptied"]))))
+   {}))
+

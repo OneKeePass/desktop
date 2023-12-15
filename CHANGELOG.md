@@ -1,3 +1,9 @@
+### 0.10.0
+- Entry listing can now be sorted based on Title or Modified time or Created time
+- Added Tags based entry category for listing entries
+- Added menu action to empty the Recycle bin
+- Can now save to a backup file using the app level menu - 'Save Database Backup' 
+
 ### 0.9.0
 - Entry attachments are now supported. You can attach any number of files to an entry,view and store securely
 - Password is now optional. Accordingly you can use only a master password or only a key file or both to secure your database

@@ -6,6 +6,9 @@ resources/public/cljs-out
 /checkouts
 /src/gen
 
+/src-js/dist
+/src-js/node_modules
+
 pom.xml
 pom.xml.asc
 *.iml

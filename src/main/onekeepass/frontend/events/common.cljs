@@ -36,7 +36,7 @@
                          (let [file-name (check-error api-response)]
                            (dispatch [kw-dispatch-name file-name])))))
 
-;;;;;;;;;;;;;;;;;;;;;;;; One time System Info loading ;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;; System Info and Preference ;;;;;;;;;;;;;;;;;;;;
 
 (declare set-session-timeout)
 
@@ -74,7 +74,8 @@
                                       preference]}]]
    (set-session-timeout (:session-timeout preference))
    ;;(println "os-name os-version arch path-sep preference -- " os-name os-version arch path-sep preference)
-   {:db (-> db (assoc :app-preference preference)
+   {:db (-> db
+            (assoc :app-preference preference)
             (assoc :standard-dirs standard-dirs)
             (assoc :path-sep path-sep)
             (assoc :biometric-type-available biometric-type-available)
@@ -233,7 +234,18 @@
 (defn save-as
   "Called when user wants to save a modified db to another name"
   []
-  (dispatch [:common/save-db-file-as]))
+  (dispatch [:common/save-db-file-as false]))
+
+#_(defn save-backup
+  "Called when user wants to save the currrently openned database to another name"
+  []
+  (dispatch [:common/save-db-file-as true]))
+
+(defn default-entry-category
+  "Gets the default category option that is set in preference 
+   to show in the entry category bottom panel"
+  [app-db]
+  (-> app-db :app-preference :default-entry-category-groupings))
 
 ;; Called after creating a new database or after opening an existing database
 (reg-event-fx
@@ -259,7 +271,7 @@
  (fn [{:keys [_db]} [_event-id]]
    {:fx [[:dispatch [:entry-form-ex/show-welcome]]
          [:dispatch [:group-tree-content/load-groups]]
-         [:dispatch [:entry-category/show-groups-as-tree-or-category]]
+         [:dispatch [:entry-category/reload-category-data]]
          [:dispatch [:entry-list/entry-updated]]]}))
 
 ;; A common refresh all forms after an entry form changes - delete, put back , delete permanent
@@ -268,31 +280,28 @@
  (fn [{:keys [_db]} [_event-id]]
    {:fx [[:dispatch [:entry-form-ex/show-welcome]]
          [:dispatch [:group-tree-content/load-groups]]
-         [:dispatch [:entry-category/show-groups-as-tree-or-category]]
+         [:dispatch [:entry-category/reload-category-data]]
          [:dispatch [:entry-list/clear-entry-items]]]}))
 
-(defn- on-save-as [m]
-  (when-let [new-db-key (check-error m)]
-    (dispatch [:save-as-completed new-db-key])))
+(defn- save-db-full-file-name
+  [save-as-file-name]
+  (str save-as-file-name
+       "-"
+       (utc-to-local-datetime-str (js/Date.) "yyyy-MM-dd HH mm ss")
+       ".kdbx"))
 
-(reg-event-db
+(reg-event-fx
  :common/save-db-file-as
- (fn [db [_event-id]]
+ (fn [{:keys [db]} [_event-id backup?]]
    (let [save-as-file-name  (-> db current-opened-db :file-name (str/split #"\.") first)
-         save-as-file-name (str save-as-file-name
-                                "-"
-                                (utc-to-local-datetime-str (js/Date.) "yyyy-MM-dd HH mm ss")
-                                ".kdbx")
-         f (fn [file-name]
-            ;;(println "file-name is " file-name)
-             (when-not (nil? file-name)
-               (bg/save-as-kdbx (active-db-key db) file-name on-save-as)))]
-    ;; Pass something similar {:default-path (str database-name ".kdbx")} to save as done in New database dialog
-    ;; Now the user is presented with the default "Untitled"
-     (bg/save-file-dialog {:default-path save-as-file-name} f)
+         save-as-file-name (save-db-full-file-name save-as-file-name)
+         file-chooser-callback-fn (fn [full-file-name]
+                                   (when-not (nil? full-file-name)
+                                     (if backup?
+                                       (dispatch [:save-backup-start full-file-name])
+                                       (dispatch [:save-as-start full-file-name]))))]
 
-     db)))
-
+     {:fx [[:dispatch [:common/save-file-dialog save-as-file-name file-chooser-callback-fn]]]})))
 
 (reg-event-fx
  :common/save-file-dialog
@@ -303,10 +312,50 @@
    {}))
 
 (reg-event-fx
+ :save-as-start
+ (fn [{:keys [db]} [_event-id full-file-name]]
+   (if-not (nil? full-file-name)
+     {:fx [[:dispatch [:common/progress-message-box-show 
+                       "Save As" 
+                       "Database saving is in progress...."]] 
+           [:bg-save-as-kdbx [(active-db-key db) full-file-name]]]}
+     {})))
+
+(reg-fx
+ :bg-save-as-kdbx
+ (fn [[db-key full-file-name]]
+   (bg/save-as-kdbx db-key full-file-name
+                    (fn [api-response]
+                      (when-let [new-db-key (check-error api-response)]
+                        (dispatch [:save-as-completed new-db-key]))))))
+
+(reg-event-fx
+ :save-backup-start
+ (fn [{:keys [db]} [_event-id full-file-name]]
+   (if-not (nil? full-file-name)
+     {:fx [[:dispatch [:common/progress-message-box-show 
+                       "Save Backup" 
+                       "Database saving is in progress...."]]
+           [:bg-save-backup-kdbx [(active-db-key db) full-file-name]]]}
+     {})))
+
+(reg-fx
+ :bg-save-backup-kdbx
+ (fn [[db-key full-file-name]]
+   (bg/save-to-db-file db-key full-file-name
+                       (fn [api-response]
+                         (dispatch [:common/progress-message-box-hide])
+                         (when-not (on-error api-response)
+                           (dispatch [:common/message-snackbar-open 
+                                      "Database backup saving is completed"]))))))
+
+(reg-event-fx
  :save-as-completed
  (fn [{:keys [db]} [_event-id kdbx-loaded]]
    (let [old-key (:current-db-file-name db)]
-     {:fx [[:dispatch [:close-kdbx-completed old-key]]
+     {:fx [
+           [:dispatch [:common/progress-message-box-hide]]
+           [:dispatch [:close-kdbx-completed old-key]]
            [:dispatch [:common/kdbx-database-opened kdbx-loaded]]]})))
 
 (reg-event-fx
@@ -883,7 +932,7 @@
   []
   (go-loop []
     ;; Every 30 sec, we send the tick
-    (<! (timeout 30000)) 
+    (<! (timeout 30000))
     (dispatch [:check-db-list-to-lock (js/Date.now)])
     (when @continue-tick
       (recur))))
@@ -915,6 +964,78 @@
       ;; For now only db-settings dialog receives this and closes if user leaves it open
       ;; and session timeout happens during that time
       :fx [[:dispatch [:db-settings/notify-screen-locked]]]})))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;  Common Dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO: 
+;; May be useful to use as a common dialog data store where different dialogs can 
+;; store various data dialog fields 
+
+;; We can use dialog id keyword as 'dialog-identifier' to differentiate different dialogs
+
+;; :status -> :init :started :in-progress :error
+
+#_(defn generic-dialog-init [dialog-identifier dialog-state]
+  (dispatch [:common/dialog-init dialog-identifier dialog-state]))
+
+#_(defn generic-dialog-show [dialog-identifier]
+  (dispatch [:common/dialog-show dialog-identifier]))
+
+#_(defn generic-dialog-close [dialog-identifier]
+  (dispatch [:common/dialog-init dialog-identifier]))
+
+#_(defn generic-dialog-update-state [dialog-identifier dialog-state]
+  (dispatch [:common/dialog-update dialog-identifier dialog-state]))
+
+#_(defn generic-dialog-state  [dialog-identifier]
+  (subscribe [:common/dialog-state dialog-identifier]))
+
+#_(defn init-dialog-map
+  "Returns a map"
+  []
+  (-> {}
+      (assoc-in [:show] false)
+      (assoc-in [:status] :init)
+      (assoc-in [:api-error-text] nil)
+      (assoc-in [:data] {})))
+
+#_(defn get-dialog-state [db dialog-identifier]
+  (get-in db [:generic-dialog dialog-identifier] (init-dialog-map)))
+
+#_(defn set-dialog-state [db dialog-identifier dialog-state]
+  (assoc-in db [:generic-dialog dialog-identifier] dialog-state))
+
+#_(defn set-dialog-value [db dialog-identifier kw-field-name value]
+  (assoc-in db [:generic-dialog dialog-identifier kw-field-name] value))
+
+#_(reg-event-fx
+ :common/dialog-init
+ (fn [{:keys [db]} [_event-id dialog-identifier {:keys [data show] :as dialog-state}]]
+   (let [m (init-dialog-map)
+         m (merge m dialog-state)]
+     {:db (set-dialog-state db dialog-identifier m)})))
+
+#_(reg-event-fx
+ :common/dialog-update
+ (fn [{:keys [db]} [_event-id dialog-identifier {:keys [data show] :as dialog-state}]]
+   (let [m (get-in db [:generic-dialog dialog-identifier])
+         m (merge m dialog-state)]
+     {:db (set-dialog-state db dialog-identifier m)})))
+
+#_(reg-event-fx
+ :common/dialog-show
+ (fn [{:keys [db]} [_event-id dialog-identifier]]
+   {:db (assoc-in db [:generic-dialog dialog-identifier :show] true)}))
+
+#_(reg-event-fx
+ :common/dialog-close
+ (fn [{:keys [db]} [_event-id dialog-identifier]]
+   {:db (assoc-in db [:generic-dialog dialog-identifier] (init-dialog-map))}))
+
+#_(reg-sub
+ :common/dialog-state
+ (fn [db [_event-id dialog-identifier]]
+   (get-in db [:generic-dialog dialog-identifier])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

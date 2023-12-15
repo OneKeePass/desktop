@@ -371,10 +371,14 @@ pub(crate) async fn insert_group(db_key: String, group: kp_service::Group) -> Re
 }
 
 #[tauri::command]
-pub(crate) async fn get_categories_to_show(
+pub(crate) async fn combined_category_details(
   db_key: String,
-) -> Result<kp_service::EntryCategoryInfo> {
-  Ok(kp_service::categories_to_show(&db_key)?)
+  grouping_kind: kp_service::EntryCategoryGrouping,
+) -> Result<kp_service::EntryCategories> {
+  Ok(kp_service::combined_category_details(
+    &db_key,
+    grouping_kind,
+  )?)
 }
 
 #[tauri::command]
@@ -463,6 +467,11 @@ pub(crate) async fn save_kdbx(
     backup_file_name.as_deref(),
     overwrite,
   )?)
+}
+
+#[command]
+pub(crate) async fn save_to_db_file(db_key: &str, full_file_name: &str) -> Result<()> {
+  Ok(kp_service::save_to_db_file(db_key, full_file_name)?)
 }
 
 #[tauri::command]

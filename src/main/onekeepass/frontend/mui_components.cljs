@@ -5,9 +5,9 @@
   (:require
    [reagent.core :as r]
    [reagent.impl.template :as rtpl]
-   [goog.object :as gobj]
-   ;; All these are loaded from node_modules using 'require' fn
-   ;; See target/public/cljs-out/dev/npm_deps.js in 
+   [goog.object :as gobj] 
+   
+   ;; All node package modules (npm)
    [react]
    ["@mui/material" :as mui]
    ["@mui/icons-material" :as mui-icons]
@@ -19,6 +19,10 @@
    ["@mui/material/Autocomplete" :as mui-ac]
 
    ["@date-io/date-fns" :as DateAdapter]
+   
+   ;; This is for local node package to compile and install the local package
+   ;; See src-js/README.md for details. For now we are not using
+   #_["onekeepass-local" :as okp-local]
 
    ["react-split-pane" :as sp]
    ["react-window" :as rw]
@@ -26,6 +30,12 @@
    #_["react-idle-timer" :as react-idle-timer]))
 
 (set! *warn-on-infer* true)
+
+;; All npm packages refered in :require above are loaded from node_modules using 'require' fn
+;; See target/public/cljs-out/dev/npm_deps.js 
+;; Refer https://figwheel.org/docs/npm.html to know how npm 
+;; modules are bundled for both dev time and production time using
+;; webpack
 
 (def react-use-state (.-useState ^js/React react))
 (def react-use-effect (.-useEffect ^js/React react))
@@ -63,7 +73,7 @@
 
 (def auto-complete-filter
   "Autocomplete component exposes a factory to create a filter method 
-   that can provided to the filterOptions prop. 
+   that can be provided to the filterOptions prop. 
    This is used to change the default option filter behavior."
   (.-createFilterOptions ^js/Mui.Autocomplete mui-ac))
 
@@ -236,7 +246,14 @@
 ;; Incon names can be found from https://mui.com/material-ui/material-icons/
 ;;All material icons are defined here
 (declare-mui-classes
- [Save
+ [ArrowDropUpOutlined
+  ArrowDropDownOutlined
+  ArrowUpwardOutlined
+  ArrowDownwardOutlined
+  KeyboardArrowDownOutlined
+  KeyboardArrowUpOutlined
+  NavigateNextOutlined
+  Save
   SaveAs
   SaveAsOutlined
   AccessTime
@@ -269,6 +286,7 @@
   Search
   SettingsOutlined
   SecurityOutlined
+  SellOutlined
   VpnKeyOutlined
   AccountBalance
   FileCopyOutlined
@@ -330,6 +348,14 @@
 ;; Make sure the `ref` prop is called with a HTMLInputElement.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; An example react component that uses JSX from the local node package 
+;; See src-js/README.md for details to compile and install the local package
+;; See the use of ["onekeepass-local" :as okp-local] in the package use above. For now we are not using
+
+#_(def example-comp
+  "A reagent component formed from react componet AutoSizer"
+  (reagent.core/adapt-react-class (.-CustomizedBadges ^js/CustomizedBadges okp-local)))
 
 (comment
   ;; An example using reactify-component

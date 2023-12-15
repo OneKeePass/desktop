@@ -36,8 +36,8 @@
 (defn root-group-selected? []
   (subscribe [:group-tree-content/root-group-selected]))
 
-(defn root-group-uuid []
-  (subscribe [:group-tree-content/root-group-uuid]))
+#_(defn root-group-uuid []
+    (subscribe [:group-tree-content/root-group-uuid]))
 
 (defn groups-listing []
   (subscribe [:group-tree-content/groups-listing]))
@@ -50,7 +50,7 @@
   (dispatch [:group-selected group-id])
   ;;Reset other panels 
   (dispatch [:entry-form-ex/show-welcome])
-  (dispatch [:entry-category/clear-category-title])
+  (dispatch [:entry-category/clear-selected-category-info])
 
   ;;Loads entry list items to show for this group
   (dispatch [:entry-list/load-entry-items {:group group-id}]))
@@ -61,25 +61,9 @@
 (defn expanded-nodes []
   (subscribe [:expanded-nodes]))
 
-(defn- mark-group-callback
-  "Called after the succssful update of a group data to the backend store.
-  See also update-group-callback in group-form
-  "
-  [api-response]
-  (when-not (on-error api-response)
-    (dispatch [:group-tree-content/load-groups])
-  ;;entry-category needs to refresh any group update that may be marked as category
-    (dispatch [:entry-category/show-groups-as-tree])))
+(defn recycle-bin-empty-check [] 
+  (subscribe [:recycle-bin-empty-check]))
 
-#_(defn mark-group-as-category
-    "Called to mark a group with group-id so that this particular can be shown as category"
-    [group-id]
-    (bg/mark-group-as-category (db-key) group-id mark-group-callback))
-
-(defn mark-group-as-category
-  "Called to mark a group with group-id so that this particular can be shown as category"
-  [db-key group-id]
-  (bg/mark-group-as-category db-key group-id mark-group-callback))
 
 ;;;;;;;;;
 
@@ -163,6 +147,7 @@
  (fn [db [_event-id v]]
    (assoc-in-key-db db [:groups-tree :data] v)))
 
+;; Called when a new entry is created under a gouup selected in the category view
 (reg-event-fx
  :group-tree-content/entry-inserted
  (fn [{:keys [_db]} [_event-id entry-uuid  group-uuid]]
@@ -200,6 +185,18 @@
  (fn [[data selected] _query-vec]
    (= (get data "recycle_bin_uuid") selected)))
 
+;; Checks whether there are any deleted entry or group in recycle bin
+;; Returns true if both lists are empty
+(reg-sub
+ :recycle-bin-empty-check
+ :<- [:groups-tree-data-updated]
+ (fn [data _query-vec]
+   (let [rc-uuid (get data "recycle_bin_uuid")
+         {:strs [entry_uuids group_uuids]} (-> data (get "groups") (get rc-uuid))]
+     (if (or (> (count entry_uuids) 0) (> (count group_uuids) 0))
+       false
+       true))))
+
 ;;Checks whether the selected group is the deleted group uuids 
 (reg-sub
  :group-tree-content/selected-group-in-recycle-bin
@@ -221,7 +218,11 @@
  :<- [:selected-group-uuid]
  :<- [:groups-tree-data-updated]
  (fn [[uuid1 uuid2 data] _query-vec]
-   (let [uuid (if (nil? uuid1) uuid2 uuid1)    ;; Either uuid1 or uuid2 should be available except when all entriies. Verify this
+   ;; Either uuid1 or uuid2 should be available 
+   ;; uuid1  is non nil if :showing-group-as has the ':category' value in entry-category. 
+   ;; uuid2 is non nil if group tree panel is active 
+   ;; with some group is selected
+   (let [uuid (if (nil? uuid1) uuid2 uuid1)
          g (-> data (get "groups") (get uuid))]
      ;; TODO g should not be nil. If nil, need to log and return root group
      (when-not (nil? g)

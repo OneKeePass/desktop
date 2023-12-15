@@ -63,9 +63,17 @@
                                 Tooltip
                                 Typography
 
+                                ArrowDropUpOutlined
+                                ArrowDropDownOutlined
+                                KeyboardArrowDownOutlined
+                                KeyboardArrowUpOutlined 
+                                ArrowUpwardOutlined
+                                ArrowDownwardOutlined
+                                NavigateNextOutlined
                                 Save
                                 SaveAs
                                 SaveAsOutlined
+                                SellOutlined
                                 AccessTime
                                 ArrowDropDown
                                 ArrowRight

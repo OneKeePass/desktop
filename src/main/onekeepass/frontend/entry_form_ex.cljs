@@ -49,7 +49,8 @@
                                                               mui-list-item-text
                                                               mui-list-item-text
                                                               mui-localization-provider
-                                                              mui-menu mui-menu-item
+                                                              mui-menu 
+                                                              mui-menu-item
                                                               mui-popper
                                                               mui-stack
                                                               mui-text-field
@@ -796,10 +797,11 @@
         [icons-dialog @icons-dialog-flag]]])))
 
 (defn tags-selection []
-  (let [all-tags @(ce/all-tags)
-        tags @(form-events/entry-form-data-fields :tags) #_(:tags @(form-events/entry-form-data-fields [:tags]))
+  (let [;; Both all-tags and tags are vec
+        all-tags @(ce/all-tags)
+        tags @(form-events/entry-form-data-fields :tags)
         edit @(form-events/form-edit-mode)]
-    ;;(println "tags-selection called " tags)
+    ;;(println "tags-selection called tags:" tags " all-tags:" all-tags)
     (when (or edit (boolean (seq tags)))
       [mui-box {:sx content-sx}
        [mui-stack {:direction "row"}]
@@ -1103,7 +1105,40 @@
 
         [mui-stack {:sx {:align-items "flex-end"}}
          [:div.buttons1
-          (when (or deleted-cat? recycle-bin? group-in-recycle-bin?)
+
+          (cond
+            (or deleted-cat? recycle-bin? group-in-recycle-bin?)
+            [:<>
+             [mui-button {:variant "contained"
+                          :color "secondary"
+                          :on-click #(move-events/move-group-entry-dialog-show :entry true)} "Put back"]
+             [mui-button {:variant "contained"
+                          :color "secondary"
+                          :on-click #(move-events/delete-permanent-group-entry-dialog-show :entry true)} "Delete Permanently"]
+             [mui-button {:variant "contained"
+                          :color "secondary"
+                          :on-click form-events/close-on-click} "Close"]]
+
+            edit
+            [:<>
+             [mui-button {:variant "contained"
+                          :color "secondary"
+                          :on-click form-events/entry-update-cancel-on-click} "Cancel"]
+             [mui-button {:variant "contained"
+                          :color "secondary"
+                          :disabled  (not @(form-events/modified))
+                          :on-click form-events/ok-edit-on-click} "Apply"]]
+
+            :else
+            [:<>
+             [mui-button {:variant "contained"
+                          :color "secondary"
+                          :on-click form-events/close-on-click} "Close"]
+             [mui-button {:variant "contained"
+                          :color "secondary"
+                          :on-click form-events/edit-mode-menu-clicked} "Edit"]])
+
+          #_(when (or deleted-cat? recycle-bin? group-in-recycle-bin?)
             [:<>
              [mui-button {:variant "contained"
                           :color "secondary"
@@ -1111,7 +1146,7 @@
              [mui-button {:variant "contained"
                           :color "secondary"
                           :on-click #(move-events/delete-permanent-group-entry-dialog-show :entry true)} "Delete Permanently"]])
-          (if edit
+          #_(if edit
             [:<>
              [mui-button {:variant "contained"
                           :color "secondary"

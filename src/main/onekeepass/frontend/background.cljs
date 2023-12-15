@@ -223,21 +223,25 @@
   (invoke-api "groups_summary_data" {:db-key db-key} dispatch-fn :convert-response false))
 
 (defn entry-summary-data
-  "Gets the list of entry summary data for a given entry category as defined in EnteryCategory in 'db_service.rs'. 
-  The args the db-key and the entry-category 
-  (AllEntries, Favorites,Deleted, {:group \"some valid group uuid\"}  {:entrytype \"Login\"}).
-  The entry-category should have a value that can be converted to the enum  EnteryCategory
-  The serilaization expect the enum name as camelCase 
+  "Gets the list of entry summary data for a given entry category as defined 
+  in EnteryCategory in 'db_service.rs'
+  
+  The args are the db-key and the entry-category 
+  
+  The entry-category should have a value that can be converted to the enum EnteryCategory
+  The serilaization expect the enum name as camelCase - see the custom conversion
   For now the valid enums are 
   `allEntries`, `favourites`, `deleted`,   
   `{:group \"valid uuid\"}`, 
-  `{:entrytype \"Login\"}`,   - should be deprecated
   `{:entry-type-uuid \"9e644c27-d00b-4aca-8355-5078c5a4fb44\"}`
+  `{:tag \"Bank\"}`,   
   "
-  [db-key entry-category dispatch-fn]
-  ;;(println "entry-category " entry-category)
-  (invoke-api "entry_summary_data" {:db-key db-key :entry-category
-                                    (if (map? entry-category) entry-category (csk/->camelCaseString entry-category))} dispatch-fn :convert-response true))
+  [db-key entry-category dispatch-fn] 
+  (invoke-api "entry_summary_data" 
+              {:db-key db-key :entry-category
+               (if (map? entry-category) 
+                 entry-category 
+                 (csk/->camelCaseString entry-category))} dispatch-fn :convert-response true))
 
 (defn history-entries-summary [db-key entry-uuid dispatch-fn]
   (invoke-api "history_entries_summary" {:db-key db-key :entry-uuid entry-uuid} dispatch-fn))
@@ -349,6 +353,9 @@
 (defn remove-group-permanently [db-key group-uuid dispatch-fn]
   (invoke-api "remove_group_permanently" {:db-key db-key :group-uuid group-uuid} dispatch-fn))
 
+(defn empty-trash [db-key  dispatch-fn]
+  (invoke-api "empty_trash" {:db-key db-key}  dispatch-fn))
+
 (defn upload-attachment
   [db-key full-file-name dispatch-fn]
   (invoke-api "upload_entry_attachment" {:db-key db-key :file-name full-file-name} dispatch-fn))
@@ -367,9 +374,20 @@
                                     :data-hash-str data-hash-str} dispatch-fn))
 
 (defn save-as-kdbx
-  "Saves the db using a new file name and returns the KdbxLoaded"
+  "Saves the db using a new file name and returns the KdbxLoaded to the dispatch-fn
+   On return the db-key is changed to the new full file name that is 
+   returned in KdbxLoaded
+   "
   [db-key db-file-name dispatch-fn]
   (invoke-api "save_as_kdbx" {:db-key db-key :db-file-name db-file-name} dispatch-fn))
+
+(defn save-to-db-file
+  "Saves the db using a new file name and the db-key remains the same 
+   after this saving  
+   The dispatch-fn gets the response as ok if there is no error
+  "
+  [db-key full-file-name dispatch-fn]
+  (invoke-api "save_to_db_file" {:db-key db-key :full-file-name full-file-name} dispatch-fn))
 
 (defn save-kdbx
   "Saves the opened kdbx file.
@@ -412,11 +430,12 @@
   ;; and we do not want to do any conversion in invoke fn as we have already done it here 
   (invoke-api "create_kdbx" (clj->js {:newDb (request-argon2key-transformer new-db)}) dispatch-fn :convert-request false))
 
-(defn get-categories-to-show
-  [db-key dispatch-fn & opts]
-  (apply invoke-api "get_categories_to_show" {:db-key db-key} dispatch-fn opts))
+(defn combined-category-details
+  [db-key grouping-kind dispatch-fn]
+  (invoke-api "combined_category_details" {:db-key db-key
+                                           :grouping-kind grouping-kind} dispatch-fn))
 
-(defn mark-group-as-category
+#_(defn mark-group-as-category
   [db-key group-uuid dispatch-fn & opts]
   ;;TODO: Rename group_id to group_uuid in backend API and then change here the key group-id to group-uuid
   (apply invoke-api "mark_group_as_category" {:db-key db-key :group-id group-uuid} dispatch-fn opts))
@@ -478,7 +497,12 @@
 (defn is-file-exists [file-name dispatch-fn]
   (invoke-api "is_path_exists" {:in-path file-name} dispatch-fn))
 
-(defn collect-entry-group-tags [db-key dispatch-fn]
+(defn collect-entry-group-tags
+  "Collects all unique tags that are used in all active groups and entries
+   If a tag is removed from an entry and that tag is not used in any other entry or group, then
+   that tag is removed from the all tags list when next time this fn is called
+   "
+  [db-key dispatch-fn]
   (invoke-api  "collect_entry_group_tags" {:db-key db-key} dispatch-fn))
 
 (defn entry-type-headers
