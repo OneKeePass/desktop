@@ -1,0 +1,76 @@
+name: Builds mac bundle only with prebuilt cljs
+on:
+  workflow_dispatch:
+
+jobs:
+  build-okp:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # - build: macos
+          #   os: macos-latest
+          #   arch: x86_64
+          #   target: x86_64-apple-darwin
+          - build: macos
+            os: macos-latest
+            arch: aarch64
+            target: aarch64-apple-darwin
+
+    steps:
+      - name: desktop repo
+        uses: actions/checkout@v3
+
+      - name: Setup Node and yarn cache
+        uses: actions/setup-node@v3
+        with:
+            node-version: 16
+            cache: 'yarn'
+
+      - name: Install node dependencies
+        run:  yarn
+        
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+    
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Download 'artifacts-cljs-main-bundle' artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          #workflow: ${{ github.event.workflow_run.workflow_id }}
+          ## Downloads the cljs built by the workflow build-cljs.yml
+          workflow: build-cljs.yml
+          workflow_conclusion: success
+          name: artifacts-cljs-main-bundle
+          path: ./resources/public/cljs-out/dev
+
+      - name: App bundle
+        run:  yarn tauri build --target ${{ matrix.target }}  
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+
+      - name: Mac DMG final artifact 
+        uses: actions/upload-artifact@v3
+        if: matrix.os == 'macos-latest'
+        with:
+          name: artifacts-mac-${{ matrix.arch }}
+          path: ./src-tauri/target/${{ matrix.target }}/release/bundle/dmg/**.dmg
+
+      - name: Mac APP final artifact
+        uses: actions/upload-artifact@v3
+        if: matrix.os == 'macos-latest'
+        with:
+          name: artifacts-mac-${{ matrix.arch }}
+          path: ./src-tauri/target/${{ matrix.target }}/release/bundle/macos/**.app
