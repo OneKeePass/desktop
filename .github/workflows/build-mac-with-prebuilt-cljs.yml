@@ -60,6 +60,7 @@ jobs:
           BOTAN_CONFIGURE_CPU: 'arm64'
           BOTAN_CONFIGURE_DISABLE_MODULES: 'tls,pkcs11,sodium,filters'
 
+          CI: true
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
