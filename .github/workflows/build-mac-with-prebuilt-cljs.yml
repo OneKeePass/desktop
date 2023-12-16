@@ -54,6 +54,12 @@ jobs:
       - name: App bundle
         run:  yarn tauri build --target ${{ matrix.target }}  
         env:
+          BOTAN_CONFIGURE_OS: 'macos'
+          BOTAN_CONFIGURE_CC_ABI_FLAGS: '-arch arm64'
+          BOTAN_CONFIGURE_CC: 'clang'
+          BOTAN_CONFIGURE_CPU: 'arm64'
+          BOTAN_CONFIGURE_DISABLE_MODULES: 'tls,pkcs11,sodium,filters'
+
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
