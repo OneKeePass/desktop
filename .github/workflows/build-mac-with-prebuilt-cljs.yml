@@ -22,6 +22,16 @@ jobs:
       - name: desktop repo
         uses: actions/checkout@v3
 
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+    
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
       - name: Setup Node and yarn cache
         uses: actions/setup-node@v3
         with:
@@ -31,16 +41,6 @@ jobs:
       - name: Install node dependencies
         run:  yarn
         
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets:${{ matrix.target }}
-    
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.target }}
-
       - name: Download 'artifacts-cljs-main-bundle' artifacts
         uses: dawidd6/action-download-artifact@v2
         with:
