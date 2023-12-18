@@ -54,14 +54,14 @@ jobs:
       - name: Set x86_64 botan env
         if: ${{ matrix.os == 'macos-latest' &&  matrix.arch == 'x86_64' }}
         run:  |
-          echo "BOTAN_CONFIGURE_CC_ABI_FLAGS='-arch x86_64'" >> $GITHUB_ENV
-          echo "BOTAN_CONFIGURE_CPU='x86_64'"  >> $GITHUB_ENV
+          echo "BOTAN_CONFIGURE_CC_ABI_FLAGS=-arch x86_64" >> $GITHUB_ENV
+          echo "BOTAN_CONFIGURE_CPU=x86_64"  >> $GITHUB_ENV
 
       - name: Set aarch64 botan env
         if: ${{ matrix.os == 'macos-latest' &&  matrix.arch == 'aarch64' }} 
         run:  |
-          echo "BOTAN_CONFIGURE_CC_ABI_FLAGS='-arch arm64'" >> $GITHUB_ENV
-          echo "BOTAN_CONFIGURE_CPU='arm64'"  >> $GITHUB_ENV
+          echo "BOTAN_CONFIGURE_CC_ABI_FLAGS=-arch arm64" >> $GITHUB_ENV
+          echo "BOTAN_CONFIGURE_CPU=arm64"  >> $GITHUB_ENV
 
       - run: |
           echo "BOTAN_CONFIGURE_CC_ABI_FLAGS=$BOTAN_CONFIGURE_CC_ABI_FLAGS"
