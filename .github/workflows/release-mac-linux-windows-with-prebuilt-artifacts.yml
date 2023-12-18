@@ -31,7 +31,7 @@ jobs:
       - name: Download mac aarch64 artifacts
         uses: dawidd6/action-download-artifact@v2
         with:
-          workflow: build-mac-with-prebuilt-cljs
+          workflow: build-mac-with-prebuilt-cljs.yml
           workflow_conclusion: success
           name: artifacts-mac-aarch64
           path: artifacts/aarch64
@@ -39,7 +39,7 @@ jobs:
       - name: Download mac x86_64 artifacts
         uses: dawidd6/action-download-artifact@v2
         with:
-          workflow: build-mac-with-prebuilt-cljs
+          workflow: build-mac-with-prebuilt-cljs.yml
           workflow_conclusion: success
           name: artifacts-mac-x86_64
           path: artifacts/x86_64
