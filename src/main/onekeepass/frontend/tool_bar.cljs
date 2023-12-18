@@ -185,6 +185,8 @@
                               (tauri-events/enable-app-menu const/MENU_ID_PASSWORD_GENERATOR false)
                               (tauri-events/enable-app-menu const/MENU_ID_CLOSE_DATABASE false)
                               (tauri-events/enable-app-menu const/MENU_ID_LOCK_DATABASE false)
+                              (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_AS false)
+                              (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_BACKUP false)
                               (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js []))
 
       [:div {:style {:flex-grow 1}}
