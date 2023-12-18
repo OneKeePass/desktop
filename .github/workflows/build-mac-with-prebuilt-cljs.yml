@@ -9,10 +9,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - build: macos
-          #   os: macos-latest
-          #   arch: x86_64
-          #   target: x86_64-apple-darwin
+          - build: macos
+            os: macos-latest
+            arch: x86_64
+            target: x86_64-apple-darwin
           - build: macos
             os: macos-latest
             arch: aarch64
@@ -45,19 +45,30 @@ jobs:
         uses: dawidd6/action-download-artifact@v2
         with:
           #workflow: ${{ github.event.workflow_run.workflow_id }}
-          ## Downloads the cljs built by the workflow build-cljs.yml
+          ## Downloads the cljs built by the workflow 'build-cljs.yml' that was run successfully
           workflow: build-cljs.yml
           workflow_conclusion: success
           name: artifacts-cljs-main-bundle
           path: ./resources/public/cljs-out/dev
 
+      - name: Set x86_64 botan env
+        if: ${{ matrix.os == 'macos-latest' &&  matrix.arch == 'x86_64' }}
+        run:  |
+          echo "BOTAN_CONFIGURE_OS='macos'" >> $GITHUB_ENV
+          echo "BOTAN_CONFIGURE_CC_ABI_FLAGS='-arch x86_64'" >> $GITHUB_ENV
+          echo "BOTAN_CONFIGURE_CPU: 'x86_64'"  >> $GITHUB_ENV
+
+      - name: Set aarch64 botan env
+        if: ${{ matrix.os == 'macos-latest' &&  matrix.arch == 'aarch64' }} 
+        run:  |
+          echo "BOTAN_CONFIGURE_OS='macos'" >> $GITHUB_ENV
+          echo "BOTAN_CONFIGURE_CC_ABI_FLAGS='-arch arm64'" >> $GITHUB_ENV
+          echo "BOTAN_CONFIGURE_CPU: 'arm64'"  >> $GITHUB_ENV
+
       - name: App bundle
         run:  yarn tauri build --target ${{ matrix.target }}  
         env:
-          BOTAN_CONFIGURE_OS: 'macos'
-          BOTAN_CONFIGURE_CC_ABI_FLAGS: '-arch arm64'
           BOTAN_CONFIGURE_CC: 'clang'
-          BOTAN_CONFIGURE_CPU: 'arm64'
           BOTAN_CONFIGURE_DISABLE_MODULES: 'tls,pkcs11,sodium,filters'
 
           CI: true
@@ -72,14 +83,8 @@ jobs:
 
       - name: Mac DMG final artifact 
         uses: actions/upload-artifact@v3
-        if: matrix.os == 'macos-latest'
+        # if: matrix.os == 'macos-latest'
         with:
           name: artifacts-mac-${{ matrix.arch }}
           path: ./src-tauri/target/${{ matrix.target }}/release/bundle/dmg/**.dmg
 
-      - name: Mac APP final artifact
-        uses: actions/upload-artifact@v3
-        if: matrix.os == 'macos-latest'
-        with:
-          name: artifacts-mac-${{ matrix.arch }}
-          path: ./src-tauri/target/${{ matrix.target }}/release/bundle/macos/**.app
