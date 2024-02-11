@@ -370,8 +370,7 @@
 
 (defn text-field [{:keys [key
                           value
-                          protected
-                          required
+                          protected 
                           visible
                           edit
                           on-change-handler
@@ -405,7 +404,8 @@
                                :else
                                error-text)
                  :onChange  on-change-handler
-                 :required required
+                 ;;:required required
+                 :required false
                  :InputLabelProps {}
                  :InputProps {:id key
                               :classes {:root (if edit "entry-cnt-text-field-edit" "entry-cnt-text-field-read")
@@ -617,7 +617,8 @@
   ;; The examples given in mui.com uses now this method
   ;; [mui-form-control [mui-input-label] [mui-select {} [mui-menu-item]] [mui-form-helper-text]  ]
   [mui-text-field {:id key
-                   :required required
+                   ;;:required required
+                   :required false
                    :classes {:root "entry-cnt-field"}
                    :select true
                    :label key
@@ -681,7 +682,7 @@
                         password-score] :as kv} section-data]
           ;; All fields of this section is shown in edit mode. In case of non edit mode, all required fields and other 
           ;; fields with values are shown
-            (when (or edit (or required (not (str/blank? value))))
+            (when (or edit (not (str/blank? value))) #_(or edit (or required (not (str/blank? value))))
               ^{:key key}
               [mui-stack {:direction "row"
                           :ref (fn [e]

@@ -207,7 +207,8 @@
     error-fields))
 
 (defn validate-required-fields [error-fields kvsd]
-  (loop [{:keys [key value required] :as m} (first kvsd)
+  error-fields
+  #_(loop [{:keys [key value required] :as m} (first kvsd)
          rest-kvsd (next kvsd)
          acc error-fields]
     (if (nil? m) acc
