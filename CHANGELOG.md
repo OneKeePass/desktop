@@ -1,3 +1,8 @@
+### 0.11.0
+- Entry form fields are now optional except the title. An entry can be created without entering any values in the fields
+- Upgraded backend tauri and frotend mui packages to the latest versions
+- Fixed a bug in xml parsing module  
+
 ### 0.10.0
 - Entry listing can now be sorted based on Title or Modified time or Created time
 - Added Tags based entry category for listing entries
