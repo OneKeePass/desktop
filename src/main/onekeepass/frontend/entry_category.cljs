@@ -8,9 +8,8 @@
    [onekeepass.frontend.db-icons :refer [group-icon entry-type-icon]]
    [onekeepass.frontend.group-form :as gf]
    [onekeepass.frontend.group-tree-content :as gt]
-   [onekeepass.frontend.constants :as const :refer [GROUPING_LABEL_TYPES GROUPING_LABEL_TAGS 
-                                                    GROUPING_LABEL_CATEGORIES GROUPING_LABEL_GROUPS
-                                                    ]]
+   [onekeepass.frontend.constants :as const :refer [GROUPING_LABEL_TYPES GROUPING_LABEL_TAGS
+                                                    GROUPING_LABEL_CATEGORIES GROUPING_LABEL_GROUPS]]
    [onekeepass.frontend.common-components :refer [overflow-tool-tip message-sanckbar-alert]]
    [onekeepass.frontend.mui-components :as m :refer [color-primary-main
                                                      color-secondary-main
@@ -40,7 +39,7 @@
     (apply action action-args)
     (.stopPropagation ^js/Event e)))
 
-(defn category-title-menu-items 
+(defn category-title-menu-items
   []
   (fn [anchor-el showing-groups-as]
     (let [show-category? (or (nil? showing-groups-as) (= showing-groups-as :category))
@@ -58,8 +57,8 @@
         (when show-types?
           [mui-list-item-icon [mui-icon-check]])
         (if show-types? GROUPING_LABEL_TYPES [mui-list-item-text {:inset true} GROUPING_LABEL_TYPES])]
-       
-       [mui-menu-item {:sx {:padding-left "1px"} 
+
+       [mui-menu-item {:sx {:padding-left "1px"}
                        :on-click (menu-action anchor-el ec-events/show-as-tag-category)}
         (when show-tags?
           [mui-list-item-icon [mui-icon-check]])
@@ -85,7 +84,7 @@
                          :on-click (menu-action anchor-el ec-events/initiate-new-blank-group-form root-group-uuid)}
           [mui-list-item-text {:inset true} "Add category"]])])))
 
-(defn category-title-menu 
+(defn category-title-menu
   "Menu popup to provide options to swicth between various category grouping in the left bottom panel"
   []
   (fn [showing-groups-as]
@@ -97,7 +96,7 @@
        [category-title-menu-items anchor-el showing-groups-as]
        [gf/group-content-dialog-main]])))
 
-(defn group-category-item-menu-items 
+(defn group-category-item-menu-items
   "Shows the menu items for the group category is selected"
   []
   (fn [anchor-el g-uuid]
@@ -130,7 +129,7 @@
        [group-category-item-menu-items anchor-el g-uuid]
        [gf/group-content-dialog-main]])))
 
-(defn type-category-item-menu-items 
+(defn type-category-item-menu-items
   "Type category specific menu items when it is selected"
   []
   (fn [anchor-el entries-count entry-type-uuid]
@@ -145,7 +144,7 @@
                                   (ec-events/delete-custom-entry-type entry-type-uuid)
                                   (.stopPropagation ^js/Event %))} "Delete type"]]))
 
-(defn type-category-item-menu 
+(defn type-category-item-menu
   "Menu popup to provide menu options when a type category is selected on the bottom panel"
   []
   (let [anchor-el (r/atom nil)]
@@ -235,12 +234,12 @@
   []
   (fn [{:keys [title display-title
                entries-count icon-id
-               icon-name 
+               icon-name
                group-uuid
-               entry-type-uuid] :as category-detail-m} 
+               entry-type-uuid] :as category-detail-m}
        categories-kind]
 
-    (let [display-name (if (nil? display-title) title display-title) 
+    (let [display-name (if (nil? display-title) title display-title)
           icon-comp (condp = categories-kind
                       :type-categories
                       (entry-type-icon title icon-name)
@@ -253,15 +252,15 @@
 
                       :tag-categories
                       [mui-icon-sell-outlined])
-          
+
           group-category?  (= categories-kind :group-categories)
-          type-category?  (= categories-kind :type-categories) 
-          
-          row-selected? @(ec-events/is-selected-category category-detail-m) 
+          type-category?  (= categories-kind :type-categories)
+
+          row-selected? @(ec-events/is-selected-category category-detail-m)
           custom-entry-type?  (if-not type-category? false @(cmn-events/is-custom-entry-type entry-type-uuid))]
 
       [mui-list-item-button {:sx {"&.MuiListItemButton-root" {:padding-right "1px"}}
-                             :on-click #(ec-events/load-category-entry-items 
+                             :on-click #(ec-events/load-category-entry-items
                                          category-detail-m categories-kind)
                              ;;:on-context-menu (handle-right-click-factory category-detail-m)
                              :selected row-selected?}
@@ -309,6 +308,7 @@
         gcats @(ec-events/group-categories)
         type-cats  @(ec-events/type-categories)
         tag-cats  @(ec-events/tag-categories)]
+
     [mui-box {:style {:height "100%"
                       ;; This will result in a vertical scroll bar for the entire 
                       ;; left side panel when the height of main window is small 
@@ -316,9 +316,9 @@
                       :min-width "250px"}}
      [mui-box
       [mui-list
-       [category-item all  :general-categories]
-       [category-item fav  :general-categories]
-       [category-item deleted  :general-categories]]
+       ^{:key :all} [category-item all :general-categories]
+       ^{:key :fav} [category-item fav :general-categories]
+       ^{:key :deleted} [category-item deleted :general-categories]]
       [category-title showing-groups-as]
 
       (cond
@@ -328,20 +328,27 @@
                         ;;:overflow-y "auto"
                         }}
          (doall
-          (for [group-category-cat-detail gcats]
-            ^{:key (:group-uuid group-category-cat-detail)} [category-item group-category-cat-detail :group-categories]))]
+          (for [{:keys [group-uuid] :as group-category-cat-detail} gcats]
+            ;; nil check is done to avoid react unique key warning for category-item
+            ;; It seems that when Cat selection is switched from Type->Tag->Category
+            ;; entry-category-content is called first with previous entry category kind
+            ;; followed by the selected 'showing-groups-as'
+            (when-not (nil? group-uuid)
+              ^{:key (:group-uuid group-category-cat-detail)} [category-item group-category-cat-detail :group-categories])))]
 
         (= showing-groups-as :type)
         [mui-list
          (doall
-          (for [type-cat-detail type-cats]
-            ^{:key (:entry-type-uuid type)} [category-item type-cat-detail :type-categories]))]
-        
+          (for [{:keys [entry-type-uuid] :as type-cat-detail} type-cats]
+            (when-not (nil? entry-type-uuid)
+              ^{:key entry-type-uuid} [category-item type-cat-detail :type-categories])))]
+
         (= showing-groups-as :tag)
         [mui-list
          (doall
-          (for [tag-cat-detail tag-cats]
-            ^{:key (:title tag-cat-detail)} [category-item tag-cat-detail :tag-categories]))]
+          (for [{:keys [tag-id] :as tag-cat-detail} tag-cats]
+            (when-not (nil? tag-id)
+              ^{:key tag-id} [category-item tag-cat-detail :tag-categories])))]
 
         (= showing-groups-as :group)
         [gt/group-tree-panel])]]))
