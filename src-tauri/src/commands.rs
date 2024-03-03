@@ -231,6 +231,19 @@ pub(crate) async fn get_entry_form_data_by_id(
 }
 
 #[command]
+pub(crate) async fn entry_form_current_otp(
+  db_key: &str,
+  entry_uuid: Uuid,
+  otp_field_name: &str,
+) -> Result<kp_service::CurrentOtpTokenData> {
+  Ok(kp_service::entry_form_current_otp(
+    db_key,
+    &entry_uuid,
+    otp_field_name,
+  )?)
+}
+
+#[command]
 pub(crate) async fn history_entry_by_index(
   db_key: &str,
   entry_uuid: Uuid,

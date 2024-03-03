@@ -46,6 +46,7 @@ fn main() {
       commands::delete_history_entries,
       commands::delete_history_entry_by_index,
       commands::empty_trash,
+      commands::entry_form_current_otp,
       commands::entry_summary_data,
       commands::entry_type_headers,
       commands::export_as_xml,

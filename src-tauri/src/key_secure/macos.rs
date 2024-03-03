@@ -110,7 +110,7 @@ impl kp_service::KeyStoreService for KeyStoreServiceImpl {
     let key_str = unsafe { get_key_from_key_chain(&sr_db_key) };
     //debug!("In copy_key, get key returned {}", key_str);
     if key_str.starts_with("Error") {
-      return Err(onekeepass_core::error::Error::Other(format!(
+      return Err(onekeepass_core::error::Error::UnexpectedError(format!(
         "Copying key failed with error {}",
         &key_str
       )));
@@ -118,7 +118,7 @@ impl kp_service::KeyStoreService for KeyStoreServiceImpl {
 
     let staus_code = unsafe { save_key_in_key_chain(&tr_db_key, &key_str) };
     if staus_code != 0 {
-      return Err(onekeepass_core::error::Error::Other(format!(
+      return Err(onekeepass_core::error::Error::UnexpectedError(format!(
         "Copying key failed with error code {}",
         staus_code
       )));

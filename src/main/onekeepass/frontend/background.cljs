@@ -236,11 +236,11 @@
   `{:entry-type-uuid \"9e644c27-d00b-4aca-8355-5078c5a4fb44\"}`
   `{:tag \"Bank\"}`,   
   "
-  [db-key entry-category dispatch-fn] 
-  (invoke-api "entry_summary_data" 
+  [db-key entry-category dispatch-fn]
+  (invoke-api "entry_summary_data"
               {:db-key db-key :entry-category
-               (if (map? entry-category) 
-                 entry-category 
+               (if (map? entry-category)
+                 entry-category
                  (csk/->camelCaseString entry-category))} dispatch-fn :convert-response true))
 
 (defn history-entries-summary [db-key entry-uuid dispatch-fn]
@@ -281,6 +281,15 @@
               {:db-key db-key
                :entry-type-uuid entry-type-uuid :parent-group-uuid nil} dispatch-fn
               :convert-response-fn transform-response-entry-keys))
+
+(defn entry-form-current-otp
+  "Gets the current topt token for a give given db-key,the entry uuid and form field name "
+  [db-key entry-uuid otp-field-name dispatch-fn]
+  (invoke-api "entry_form_current_otp"
+              {:db-key db-key
+               :entry-uuid entry-uuid
+               :otp-field-name otp-field-name}
+              dispatch-fn))
 
 (defn- transform-resquest-entry-form-data
   "All keys in the incoming entry map from UI will be transformed
@@ -436,9 +445,9 @@
                                            :grouping-kind grouping-kind} dispatch-fn))
 
 #_(defn mark-group-as-category
-  [db-key group-uuid dispatch-fn & opts]
+    [db-key group-uuid dispatch-fn & opts]
   ;;TODO: Rename group_id to group_uuid in backend API and then change here the key group-id to group-uuid
-  (apply invoke-api "mark_group_as_category" {:db-key db-key :group-id group-uuid} dispatch-fn opts))
+    (apply invoke-api "mark_group_as_category" {:db-key db-key :group-id group-uuid} dispatch-fn opts))
 
 (defn search-term
   [db-key term dispatch-fn]

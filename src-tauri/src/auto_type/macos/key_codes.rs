@@ -65,7 +65,7 @@ impl TryFrom<&str> for KeyEventCode {
       "TAB" => Ok(Self::kVK_Tab),
       "ENTER" => Ok(Self::kVK_Return),
       "SPACE" => Ok(Self::kVK_Space),
-      _ => Err(kp_service::Error::Other(format!(
+      _ => Err(kp_service::Error::UnexpectedError(format!(
         "Unsupported key name is passed {}",
         uppercase_value
       ))),

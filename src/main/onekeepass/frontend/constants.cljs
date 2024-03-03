@@ -59,3 +59,6 @@
 (def PASSWORD "Password")
 
 (def MACOS "macos")
+
+;; Field type
+(def ONE_TIME_PASSWORD "OneTimePassword")

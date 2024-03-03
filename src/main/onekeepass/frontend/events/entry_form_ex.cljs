@@ -209,13 +209,13 @@
 (defn validate-required-fields [error-fields kvsd]
   error-fields
   #_(loop [{:keys [key value required] :as m} (first kvsd)
-         rest-kvsd (next kvsd)
-         acc error-fields]
-    (if (nil? m) acc
-        (let [acc (if (and required (str/blank? value))
-                    (assoc acc key "Please enter a valid value for this required field")
-                    acc)]
-          (recur (first rest-kvsd) (next rest-kvsd) acc)))))
+           rest-kvsd (next kvsd)
+           acc error-fields]
+      (if (nil? m) acc
+          (let [acc (if (and required (str/blank? value))
+                      (assoc acc key "Please enter a valid value for this required field")
+                      acc)]
+            (recur (first rest-kvsd) (next rest-kvsd) acc)))))
 
 (defn validate-all
   "Validates all required fields including title, parent group etc
@@ -229,6 +229,8 @@
         error-fields (validate-required-fields error-fields kvds)]
     error-fields))
 
+
+
 (reg-event-fx
  :entry-form-ex/find-entry-by-id
  (fn [{:keys [db]} [_event-id  entry-id]]
@@ -238,7 +240,7 @@
                                    (when-let [entry (check-error
                                                      api-response
                                                      #(dispatch [:entry-form-data-load-completed :error %]))]
-                                     (dispatch [:entry-form-data-load-completed :ok entry]))))
+                                     (dispatch [:entry-form-data-load-completed-ok entry]))))
    {}))
 
 (defn- init-expiry-duration-selection
@@ -249,6 +251,21 @@
     (assoc-in-key-db app-db [entry-form-key :expiry-duration-selection] "custom-date")
     (assoc-in-key-db app-db [entry-form-key :expiry-duration-selection] "no-expiry")))
 
+(declare extract-form-otp-fields)
+
+(reg-event-fx
+ :entry-form-data-load-completed-ok
+ (fn [{:keys [db]} [_event-id entry-data]]
+   {:db (-> db
+            #_(assoc-in-key-db [entry-form-key] {})
+            (assoc-in-key-db [entry-form-key :data] entry-data)
+            (assoc-in-key-db [entry-form-key :edit] false)
+            (init-expiry-duration-selection entry-data)
+            (assoc-in-key-db [entry-form-key :showing] :selected))
+    :fx [[:otp/start-polling-otp-fields [(active-db-key db) (:uuid entry-data)  (extract-form-otp-fields entry-data)]]]}))
+
+;; Rename :entry-form-data-load-completed-error
+;; and remove ok part
 (reg-event-db
  :entry-form-data-load-completed
  (fn [db [_event-id status result]] ;;result is )
@@ -1497,7 +1514,6 @@
  (fn [db [_ open?]]
    (assoc-in-key-db db  [entry-form-key :entry-history-form :delete-all-flag] open?)))
 
-
 (reg-event-fx
  :restore-entry-from-histore-complete
  (fn [{:keys [db]} [_event-id]]
@@ -1655,6 +1671,63 @@
          entry-form-fields (extract-form-field-names-values form-data)]
      {:fx [[:dispatch [:auto-type/edit-init uuid auto-type entry-form-fields]]]})))
 
+
+;;;;;;;;;;;;;;;;;;;;; Otp (TOPT) related ;;;;;;;;;;;
+
+(defn extract-form-otp-fields
+  "Returns a map with a otp field name as key and current-opt-token value as value"
+  [form-data]
+  ;; :section-fields returns a map with section name as keys
+  ;; vals fn return 'values' ( a vec of field info map) for all sections. Once vec for each section. 
+  ;; And need to use flatten to combine all section values
+  ;; For example if two sections, vals call will return a two member ( 2 vec)
+  ;; sequence. Flatten combines both vecs and returns a single sequence of field info maps
+  (let [fields (-> form-data :section-fields vals flatten)
+        otp-fields (filter (fn [m] (= "OneTimePassword" (:data-type m))) fields)
+        names-values (into {} (for [{:keys [key current-opt-token]} otp-fields] [key current-opt-token]))]
+    names-values))
+
+;; This is an example to use 'reduced' to short circuit looping all sections 
+;; As there may not be many sections, we need not use this and keeping the current impl simple
+#_(defn update-otp-field [sections opt-field-name current-opt-token]
+    (let [done (atom false)]
+      (reduce (fn [section-m [section-name section-kvs]]
+                (let [section-kvs (mapv (fn [m]
+                                          (if
+                                           (= (:key m) opt-field-name)
+                                            (do
+                                              (reset! done true)
+                                              (assoc m :current-opt-token current-opt-token))
+                                            m)) section-kvs)]
+                ;;(println "done section-name " section-name @done )
+                  (if @done
+                    (reduced (assoc section-m section-name section-kvs))
+                    (assoc section-m section-name section-kvs)))) {} sections)))
+
+
+(defn update-otp-field
+  "Updates a opt field with current token value
+  The arg 'sections' is a map with section name as key and a vec of KVs as its value
+  The arg 'current-opt-token' is a map 
+  "
+  [sections opt-field-name current-opt-token]
+  (reduce (fn [section-m [section-name section-kvs]]
+            (let [section-kvs (mapv (fn [m]
+                                      (if
+                                       (= (:key m) opt-field-name)
+                                        (assoc m :current-opt-token current-opt-token)
+                                        m)) section-kvs)]
+              (assoc section-m section-name section-kvs))) {} sections))
+
+(reg-event-fx
+ :entry-form/update-otp-token
+ (fn [{:keys [db]} [_event-id opt-field-name current-opt-token]]
+   (let [sections (get-in-key-db db [entry-form-key :data :section-fields])
+         updated-sections (update-otp-field sections opt-field-name current-opt-token)]
+
+     {:db (assoc-in-key-db db [entry-form-key :data :section-fields] updated-sections)})))
+
+
 (comment
   (keys @re-frame.db/app-db)
 
@@ -1662,6 +1735,17 @@
   (-> @re-frame.db/app-db (get db-key) keys)
 
   (-> (get @re-frame.db/app-db db-key) :entry-form-data) ;; for now
+
+  ;; All entry map keys
+  (-> (get @re-frame.db/app-db db-key) :entry-form-data keys)
+  ;; => (:showing :group-selection-info :edit :expiry-duration-selection :welcome-text-to-show 
+  ;;     :error-fields :entry-history-form :api-error-text :undo-data :data)
+
+  ;; All entry form data keys
+  (-> (get @re-frame.db/app-db db-key) :entry-form-data :data keys)
+  ;; => :tags :icon-id :binary-key-values :section-fields :title :expiry-time :history-count
+  ;;    :expires :standard-section-names :last-modification-time :entry-type-name :auto-type
+  ;;    :notes :section-names :entry-type-icon-name :last-access-time :uuid :entry-type-uuid :group-uuid :creation-time
   )
 
 

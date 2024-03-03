@@ -12,6 +12,7 @@
             [onekeepass.frontend.events.move-group-entry :as move-events]
             [onekeepass.frontend.events.tauri-events :as tauri-events]
             [onekeepass.frontend.group-tree-content :as gt-content]
+            [onekeepass.frontend.events.otp :as otp-events]
             [onekeepass.frontend.mui-components :as m :refer [color-primary-main
                                                               date-adapter
                                                               mui-alert
@@ -21,6 +22,7 @@
                                                               mui-button
                                                               mui-button
                                                               mui-checkbox
+                                                              mui-circular-progress
                                                               mui-date-time-picker
                                                               mui-desktop-date-picker
                                                               mui-dialog
@@ -49,7 +51,7 @@
                                                               mui-list-item-text
                                                               mui-list-item-text
                                                               mui-localization-provider
-                                                              mui-menu 
+                                                              mui-menu
                                                               mui-menu-item
                                                               mui-popper
                                                               mui-stack
@@ -370,7 +372,7 @@
 
 (defn text-field [{:keys [key
                           value
-                          protected 
+                          protected
                           visible
                           edit
                           on-change-handler
@@ -424,6 +426,65 @@
 
                                    ;;:readonly "readonly"
                                }}])
+
+(def otp-txt-input-sx {"& .MuiInputBase-input" {:color "green"
+                                                :font-size "1.75em"
+                                                :font-weight "300"  ;; To make it bold
+                                                }})
+
+(defn otp-read-field [kv]
+  
+  (fn [{:keys [key
+               value
+               visible
+               current-opt-token
+               edit
+               error-text
+               no-end-icons]
+        :or {visible true
+             edit false
+             no-end-icons false}}] 
+    
+    (let [{:keys [token]} current-opt-token]
+      [mui-stack {:direction "row" :sx {:width "100%"}}
+       [mui-text-field {:sx (if-not edit otp-txt-input-sx  {})
+                        :fullWidth true
+                        :label (if (= "otp" key) "One-Time Password(TOTP)" key)
+                        :variant "standard"
+                        :classes {:root "entry-cnt-field"}
+                        :value (if edit value token)
+                        :error  (not (nil? error-text))
+                        :helperText error-text
+                        :required false
+                        :InputLabelProps {} ;; setting props in this is not working
+                        :InputProps {:id key
+                                     :classes {:root   (if edit "entry-cnt-text-field-edit" "entry-cnt-text-field-read")
+                                               :focused (if edit "entry-cnt-text-field-edit-focused" "entry-cnt-text-field-read-focused")}
+                                                ;;:sx (if editing {} read-sx1)
+                                     :endAdornment (if no-end-icons nil
+                                                       (r/as-element
+                                                        [mui-input-adornment {:position "end"}
+                                                         [end-icons key value false visible edit]
+                                                         #_(seq icons)]))
+                                     :type "text"}
+      
+                        :inputProps  {:readOnly true}}]
+      
+      
+      
+             ;; :border "1px solid black"
+       [mui-stack {:sx {:width "10%" :align-items "center" :justify-content "center"}}
+        [mui-circular-progress {:variant "determinate" :value 100}]]]
+    
+      )
+    
+    )
+  
+  )
+
+(defn otp-field [{:keys [edit] :as kv}]
+  (if-not edit [:f>  otp-read-field kv]  [:div]))
+
 
 (defn add-modify-section-popper [{:keys [dialog-show
                                          popper-anchor-el
@@ -667,7 +728,7 @@
 (defn section-content [edit section-name section-data]
   (let [errors @(form-events/entry-form-field :error-fields)]
     ;; Show a section in edit mode irrespective of its contents; In non edit mode a section is shown only 
-    ;; if it has some fields with non blank value. It is assumed the 'required' fileds will have some valid values
+    ;; if it has some fields with non blank value. 
     (when (or edit (boolean (seq (filter (fn [kv] (not (str/blank? (:value kv)))) section-data))))  ;;(seq section-data)
       (let [refs (atom {})]
         [mui-box {:sx content-sx}
@@ -680,24 +741,28 @@
                         select-field-options
                         standard-field
                         password-score] :as kv} section-data]
-          ;; All fields of this section is shown in edit mode. In case of non edit mode, all required fields and other 
+          ;; All fields of this section is shown in edit mode. In case of non edit mode, only the  
           ;; fields with values are shown
             (when (or edit (not (str/blank? value))) #_(or edit (or required (not (str/blank? value))))
-              ^{:key key}
-              [mui-stack {:direction "row"
-                          :ref (fn [e]
+                  ^{:key key}
+                  [mui-stack {:direction "row"
+                              :ref (fn [e]
                              ;; We keep a ref to the underlying HtmlElememnt - #object[HTMLDivElement [object HTMLDivElement]] 
                              ;; The ref is kept for each filed's enclosing container 'Stack' component so that we can position the Popper 
                              ;; Sometimes the value of e is nil as react redraws the node
-                                 (swap! refs assoc key e))}
-               [mui-stack {:direction "row" :sx {:width (if edit "92%" "100%")}}
-                (cond
-                  (not (nil? select-field-options))
-                  [simple-selection-field (assoc kv
-                                                 :edit edit
-                                                 :error-text (get errors key)
-                                                 :on-change-handler #(form-events/update-section-value-on-change
-                                                                      section-name key (-> % .-target  .-value)))]
+                                     (swap! refs assoc key e))}
+                   [mui-stack {:direction "row" :sx {:width (if edit "92%" "100%")}}
+                    (cond
+                      (not (nil? select-field-options))
+                      [simple-selection-field (assoc kv
+                                                     :edit edit
+                                                     :error-text (get errors key)
+                                                     :on-change-handler #(form-events/update-section-value-on-change
+                                                                          section-name key (-> % .-target  .-value)))]
+
+                      (= data-type const/ONE_TIME_PASSWORD)
+                      [otp-field (assoc kv
+                                        :edit edit)]
                   ;; (= data-type "Date")
                   ;; [date-field {:key key
                   ;;              :value (if (str/blank? value)
@@ -705,30 +770,30 @@
                   ;;              :edit edit
                   ;;              :on-change-handler (form-events/section-date-field-on-change-factory section-name key)}]
 
-                  :else
-                  [text-field (assoc kv
-                                     :edit edit
-                                     :error-text (get errors key)
-                                     :password-score password-score
-                                     :visible @(form-events/visible? key)
-                                     :on-change-handler #(form-events/update-section-value-on-change
-                                                          section-name key (-> % .-target  .-value)))])]
+                      :else
+                      [text-field (assoc kv
+                                         :edit edit
+                                         :error-text (get errors key)
+                                         :password-score password-score
+                                         :visible @(form-events/visible? key)
+                                         :on-change-handler #(form-events/update-section-value-on-change
+                                                              section-name key (-> % .-target  .-value)))])]
 
-               (when (and edit (not standard-field))
-                 [mui-stack {:direction "row" :sx {:width "8%" :align-items "flex-end"}}
-                  [mui-tooltip  {:title "Modify Field" :enterDelay 2500}
-                   [mui-icon-button {:edge "end"
-                                     :on-click  #(form-events/open-section-field-modify-dialog
-                                                  {:key key
-                                                   :protected protected
-                                                   :required required
-                                                   :popper-anchor-el (get @refs key)
-                                                   :section-name section-name})}
-                    [mui-icon-edit-outlined]]]
-                  [mui-tooltip  {:title "Delete Field" :enterDelay 2500}
-                   [mui-icon-button {:edge "end"
-                                     :on-click #(form-events/field-delete section-name key)}
-                    [mui-icon-delete-outline]]]])])))
+                   (when (and edit (not standard-field))
+                     [mui-stack {:direction "row" :sx {:width "8%" :align-items "flex-end"}}
+                      [mui-tooltip  {:title "Modify Field" :enterDelay 2500}
+                       [mui-icon-button {:edge "end"
+                                         :on-click  #(form-events/open-section-field-modify-dialog
+                                                      {:key key
+                                                       :protected protected
+                                                       :required required
+                                                       :popper-anchor-el (get @refs key)
+                                                       :section-name section-name})}
+                        [mui-icon-edit-outlined]]]
+                      [mui-tooltip  {:title "Delete Field" :enterDelay 2500}
+                       [mui-icon-button {:edge "end"
+                                         :on-click #(form-events/field-delete section-name key)}
+                        [mui-icon-delete-outline]]]])])))
          [custom-field-delete-confirm @(form-events/field-delete-dialog-data)]
          [add-modify-section-field-popper @(form-events/section-field-dialog-data)]
          [custom-section-delete-confirm @(form-events/section-delete-dialog-data)]]))))
@@ -1140,29 +1205,29 @@
                           :on-click form-events/edit-mode-menu-clicked} "Edit"]])
 
           #_(when (or deleted-cat? recycle-bin? group-in-recycle-bin?)
-            [:<>
-             [mui-button {:variant "contained"
-                          :color "secondary"
-                          :on-click #(move-events/move-group-entry-dialog-show :entry true)} "Put back"]
-             [mui-button {:variant "contained"
-                          :color "secondary"
-                          :on-click #(move-events/delete-permanent-group-entry-dialog-show :entry true)} "Delete Permanently"]])
+              [:<>
+               [mui-button {:variant "contained"
+                            :color "secondary"
+                            :on-click #(move-events/move-group-entry-dialog-show :entry true)} "Put back"]
+               [mui-button {:variant "contained"
+                            :color "secondary"
+                            :on-click #(move-events/delete-permanent-group-entry-dialog-show :entry true)} "Delete Permanently"]])
           #_(if edit
-            [:<>
-             [mui-button {:variant "contained"
-                          :color "secondary"
-                          :on-click form-events/entry-update-cancel-on-click} "Cancel"]
-             [mui-button {:variant "contained"
-                          :color "secondary"
-                          :disabled  (not @(form-events/modified))
-                          :on-click form-events/ok-edit-on-click} "Apply"]]
-            [:<>
-             [mui-button {:variant "contained"
-                          :color "secondary"
-                          :on-click form-events/close-on-click} "Close"]
-             [mui-button {:variant "contained"
-                          :color "secondary"
-                          :on-click form-events/edit-mode-menu-clicked} "Edit"]])]
+              [:<>
+               [mui-button {:variant "contained"
+                            :color "secondary"
+                            :on-click form-events/entry-update-cancel-on-click} "Cancel"]
+               [mui-button {:variant "contained"
+                            :color "secondary"
+                            :disabled  (not @(form-events/modified))
+                            :on-click form-events/ok-edit-on-click} "Apply"]]
+              [:<>
+               [mui-button {:variant "contained"
+                            :color "secondary"
+                            :on-click form-events/close-on-click} "Close"]
+               [mui-button {:variant "contained"
+                            :color "secondary"
+                            :on-click form-events/edit-mode-menu-clicked} "Edit"]])]
 
          [gt-content/move-dialog
           {:dialog-data @(move-events/move-group-entry-dialog-data :entry)

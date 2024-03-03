@@ -13,7 +13,7 @@ rust-version = "1.60"
 
 [dependencies]
 serde_json = "1.0"
-uuid = { version = "0.8.2", features = ["serde", "v4"] }
+uuid = { version = "1.7.0", features = ["serde", "v4"] }
 serde = { version = "1.0", features = ["derive"] }
 chrono =  {version = "0.4.19", features = ["serde"] }
 log = "0.4.17"
@@ -37,10 +37,10 @@ tokio = { version = "1", features = [ "time" ] }
 tauri = { version = "1.5.4", features = ["clipboard-all", "dialog-all", "global-shortcut-all", "path-all", "process-exit", "shell-all"] }
 
 ## using from the local crate during development
-## onekeepass-core = {path = "../../onekeepass-core", version = "0.12.0"} 
+onekeepass-core = {path = "../../onekeepass-core", version = "0.13.0"} 
 
 ## Need to use the git ref for release 
-onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.12.0" }
+## onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.12.0" }
 
 [build-dependencies]
 tauri-build = { version = "1.5.1", features = [] }

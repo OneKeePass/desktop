@@ -58,7 +58,7 @@ pub fn raise_window(process_id: i32) -> kp_service::Result<()> {
   let r = unsafe { auto_type_activate_window(process_id) };
 
   match r {
-    Some(s) => Err(kp_service::Error::Other(s.to_string())),
+    Some(s) => Err(kp_service::Error::UnexpectedError(s.to_string())),
     None => Ok(()),
   }
 }
@@ -109,7 +109,7 @@ pub async fn send_sequence_to_winow_async(
 
   // Parse sequence first
   let parsed = parsing::parse_auto_type_sequence(sequence, &entry_fields_case_converted)
-    .map_err(|e| kp_service::Error::Other(e))?;
+    .map_err(|e| kp_service::Error::UnexpectedError(e))?;
 
   // Raise window to the top
   raise_window(window.process_id)?;
@@ -248,7 +248,7 @@ pub fn send_sequence_to_winow(
 
   // Parse sequence first
   let parsed = parsing::parse_auto_type_sequence(sequence, &entry_fields_case_converted)
-    .map_err(|e| kp_service::Error::Other(e))?;
+    .map_err(|e| kp_service::Error::UnexpectedError(e))?;
 
   // Raise window to the top
   raise_window(window.process_id)?;
