@@ -256,13 +256,16 @@
 (reg-event-fx
  :entry-form-data-load-completed-ok
  (fn [{:keys [db]} [_event-id entry-data]]
-   {:db (-> db
-            #_(assoc-in-key-db [entry-form-key] {})
-            (assoc-in-key-db [entry-form-key :data] entry-data)
-            (assoc-in-key-db [entry-form-key :edit] false)
-            (init-expiry-duration-selection entry-data)
-            (assoc-in-key-db [entry-form-key :showing] :selected))
-    :fx [[:otp/start-polling-otp-fields [(active-db-key db) (:uuid entry-data)  (extract-form-otp-fields entry-data)]]]}))
+   (let [previous-entry-uuid (get-in-key-db db [entry-form-key :data :uuid])]
+     {:db (-> db
+              (assoc-in-key-db [entry-form-key :data] entry-data)
+              (assoc-in-key-db [entry-form-key :edit] false)
+              (init-expiry-duration-selection entry-data)
+              (assoc-in-key-db [entry-form-key :showing] :selected))
+      :fx [[:otp/start-polling-otp-fields [(active-db-key db)
+                                           previous-entry-uuid
+                                           (:uuid entry-data)
+                                           (extract-form-otp-fields entry-data)]]]})))
 
 ;; Rename :entry-form-data-load-completed-error
 ;; and remove ok part
@@ -377,7 +380,22 @@
    ;;(println "Calling with entry-form-tags-selected in event " tags)
    (assoc-in-key-db db [entry-form-key :data :tags] tags)))
 
-(reg-event-db
+(reg-event-fx
+ :entry-form-ex/show-welcome
+ (fn [{:keys [db]} [_event-id text-to-show]]
+   ;;(println "In entry-form-ex/show-welcome")
+   {:fx [[:otp/stop-all-entry-form-polling]]
+    :db (-> db (assoc-in-key-db [entry-form-key :data] {})
+            (assoc-in-key-db [entry-form-key :undo-data] {})
+            (assoc-in-key-db [entry-form-key :showing] :welcome)
+            (assoc-in-key-db [entry-form-key :welcome-text-to-show] text-to-show)
+            (assoc-in-key-db [entry-form-key :edit] false)
+            (assoc-in-key-db [entry-form-key :error-fields] {})
+            (assoc-in-key-db [entry-form-key :group-selection-info] nil))
+    }
+   ))
+
+#_(reg-event-db
  :entry-form-ex/show-welcome
  (fn [db [_event-id text-to-show]]
    ;;(println "In entry-form-ex/show-welcome")
@@ -1687,45 +1705,31 @@
         names-values (into {} (for [{:keys [key current-opt-token]} otp-fields] [key current-opt-token]))]
     names-values))
 
-;; This is an example to use 'reduced' to short circuit looping all sections 
-;; As there may not be many sections, we need not use this and keeping the current impl simple
-#_(defn update-otp-field [sections opt-field-name current-opt-token]
-    (let [done (atom false)]
-      (reduce (fn [section-m [section-name section-kvs]]
-                (let [section-kvs (mapv (fn [m]
-                                          (if
-                                           (= (:key m) opt-field-name)
-                                            (do
-                                              (reset! done true)
-                                              (assoc m :current-opt-token current-opt-token))
-                                            m)) section-kvs)]
-                ;;(println "done section-name " section-name @done )
-                  (if @done
-                    (reduced (assoc section-m section-name section-kvs))
-                    (assoc section-m section-name section-kvs)))) {} sections)))
-
 
 (defn update-otp-field
-  "Updates a opt field with current token value
+  "Updates a otp field with current token value by looking for this field in a section
   The arg 'sections' is a map with section name as key and a vec of KVs as its value
   The arg 'current-opt-token' is a map 
   "
-  [sections opt-field-name current-opt-token]
+  [sections otp-field-name current-opt-token]
   (reduce (fn [section-m [section-name section-kvs]]
             (let [section-kvs (mapv (fn [m]
                                       (if
-                                       (= (:key m) opt-field-name)
+                                       (= (:key m) otp-field-name)
                                         (assoc m :current-opt-token current-opt-token)
                                         m)) section-kvs)]
               (assoc section-m section-name section-kvs))) {} sections))
 
 (reg-event-fx
  :entry-form/update-otp-token
- (fn [{:keys [db]} [_event-id opt-field-name current-opt-token]]
-   (let [sections (get-in-key-db db [entry-form-key :data :section-fields])
-         updated-sections (update-otp-field sections opt-field-name current-opt-token)]
+ (fn [{:keys [db]} [_event-id entry-uuid otp-field-name current-opt-token]]
+   ;; First we need to ensure that the incoming entry id is the same one showing
+   (if (= entry-uuid (get-in-key-db db [entry-form-key :data :uuid]))
+     (let [sections (get-in-key-db db [entry-form-key :data :section-fields])
+           updated-sections (update-otp-field sections otp-field-name current-opt-token)]
 
-     {:db (assoc-in-key-db db [entry-form-key :data :section-fields] updated-sections)})))
+       {:db (assoc-in-key-db db [entry-form-key :data :section-fields] updated-sections)})
+     {})))
 
 
 (comment

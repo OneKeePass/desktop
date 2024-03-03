@@ -13,35 +13,53 @@
    [onekeepass.frontend.utils :as u]
    [onekeepass.frontend.background :as bg]))
 
-
-(reg-fx
- :otp/bg-entry-form-current-otp-data
- (fn [[db-key entry-uuid otp-field-name callback-fn]]
-   (bg/entry-form-current-otp db-key entry-uuid otp-field-name callback-fn)))
-
-(declare start-polling-otp-fields)
-
-(reg-fx
- :otp/start-polling-otp-fields
- (fn [[db-key entry-uuid otp-field-m]]
-   ;; otp-field-m is a map with otp field name as key and token data as its value
-   ;; See 'start-polling-otp-fields' fn
-   (start-polling-otp-fields db-key entry-uuid otp-field-m)))
-
-(reg-event-fx
- :otp/generate-current-token
- (fn [{:keys [db]} [_event-id]]
-   {}))
-
 (def entry-form-otp-ttl-timers (atom {}))
 
 (def entry-form-otp-period-timers (atom {}))
 
+#_(reg-fx
+   :otp/bg-entry-form-current-otp-data
+   (fn [[db-key entry-uuid otp-field-name callback-fn]]
+     (bg/entry-form-current-otp db-key entry-uuid otp-field-name callback-fn)))
+
+(declare start-polling-otp-fields)
+
+(declare stop-all-entry-polling)
+
+(declare stop-all-entry-form-polling)
+
+(reg-fx
+ :otp/start-polling-otp-fields
+ (fn [[db-key previous-entry-uuid entry-uuid otp-field-m]]
+   (when-not (nil? previous-entry-uuid)
+     (stop-all-entry-polling previous-entry-uuid))
+   ;; otp-field-m is a map with otp field name as key and token data as its value
+   ;; See 'start-polling-otp-fields' fn
+   (start-polling-otp-fields db-key entry-uuid otp-field-m)))
+
+(reg-fx
+ :otp/stop-polling-otp-fields
+ (fn [[entry-uuid]]
+   (when-not (nil? entry-uuid)
+     (stop-all-entry-polling entry-uuid))))
+
+(reg-fx
+ :otp/stop-all-entry-form-polling
+ (fn [] 
+   (stop-all-entry-form-polling)))
 
 (defn start-polling-period-otp-data [db-key entry-uuid otp-field-name period]
-  ;; Need to clear and remove any previous timer for 'entry-uuid otp-field-name'
+  ;; Need to clear and remove any previous timer for 'entry-uuid otp-field-name' ?
   (let [timer-id (js/setInterval  (fn []
-                                    (bg/entry-form-current-otp db-key entry-uuid otp-field-name #(println %)))
+                                    (bg/entry-form-current-otp
+                                     db-key
+                                     entry-uuid
+                                     otp-field-name
+                                     (fn [api-response]
+                                       (when-let [current-opt-token (check-error
+                                                                     api-response #(println "Error in getting currrent otp token" %))]
+
+                                         (dispatch [:entry-form/update-otp-token entry-uuid otp-field-name current-opt-token])))))
                                   (* 1000 period))]
 
     (swap! entry-form-otp-period-timers assoc-in [entry-uuid otp-field-name] timer-id)))
@@ -50,7 +68,7 @@
   [entry-uuid]
   (let [period-timer-ids (-> @entry-form-otp-period-timers (get entry-uuid) vals)
         ttl-timer-ids (-> @entry-form-otp-ttl-timers (get entry-uuid) vals)]
-    ;; doseq loops and returns nil whereas 'for' can also be used but it will return a collection
+    ;; doseq loop is used which returns nil whereas 'for' can also be used but it will return a collection
     (doseq [timer-id period-timer-ids]
       (js/clearInterval timer-id)
       (swap! entry-form-otp-period-timers dissoc entry-uuid))
@@ -58,6 +76,10 @@
     (doseq [timer-id ttl-timer-ids]
       (js/clearTimeout timer-id)
       (swap! entry-form-otp-ttl-timers dissoc entry-uuid))))
+
+(defn stop-all-entry-form-polling []
+  (doseq [uuid (distinct (concat (keys @entry-form-otp-period-timers) (keys @entry-form-otp-ttl-timers)))  ] 
+    (stop-all-entry-polling uuid)))
 
 (defn stop-polling-otp-data
   "Stops any prior timers set for this entry and otp-field-name"
@@ -83,14 +105,15 @@
                      otp-field-name
                      (fn [api-reponse]
                        (println "After ttl time expiry " api-reponse)
-                       (when-let [{:keys [period]} (check-error api-reponse #())]
+                       (when-let [{:keys [period] :as current-opt-token} (check-error api-reponse #())]
+                         (dispatch [:entry-form/update-otp-token entry-uuid otp-field-name current-opt-token])
                          (start-polling-period-otp-data db-key entry-uuid otp-field-name period)))))
                   (* 1000 ttl))]
 
     (swap! entry-form-otp-ttl-timers assoc-in [entry-uuid otp-field-name] timer-id)))
 
 ;; otp-field-m => {"otps" {:period 30, :token "138063", :ttl 23}}}
-(defn start-polling-otp-fields 
+(defn start-polling-otp-fields
   "Receives all otp field names with its 'current-opt-token' (inner map) in the map otp-field-m
   "
   [db-key entry-uuid otp-field-m]
