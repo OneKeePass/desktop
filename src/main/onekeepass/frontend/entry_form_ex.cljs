@@ -4,6 +4,17 @@
                                                                   enter-key-pressed-factory
                                                                   list-items-factory
                                                                   selection-autocomplete tags-field]]
+
+            [onekeepass.frontend.entry-form.fields :refer [datetime-field
+                                                           otp-field text-area-field
+                                                           simple-selection-field
+                                                           text-field]]
+            [onekeepass.frontend.entry-form.common :refer [ENTRY_DATETIME_FORMAT
+                                                           background-color1
+                                                           popper-button-sx
+                                                           popper-box-sx
+                                                           content-sx]]
+
             [onekeepass.frontend.constants :as const]
             [onekeepass.frontend.db-icons :as db-icons :refer [entry-icon
                                                                entry-type-icon]]
@@ -44,7 +55,8 @@
                                                               mui-icon-save-as-outlined
                                                               mui-icon-visibility
                                                               mui-icon-visibility-off
-                                                              mui-input-adornment mui-link
+                                                              mui-input-adornment
+                                                              mui-link
                                                               mui-list-item
                                                               mui-list-item-avatar
                                                               mui-list-item-icon
@@ -64,26 +76,6 @@
 
 ;;(set! *warn-on-infer* true)
 
-(def background-color1 "#F1F1F1")
-(def popper-border-color "#E7EBF0")
-(def popper-button-sx {:color "secondary.light"})
-
-(def popper-box-sx {:bgcolor  "whitesmoke";;"background.paper"
-                    ;;:boxShadow 3
-                    :p "15px"
-                    :pb "5px"
-                    :border-color popper-border-color
-                    :border-width "thin"
-                    :border-style "solid"})
-
-(def content-sx {;;:width "98%"
-                 :border-color "lightgrey"
-                 :boxShadow 0
-                 :borderRadius 1
-                 :margin "5px"
-                 :background "white"
-                 :padding "8px 8px 8px 8px"
-                 :border ".1px solid"})
 
 (defn on-change-factory [handler-name field-name-kw]
   [handler-name field-name-kw]
@@ -201,61 +193,6 @@
   [mui-typography {:sx {"&.MuiTypography-root" {:color color-primary-main}}
                    :variant  "button"} text])
 
-;; This is based om mui x date time picker 5.x version and does not work with 6.x version
-#_(defn datetime-field
-    [{:keys [key value on-change-handler]
-      :or [on-change-handler #()]}]
-    [mui-localization-provider {:dateAdapter date-adapter}
-     (println "Value is " value)
-     [mui-date-time-picker {:label key
-                            :value value
-                            :onChange on-change-handler
-                            :renderInput (fn [props]
-                                           (let [p (js->clj props :keywordize-keys true)
-                                                 p (merge p {:variant "standard"
-                                                             :classes {:root "entry-cnt-field"}
-                                                             :fullWidth true})]
-                                             #_(println "Props called: " (-> p   keys))
-                                             (r/as-element [mui-text-field p])))}]])
-
-;; see https://mui.com/x/migration/migration-pickers-v5/ as we are using now "@mui/x-date-pickers": "^6.16.0"
-;; https://mui.com/x/migration/migration-pickers-v5/#component-slots-component-slot-props 
-(defn datetime-field
-  [{:keys [key value on-change-handler]
-    :or [on-change-handler #()]}]
-  [mui-localization-provider {:dateAdapter m/adapter-date-fns}
-   [mui-date-time-picker {:label key
-                          ;; value should be of Date type (type value) => #object[Date]
-                          ;; and it is in UTC. The view side shown in local time 
-                          :value value
-                          :onChange on-change-handler
-                          :slotProps {:textField {:variant "standard"
-                                                  :classes {:root "entry-cnt-field"}
-                                                  :fullWidth true}}}]])
-
-(declare text-field)
-
-;; Not used and it is based on old mui x datepicker version and also did not work 
-;; Need to replaced with new version based one if required
-(defn date-field
-  [{:keys [key value edit on-change-handler]
-    :or [on-change-handler #()]}]
-  (if-not edit
-    [text-field  {:key (str key " (MM/DD/YYYY)") :value value :edit false}]
-    [mui-stack {:direction "row" :sx {:width "40%"}}
-     [mui-localization-provider {:dateAdapter date-adapter}
-      [mui-desktop-date-picker
-       {:label (str key " (MM/DD/YYYY)")
-        :value value
-        :onChange on-change-handler
-        :renderInput (fn [props]
-                       (let [p (js->clj props :keywordize-keys true)
-                             p (merge p {:variant "standard"
-                                         :classes {:root "entry-cnt-field"}
-                                         :fullWidth true})]
-                         #_(println "Props called: " (-> p   keys))
-                         (r/as-element [mui-text-field p])))}]]]))
-
 (defn expiry-content []
   (let [edit @(form-events/form-edit-mode)
         expiry-duration-selection @(form-events/entry-form-field :expiry-duration-selection)
@@ -290,8 +227,6 @@
            [mui-stack {:direction "row" :sx {}}
             [mui-typography (str "Expires: " (u/to-local-datetime-str expiry-dt "dd MMM yyyy HH:mm:ss p"))]]]))))
 
-(def ENTRY_DATETIME_FORMAT "dd MMM yyyy pp")
-
 (defn uuid-times-content []
   (let [edit @(form-events/form-edit-mode)
         expiry-duration-selection @(form-events/entry-form-field :expiry-duration-selection)
@@ -318,23 +253,23 @@
           [mui-typography "Expires:"]
           [mui-typography (u/to-local-datetime-str expiry-dt ENTRY_DATETIME_FORMAT)]])])))
 
-(defn text-area-field [{:keys [key value edit on-change-handler]
-                        :or {edit false
-                             on-change-handler #()}}]
-  [m/text-field {:classes {:root "entry-cnt-field"}
-                 :fullWidth true
-                 :id key :label "";;name
-                 :variant "standard"
-                 :value value
-                 :onChange on-change-handler
-                 :multiline true
-                 :rows 4
+#_(defn text-area-field [{:keys [key value edit on-change-handler]
+                          :or {edit false
+                               on-change-handler #()}}]
+    [m/text-field {:classes {:root "entry-cnt-field"}
+                   :fullWidth true
+                   :id key :label "";;name
+                   :variant "standard"
+                   :value value
+                   :onChange on-change-handler
+                   :multiline true
+                   :rows 4
                     ;;minRows and maxRows should not be used with the fixed 'm/text-field'
                     ;;:minRows 3 
                     ;;:maxRows 10
                     ;;:classes {:root "entry-cnt-notes-field"}
-                 :InputLabelProps {:shrink true}
-                 :InputProps {:id key
+                   :InputLabelProps {:shrink true}
+                   :InputProps {:id key
                                   ;; This did not fix the cursor jumping
                                   ;;  :inputComponent
                                   ;;  (r/reactify-component
@@ -343,151 +278,11 @@
                                   ;;     [:input (-> props
                                   ;;                    (assoc :ref (:inputRef props))
                                   ;;                    (dissoc :inputRef))]))
-                              }
+                                }
 
-                 :inputProps  {:readOnly (not edit)
-                               :sx {:ml ".5em" :mr ".5em"}
-                               :style {:resize "vertical"}}}])
-
-(defn end-icons [key value protected visibile? edit]
-  [:<>
-   (when protected
-     (if visibile?
-       [mui-icon-button {:sx {:margin-right "-8px"}
-                         :edge "end"
-                         :on-click #(form-events/entry-form-field-visibility-toggle key)}
-        [mui-icon-visibility]]
-       [mui-icon-button {:sx {:margin-right "-8px"}
-                         :edge "end"
-                         :on-click #(form-events/entry-form-field-visibility-toggle key)}
-        [mui-icon-visibility-off]]))
-   ;; Password generator 
-   (when (and edit protected (= key const/PASSWORD))
-     [mui-icon-button {:sx {:margin-right "-8px"}
-                       :edge "end"
-                       :on-click form-events/password-generator-show}
-      [mui-icon-autorenew]])
-   ;; Copy 
-   [(cc/copy-icon-factory) value {:sx {:mr "-1px"}}]])
-
-(defn text-field [{:keys [key
-                          value
-                          protected
-                          visible
-                          edit
-                          on-change-handler
-                          required
-                          password-score
-                          placeholder
-                          helper-text
-                          error-text
-                          no-end-icons]
-                   :or {visible true
-                        edit false
-                        no-end-icons false
-                        protected false
-                        on-change-handler #(println (str "No on change handler yet registered for " key))
-                        required false}}]
-  ;;(println "Password score " (:score-text password-score) "for key " key)
-  [m/text-field {:sx   (merge {} (cc/password-helper-text-sx (:name password-score)))
-                 :fullWidth true
-                 :label key :variant "standard"
-                 :classes {:root "entry-cnt-field"}
-                 :value value
-                 :placeholder placeholder
-                 :error  (not (nil? error-text))
-                 :helperText (cond
-                               (and (nil? error-text) (not (nil? password-score)))
-                               (:score-text password-score)
-
-                               (nil? error-text)
-                               helper-text
-
-                               :else
-                               error-text)
-                 :onChange  on-change-handler
-                 ;;:required required
-                 :required false
-                 :InputLabelProps {}
-                 :InputProps {:id key
-                              :classes {:root (if edit "entry-cnt-text-field-edit" "entry-cnt-text-field-read")
-                                        :focused  (if edit "entry-cnt-text-field-edit-focused" "entry-cnt-text-field-read-focused")}
-                                 ;;:sx (if editing {} read-sx1)
-                              :endAdornment (if no-end-icons nil
-                                                (r/as-element
-                                                 [mui-input-adornment {:position "end"}
-                                                  [end-icons key value protected visible edit]
-                                                  #_(seq icons)]))
-                              :type (if (or (not protected) visible) "text" "password")}
-                         ;;attributes for 'input' tag can be added here
-                         ;;It seems adding these 'InputProps' also works
-                         ;;We need to use 'readOnly' and not 'readonly'
-                 :inputProps  {:readOnly (not edit)
-
-                                   ;;:readonly "readonly"
-                               }}])
-
-(def otp-txt-input-sx {"& .MuiInputBase-input" {:color "green"
-                                                :font-size "1.75em"
-                                                :font-weight "300"  ;; To make it bold
-                                                }})
-
-(defn otp-progress-circle [period ttl-time]
-  [mui-box {:position "relative" :display "inline-flex"}
-   [mui-circular-progress {:variant "determinate" :value (js/Math.round (* 100 (/ ttl-time period)))}]
-   [mui-box {:sx {:top 0 :left 0 :bottom 0 :right 0
-                  :position "absolute" :display "flex" :alignItems "center" :justifyContent "center"}}
-    [mui-typography {:vaiant "caption" :component "div"}
-     ttl-time]]])
-
-(defn otp-read-field [kv]
-  (fn [{:keys [key
-               value
-               visible
-               current-opt-token
-               edit
-               error-text
-               no-end-icons]
-        :or {visible true
-             edit false
-             no-end-icons false}}]
-
-    (let [{:keys [token ttl period]} current-opt-token
-          ttl-time @(form-events/opt-ttl-indicator key)
-          ttl-time (if (nil? ttl-time) ttl ttl-time)]
-      [mui-stack {:direction "row" :sx {:width "100%"}}
-       [mui-text-field {:sx (if-not edit otp-txt-input-sx  {})
-                        :fullWidth true
-                        :label (if (= "otp" key) "One-Time Password(TOTP)" key)
-                        :variant "standard"
-                        :classes {:root "entry-cnt-field"}
-                        :value (if edit value token)
-                        :error  (not (nil? error-text))
-                        :helperText error-text
-                        :required false
-                        :InputLabelProps {} ;; setting props in this is not working
-                        :InputProps {:id key
-                                     :classes {:root   (if edit "entry-cnt-text-field-edit" "entry-cnt-text-field-read")
-                                               :focused (if edit "entry-cnt-text-field-edit-focused" "entry-cnt-text-field-read-focused")}
-                                                ;;:sx (if editing {} read-sx1)
-                                     :endAdornment (if no-end-icons nil
-                                                       (r/as-element
-                                                        [mui-input-adornment {:position "end"}
-                                                         [end-icons key value false visible edit]
-                                                         #_(seq icons)]))
-                                     :type "text"}
-
-                        :inputProps  {:readOnly true}}]
-
-
-
-             ;; :border "1px solid black"
-       [mui-stack {:sx {:width "10%" :align-items "center" :justify-content "center"}}
-        [otp-progress-circle period ttl-time]]])))
-
-(defn otp-field [{:keys [edit] :as kv}]
-  (if-not edit [:f>  otp-read-field kv]  [:div]))
-
+                   :inputProps  {:readOnly (not edit)
+                                 :sx {:ml ".5em" :mr ".5em"}
+                                 :style {:resize "vertical"}}}])
 
 (defn add-modify-section-popper [{:keys [dialog-show
                                          popper-anchor-el
@@ -578,7 +373,7 @@
            {:control (r/as-element
                       [mui-checkbox {:checked required
                                      :on-change (on-check-factory form-events/section-field-dialog-update :required)}])
-            :label "Required"}]]]]]
+            :label "Required1"}]]]]]
       [mui-stack  {:sx {:justify-content "end"} :direction "row"}   ;;{:sx {:align-items "end"}}
        [mui-button {:variant "text"
                     :sx popper-button-sx
@@ -599,7 +394,7 @@
            mode
            add-more
            error-fields]
-    :as m}]
+    :as m}] 
   (let [ok-fn (fn [_e]
                 (if (= mode :add)
                   (form-events/section-field-add
@@ -668,33 +463,6 @@
                           {:label "No" :on-click  #(form-events/section-delete-confirm false)}])
    dialog-data])
 
-(defn simple-selection-field [{:keys [key
-                                      value
-                                      required
-                                      edit
-                                      error-text
-                                      helper-text
-                                      on-change-handler
-                                      select-field-options]}]
-  ;; We are using the mui-text-field directly as select component 
-  ;; Another way also, this type of simple select list can be done using the following. 
-  ;; The examples given in mui.com uses now this method
-  ;; [mui-form-control [mui-input-label] [mui-select {} [mui-menu-item]] [mui-form-helper-text]  ]
-  [mui-text-field {:id key
-                   ;;:required required
-                   :required false
-                   :classes {:root "entry-cnt-field"}
-                   :select true
-                   :label key
-                   :value value
-                   :on-change on-change-handler
-                   :error  (not (nil? error-text))
-                   :helperText (if (nil? error-text) helper-text error-text)
-                   :inputProps  {:readOnly (not edit)}
-                   :variant "standard" :fullWidth true}
-   (doall (for [y select-field-options]
-            ^{:key y} [mui-menu-item {:value y} y]))])
-
 (defn section-header [section-name]
   (let [edit @(form-events/form-edit-mode)
         standard-sections @(form-events/entry-form-data-fields :standard-section-names)
@@ -724,8 +492,9 @@
          [mui-icon-button {:edge "end" :color "primary"
                            :on-click #(form-events/open-section-field-dialog section-name @comp-ref)}
           [mui-icon-add-circle-outline-outlined]]]
-        [add-modify-section-popper @(form-events/section-name-dialog-data)]
-        [add-modify-section-field-dialog @(form-events/section-field-dialog-data)]
+        #_[add-modify-section-popper @(form-events/section-name-dialog-data)]
+        #_[add-modify-section-field-dialog @(form-events/section-field-dialog-data)]
+
         #_[add-modify-section-field-popper @(form-events/section-field-dialog-data)]])]))
 
 (defn section-content [edit section-name section-data]
@@ -798,7 +567,8 @@
                                          :on-click #(form-events/field-delete section-name key)}
                         [mui-icon-delete-outline]]]])])))
          [custom-field-delete-confirm @(form-events/field-delete-dialog-data)]
-         [add-modify-section-field-popper @(form-events/section-field-dialog-data)]
+         #_[add-modify-section-field-dialog @(form-events/section-field-dialog-data)]
+         #_[add-modify-section-field-popper @(form-events/section-field-dialog-data)]
          [custom-section-delete-confirm @(form-events/section-delete-dialog-data)]]))))
 
 (defn all-sections-content []
@@ -1230,20 +1000,24 @@
                             :on-click form-events/close-on-click} "Close"]
                [mui-button {:variant "contained"
                             :color "secondary"
-                            :on-click form-events/edit-mode-menu-clicked} "Edit"]])]
+                            :on-click form-events/edit-mode-menu-clicked} "Edit"]])]]]
 
-         [gt-content/move-dialog
-          {:dialog-data @(move-events/move-group-entry-dialog-data :entry)
-           :title "Put back"
-           :groups-listing @(form-events/groups-listing)
-           :selected-entry-uuid entry-uuid
-           :on-change (move-events/move-group-entry-group-selected-factory :entry)
-           :cancel-on-click-factory (fn [_data]
-                                      #(move-events/move-group-entry-dialog-show :entry false))
-           :ok-on-click-factory (fn [data]
-                                  #(move-events/move-group-entry-ok :entry (:selected-entry-uuid data)))}]
 
-         [delete-permanent-dialog pd-dlg-data entry-uuid]]]])))
+       [add-modify-section-popper @(form-events/section-name-dialog-data)]
+       [add-modify-section-field-dialog @(form-events/section-field-dialog-data)]
+
+       [gt-content/move-dialog
+        {:dialog-data @(move-events/move-group-entry-dialog-data :entry)
+         :title "Put back"
+         :groups-listing @(form-events/groups-listing)
+         :selected-entry-uuid entry-uuid
+         :on-change (move-events/move-group-entry-group-selected-factory :entry)
+         :cancel-on-click-factory (fn [_data]
+                                    #(move-events/move-group-entry-dialog-show :entry false))
+         :ok-on-click-factory (fn [data]
+                                #(move-events/move-group-entry-ok :entry (:selected-entry-uuid data)))}]
+
+       [delete-permanent-dialog pd-dlg-data entry-uuid]])))
 
 (defn entry-type-group-selection
   "Used in entry new form. Prvides from-1 type component for
@@ -1321,7 +1095,10 @@
         [mui-button {:variant "contained" :color "secondary"
                      :on-click form-events/new-entry-cancel-on-click #_ee/new-entry-cancel-on-click} "Cancel"]
         [mui-button {:variant "contained" :color "secondary"
-                     :on-click form-events/ok-new-entry-add} "Ok"]]]]]))
+                     :on-click form-events/ok-new-entry-add} "Ok"]]]]
+
+     [add-modify-section-popper @(form-events/section-name-dialog-data)]
+     [add-modify-section-field-dialog @(form-events/section-field-dialog-data)]]))
 
 (defn entry-content-welcome
   []
