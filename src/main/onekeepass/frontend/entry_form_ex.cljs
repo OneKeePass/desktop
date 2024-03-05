@@ -432,8 +432,17 @@
                                                 :font-weight "300"  ;; To make it bold
                                                 }})
 
+(defn otp-progress-circle [opt-field-name ttl-time]
+  [mui-box {:position "relative" :display "inline-flex"}
+   [mui-circular-progress {:variant "determinate" :value 100}]
+   [mui-box {:sx {:top 0 :left 0 :bottom 0 :right 0
+                  :position "absolute" :display "flex" :alignItems "center" :justifyContent "center"}}
+    [mui-typography {:vaiant "caption" :component "div"}
+     ttl-time]]]
+  )
+
 (defn otp-read-field [kv]
-  
+
   (fn [{:keys [key
                value
                visible
@@ -443,9 +452,12 @@
                no-end-icons]
         :or {visible true
              edit false
-             no-end-icons false}}] 
-    
-    (let [{:keys [token]} current-opt-token]
+             no-end-icons false}}]
+
+    (let [{:keys [token ttl]} current-opt-token
+          ttl-time @(form-events/opt-ttl-indicator key) 
+          ttl-time (if (nil? ttl-time) ttl ttl-time)
+          ] 
       [mui-stack {:direction "row" :sx {:width "100%"}}
        [mui-text-field {:sx (if-not edit otp-txt-input-sx  {})
                         :fullWidth true
@@ -467,20 +479,20 @@
                                                          [end-icons key value false visible edit]
                                                          #_(seq icons)]))
                                      :type "text"}
-      
+
                         :inputProps  {:readOnly true}}]
-      
-      
-      
+
+
+
              ;; :border "1px solid black"
        [mui-stack {:sx {:width "10%" :align-items "center" :justify-content "center"}}
-        [mui-circular-progress {:variant "determinate" :value 100}]]]
-    
-      )
-    
-    )
-  
-  )
+        [otp-progress-circle key ttl-time]
+        #_[mui-box {:position "relative" :display "inline-flex"}
+           [mui-circular-progress {:variant "determinate" :value 100}]
+           [mui-box {:sx {:top 0 :left 0 :bottom 0 :right 0
+                          :position "absolute" :display "flex" :alignItems "center" :justifyContent "center"}}
+            [mui-typography {:vaiant "caption" :component "div"}
+             "21" ]]]]])))
 
 (defn otp-field [{:keys [edit] :as kv}]
   (if-not edit [:f>  otp-read-field kv]  [:div]))

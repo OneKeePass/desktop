@@ -391,21 +391,19 @@
             (assoc-in-key-db [entry-form-key :welcome-text-to-show] text-to-show)
             (assoc-in-key-db [entry-form-key :edit] false)
             (assoc-in-key-db [entry-form-key :error-fields] {})
-            (assoc-in-key-db [entry-form-key :group-selection-info] nil))
-    }
-   ))
+            (assoc-in-key-db [entry-form-key :group-selection-info] nil))}))
 
 #_(reg-event-db
- :entry-form-ex/show-welcome
- (fn [db [_event-id text-to-show]]
+   :entry-form-ex/show-welcome
+   (fn [db [_event-id text-to-show]]
    ;;(println "In entry-form-ex/show-welcome")
-   (-> db (assoc-in-key-db [entry-form-key :data] {})
-       (assoc-in-key-db [entry-form-key :undo-data] {})
-       (assoc-in-key-db [entry-form-key :showing] :welcome)
-       (assoc-in-key-db [entry-form-key :welcome-text-to-show] text-to-show)
-       (assoc-in-key-db [entry-form-key :edit] false)
-       (assoc-in-key-db [entry-form-key :error-fields] {})
-       (assoc-in-key-db [entry-form-key :group-selection-info] nil))))
+     (-> db (assoc-in-key-db [entry-form-key :data] {})
+         (assoc-in-key-db [entry-form-key :undo-data] {})
+         (assoc-in-key-db [entry-form-key :showing] :welcome)
+         (assoc-in-key-db [entry-form-key :welcome-text-to-show] text-to-show)
+         (assoc-in-key-db [entry-form-key :edit] false)
+         (assoc-in-key-db [entry-form-key :error-fields] {})
+         (assoc-in-key-db [entry-form-key :group-selection-info] nil))))
 
 (reg-event-fx
  :close-form-ex
@@ -1692,6 +1690,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;; Otp (TOPT) related ;;;;;;;;;;;
 
+(defn opt-ttl-indicator [opt-field-name]
+  (subscribe [:opt-ttl-indicator opt-field-name]))
+
 (defn extract-form-otp-fields
   "Returns a map with a otp field name as key and current-opt-token value as value"
   [form-data]
@@ -1730,6 +1731,18 @@
 
        {:db (assoc-in-key-db db [entry-form-key :data :section-fields] updated-sections)})
      {})))
+
+(reg-event-fx
+ :entry-form/update-opt-ttl-indicator
+ (fn [{:keys [db]} [_event-id otp-field-name time-remaining]]
+   (let [otp-fields (get-in-key-db db [entry-form-key :data :otp-fields])
+         otp-fields (assoc otp-fields otp-field-name {:time-remaining time-remaining})]
+     {:db (assoc-in-key-db db [entry-form-key :data :otp-fields] otp-fields)})))
+
+(reg-sub
+ :opt-ttl-indicator
+ (fn [db [_query-id otp-field-name]]
+   (get-in-key-db db [entry-form-key :data :otp-fields otp-field-name :time-remaining])))
 
 
 (comment

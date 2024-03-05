@@ -17,10 +17,7 @@
 
 (def entry-form-otp-period-timers (atom {}))
 
-#_(reg-fx
-   :otp/bg-entry-form-current-otp-data
-   (fn [[db-key entry-uuid otp-field-name callback-fn]]
-     (bg/entry-form-current-otp db-key entry-uuid otp-field-name callback-fn)))
+(def entry-form-ttl-indicator-timers (atom {}))
 
 (declare start-polling-otp-fields)
 
@@ -45,8 +42,17 @@
 
 (reg-fx
  :otp/stop-all-entry-form-polling
- (fn [] 
+ (fn []
    (stop-all-entry-form-polling)))
+
+(defn start-polling-ttl-indicator [entry-uuid otp-field-name period ttl]
+  (let [remaining (atom ttl)
+        timer-id (js/setInterval (fn []
+                                   (let [rem (dec @remaining)
+                                         rem (if (= rem 0) period rem)]
+                                     (reset! remaining rem)
+                                     (dispatch [:entry-form/update-opt-ttl-indicator otp-field-name rem]))) 1000)]
+    (swap! entry-form-ttl-indicator-timers assoc-in [entry-uuid otp-field-name] timer-id)))
 
 (defn start-polling-period-otp-data [db-key entry-uuid otp-field-name period]
   ;; Need to clear and remove any previous timer for 'entry-uuid otp-field-name' ?
@@ -67,7 +73,8 @@
 (defn stop-all-entry-polling
   [entry-uuid]
   (let [period-timer-ids (-> @entry-form-otp-period-timers (get entry-uuid) vals)
-        ttl-timer-ids (-> @entry-form-otp-ttl-timers (get entry-uuid) vals)]
+        ttl-timer-ids (-> @entry-form-otp-ttl-timers (get entry-uuid) vals)
+        ttl-indicator-timer-ids (-> @entry-form-ttl-indicator-timers (get entry-uuid) vals)]
     ;; doseq loop is used which returns nil whereas 'for' can also be used but it will return a collection
     (doseq [timer-id period-timer-ids]
       (js/clearInterval timer-id)
@@ -75,10 +82,14 @@
 
     (doseq [timer-id ttl-timer-ids]
       (js/clearTimeout timer-id)
-      (swap! entry-form-otp-ttl-timers dissoc entry-uuid))))
+      (swap! entry-form-otp-ttl-timers dissoc entry-uuid))
+
+    (doseq [timer-id ttl-indicator-timer-ids]
+      (js/clearInterval timer-id)
+      (swap! entry-form-ttl-indicator-timers dissoc entry-uuid))))
 
 (defn stop-all-entry-form-polling []
-  (doseq [uuid (distinct (concat (keys @entry-form-otp-period-timers) (keys @entry-form-otp-ttl-timers)))  ] 
+  (doseq [uuid (distinct (concat (keys @entry-form-otp-period-timers) (keys @entry-form-otp-ttl-timers)))]
     (stop-all-entry-polling uuid)))
 
 (defn stop-polling-otp-data
@@ -106,7 +117,7 @@
                      (fn [api-reponse]
                        (println "After ttl time expiry " api-reponse)
                        (when-let [{:keys [period] :as current-opt-token} (check-error api-reponse #())]
-                         (dispatch [:entry-form/update-otp-token entry-uuid otp-field-name current-opt-token])
+                         (dispatch [:entry-form/update-otp-token entry-uuid otp-field-name current-opt-token]) 
                          (start-polling-period-otp-data db-key entry-uuid otp-field-name period)))))
                   (* 1000 ttl))]
 
@@ -117,7 +128,8 @@
   "Receives all otp field names with its 'current-opt-token' (inner map) in the map otp-field-m
   "
   [db-key entry-uuid otp-field-m]
-  (doseq [[otp-field-name opt-data]  otp-field-m]
+  (doseq [[otp-field-name opt-data] otp-field-m]
+    (start-polling-ttl-indicator entry-uuid otp-field-name (:period opt-data) (:ttl opt-data))
     (start-polling-ttl-otp-data db-key entry-uuid otp-field-name (:ttl opt-data))))
 
 (defn test-call [db-key entry-uuid otp-field-name]
