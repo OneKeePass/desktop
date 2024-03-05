@@ -432,17 +432,15 @@
                                                 :font-weight "300"  ;; To make it bold
                                                 }})
 
-(defn otp-progress-circle [opt-field-name ttl-time]
+(defn otp-progress-circle [period ttl-time]
   [mui-box {:position "relative" :display "inline-flex"}
-   [mui-circular-progress {:variant "determinate" :value 100}]
+   [mui-circular-progress {:variant "determinate" :value (js/Math.round (* 100 (/ ttl-time period)))}]
    [mui-box {:sx {:top 0 :left 0 :bottom 0 :right 0
                   :position "absolute" :display "flex" :alignItems "center" :justifyContent "center"}}
     [mui-typography {:vaiant "caption" :component "div"}
-     ttl-time]]]
-  )
+     ttl-time]]])
 
 (defn otp-read-field [kv]
-
   (fn [{:keys [key
                value
                visible
@@ -454,10 +452,9 @@
              edit false
              no-end-icons false}}]
 
-    (let [{:keys [token ttl]} current-opt-token
-          ttl-time @(form-events/opt-ttl-indicator key) 
-          ttl-time (if (nil? ttl-time) ttl ttl-time)
-          ] 
+    (let [{:keys [token ttl period]} current-opt-token
+          ttl-time @(form-events/opt-ttl-indicator key)
+          ttl-time (if (nil? ttl-time) ttl ttl-time)]
       [mui-stack {:direction "row" :sx {:width "100%"}}
        [mui-text-field {:sx (if-not edit otp-txt-input-sx  {})
                         :fullWidth true
@@ -486,13 +483,7 @@
 
              ;; :border "1px solid black"
        [mui-stack {:sx {:width "10%" :align-items "center" :justify-content "center"}}
-        [otp-progress-circle key ttl-time]
-        #_[mui-box {:position "relative" :display "inline-flex"}
-           [mui-circular-progress {:variant "determinate" :value 100}]
-           [mui-box {:sx {:top 0 :left 0 :bottom 0 :right 0
-                          :position "absolute" :display "flex" :alignItems "center" :justifyContent "center"}}
-            [mui-typography {:vaiant "caption" :component "div"}
-             "21" ]]]]])))
+        [otp-progress-circle period ttl-time]]])))
 
 (defn otp-field [{:keys [edit] :as kv}]
   (if-not edit [:f>  otp-read-field kv]  [:div]))
