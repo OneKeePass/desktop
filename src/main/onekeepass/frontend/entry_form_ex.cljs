@@ -15,6 +15,8 @@
                                                            popper-box-sx
                                                            content-sx]]
 
+            [onekeepass.frontend.entry-form.menus :as menus]
+
             [onekeepass.frontend.constants :as const]
             [onekeepass.frontend.db-icons :as db-icons :refer [entry-icon
                                                                entry-type-icon]]
@@ -95,97 +97,8 @@
     (handler-name  (-> e .-target  .-value))))
 
 ;;;;;;;;;;;;;;;;;;;;;; Menu ;;;;;;;;;;;;;;;;
-(defn- menu-action [anchor-el action & action-args]
-  (fn [^js/Event e]
-    (reset! anchor-el nil)
-    (apply action action-args)
-    (.stopPropagation ^js/Event e)))
-
-(defn auto-type-menu-items [anchor-el entry-uuid]
-  [:<>
-   [mui-menu-item {:divider false
-                   :sx {:padding-left "1px"}
-                   :on-click (menu-action anchor-el form-events/perform-auto-type-start entry-uuid)}
-    [mui-list-item-text {:inset true} "Perform auto type"]]
-
-   [mui-menu-item {:divider true
-                   :sx {:padding-left "1px"}
-                   :on-click (menu-action anchor-el form-events/entry-auto-type-edit)}
-    [mui-list-item-text {:inset true} "Edit auto type"]]])
-
-(defn entry-form-top-menu-items []
-  (fn [anchor-el entry-uuid favorites? os-name]
-    [mui-menu {:anchorEl @anchor-el
-               :open (if @anchor-el true false)
-               :on-close #(reset! anchor-el nil)}
-     [mui-menu-item {:sx {:padding-left "1px"}
-                     :divider false
-                     :on-click (menu-action anchor-el form-events/edit-mode-menu-clicked)}
-      [mui-list-item-text {:inset true} "Edit"]]
-
-     (if favorites?
-       [mui-menu-item {:sx {:padding-left "1px"}
-                       :divider false
-                       :on-click (menu-action anchor-el form-events/favorite-menu-checked false)}
-        [mui-list-item-icon [mui-icon-check]] "Favorites"]
-       [mui-menu-item {:divider false
-                       :sx {:padding-left "1px"}
-                       :on-click (menu-action anchor-el form-events/favorite-menu-checked true)}
-        [mui-list-item-text {:inset true} "Favorites"]])
-
-
-     [mui-menu-item {:divider true
-                     :sx {:padding-left "1px"}
-                     :on-click (menu-action anchor-el form-events/entry-delete-start entry-uuid)}
-      [mui-list-item-text {:inset true} "Delete"]]
-
-     ;; Auto type related menu options are avilable only for macos
-     (when (= os-name const/MACOS)
-       ;; Need to use this reagent component instead of fragmets using :<> as MUI complains
-       ;; that Menu item child should not be a fragment and instead suggested to use an array of child
-       [auto-type-menu-items anchor-el entry-uuid])
-
-     [mui-menu-item {:divider false
-                     :sx {:padding-left "1px"}
-                     :on-click (menu-action anchor-el form-events/load-history-entries-summary entry-uuid)
-                     :disabled (not @(form-events/history-available))}
-      [mui-list-item-text {:inset true} "History"]]]))
-
-(defn entry-form-top-menu [entry-uuid]
-  (let [anchor-el (r/atom nil)
-        favorites? @(form-events/favorites?)
-        os-name @(ce/os-name)]
-    [:div
-     [mui-icon-button {:edge "start"
-                       :on-click (fn [^js/Event e] (reset! anchor-el (-> e .-currentTarget)))
-                       :style {:color "#000000"}} [mui-icon-more-vert]]
-     [entry-form-top-menu-items anchor-el entry-uuid favorites? os-name]
-     [cc/info-dialog "Entry Delete" "Deleting entry is in progress"
-      form-events/entry-delete-info-dialog-close
-      @(form-events/entry-delete-dialog-data)]]))
-
-(defn- form-menu-internal
-  "A functional reagent component.This component helps to enable/disable 
-  Edit Entry app menu using react effect"
-  [entry-uuid]
-  (let [deleted-cat? @(form-events/deleted-category-showing)
-        recycle-bin? @(form-events/recycle-group-selected?)
-        group-in-recycle-bin? @(form-events/selected-group-in-recycle-bin?)
-        edit-menu?  (not (or deleted-cat? recycle-bin? group-in-recycle-bin?))]
-    ;; useEffect is used to enable/disable as when the form-menu is visible or not
-    (m/react-use-effect (fn []
-                          (tauri-events/enable-app-menu const/MENU_ID_EDIT_ENTRY edit-menu?)
-                          ;; cleanup fn is returned which is called when this component unmounts
-                          (fn []
-                            (tauri-events/enable-app-menu const/MENU_ID_EDIT_ENTRY false))) (clj->js []))
-    (when edit-menu?
-      [entry-form-top-menu entry-uuid])))
-
-(defn form-menu
-  "Called to show relevant menus for a selected entry. 
-  This is used in the entry-form and entry-list panels"
-  [entry-uuid]
-  [:f> form-menu-internal entry-uuid])
+;; Re-exported for use in entry-list
+(def form-menu menus/form-menu)
 
 ;;;;;;;;;;;;;;;  
 
@@ -320,7 +233,7 @@
                   :on-click #(form-events/section-name-add-modify dialog-data)}
       "Ok"]]]])
 
-(defn add-modify-section-field-popper
+#_(defn add-modify-section-field-popper
   [{:keys [dialog-show
            popper-anchor-el
            field-name
@@ -394,7 +307,7 @@
            mode
            add-more
            error-fields]
-    :as m}] 
+    :as m}]
   (let [ok-fn (fn [_e]
                 (if (= mode :add)
                   (form-events/section-field-add
@@ -488,10 +401,11 @@
                               :on-click  #(form-events/section-delete section-name)}
              [mui-icon-delete-outline]]]])
 
-        [mui-tooltip {:title "Add a field" :enterDelay 2500}
-         [mui-icon-button {:edge "end" :color "primary"
-                           :on-click #(form-events/open-section-field-dialog section-name @comp-ref)}
-          [mui-icon-add-circle-outline-outlined]]]
+        [menus/add-additional-field-menu section-name]
+        #_[mui-tooltip {:title "Add a field" :enterDelay 2500}
+           [mui-icon-button {:edge "end" :color "primary"
+                             :on-click #(form-events/open-section-field-dialog section-name @comp-ref)}
+            [mui-icon-add-circle-outline-outlined]]]
         #_[add-modify-section-popper @(form-events/section-name-dialog-data)]
         #_[add-modify-section-field-dialog @(form-events/section-field-dialog-data)]
 
@@ -533,14 +447,7 @@
                                                                           section-name key (-> % .-target  .-value)))]
 
                       (= data-type const/ONE_TIME_PASSWORD)
-                      [otp-field (assoc kv
-                                        :edit edit)]
-                  ;; (= data-type "Date")
-                  ;; [date-field {:key key
-                  ;;              :value (if (str/blank? value)
-                  ;;                       (.toLocaleDateString (js/Date.)) value)
-                  ;;              :edit edit
-                  ;;              :on-change-handler (form-events/section-date-field-on-change-factory section-name key)}]
+                      [otp-field (assoc kv :edit edit)]
 
                       :else
                       [text-field (assoc kv
@@ -551,7 +458,7 @@
                                          :on-change-handler #(form-events/update-section-value-on-change
                                                               section-name key (-> % .-target  .-value)))])]
 
-                   (when (and edit (not standard-field))
+                   (when (and edit (not standard-field) (not= data-type const/ONE_TIME_PASSWORD))
                      [mui-stack {:direction "row" :sx {:width "8%" :align-items "flex-end"}}
                       [mui-tooltip  {:title "Modify Field" :enterDelay 2500}
                        [mui-icon-button {:edge "end"
@@ -567,8 +474,6 @@
                                          :on-click #(form-events/field-delete section-name key)}
                         [mui-icon-delete-outline]]]])])))
          [custom-field-delete-confirm @(form-events/field-delete-dialog-data)]
-         #_[add-modify-section-field-dialog @(form-events/section-field-dialog-data)]
-         #_[add-modify-section-field-popper @(form-events/section-field-dialog-data)]
          [custom-section-delete-confirm @(form-events/section-delete-dialog-data)]]))))
 
 (defn all-sections-content []
@@ -660,124 +565,6 @@
                           :edit edit
                           :on-change-handler (on-change-factory form-events/entry-form-data-update-field-value :notes)
                           #_#(form-events/entry-form-data-update-field-value :notes (-> % .-target  .-value))}]]])))
-
-#_(defn custom-field-dialog [{:keys [dialog-show
-                                     field-name
-                                     field-value
-                                     protected
-                                     data-type
-                                     error-fields
-                                     mode
-                                     add-more] :as m}]
-    [mui-dialog {:open dialog-show :on-click #(.stopPropagation ^js/Event %)
-               ;; This will set the Paper width in all child components 
-                 :sx {"& .MuiPaper-root" {:width "60%"}} ;; equivalent to :classes {:paper "pwd-dlg-root"}
-                 }
-     [mui-dialog-title (if (= mode :add) "Add Custom Field" "Modify Custom Field")]
-     [mui-dialog-content {:dividers true}
-      [mui-stack
-       [:<>
-        [m/text-field {:label "Field Name"
-                     ;; If we set ':value key', the dialog refreshes when on change fires for each key press in this input
-                     ;; Not sure why. Using different name like 'field-name' works fine
-                       :value field-name
-                       :error (boolean (seq error-fields))
-                       :helperText (get error-fields field-name)
-                       :InputProps {}
-                       :on-change (on-change-factory form-events/update-custom-field-dialog-data :field-name)
-                       :variant "standard" :fullWidth true}]
-
-        (when (= mode :add)
-          [m/text-field {:label "Field Value"
-                         :value field-value
-                         :InputProps {}
-                         :on-change (on-change-factory form-events/update-custom-field-dialog-data :field-value)
-                         :variant "standard" :fullWidth true}])
-
-        [mui-form-control-label {:control (r/as-element [mui-checkbox {:checked protected
-                                                                       :on-change (on-change-factory form-events/update-custom-field-dialog-data :protected)}])
-                                 :label "Protected"}]]
-
-       (when add-more [mui-stack
-                       [mui-alert {:severity "success" :sx {"&.MuiAlert-root" {:width "100%"}}} ;; need to override the paper width 60%
-                        [mui-alert-title "Success"] "Custom field added. You can add more field or cancel to close"]])]]
-     [mui-dialog-actions
-      [mui-button {:variant "contained" :color "secondary"
-                   :on-click form-events/close-custom-field-dialog} "Cancel"]
-      (if (= mode :add)
-        [mui-button {:variant "contained" :color "secondary"
-                     :on-click #(form-events/custom-field-add (select-keys m [:field-name :field-value :protected :data-type]))} "Add"]
-        [mui-button {:variant "contained" :color "secondary"
-                     :on-click #(form-events/custom-field-modify (select-keys m [:field-name :current-field-name :protected]))} "Modify"])]])
-
-#_(defn custom-field-dialogs []
-    [:<>
-     [custom-field-dialog @(form-events/custom-field-dialog-data)]
-     [custom-field-delete-confirm @(form-events/field-delete-dialog-data)]])
-
-;; deprecate and keep a copy?
-#_(defn custom-fields-content []
-    (let [edit @(form-events/form-edit-mode)
-          section-data @(form-events/entry-form-section-data section-name-custom-fields)]
-      (when (or edit (boolean (seq section-data)))
-        [mui-box {:sx content-sx}
-         [mui-stack {:direction "row"}
-          [mui-stack {:direction "row" :sx {:width "90%"}}
-           [box-caption "Custom Fields"]]
-          (when edit
-            [mui-stack {:direction "row" :sx {:width "10%" :justify-content "flex-end"}}
-             [mui-tooltip {:title "Add"}
-              [mui-icon-button {:edge "end" :color "primary"
-                                :on-click
-                                form-events/open-custom-field-dialog}
-               [mui-icon-add-circle-outline-outlined]]]])]
-         (doall
-          (for [{:keys [key] :as kv} section-data]
-            ^{:key key} [mui-stack {:direction "row"}
-                         [mui-stack {:direction "row" :sx {:width (if edit "92%" "100%")}}
-                          [text-field (assoc kv
-                                             :edit edit
-                                             :visible @(form-events/visible? key)
-                                             :on-change-handler #(form-events/update-section-value-on-change section-name-custom-fields key (-> % .-target  .-value)))]]
-
-                         (when edit
-                           [mui-stack {:direction "row" :sx {:width "8%" :align-items "flex-end"}}
-                            [mui-tooltip  {:title "Modify Custom Field"}
-                             [mui-icon-button {:edge "end"
-                                               :on-click #(form-events/oepn-custom-field-modify-dialog (select-keys kv [:key :protected]))}
-                              [mui-icon-edit-outlined]]]
-                            [mui-tooltip  {:title "Delete Custom Field"}
-                             [mui-icon-button {:edge "end"
-                                               :on-click #(form-events/field-delete section-name-custom-fields key)}
-                              [mui-icon-delete-outline]]]])]))])))
-
-;; deprecate
-#_(defn add-section-popper [anchor-el]
-    (let [{:keys [section-name error-fields]} @(form-events/section-add-data)]
-    ;;(println "section-name " section-name "anchor-el is " @anchor-el)
-      [mui-popper {:anchorEl @anchor-el
-                   :open (if @anchor-el true false)
-                   :sx {:z-index 2 :min-width "400px"}}
-       [mui-box {:sx {:bgcolor "background.paper"
-                      :p "15px"
-                      :pb "5px"
-                      :border-color "#E7EBF0"
-                      :border-width "thin"
-                      :border-style "solid"}}
-        [mui-stack [mui-typography "Add a section"]]
-        [mui-stack [mui-dialog-content {:dividers true}
-                    [m/text-field {:label "Section Name"
-                                   :value section-name
-                                   :error (boolean (seq error-fields))
-                                   :helperText (get error-fields :section-name)
-                                   :InputProps {}
-                                   :on-change (on-change-factory2 form-events/section-add-name-update)
-                                   :variant "standard" :fullWidth true}]]]
-        [mui-stack  {:sx {:align-items "end"}}
-         [mui-button {:variant "text"
-                      :color "primary" :on-click (fn [_e]
-                                                   (form-events/section-add-done)
-                                                   (reset! anchor-el nil))} "Close"]]]]))
 
 (defn attachment-delete-confirm-dialog [dialog-data]
   [(alert-dialog-factory "Delete attachment"
@@ -1410,4 +1197,125 @@
      [mui-stack {:direction "row"
                  :sx {:width "55%"}}
       [entry-content-core]]]))
+
+
+;;;;;;;;;;;;;;;;;;;
+#_(defn custom-field-dialog [{:keys [dialog-show
+                                     field-name
+                                     field-value
+                                     protected
+                                     data-type
+                                     error-fields
+                                     mode
+                                     add-more] :as m}]
+    [mui-dialog {:open dialog-show :on-click #(.stopPropagation ^js/Event %)
+               ;; This will set the Paper width in all child components 
+                 :sx {"& .MuiPaper-root" {:width "60%"}} ;; equivalent to :classes {:paper "pwd-dlg-root"}
+                 }
+     [mui-dialog-title (if (= mode :add) "Add Custom Field" "Modify Custom Field")]
+     [mui-dialog-content {:dividers true}
+      [mui-stack
+       [:<>
+        [m/text-field {:label "Field Name"
+                     ;; If we set ':value key', the dialog refreshes when on change fires for each key press in this input
+                     ;; Not sure why. Using different name like 'field-name' works fine
+                       :value field-name
+                       :error (boolean (seq error-fields))
+                       :helperText (get error-fields field-name)
+                       :InputProps {}
+                       :on-change (on-change-factory form-events/update-custom-field-dialog-data :field-name)
+                       :variant "standard" :fullWidth true}]
+
+        (when (= mode :add)
+          [m/text-field {:label "Field Value"
+                         :value field-value
+                         :InputProps {}
+                         :on-change (on-change-factory form-events/update-custom-field-dialog-data :field-value)
+                         :variant "standard" :fullWidth true}])
+
+        [mui-form-control-label {:control (r/as-element [mui-checkbox {:checked protected
+                                                                       :on-change (on-change-factory form-events/update-custom-field-dialog-data :protected)}])
+                                 :label "Protected"}]]
+
+       (when add-more [mui-stack
+                       [mui-alert {:severity "success" :sx {"&.MuiAlert-root" {:width "100%"}}} ;; need to override the paper width 60%
+                        [mui-alert-title "Success"] "Custom field added. You can add more field or cancel to close"]])]]
+     [mui-dialog-actions
+      [mui-button {:variant "contained" :color "secondary"
+                   :on-click form-events/close-custom-field-dialog} "Cancel"]
+      (if (= mode :add)
+        [mui-button {:variant "contained" :color "secondary"
+                     :on-click #(form-events/custom-field-add (select-keys m [:field-name :field-value :protected :data-type]))} "Add"]
+        [mui-button {:variant "contained" :color "secondary"
+                     :on-click #(form-events/custom-field-modify (select-keys m [:field-name :current-field-name :protected]))} "Modify"])]])
+
+#_(defn custom-field-dialogs []
+    [:<>
+     [custom-field-dialog @(form-events/custom-field-dialog-data)]
+     [custom-field-delete-confirm @(form-events/field-delete-dialog-data)]])
+
+;; deprecate and keep a copy?
+#_(defn custom-fields-content []
+    (let [edit @(form-events/form-edit-mode)
+          section-data @(form-events/entry-form-section-data section-name-custom-fields)]
+      (when (or edit (boolean (seq section-data)))
+        [mui-box {:sx content-sx}
+         [mui-stack {:direction "row"}
+          [mui-stack {:direction "row" :sx {:width "90%"}}
+           [box-caption "Custom Fields"]]
+          (when edit
+            [mui-stack {:direction "row" :sx {:width "10%" :justify-content "flex-end"}}
+             [mui-tooltip {:title "Add"}
+              [mui-icon-button {:edge "end" :color "primary"
+                                :on-click
+                                form-events/open-custom-field-dialog}
+               [mui-icon-add-circle-outline-outlined]]]])]
+         (doall
+          (for [{:keys [key] :as kv} section-data]
+            ^{:key key} [mui-stack {:direction "row"}
+                         [mui-stack {:direction "row" :sx {:width (if edit "92%" "100%")}}
+                          [text-field (assoc kv
+                                             :edit edit
+                                             :visible @(form-events/visible? key)
+                                             :on-change-handler #(form-events/update-section-value-on-change section-name-custom-fields key (-> % .-target  .-value)))]]
+
+                         (when edit
+                           [mui-stack {:direction "row" :sx {:width "8%" :align-items "flex-end"}}
+                            [mui-tooltip  {:title "Modify Custom Field"}
+                             [mui-icon-button {:edge "end"
+                                               :on-click #(form-events/oepn-custom-field-modify-dialog (select-keys kv [:key :protected]))}
+                              [mui-icon-edit-outlined]]]
+                            [mui-tooltip  {:title "Delete Custom Field"}
+                             [mui-icon-button {:edge "end"
+                                               :on-click #(form-events/field-delete section-name-custom-fields key)}
+                              [mui-icon-delete-outline]]]])]))])))
+
+;; deprecate
+#_(defn add-section-popper [anchor-el]
+    (let [{:keys [section-name error-fields]} @(form-events/section-add-data)]
+    ;;(println "section-name " section-name "anchor-el is " @anchor-el)
+      [mui-popper {:anchorEl @anchor-el
+                   :open (if @anchor-el true false)
+                   :sx {:z-index 2 :min-width "400px"}}
+       [mui-box {:sx {:bgcolor "background.paper"
+                      :p "15px"
+                      :pb "5px"
+                      :border-color "#E7EBF0"
+                      :border-width "thin"
+                      :border-style "solid"}}
+        [mui-stack [mui-typography "Add a section"]]
+        [mui-stack [mui-dialog-content {:dividers true}
+                    [m/text-field {:label "Section Name"
+                                   :value section-name
+                                   :error (boolean (seq error-fields))
+                                   :helperText (get error-fields :section-name)
+                                   :InputProps {}
+                                   :on-change (on-change-factory2 form-events/section-add-name-update)
+                                   :variant "standard" :fullWidth true}]]]
+        [mui-stack  {:sx {:align-items "end"}}
+         [mui-button {:variant "text"
+                      :color "primary" :on-click (fn [_e]
+                                                   (form-events/section-add-done)
+                                                   (reset! anchor-el nil))} "Close"]]]]))
+
 

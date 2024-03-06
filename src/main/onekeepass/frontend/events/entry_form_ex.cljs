@@ -8,12 +8,13 @@
                                                              assoc-in-key-db
                                                              get-in-key-db
                                                              fix-tags-selection-prefix]]
+   [onekeepass.frontend.events.entry-form-common :refer [entry-form-key is-field-exist]]
    [onekeepass.frontend.constants :refer [PASSWORD]]
    [onekeepass.frontend.utils :as u :refer [contains-val?]]
    [onekeepass.frontend.background :as bg]))
 
 
-(def standard-kv-fields ["Title" "Notes"])
+
 
 (def Favorites "Favorites")
 
@@ -22,8 +23,6 @@
              ;; A call back fn that is to be called with the new generated password and score
              (fn [password score]
                (dispatch [:entry-form-update-generated-password password score]))]))
-
-(def entry-form-key :entry-form-data)
 
 (defn update-section-value-on-change
   "Updates a section's KeyValue map with the given key and value"
@@ -753,6 +752,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;; Section name add/modify ;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;;; 
+;; Note: popper-anchor-el was used for mui-popper in 'add-modify-section-field-popper'
+;; add-modify-section-field-popper use is replaced with 'add-modify-section-field-dialog' 
+;; popper-anchor-el is not used to anchor dialog and nil can be passed
+
 (defn open-section-name-dialog [popper-anchor-el]
   (dispatch [:section-name-dialog-open  popper-anchor-el]))
 
@@ -961,20 +965,6 @@
 
 (defn- init-section-field-dialog-data [db]
   (assoc-in-key-db db [entry-form-key field-edit-dialog-key] section-field-dialog-init-data))
-
-(defn- is-field-exist
-  "Checks that a given field name exists in the entry form or not "
-  [app-db field-name]
-  ;(println "field-name is " field-name)
-  (let [all-section-fields (-> (get-in-key-db
-                                app-db
-                                [entry-form-key :data :section-fields])
-                               vals flatten) ;;all-section-fields is a list of maps for all sections
-       ;;_ (println "all-section-fields are " all-section-fields)
-        ;;found  (filter (fn [m] (= field-name (:key m))) all-section-fields)
-        ]
-    (or (contains-val? standard-kv-fields field-name)
-        (-> (filter (fn [m] (= field-name (:key m))) all-section-fields) seq boolean))))
 
 (defn- add-section-field
   "Creates a new KV for the added section field and updates the 'section-name' section

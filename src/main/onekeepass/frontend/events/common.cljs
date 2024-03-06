@@ -380,7 +380,8 @@
               (assoc :opened-db-list dbs)
               (assoc :current-db-file-name next-active-db-key)
               (dissoc db-key))
-      :fx [[:dispatch [:common/message-snackbar-open
+      :fx [[:otp/stop-all-entry-form-polling]
+           [:dispatch [:common/message-snackbar-open
                        (str "Closed database " db-key)]]
            [:dispatch [:common/load-app-preference]]]})))
 
