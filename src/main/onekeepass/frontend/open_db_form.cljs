@@ -82,7 +82,7 @@
                          :on-change od-events/key-file-name-on-change
                          :variant "standard" :fullWidth true
                          ;;:placeholder "Optional"
-                         ;; :helperText "Pleae enter a valid password or a key file or both"
+                         ;; :helperText "Please enter a valid password or a key file or both"
                          ;;:helperText "This is required if you had used any random file as key in addition to password"
                          :InputProps {:endAdornment (r/as-element [mui-input-adornment {:position "end"}
                                                                    (if key-file-visibility-on
@@ -98,9 +98,9 @@
                          :type (if key-file-visibility-on "text" "password")}]
           
           [mui-stack {:sx {:margin-top "10px" :margin-bottom "5px"}} 
-           [mui-typography {:variant "caption"} "Pleae provide a valid password or a key file or both password and key file"]]
+           [mui-typography {:variant "caption"} "Please provide a valid password or a key file or both password and key file"]]
           ]
-         [mui-stack "Databse openining is in progress"])
+         [mui-stack "Database opening is in progress"])
        (cond
          (= status :in-progress)
          [mui-linear-progress {:sx {:mt 2}}]
