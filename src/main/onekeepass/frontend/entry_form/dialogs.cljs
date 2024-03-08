@@ -1,5 +1,6 @@
 (ns onekeepass.frontend.entry-form.dialogs
   (:require [clojure.string :as str]
+            [onekeepass.frontend.entry-form.common :as ef-cmn]
             [onekeepass.frontend.common-components :as cc :refer [alert-dialog-factory
                                                                   enter-key-pressed-factory
                                                                   list-items-factory
@@ -8,12 +9,19 @@
             [onekeepass.frontend.constants :as const]
             [onekeepass.frontend.db-icons :as db-icons :refer [entry-icon
                                                                entry-type-icon]]
-            [onekeepass.frontend.events.common :as ce]
+            [onekeepass.frontend.events.common :as ce :refer [on-change-factory]]
             [onekeepass.frontend.events.entry-form-ex :as form-events]
             [onekeepass.frontend.events.move-group-entry :as move-events]
             [onekeepass.frontend.events.tauri-events :as tauri-events]
             [onekeepass.frontend.group-tree-content :as gt-content]
             [onekeepass.frontend.events.otp :as otp-events]
+            
+            [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
+            [onekeepass.frontend.common-components :refer [selection-autocomplete
+                                                           alert-dialog-factory
+                                                           dialog-factory
+                                                           confirm-text-dialog
+                                                           ]]
             [onekeepass.frontend.mui-components :as m :refer [color-primary-main
                                                               date-adapter
                                                               mui-alert
@@ -62,7 +70,26 @@
                                                               mui-typography]]
             [onekeepass.frontend.utils :as u :refer [contains-val?
                                                      to-file-size-str]]
-            [reagent.core :as r]))
+            [reagent.core :as r]
+            [onekeepass.frontend.events.common :as cmn-events]))
+
+(defn delete-totp-confirm-dialog [{:keys [section-name otp-field-name] :as dialog-data} ]
+  ;; we can use either 'alert-dialog-factory' or confirm-text-dialog for this
+  [confirm-text-dialog
+   "Delete One-Time password?"
+   "Are you sure you want to delete this TOTP field permanently?"
+   [{:label "Yes" :on-click (fn [] 
+                              (form-events/entry-form-delete-otp-field section-name otp-field-name)
+                              (ef-cmn/close-delete-totp-confirm-dialog))}
+    {:label "No" :on-click (fn []
+                             (ef-cmn/close-delete-totp-confirm-dialog))}]
+   dialog-data])
+
+
+;;;;;;;;
+(def algorithms [{:name "SHA-1" :value "SHA1"} 
+                 {:name "SHA-256" :value "SHA256"} 
+                 {:name "SHA-512" :value "SHA512"}])
 
 ;;:sx {:min-width "600px" 
 ;;     "& .MuiDialog-paper" {:max-width "650px" :width "90%"}}
@@ -71,6 +98,10 @@
                                   section-name
                                   secret-code
                                   field-name
+                                  hash-algorithm
+                                  period
+                                  digits
+                                  show-custom-settings
                                   api-error-text
                                   error-fields] :as dialog-data}]
   [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
@@ -81,16 +112,62 @@
    [mui-dialog-content
     [mui-stack
      [m/text-field {:label "Field Name"
-                          ;; If we set ':value key', the dialog refreshes when on change fires for each key press in this input
-                          ;; Not sure why. Using different name like 'field-name' works fine
                     :value field-name
-                    :error (boolean (seq error-fields))
-                    :helperText (get error-fields field-name)
-                    :on-change #() ;;(on-change-factory form-events/section-field-dialog-update :field-name)
-                    :variant "standard" :fullWidth true}]]]
+                    :required true
+                    :error (contains? error-fields :field-name)
+                    :helperText (get error-fields :field-name)
+                    :on-change (on-change-factory dlg-events/otp-settings-dialog-update :field-name) ;;(on-change-factory form-events/section-field-dialog-update :field-name)
+                    :variant "standard" :fullWidth true}]
+    
+     [m/text-field {:label "Secret code"
+                    :value secret-code
+                    :required true
+                    :error (contains? error-fields :secret-code)
+                    :helperText (get error-fields :secret-code)
+                    :on-change (on-change-factory dlg-events/otp-settings-dialog-update :secret-code)
+                    :variant "standard" :fullWidth true}]
+    
+    
+     (when (not show-custom-settings)
+       [mui-stack {:direction "row" :sx {:mt 3 :mb 3 :justify-content "center"}}
+        [mui-button {:on-click dlg-events/otp-settings-dialog-custom-settings-show} "Custom settings"]])
+    
+     (when show-custom-settings
+       [mui-stack {:direction "row"}
+        [mui-stack {:sx {:width "40%"}}
+         [m/text-field {:label "Algorithm"
+                        :value hash-algorithm
+                        :required true
+                        :select true
+                        :autoFocus true
+                        :on-change (on-change-factory dlg-events/otp-settings-dialog-update :hash-algorithm)
+                        :variant "standard" :fullWidth true}
+          (doall
+           (for [{:keys [name value]} algorithms]
+             ^{:key value} [mui-menu-item {:value value} name]))]]
+        [mui-stack {:sx {:width "30%" :ml 3}}
+         [m/text-field {:label "Period(sec)"
+                        :value period ;;(:memory kdf)
+                        :type "number"
+                        :error (contains? error-fields :period)
+                        :helperText (get error-fields :period) 
+                        :on-change (on-change-factory dlg-events/otp-settings-dialog-update :period)
+                        :inputProps {:min 1 :max 60}
+                        :variant "standard" :fullWidth true}]]
+    
+        [mui-stack {:sx {:width "30%" :ml 3}}
+         [m/text-field {:label "Token length"
+                        :value digits ;;(:memory kdf)
+                        :type "number"
+                        :error (contains? error-fields :digits)
+                        :helperText (get error-fields :digits)
+                        :on-change (on-change-factory dlg-events/otp-settings-dialog-update :digits)
+                        :inputProps {:min 6 :max 10}
+                        :variant "standard" :fullWidth true}]]])]
+    
+    ]
    [mui-dialog-actions
     [mui-stack  {:sx {:justify-content "end"} :direction "row" :spacing 1}   ;;{:sx {:align-items "end"}}
-     [mui-button {:on-click  (fn [_e]
-                               (form-events/section-field-dialog-update :dialog-show false))} "Cancel"]
-     [mui-button {:on-click #()}
+     [mui-button {:on-click  dlg-events/otp-settings-dialog-close} "Cancel"]
+     [mui-button {:on-click dlg-events/otp-settings-dialog-ok}
       "Ok"]]]])

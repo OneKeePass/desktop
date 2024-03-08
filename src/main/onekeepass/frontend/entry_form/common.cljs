@@ -86,3 +86,15 @@
                  :background "white"
                  :padding "8px 8px 8px 8px"
                  :border ".1px solid"})
+
+
+(def delete-totp-confirm-dialog-data (r/atom {:dialog-show false :section-name nil :otp-field-name nil}))
+
+(defn show-delete-totp-confirm-dialog [section-name otp-field-name] 
+  (reset! delete-totp-confirm-dialog-data {:dialog-show true
+                                           :section-name section-name
+                                           :otp-field-name otp-field-name
+                                           }))
+
+(defn close-delete-totp-confirm-dialog [] 
+  (reset! delete-totp-confirm-dialog-data {:dialog-show false}))

@@ -9,13 +9,16 @@
                                                            otp-field text-area-field
                                                            simple-selection-field
                                                            text-field]]
-            [onekeepass.frontend.entry-form.common :refer [ENTRY_DATETIME_FORMAT
-                                                           background-color1
-                                                           popper-button-sx
-                                                           popper-box-sx
-                                                           content-sx]]
+            [onekeepass.frontend.entry-form.common :as ef-cmn :refer [ENTRY_DATETIME_FORMAT
+                                                                      background-color1
+                                                                      popper-button-sx
+                                                                      popper-box-sx
+                                                                      content-sx]]
 
             [onekeepass.frontend.entry-form.menus :as menus]
+
+            [onekeepass.frontend.entry-form.dialogs :as dlg :refer [delete-totp-confirm-dialog
+                                                                    set-up-totp-dialog]]
 
             [onekeepass.frontend.constants :as const]
             [onekeepass.frontend.db-icons :as db-icons :refer [entry-icon
@@ -26,6 +29,7 @@
             [onekeepass.frontend.events.tauri-events :as tauri-events]
             [onekeepass.frontend.group-tree-content :as gt-content]
             [onekeepass.frontend.events.otp :as otp-events]
+            [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
             [onekeepass.frontend.mui-components :as m :refer [color-primary-main
                                                               date-adapter
                                                               mui-alert
@@ -79,7 +83,7 @@
 ;;(set! *warn-on-infer* true)
 
 
-(defn on-change-factory [handler-name field-name-kw]
+(defn on-change-factory
   [handler-name field-name-kw]
   (fn [^js/Event e]
     (if-not (= :protected field-name-kw)
@@ -234,68 +238,68 @@
       "Ok"]]]])
 
 #_(defn add-modify-section-field-popper
-  [{:keys [dialog-show
-           popper-anchor-el
-           field-name
-           protected
-           required
-           _data-type
-           mode
-           error-fields]
-    :as m}]
-  #_[mui-click-away-listener #_{:onClickAway #(form-events/section-field-dialog-update :dialog-show false)}]
-  (let [ok-fn (fn [_e]
-                (if (= mode :add)
-                  (form-events/section-field-add
-                   (select-keys m [:field-name :protected :required :section-name :data-type]))
-                  (form-events/section-field-modify
-                   (select-keys m [:field-name :current-field-name :data-type :protected :required :section-name]))))]
-    [mui-popper {:anchorEl popper-anchor-el
-                 :id "field"
-                 :open dialog-show
-                 :sx {:z-index 2 :min-width "400px"}}
-     [mui-box {:sx popper-box-sx}
-      [mui-stack [mui-typography (if (= mode :add) "Add field" "Modify field")]]
-      [mui-stack
-       [mui-dialog-content {:dividers true}
+    [{:keys [dialog-show
+             popper-anchor-el
+             field-name
+             protected
+             required
+             _data-type
+             mode
+             error-fields]
+      :as m}]
+    #_[mui-click-away-listener #_{:onClickAway #(form-events/section-field-dialog-update :dialog-show false)}]
+    (let [ok-fn (fn [_e]
+                  (if (= mode :add)
+                    (form-events/section-field-add
+                     (select-keys m [:field-name :protected :required :section-name :data-type]))
+                    (form-events/section-field-modify
+                     (select-keys m [:field-name :current-field-name :data-type :protected :required :section-name]))))]
+      [mui-popper {:anchorEl popper-anchor-el
+                   :id "field"
+                   :open dialog-show
+                   :sx {:z-index 2 :min-width "400px"}}
+       [mui-box {:sx popper-box-sx}
+        [mui-stack [mui-typography (if (= mode :add) "Add field" "Modify field")]]
         [mui-stack
-         [m/text-field {:label "Field Name"
+         [mui-dialog-content {:dividers true}
+          [mui-stack
+           [m/text-field {:label "Field Name"
                      ;; If we set ':value key', the dialog refreshes when on change fires for each key press in this input
                      ;; Not sure why. Using different name like 'field-name' works fine
-                        :value field-name
-                        :error (boolean (seq error-fields))
-                        :helperText (get error-fields field-name)
-                        :on-key-press (enter-key-pressed-factory ok-fn)
+                          :value field-name
+                          :error (boolean (seq error-fields))
+                          :helperText (get error-fields field-name)
+                          :on-key-press (enter-key-pressed-factory ok-fn)
 
                         ;; Needs some tweaking as the input remains focus till the error is cleared
-                        :inputRef (fn [comp-ref]
-                                    (when (and (boolean (seq error-fields)) (not (nil? comp-ref)))
-                                      (when-let [comp-id (some-> comp-ref .-props .-id)]
-                                        (.focus (.getElementById js/document comp-id)))))
-                        :InputProps {}
-                        :on-change (on-change-factory form-events/section-field-dialog-update :field-name)
-                        :variant "standard" :fullWidth true}]
+                          :inputRef (fn [comp-ref]
+                                      (when (and (boolean (seq error-fields)) (not (nil? comp-ref)))
+                                        (when-let [comp-id (some-> comp-ref .-props .-id)]
+                                          (.focus (.getElementById js/document comp-id)))))
+                          :InputProps {}
+                          :on-change (on-change-factory form-events/section-field-dialog-update :field-name)
+                          :variant "standard" :fullWidth true}]
 
-         [mui-stack {:direction "row"}
-          [mui-form-control-label
-           {:control (r/as-element
-                      [mui-checkbox {:checked protected
-                                     :on-change (on-change-factory form-events/section-field-dialog-update :protected)}])
-            :label "Protected"}]
-          [mui-form-control-label
-           {:control (r/as-element
-                      [mui-checkbox {:checked required
-                                     :on-change (on-check-factory form-events/section-field-dialog-update :required)}])
-            :label "Required1"}]]]]]
-      [mui-stack  {:sx {:justify-content "end"} :direction "row"}   ;;{:sx {:align-items "end"}}
-       [mui-button {:variant "text"
-                    :sx popper-button-sx
-                    :on-click  (fn [_e]
-                                 (form-events/section-field-dialog-update :dialog-show false))} "Cancel"]
-       [mui-button {:sx popper-button-sx
-                    :variant "text"
-                    :on-click ok-fn}
-        "Ok"]]]]))
+           [mui-stack {:direction "row"}
+            [mui-form-control-label
+             {:control (r/as-element
+                        [mui-checkbox {:checked protected
+                                       :on-change (on-change-factory form-events/section-field-dialog-update :protected)}])
+              :label "Protected"}]
+            [mui-form-control-label
+             {:control (r/as-element
+                        [mui-checkbox {:checked required
+                                       :on-change (on-check-factory form-events/section-field-dialog-update :required)}])
+              :label "Required1"}]]]]]
+        [mui-stack  {:sx {:justify-content "end"} :direction "row"}   ;;{:sx {:align-items "end"}}
+         [mui-button {:variant "text"
+                      :sx popper-button-sx
+                      :on-click  (fn [_e]
+                                   (form-events/section-field-dialog-update :dialog-show false))} "Cancel"]
+         [mui-button {:sx popper-button-sx
+                      :variant "text"
+                      :on-click ok-fn}
+          "Ok"]]]]))
 
 (defn add-modify-section-field-dialog
   [{:keys [dialog-show
@@ -447,7 +451,7 @@
                                                                           section-name key (-> % .-target  .-value)))]
 
                       (= data-type const/ONE_TIME_PASSWORD)
-                      [otp-field (assoc kv :edit edit)]
+                      [otp-field (assoc kv :edit edit :section-name section-name)]
 
                       :else
                       [text-field (assoc kv
@@ -473,8 +477,8 @@
                        [mui-icon-button {:edge "end"
                                          :on-click #(form-events/field-delete section-name key)}
                         [mui-icon-delete-outline]]]])])))
-         [custom-field-delete-confirm @(form-events/field-delete-dialog-data)]
-         [custom-section-delete-confirm @(form-events/section-delete-dialog-data)]]))))
+         #_[custom-field-delete-confirm @(form-events/field-delete-dialog-data)]
+         #_[custom-section-delete-confirm @(form-events/section-delete-dialog-data)]]))))
 
 (defn all-sections-content []
   (let [{:keys [edit]
@@ -793,6 +797,11 @@
        [add-modify-section-popper @(form-events/section-name-dialog-data)]
        [add-modify-section-field-dialog @(form-events/section-field-dialog-data)]
 
+       [set-up-totp-dialog @(dlg-events/otp-settings-dialog-data)]
+       [delete-totp-confirm-dialog @ef-cmn/delete-totp-confirm-dialog-data]
+       [custom-field-delete-confirm @(form-events/field-delete-dialog-data)]
+       [custom-section-delete-confirm @(form-events/section-delete-dialog-data)]
+
        [gt-content/move-dialog
         {:dialog-data @(move-events/move-group-entry-dialog-data :entry)
          :title "Put back"
@@ -885,7 +894,8 @@
                      :on-click form-events/ok-new-entry-add} "Ok"]]]]
 
      [add-modify-section-popper @(form-events/section-name-dialog-data)]
-     [add-modify-section-field-dialog @(form-events/section-field-dialog-data)]]))
+     [add-modify-section-field-dialog @(form-events/section-field-dialog-data)]
+     [set-up-totp-dialog @(dlg-events/otp-settings-dialog-data)]]))
 
 (defn entry-content-welcome
   []

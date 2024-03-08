@@ -52,6 +52,7 @@
    [onekeepass.frontend.events.tauri-events :as tauri-events]
    [onekeepass.frontend.events.common :as ce]
    [onekeepass.frontend.events.entry-form-ex :as form-events]
+   [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
    [onekeepass.frontend.utils :as u :refer [contains-val?
                                             to-file-size-str]]
    [reagent.core :as r]))
@@ -149,7 +150,6 @@
   [entry-uuid]
   [:f> form-menu-internal entry-uuid])
 
-
 (defn add-additional-field-menu-items  []
   (fn [anchor-el section-name]
     [mui-menu {:anchorEl @anchor-el
@@ -162,7 +162,7 @@
 
      [mui-menu-item {:sx {:padding-left "1px"}
                      :divider false
-                     :on-click (menu-action anchor-el #())}
+                     :on-click (menu-action anchor-el #(dlg-events/otp-settings-dialog-show))}
       [mui-list-item-text {:inset true} "Set up TOPT"]]]))
 
 (defn add-additional-field-menu [section-name]

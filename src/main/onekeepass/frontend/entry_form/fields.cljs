@@ -1,5 +1,6 @@
 (ns onekeepass.frontend.entry-form.fields
   (:require
+   [clojure.string :as str]
    [onekeepass.frontend.entry-form.common :refer []]
    [onekeepass.frontend.common-components :as cc :refer [alert-dialog-factory
                                                          enter-key-pressed-factory
@@ -9,6 +10,7 @@
 
    [onekeepass.frontend.events.entry-form-ex :as form-events]
    [onekeepass.frontend.events.otp :as otp-events]
+   [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
    [onekeepass.frontend.mui-components :as m :refer [color-primary-main
                                                      date-adapter
                                                      mui-alert
@@ -55,7 +57,8 @@
                                                      mui-tooltip
                                                      mui-typography]]
 
-   [reagent.core :as r]))
+   [reagent.core :as r]
+   [onekeepass.frontend.entry-form.common :as ef-cmn]))
 
 (defn end-icons [key value protected visibile? edit]
   [:<>
@@ -183,7 +186,7 @@
   (fn [{:keys [key
                value
                visible
-               current-opt-token
+               ;;current-opt-token
                edit
                error-text
                no-end-icons]
@@ -191,9 +194,11 @@
              edit false
              no-end-icons false}}]
 
-    (let [{:keys [token ttl period]} current-opt-token
-          ttl-time @(form-events/opt-ttl-indicator key)
-          ttl-time (if (nil? ttl-time) ttl ttl-time)]
+    (let [{:keys [token ttl period]} @(form-events/otp-currrent-token key)
+        ;;   ttl-time @(form-events/otp-ttl-indicator key)
+        ;;   ttl-time (if (nil? ttl-time) ttl ttl-time)
+          
+          ]
       [mui-stack {:direction "row" :sx {:width "100%"}}
        [mui-text-field {:sx (if-not edit otp-txt-input-sx  {})
                         :fullWidth true
@@ -222,28 +227,36 @@
 
              ;; :border "1px solid black"
        [mui-stack {:sx {:width "10%" :align-items "center" :justify-content "center"}}
-        [otp-progress-circle period ttl-time]]])))
+        [otp-progress-circle period ttl]]])))
 
-(defn otp-field [{:keys [edit] :as kv}]
+(defn otp-field [{:keys [edit key value section-name ] :as kv}] 
   (if-not edit 
     [otp-read-field kv]
-    [mui-stack {:direction "row" :sx {:width "100%"}}
-     [mui-stack {:direction "row" :sx {:width "100%"}}
-      [text-field (assoc kv
-                         :edit edit
-                         :protected false
-                         :disabled true
-                         :error-text nil
-                         :visible true
-                         :on-change-handler #())]
-      ]
-     [mui-stack {:direction "row" :sx { :align-items "flex-end"}}
-     
-      [mui-tooltip  {:title "Delete Field" :enterDelay 2500}
-       [mui-icon-button {:edge "end"
-                         :on-click #()}
-        [mui-icon-delete-outline]]]]
-     ]
+    (if (str/blank? value) 
+      [mui-stack {:direction "row" :sx {:width "100%" :justify-content "center"}} 
+       [mui-link {:sx {:color "primary.dark"}
+                  :underline "hover"
+                  :on-click  dlg-events/otp-settings-dialog-show}
+        [mui-typography {:variant "h6" :sx {:font-size "1.1em"}}
+         "Set up One-Time Password"]]
+       
+       ]
+      [mui-stack {:direction "row" :sx {:width "100%"}}
+       [mui-stack {:direction "row" :sx {:width "100%"}}
+        [text-field (assoc kv
+                           :edit edit
+                           :protected false
+                           :disabled true
+                           :error-text nil
+                           :visible true
+                           :on-change-handler #())]]
+       [mui-stack {:direction "row" :sx {:align-items "flex-end"}}
+        
+        [mui-tooltip  {:title "Delete Field" :enterDelay 2500}
+         [mui-icon-button {:edge "end"
+                           :on-click #(ef-cmn/show-delete-totp-confirm-dialog section-name key)}
+          [mui-icon-delete-outline]]]]]
+      )
     ))
 
 ;; see https://mui.com/x/migration/migration-pickers-v5/ as we are using now "@mui/x-date-pickers": "^6.16.0"

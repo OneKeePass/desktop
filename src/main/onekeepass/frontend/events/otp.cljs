@@ -7,10 +7,12 @@
 
 (def entry-form-otp-field-timers (atom {}))
 
-(defn start-polling-entry-form-otp-field 
+(defn start-polling-entry-form-otp-field
   "Starts the timer for a given otp field token generation and indicator update"
   [db-key entry-uuid otp-field-name {:keys [period ttl]}]
   (let [remaining (atom ttl)
+        ;; Timer that polls every second and makes call to the backgend generate token api
+        ;; when the ttl expires
         timer-id (js/setInterval
                   ;; This callbasck is called every sec
                   (fn []
@@ -27,7 +29,7 @@
                            (fn [api-response]
                              (when-let [current-opt-token
                                         (check-error api-response #(println "Error in getting currrent otp token" %))]
-                               (dispatch [:entry-form/update-opt-ttl-indicator otp-field-name @remaining])
+                               #_(dispatch [:entry-form/update-opt-ttl-indicator otp-field-name @remaining])
                                (dispatch [:entry-form/update-otp-token entry-uuid otp-field-name current-opt-token])))))
                         (do
                           (reset! remaining rem)
@@ -55,9 +57,15 @@
  (fn [[db-key previous-entry-uuid entry-uuid otp-field-m]]
    (when-not (nil? previous-entry-uuid)
      (stop-polling-entry-form-otp-fields previous-entry-uuid))
+   
+   ;; Any previous polling for 'entry-uuid' needs to be stopped
+   (stop-polling-entry-form-otp-fields entry-uuid)
+   
    ;; otp-field-m is a map with otp field name as key and token data as its value
    ;; See 'start-polling-otp-fields' fn
-   (start-polling-entry-form-otp-fields db-key entry-uuid otp-field-m)))
+   (let [fields-m (into {} (filter (fn [[_k v]] (not (nil? v))) otp-field-m))]
+     (when (boolean (seq fields-m))
+       (start-polling-entry-form-otp-fields db-key entry-uuid fields-m)))))
 
 (reg-fx
  :otp/stop-all-entry-form-polling

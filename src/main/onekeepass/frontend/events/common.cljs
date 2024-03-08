@@ -36,6 +36,25 @@
                          (let [file-name (check-error api-response)]
                            (dispatch [kw-dispatch-name file-name])))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;  Common factory ;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn on-change-factory
+  "A function factory 
+   The arg 'handler-name' is a fn that is called with supplier arg 'field-name-kw' and 
+   the event value
+   Returns a function that can be used in a on-change handler of a text field
+  "
+  [handler-name field-name-kw]
+  (fn [^js/Event e]
+    (handler-name field-name-kw (-> e .-target  .-value))))
+
+(defn on-check-factory 
+  "Called in on-change handler of a check field"
+  [handler-name field-name-kw]
+  (fn [e]
+    (handler-name field-name-kw (-> e .-target  .-checked))))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;; System Info and Preference ;;;;;;;;;;;;;;;;;;;;
 
 (declare set-session-timeout)
