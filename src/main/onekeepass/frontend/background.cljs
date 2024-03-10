@@ -291,6 +291,13 @@
                :otp-field-name otp-field-name}
               dispatch-fn))
 
+(defn form-otp-url [otp-settings dispatch-fn]
+  ;; Tauri api args are in camelcase, but any value struct passed should have its 
+  ;; field name in snake_case
+  (let [args (clj->js {:otpSettings (->> otp-settings 
+                                         (cske/transform-keys csk/->snake_case))})] 
+    (invoke-api "form_otp_url" args dispatch-fn :convert-request false :convert-response false)))
+
 (defn- transform-resquest-entry-form-data
   "All keys in the incoming entry map from UI will be transformed
   using custom key transformer

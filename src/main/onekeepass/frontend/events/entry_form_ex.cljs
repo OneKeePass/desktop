@@ -14,9 +14,6 @@
    [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.constants :as const]))
 
-
-
-
 (def Favorites "Favorites")
 
 (defn password-generator-show []
@@ -298,11 +295,17 @@
 
      (-> db (assoc-in-key-db [entry-form-key :api-error-text] result)))))
 
+(defn merge-section-key-value [db section key value]
+  (let [section-kvs (get-in-key-db db [entry-form-key :data :section-fields section])
+        section-kvs (mapv (fn [m] (if (= (:key m) key) (assoc m :value value) m)) section-kvs)]
+    section-kvs))
+
 (reg-event-fx
  :entry-form-update-section-value
  (fn [{:keys [db]} [_event-id section key value]]
-   (let [section-kvs (get-in-key-db db [entry-form-key :data :section-fields section])
-         section-kvs (mapv (fn [m] (if (= (:key m) key) (assoc m :value value) m)) section-kvs)]
+   (let [;;section-kvs (get-in-key-db db [entry-form-key :data :section-fields section])
+         ;;section-kvs (mapv (fn [m] (if (= (:key m) key) (assoc m :value value) m)) section-kvs)
+         section-kvs (merge-section-key-value db section key value)]
 
      (if-not (= key PASSWORD)
        {:db (assoc-in-key-db db [entry-form-key :data :section-fields section] section-kvs)}
@@ -466,17 +469,16 @@
        {:db (assoc-in-key-db db [entry-form-key :error-fields] error-fields)}
        ;; clear any previous errors as 'error-fields' will be empty at this time
        {:db (assoc-in-key-db db [entry-form-key :error-fields] error-fields)
-        :fx [[:bg-update-entry [(active-db-key db) form-data]]]
-        }
+        :fx [[:bg-update-entry [(active-db-key db) form-data]]]}
        ;; TODO: Move update-entry call to a reg-fx 
        #_(do
-         (update-entry db (fn [api-response]
-                            (when-not (on-error api-response)
-                              (dispatch [:entry-update-complete-ex]))))
+           (update-entry db (fn [api-response]
+                              (when-not (on-error api-response)
+                                (dispatch [:entry-update-complete-ex]))))
          ;; clear any previous errors as 'error-fields' will be empty at this time
-         {:db (assoc-in-key-db db [entry-form-key :error-fields] error-fields)})))))
+           {:db (assoc-in-key-db db [entry-form-key :error-fields] error-fields)})))))
 
-(reg-fx 
+(reg-fx
  :bg-update-entry
  (fn [[db-key form-data]]
    (println "bg section fileds " (:section-fields form-data))
@@ -1717,7 +1719,6 @@
 (defn entry-form-delete-otp-field [section otp-field-name]
   (dispatch [:entry-form-delete-otp-field section otp-field-name]))
 
-
 (defn otp-currrent-token [opt-field-name]
   (subscribe [:otp-currrent-token opt-field-name]))
 
@@ -1734,6 +1735,7 @@
         names-values (into {} (for [{:keys [key current-opt-token]} otp-fields] [key current-opt-token]))]
     names-values))
 
+;; Called to update with the current token 
 (reg-event-fx
  :entry-form/update-otp-token
  (fn [{:keys [db]} [_event-id entry-uuid otp-field-name current-opt-token]]
@@ -1759,29 +1761,51 @@
 
 (reg-event-fx
  :entry-form-delete-otp-field
- (fn [{:keys [db]} [_event-id section otp-field-name]] 
+ (fn [{:keys [db]} [_event-id section otp-field-name]]
    (let [section-kvs (get-in-key-db db [entry-form-key :data :section-fields section])
-         ;;_ (println "Before: section-kvs " section-kvs)
          section-kvs (mapv (fn [m] (remove-section-otp-field otp-field-name m)) section-kvs)
          ;; Remove nil values
          section-kvs (filterv (fn [m] m) section-kvs)
-         
-         otp-fields (-> db (get-in-key-db [entry-form-key :otp-fields]) 
-                        (dissoc otp-field-name)) 
+         otp-fields (-> db (get-in-key-db [entry-form-key :otp-fields])
+                        (dissoc otp-field-name))
+         ;; Set the db before using in fx
          db (-> db
                 (assoc-in-key-db [entry-form-key :data :section-fields section] section-kvs)
-                (assoc-in-key-db [entry-form-key :otp-fields] otp-fields))
-         ] 
-     ;;(println "After: section-kvs " section-kvs)
-     {:db db 
-      :fx [[:bg-update-entry [(active-db-key db) (get-in-key-db db [entry-form-key :data])  ]]]
-      }
-     #_(if-not (= key PASSWORD)
-         {:db (assoc-in-key-db db [entry-form-key :data :section-fields section] section-kvs)}
-       ;; Recalculate the password score for its strength
-         {:db (assoc-in-key-db db [entry-form-key :data :section-fields section] section-kvs)
-          :fx [[:bg-score-password [value]]]}))))
+                (assoc-in-key-db [entry-form-key :otp-fields] otp-fields))]
+     {:db db
+      :fx [[:bg-update-entry [(active-db-key db) (get-in-key-db db [entry-form-key :data])]]]})))
 
+(reg-event-fx
+ :entry-form/otp-url-formed
+ (fn [{:keys [db]} [_event-id section otp-field-name otp-url]]
+   (let [section-kvs (merge-section-key-value db section otp-field-name otp-url)
+         ;; Set the db before using in fx
+         db (-> db
+                (assoc-in-key-db [entry-form-key :data :section-fields section] section-kvs))]
+     {:db db
+      :fx [[:bg-update-entry [(active-db-key db) (get-in-key-db db [entry-form-key :data])]]]})))
+
+(reg-event-fx
+ :entry-form/otp-stop-polling-on-lock
+ (fn [{:keys [db]} [_event-id locked-db-key]]
+   (let [form-status (get-in-key-db db [entry-form-key :showing])
+         entry-uuid (get-in-key-db db [entry-form-key :data :uuid])]
+     (if (= form-status :selected)
+       {:fx [[:otp/stop-entry-form-polling [entry-uuid]]]}
+       {}))))
+
+(reg-event-fx
+ :entry-form/otp-start-polling-on-unlock
+ (fn [{:keys [db]} [_event-id]]
+   (let [form-status (get-in-key-db db [entry-form-key :showing])
+         entry-uuid (get-in-key-db db [entry-form-key :data :uuid])
+         otp-fields (extract-form-otp-fields (get-in-key-db db [entry-form-key :data]))]
+     (if (= form-status :selected)
+       {:fx [[:otp/start-polling-otp-fields [(active-db-key db)
+                                             nil
+                                             entry-uuid
+                                             otp-fields]]]}
+       {}))))
 
 #_(defn update-otp-field
     "Updates a otp field with current token value by looking for this field in a section

@@ -236,7 +236,7 @@
       [mui-stack {:direction "row" :sx {:width "100%" :justify-content "center"}} 
        [mui-link {:sx {:color "primary.dark"}
                   :underline "hover"
-                  :on-click  dlg-events/otp-settings-dialog-show}
+                  :on-click  #(dlg-events/otp-settings-dialog-show section-name)}
         [mui-typography {:variant "h6" :sx {:font-size "1.1em"}}
          "Set up One-Time Password"]]
        

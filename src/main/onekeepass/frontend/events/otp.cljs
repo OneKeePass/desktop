@@ -73,6 +73,11 @@
    (doseq [uuid (keys @entry-form-otp-field-timers)]
      (stop-polling-entry-form-otp-fields uuid))))
 
+(reg-fx
+ :otp/stop-entry-form-polling
+ (fn [[entry-uuid]]
+   (stop-polling-entry-form-otp-fields entry-uuid)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 

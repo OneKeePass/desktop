@@ -244,6 +244,11 @@ pub(crate) async fn entry_form_current_otp(
 }
 
 #[command]
+pub(crate) async fn form_otp_url(otp_settings: kp_service::OtpSettings) -> Result<String> {
+  Ok(kp_service::form_otp_url(&otp_settings)?)
+}
+
+#[command]
 pub(crate) async fn history_entry_by_index(
   db_key: &str,
   entry_uuid: Uuid,

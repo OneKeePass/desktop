@@ -51,6 +51,7 @@ fn main() {
       commands::entry_type_headers,
       commands::export_as_xml,
       commands::export_main_content_as_xml,
+      commands::form_otp_url,
       commands::generate_key_file,
       commands::get_db_settings,
       commands::get_entry_form_data_by_id,

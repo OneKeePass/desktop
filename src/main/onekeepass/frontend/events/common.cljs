@@ -236,7 +236,8 @@
 
 (defn check-error
   "Receives a map with keys result and error or either one.
-  Returns the value of result in case there is no error
+   Returns the value of result in case there is no error. If there is 
+   an error a nil value is returned and calls the supplied error fn or default error fn
   "
   ([{:keys [result error]} error-fn]
    (if-not (nil? error)
@@ -430,7 +431,10 @@
                           (when-not (on-error api-response)
                             ;; Add any relevant dispatch calls here
                             ;;(println "Database is locked")
-                            #())))))
+                            ;;#()
+                            (dispatch [:entry-form/otp-stop-polling-on-lock db-key])
+                            
+                            )))))
 
 ;; Dispatched from a open-db-form event
 (reg-event-fx
@@ -444,7 +448,7 @@
                      (-> db :app-preference :default-entry-category-groupings)]]
          [:dispatch [:common/load-entry-type-headers]]
          [:dispatch [:common/show-content :group-entry]]
-
+         
          ;; Quick unlock, just gets the data from memory on successful
          ;; authentication using existing credential
          ;; We need to make sure, the data are not stale by checking whether database 
@@ -464,7 +468,9 @@
                                             api-response
                                             #(dispatch [:database-change-detected %]))
                                    ;; When there is no database change, nothing is done
-                                   #())))))
+                                   ;; #()
+                                   (dispatch [:entry-form/otp-start-polling-on-unlock])
+                                   )))))
 
 (reg-event-fx
  :database-change-detected

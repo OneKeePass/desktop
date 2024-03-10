@@ -162,7 +162,7 @@
 
      [mui-menu-item {:sx {:padding-left "1px"}
                      :divider false
-                     :on-click (menu-action anchor-el #(dlg-events/otp-settings-dialog-show))}
+                     :on-click (menu-action anchor-el #(dlg-events/otp-settings-dialog-show section-name))}
       [mui-list-item-text {:inset true} "Set up TOPT"]]]))
 
 (defn add-additional-field-menu [section-name]

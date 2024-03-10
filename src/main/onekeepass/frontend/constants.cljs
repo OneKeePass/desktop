@@ -55,10 +55,13 @@
 (def TITLE "Title")
 (def MODIFIED_TIME "Modified Time")
 (def CREATED_TIME "Created Time")
-
 (def PASSWORD "Password")
+
+(def OTP "Standard field name used" "otp")
 
 (def MACOS "macos")
 
-;; Field type
-(def ONE_TIME_PASSWORD "OneTimePassword")
+(def ONE_TIME_PASSWORD 
+  "Field type" "OneTimePassword")
+
+(def OTP_URL_PREFIX "otpauth://totp")
