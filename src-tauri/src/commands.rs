@@ -6,7 +6,7 @@ use tauri::State;
 use std::collections::HashMap;
 use std::io::ErrorKind;
 
-use log::{error, info};
+use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 use std::fs::read_to_string;
 use std::path::Path;
@@ -14,8 +14,9 @@ use uuid::Uuid;
 
 use crate::menu::{self, MenuActionRequest};
 use crate::utils::SystemInfoWithPreference;
-use crate::{auto_type, biometric};
+use crate::{auto_type, biometric, OTP_TOKEN_UPDATE_EVENT};
 use crate::{preference, utils};
+use onekeepass_core::async_service as kp_async_service;
 use onekeepass_core::db_service as kp_service;
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -32,15 +33,73 @@ pub struct UpdatePayload {
 
 pub type Result<T> = std::result::Result<T, String>;
 
-//
-// #[tauri::command]
-// pub(crate) async fn test_call(
-//   arg:crate::auto_type::TestArg
-// ) -> Result<()> {
+#[tauri::command]
+pub(crate) async fn init_timers<R: Runtime>(
+  _app: tauri::AppHandle<R>,
+  window: tauri::Window<R>,
+  app_state: State<'_, utils::AppState>,
+) -> Result<()> {
+  // Need to ensure, we call init_entry_channels once only and
+  // also spawn fn should be called once
+  // This is an issue when we do 'reload' during development
+  // Also this may be an issue when 'bg-init-timers'is called more than once
+  // for any reason. By keeping the status in app_state, we can prevent
+  // the repeat calling
+  if !app_state.is_timers_init_completed() {
+    let mut rx = kp_async_service::init_entry_channels();
+    debug!("Init timer is called in window {} ", window.label(),);
 
-//   Ok(crate::auto_type::test_call(arg))
-// }
-//
+    // Need to listen for the periodic update of otp tokens
+    kp_async_service::async_runtime().spawn(async move {
+      loop {
+        //debug!("Going to wait for value...");
+        let reply = rx.recv().await;
+
+        //debug!("Received value as {:?}", &reply);
+
+        // Only valid values are send to UI
+        if let Some(ov) = reply {
+          window.emit(OTP_TOKEN_UPDATE_EVENT, &ov).unwrap();
+        } else {
+          debug!("None received for EntryOtpTokenReply")
+        }
+      }
+    });
+    app_state.timers_init_completed();
+  }
+
+  Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn start_polling_entry_otp_fields(
+  db_key: &str,
+  previous_entry_uuid: Option<Uuid>,
+  entry_uuid: Uuid,
+  otp_fields: kp_async_service::OtpTokenTtlInfoByField,
+) -> Result<()> {
+  kp_async_service::start_polling_entry_otp_fields(
+    db_key,
+    previous_entry_uuid.as_ref(),
+    &entry_uuid,
+    otp_fields,
+  );
+  Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn stop_polling_entry_otp_fields(_db_key: &str, entry_uuid: Uuid) -> Result<()> {
+  kp_async_service::stop_polling_entry_otp_fields(&entry_uuid);
+  Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn stop_polling_all_entries_otp_fields(_db_key: &str) -> Result<()> {
+  kp_async_service::stop_polling_all_entries_otp_fields();
+  Ok(())
+}
+
+// ----------
 
 #[command]
 pub(crate) async fn load_kdbx(
@@ -52,14 +111,6 @@ pub(crate) async fn load_kdbx(
   // key_file_name.as_deref() converts Option<String> to Option<&str> - https://stackoverflow.com/questions/31233938/converting-from-optionstring-to-optionstr
 
   let r = kp_service::load_kdbx(db_file_name, password, key_file_name.as_deref());
-
-  // let r = kp_service::load_kdbx_NEW(
-  //   db_file_name,
-  //   password,
-  //   key_file_name.as_deref(),
-  //   key_secure::store_key,
-  //   &key_secure::get_key,
-  // );
 
   if let Err(kp_service::error::Error::DbFileIoError(m, ioe)) = &r {
     // Remove from the recent list only if the file opening failed because of the file is not found in the passed file path
@@ -240,6 +291,19 @@ pub(crate) async fn entry_form_current_otp(
     db_key,
     &entry_uuid,
     otp_field_name,
+  )?)
+}
+
+#[tauri::command]
+pub(crate) async fn entry_form_current_otps(
+  db_key: &str,
+  entry_uuid: Uuid,
+  otp_field_names: Vec<String>,
+) -> Result<HashMap<String, kp_service::CurrentOtpTokenData>> {
+  Ok(kp_service::entry_form_current_otps(
+    db_key,
+    &entry_uuid,
+    otp_field_names,
   )?)
 }
 
@@ -675,6 +739,24 @@ pub async fn send_sequence_to_winow_async(
   Ok(auto_type::send_sequence_to_winow_async(window_info, sequence, entry_fields).await?)
 }
 
+// -------------- Test commands
+
+// #[tauri::command]
+// pub(crate) async fn test_call() -> Result<()> {
+//   Ok(onekeepass_core::async_service::start())
+// }
+
+//
+// #[tauri::command]
+// pub(crate) async fn test_call(
+//   arg:crate::auto_type::TestArg
+// ) -> Result<()> {
+
+//   Ok(crate::auto_type::test_call(arg))
+// }
+//
+
+///////////////////////////////////////////////////////////////////////////////////////////////
 // Tried these to use with macOS 13 and macOS 10. Only the async version will work with all macOS
 /*
 #[tauri::command]

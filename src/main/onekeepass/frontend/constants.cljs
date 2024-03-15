@@ -57,11 +57,17 @@
 (def CREATED_TIME "Created Time")
 (def PASSWORD "Password")
 
-(def OTP "Standard field name used" "otp")
-
 (def MACOS "macos")
 
-(def ONE_TIME_PASSWORD 
-  "Field type" "OneTimePassword")
+(def ONE_TIME_PASSWORD "Field type" "OneTimePassword")
+(def OTP "Standard field name used" "otp")
 
 (def OTP_URL_PREFIX "otpauth://totp")
+
+(def MAIN_WINDOW_EVENT "MainWindowEvent")
+(def OTP_TOKEN_UPDATE_EVENT "OtpTokenUpdateEvent")
+(def TAURI_MENU_EVENT "TauriMenuEvent")
+(def WINDOW_FOCUS_CHANGED "WindowFocusChanged")
+(def CLOSE_REQUESTED  "CloseRequested" )
+
+

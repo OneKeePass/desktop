@@ -2,7 +2,10 @@
   "Handlers for the backend tauri events"
   (:require
    [re-frame.core :refer [dispatch]]
-   [onekeepass.frontend.constants :as const]
+   [onekeepass.frontend.constants :as const :refer
+    [TAURI_MENU_EVENT MAIN_WINDOW_EVENT
+     OTP_TOKEN_UPDATE_EVENT
+     CLOSE_REQUESTED,WINDOW_FOCUS_CHANGED]]
    [onekeepass.frontend.background :as bg]
    [camel-snake-kebab.extras :as cske]
    [camel-snake-kebab.core :as csk]))
@@ -12,9 +15,9 @@
 
 ;; a map of map 
 ;; e.g  {MENU_ID_NEW_ENTRY {:callback-fn some-fn  :args args-map-for-callback  }}
-(def ^:private all-menu-args (atom {})) 
+(def ^:private all-menu-args (atom {}))
 
-(defn menu-action-call 
+(defn menu-action-call
   "Calls the menu specific callback function"
   [menu-id]
   (let [{:keys [callback-fn]} (get @all-menu-args menu-id)]
@@ -41,13 +44,13 @@
 
       (= menu-id const/MENU_ID_EDIT_ENTRY)
       (dispatch [:entry-form-ex/edit true])
-      
+
       (= menu-id const/MENU_ID_NEW_ENTRY)
       (menu-action-call menu-id)
-      
+
       (= menu-id const/MENU_ID_NEW_GROUP)
       (dispatch [:group-tree-content/new-group])
-      
+
       (= menu-id const/MENU_ID_EDIT_GROUP)
       (dispatch [:group-tree-content/edit-group])
 
@@ -59,13 +62,13 @@
 
       (= menu-id const/MENU_ID_OPEN_DATABASE)
       (dispatch [:open-db-form/open-db])
-      
+
       (= menu-id const/MENU_ID_SAVE_DATABASE)
       (dispatch [:save-current-db false])
-      
+
       (= menu-id const/MENU_ID_SAVE_DATABASE_AS)
       (dispatch [:common/save-db-file-as false])
-      
+
       (= menu-id const/MENU_ID_SAVE_DATABASE_BACKUP)
       (dispatch [:common/save-db-file-as true])
 
@@ -76,40 +79,65 @@
       (dispatch [:common/message-box-show "Work In Progress" (str "Menu action for " menu-id " will be implemented soon")]))))
 
 (defn register-menu-events []
-  (bg/register-event-listener "TauriMenuEvent" handle-menu-events))
+  (bg/register-event-listener TAURI_MENU_EVENT handle-menu-events))
 
 (defn handle-main-window-event
   "The arg js-event-repsonse is js object of format -  
   #js {:event MainWindowEvent,:windowLabel main, :payload #js {:action CloseRequested}, :id 13571024511454513000}
   "
-  [js-event-repsonse]
+  [js-event-repsonse] 
   (let [cljs-response (to-cljs js-event-repsonse)
-        action (-> cljs-response :payload :action)]
+        {:keys [action focused]} (-> cljs-response :payload)]
     (cond
       ;; This is called when user closes the main window using window's system closing button  
-      (= action "CloseRequested")
+      (= action CLOSE_REQUESTED)
       (dispatch [:tool-bar/app-quit-called])
+
+      (= action WINDOW_FOCUS_CHANGED)
+      #()
+      #_(println "Window focused val is " focused)
 
       :else
       (println "No handler for Main Window event response: " js-event-repsonse))))
 
 (defn register-main-window-events []
-  (bg/register-event-listener "MainWindowEvent" handle-main-window-event))
+  (bg/register-event-listener MAIN_WINDOW_EVENT handle-main-window-event))
+
+;; js-event-repsonse is a javascript object
+;; e.g   #js {:event OtpTokenUpdateEvent, :windowLabel main, 
+;;       :payload #js {:entry_uuid 6691d1b7-13b7-4f7e-82bc-481629d9f6e3, 
+;;       :reply_field_tokens #js {:otp #js {:token nil, :ttl 21}}}, :id 2305274370}
+;; We use the simple js->clj to covert this js object to cljs map
+;; Only keys are keywordized but they are in snake_case
+;; We are not using 'to-cljs' as it will convert all keys recursively to keyword
+;; We do not want that as the field names are string. 
+;; A string key like "Field name1" will be :Filed name1 because of :keywordize-keys use
+(defn handle-otp-token-update-event [js-event-repsonse]
+  ;;(println "token  response " (js->clj js-event-repsonse :keywordize-keys true) )
+  (let [cljs-response (js->clj js-event-repsonse :keywordize-keys true) 
+        reply (-> cljs-response :payload)
+        {:keys [entry_uuid reply_field_tokens]} reply]
+    ;; For now only entry form otp tokens are received
+    ;; Needs to be changed once entry list tokens update considered
+    (dispatch [:entry-form/update-otp-tokens entry_uuid reply_field_tokens])))
+
+(defn register-otp-token-update-events []
+  (bg/register-event-listener OTP_TOKEN_UPDATE_EVENT handle-otp-token-update-event))
 
 (defn register-tauri-events []
   (register-menu-events)
-  (register-main-window-events))
-
+  (register-main-window-events)
+  (register-otp-token-update-events))
 
 (defn enable-app-menu [menu-id enable? & {:as menu-args}]
   ;;(println "Going to call for menu-id " menu-id enable? menu-args)
-  
+
   ;; Stores any menu specific args and that is used when menu is selected in the menu bar
   (swap! all-menu-args assoc menu-id menu-args)
-  
-  (bg/menu-action-requested menu-id 
-                            (if enable? const/MENU_ENABLE const/MENU_DISABLE) 
-                            (fn [{:keys [error]}] 
+
+  (bg/menu-action-requested menu-id
+                            (if enable? const/MENU_ENABLE const/MENU_DISABLE)
+                            (fn [{:keys [error]}]
                               ;; Response will have non nil error if there is any backend failure
                               (when error
                                 (dispatch [:common/message-snackbar-error-open error])))))

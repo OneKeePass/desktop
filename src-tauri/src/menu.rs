@@ -1,10 +1,13 @@
 use log::info;
 use onekeepass_core::db_service as kp_service;
+use crate::constants::event_names::TAURI_MENU_EVENT;
 use serde::{Deserialize, Serialize};
 use tauri::{
   AboutMetadata, AppHandle, CustomMenuItem, Manager, Menu, MenuItem, Runtime, Submenu,
   WindowMenuEvent,
 };
+
+
 
 #[allow(dead_code)]
 pub mod menu_ids {
@@ -143,8 +146,6 @@ pub fn get_app_menu() -> Menu {
       .add_submenu(Submenu::new("Tools", tools_sub_menu))
   }
 }
-
-const TAURI_MENU_EVENT: &str = "TauriMenuEvent";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MenuAction {

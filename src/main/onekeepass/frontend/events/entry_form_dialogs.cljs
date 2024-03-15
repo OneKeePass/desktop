@@ -17,7 +17,7 @@
 ;;;;;;;;;;;;;;;;;;;;;  TOTP settings dialog ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn otp-settings-dialog-show [section-name]
-  (println "otp-settings-dialog-show called with section-name " section-name)
+  ;;(println "otp-settings-dialog-show called with section-name " section-name)
   (dispatch [:otp-settings-dialog-show true section-name]))
 
 (defn otp-settings-dialog-custom-settings-show []
@@ -78,7 +78,7 @@
     (or (nil? digits) (or (< digits 6) (> digits 10)))
     (assoc :digits "Valid values should be in the range 6 - 10")))
 
-(defn validate 
+#_(defn validate 
   "Returns the error map"
   [db]
   (let [data (get-in-key-db db [:otp-settings-dialog])

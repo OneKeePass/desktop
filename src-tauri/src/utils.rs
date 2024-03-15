@@ -29,6 +29,7 @@ pub struct AppState {
   // and the data - Preference struct - inside the Arc is protected with a mutex.
   pub preference: Arc<Mutex<Preference>>,
   pub backup_files: Mutex<HashMap<String, String>>,
+  timers_init_completed: Mutex<bool>,
 }
 
 impl AppState {
@@ -39,7 +40,19 @@ impl AppState {
       // generating the name again
       // TODO: How to handle this when we want to include time info in the file name
       backup_files: Mutex::new(HashMap::default()),
+
+      timers_init_completed: Mutex::new(false),
     }
+  }
+
+  pub fn timers_init_completed(&self) {
+    let mut init_status = self.timers_init_completed.lock().unwrap();
+    *init_status = true;
+  }
+
+  pub fn is_timers_init_completed(&self) -> bool {
+    let init_status = self.timers_init_completed.lock().unwrap();
+    *init_status
   }
 
   /// Reads the preference from file system and store in state
@@ -65,7 +78,7 @@ impl AppState {
     if !store_pref.backup.enabled {
       return None;
     }
-    
+
     debug!("backup_dir set is {:?}", &store_pref.backup.dir);
 
     let backup_dir_path = if let Some(pa) = &store_pref.backup.dir {
@@ -244,6 +257,8 @@ pub fn init_app(app: &App) {
 
   key_secure::init_key_main_store();
 
+  onekeepass_core::async_service::start_runtime();
+
   info!("{}", "Intit app is done");
 }
 
@@ -278,7 +293,7 @@ pub fn load_custom_svg_icons<R: Runtime>(app: tauri::AppHandle<R>) -> HashMap<St
   //   BaseDirectory::Resource
   // );
 
-  debug!(" BaseDirectory::Resource {:?} ",BaseDirectory::Resource);
+  debug!(" BaseDirectory::Resource {:?} ", BaseDirectory::Resource);
 
   let path = resolve_path(
     &app.config(),
