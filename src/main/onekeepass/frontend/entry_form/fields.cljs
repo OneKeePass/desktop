@@ -82,8 +82,7 @@
    [(cc/copy-icon-factory) value {:sx {:mr "-1px"}}]])
 
 (defn simple-selection-field [{:keys [key
-                                      value
-                                      required
+                                      value 
                                       edit
                                       error-text
                                       helper-text
@@ -93,8 +92,7 @@
   ;; Another way also, this type of simple select list can be done using the following. 
   ;; The examples given in mui.com uses now this method
   ;; [mui-form-control [mui-input-label] [mui-select {} [mui-menu-item]] [mui-form-helper-text]  ]
-  [mui-text-field {:id key
-                   ;;:required required
+  [mui-text-field {:id key 
                    :required false
                    :classes {:root "entry-cnt-field"}
                    :select true
@@ -197,7 +195,6 @@
     (let [{:keys [token ttl period]} @(form-events/otp-currrent-token key)
         ;;   ttl-time @(form-events/otp-ttl-indicator key)
         ;;   ttl-time (if (nil? ttl-time) ttl ttl-time)
-          
           ]
       [mui-stack {:direction "row" :sx {:width "100%"}}
        [mui-text-field {:sx (if-not edit otp-txt-input-sx  {})
@@ -229,35 +226,51 @@
        [mui-stack {:sx {:width "10%" :align-items "center" :justify-content "center"}}
         [otp-progress-circle period ttl]]])))
 
-(defn otp-field [{:keys [edit key value section-name ] :as kv}] 
-  (if-not edit 
-    [otp-read-field kv]
-    (if (str/blank? value) 
-      [mui-stack {:direction "row" :sx {:width "100%" :justify-content "center"}} 
-       [mui-link {:sx {:color "primary.dark"}
-                  :underline "hover"
-                  :on-click  #(dlg-events/otp-settings-dialog-show section-name)}
-        [mui-typography {:variant "h6" :sx {:font-size "1.1em"}}
-         "Set up One-Time Password"]]
-       
-       ]
-      [mui-stack {:direction "row" :sx {:width "100%"}}
-       [mui-stack {:direction "row" :sx {:width "100%"}}
-        [text-field (assoc kv
-                           :edit edit
-                           :protected false
-                           :disabled true
-                           :error-text nil
-                           :visible true
-                           :on-change-handler #())]]
-       [mui-stack {:direction "row" :sx {:align-items "flex-end"}}
-        
-        [mui-tooltip  {:title "Delete Field" :enterDelay 2500}
-         [mui-icon-button {:edge "end"
-                           :on-click #(ef-cmn/show-delete-totp-confirm-dialog section-name key)}
-          [mui-icon-delete-outline]]]]]
-      )
-    ))
+(defn otp-field-in-history-form [kv]
+  [mui-stack {:direction "row" :sx {:width "100%"}}
+   [mui-stack {:direction "row" :sx {:width "100%"}}
+    [text-field (assoc kv
+                       :edit false
+                       :protected false
+                       :disabled false
+                       :error-text nil
+                       :visible true
+                       :on-change-handler #())]]
+   [mui-stack {:direction "row" :sx {:align-items "flex-end"}}]])
+
+(defn otp-field [{:keys [edit key value section-name] :as kv}]
+  (let [history-form? @(form-events/history-entry-form-showing)]
+    ;; cond order is important
+    (cond
+      history-form?
+      [otp-field-in-history-form kv]
+
+      (not edit)
+      [otp-read-field kv]
+
+      :else
+      (if (str/blank? value)
+        [mui-stack {:direction "row" :sx {:width "100%" :justify-content "center"}}
+         [mui-link {:sx {:color "primary.dark"}
+                    :underline "hover"
+                    :on-click  #(dlg-events/otp-settings-dialog-show section-name)}
+          [mui-typography {:variant "h6" :sx {:font-size "1.1em"}}
+           "Set up One-Time Password"]]]
+        [mui-stack {:direction "row" :sx {:width "100%"}}
+         [mui-stack {:direction "row" :sx {:width "100%"}}
+          [text-field (assoc kv
+                             :edit edit
+                             :protected false
+                             :disabled true
+                             :error-text nil
+                             :visible true
+                             :on-change-handler #())]]
+         [mui-stack {:direction "row" :sx {:align-items "flex-end"}}
+
+          [mui-tooltip  {:title "Delete Field" :enterDelay 2500}
+           [mui-icon-button {:edge "end"
+                             :on-click #(ef-cmn/show-delete-totp-confirm-dialog section-name key)}
+            [mui-icon-delete-outline]]]]]))))
 
 ;; see https://mui.com/x/migration/migration-pickers-v5/ as we are using now "@mui/x-date-pickers": "^6.16.0"
 ;; https://mui.com/x/migration/migration-pickers-v5/#component-slots-component-slot-props 
@@ -305,10 +318,7 @@
                                :sx {:ml ".5em" :mr ".5em"}
                                :style {:resize "vertical"}}}])
 
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 
 ;; This is based om mui x date time picker 5.x version and does not work with 6.x version
 #_(defn datetime-field

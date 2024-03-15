@@ -350,7 +350,7 @@
                     [mui-checkbox {:checked protected
                                    :on-change (on-change-factory form-events/section-field-dialog-update :protected)}])
           :label "Protected"}]
-        [mui-form-control-label
+        #_[mui-form-control-label
          {:control (r/as-element
                     [mui-checkbox {:checked required
                                    :on-change (on-check-factory form-events/section-field-dialog-update :required)}])

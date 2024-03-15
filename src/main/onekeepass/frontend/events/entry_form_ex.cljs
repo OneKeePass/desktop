@@ -252,7 +252,7 @@
  :entry-form-data-load-completed-ok
  (fn [{:keys [db]} [_event-id entry-data]]
    (let [previous-entry-uuid (get-in-key-db db [entry-form-key :data :uuid])
-         otp-fields (extract-form-otp-fields entry-data)] 
+         otp-fields (extract-form-otp-fields entry-data)]
      {:db (-> db
               (assoc-in-key-db [entry-form-key :data] entry-data)
               (assoc-in-key-db [entry-form-key :edit] false)
@@ -385,7 +385,7 @@
 
 (reg-event-fx
  :entry-form-ex/show-welcome
- (fn [{:keys [db]} [_event-id text-to-show]] 
+ (fn [{:keys [db]} [_event-id text-to-show]]
    ;; Sometime this event may be called twice in succession 
    ;; For example, load-category-entry-items and in turn :entry-list/load-entry-items
    ;; may trigger this. This check prevents successive calls and thus backend api 
@@ -447,6 +447,20 @@
        ;; clear any previous errors as 'error-fields' will be empty at this time
        {:db (assoc-in-key-db db [entry-form-key :error-fields] error-fields)
         :fx [[:bg-update-entry [(active-db-key db) form-data]]]}))))
+
+;; Called to validate required fields are valid or not
+;; e.g Title, parent group and type
+;; Calls the 'callback-fn' if there is no error
+(reg-event-fx
+ :entry-form/validate-form-fields
+ (fn [{:keys [db]} [_event-id callback-fn]]
+   (let [form-data (get-in-key-db db [entry-form-key :data])
+         error-fields (validate-all form-data)]
+     (if (boolean (seq error-fields))
+       {:db (assoc-in-key-db db [entry-form-key :error-fields] error-fields)}
+       (do
+         (callback-fn)
+         {:db (assoc-in-key-db db [entry-form-key :error-fields] {})})))))
 
 (reg-fx
  :bg-update-entry
@@ -1330,10 +1344,10 @@
          errors-found (boolean (seq error-fields))]
      (if errors-found
        {:db (assoc-in-key-db db [entry-form-key :error-fields] error-fields)}
-       {:fx [[:bg-insert-entry-ex [(active-db-key db) form-data]]]}))))
+       {:fx [[:bg-insert-entry [(active-db-key db) form-data]]]}))))
 
 (reg-fx
- :bg-insert-entry-ex
+ :bg-insert-entry
  (fn [[db-key {:keys [uuid group-uuid entry-type-uuid entry-type-name]
                :as new-entry-form-data}]]
    (bg/insert-entry db-key
@@ -1416,6 +1430,11 @@
 
 (defn loaded-history-entry-uuid []
   (subscribe [:loaded-history-entry-uuid]))
+
+(defn history-entry-form-showing
+  "Returns true if the entry form is showing a history content"
+  []
+  (subscribe [:history-entry-form-showing]))
 
 (reg-event-fx
  :load-history-entries-summary
@@ -1580,6 +1599,11 @@
  (fn [data _query-vec]
    (> (:history-count data) 0)))
 
+(reg-sub
+ :history-entry-form-showing
+ (fn [db _query_vec]
+   (= :history-entry-selected (get-in-key-db db [entry-form-key :showing]))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Entry delete ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;   
 (defn deleted-category-showing []
   (subscribe [:entry-category/deleted-category-showing]))
@@ -1704,18 +1728,7 @@
         names-values (into {} (for [{:keys [key current-opt-token]} otp-fields] [key current-opt-token]))]
     names-values))
 
-;; Called to update with the current token 
-(reg-event-fx
- :entry-form/update-otp-token
- (fn [{:keys [db]} [_event-id entry-uuid otp-field-name current-opt-token]]
-   ;; First we need to ensure that the incoming entry id is the same one showing
-   (if (= entry-uuid (get-in-key-db db [entry-form-key :data :uuid]))
-     ;; otp-fields is a map with otp field name as key and its token info with time ttl 
-     (let [otp-field-m (get-in-key-db db [entry-form-key :otp-fields otp-field-name])
-           otp-field-m (merge otp-field-m  current-opt-token)]
-       {:db (assoc-in-key-db db [entry-form-key :otp-fields otp-field-name] otp-field-m)})
-     {})))
-
+;; Called to update with the current tokens 
 (reg-event-fx
  :entry-form/update-otp-tokens
  (fn [{:keys [db]} [_event-id entry-uuid current-opt-tokens-by-field]]
@@ -1724,7 +1737,7 @@
    (if (= entry-uuid (get-in-key-db db [entry-form-key :data :uuid]))
 
      ;; otp-fields is a map with otp field name as key and its token info with time ttl 
-     (let [db (reduce (fn [db [otp-field-name {:keys [token ttl]}]] 
+     (let [db (reduce (fn [db [otp-field-name {:keys [token ttl]}]]
                         (let [otp-field-name (name otp-field-name) ;; make sure field name is string
                               otp-field-m (get-in-key-db db [entry-form-key :otp-fields otp-field-name])
                               otp-field-m (if (nil? token)
@@ -1756,22 +1769,7 @@
                        (when-not (on-error api-response)
                          (dispatch [:entry-form-delete-otp-field-complete section otp-field-name])))]
      ;; First we stop all otp update polling
-     {:fx [[:otp/stop-all-entry-form-polling [dispatch-fn]]]})
-
-   #_(let [section-kvs (get-in-key-db db [entry-form-key :data :section-fields section])
-           section-kvs (mapv (fn [m] (remove-section-otp-field otp-field-name m)) section-kvs)
-         ;; Remove nil values
-           section-kvs (filterv (fn [m] m) section-kvs)
-           otp-fields (-> db (get-in-key-db [entry-form-key :otp-fields])
-                          (dissoc otp-field-name))
-           _ (println "otp-fields after delete " otp-fields)
-         ;; Set the db before using in fx
-           db (-> db
-                  (assoc-in-key-db [entry-form-key :data :section-fields section] section-kvs)
-                  (assoc-in-key-db [entry-form-key :otp-fields] otp-fields))]
-       {:db db
-        :fx [[:bg-update-entry [(active-db-key db) (get-in-key-db db [entry-form-key :data])]]]})))
-
+     {:fx [[:otp/stop-all-entry-form-polling [dispatch-fn]]]})))
 
 (reg-event-fx
  :entry-form-delete-otp-field-complete
@@ -1793,18 +1791,22 @@
 (reg-event-fx
  :entry-form/otp-url-formed
  (fn [{:keys [db]} [_event-id section otp-field-name otp-url]]
-   (let [section-kvs (merge-section-key-value db section otp-field-name otp-url)
+   (let [form-status (get-in-key-db db [entry-form-key :showing])
+         section-kvs (merge-section-key-value db section otp-field-name otp-url)
          ;; Set the db before using in fx
          db (-> db
                 (assoc-in-key-db [entry-form-key :data :section-fields section] section-kvs))]
+     (println "entry-form/otp-url-formed form-status is  " form-status)
      {:db db
-      :fx [[:bg-update-entry [(active-db-key db) (get-in-key-db db [entry-form-key :data])]]]})))
+      :fx [(if (= form-status :new)
+             [:bg-insert-entry [(active-db-key db) (get-in-key-db db [entry-form-key :data])]]
+             [:bg-update-entry [(active-db-key db) (get-in-key-db db [entry-form-key :data])]])]})))
 
 (reg-event-fx
  :entry-form/otp-stop-polling-on-lock
  (fn [{:keys [db]} [_event-id _locked-db-key]]
    (let [form-status (get-in-key-db db [entry-form-key :showing])
-         entry-uuid (get-in-key-db db [entry-form-key :data :uuid])]
+         _entry-uuid (get-in-key-db db [entry-form-key :data :uuid])]
      (if (= form-status :selected)
        {:fx [[:otp/stop-all-entry-form-polling [nil]]]}
        {}))))
@@ -1847,18 +1849,12 @@
          {:db (assoc-in-key-db db [entry-form-key :data :section-fields] updated-sections)})
        {})))
 
-
 #_(reg-event-fx
- :entry-form/update-opt-ttl-indicator
- (fn [{:keys [db]} [_event-id otp-field-name time-remaining]]
-   (let [otp-fields (get-in-key-db db [entry-form-key :otp-fields])
-         otp-fields (assoc-in otp-fields [otp-field-name :ttl] time-remaining)]
-     {:db (assoc-in-key-db db [entry-form-key :otp-fields] otp-fields)})))
-
-;; (reg-sub
-;;  :otp-ttl-indicator
-;;  (fn [db [_query-id otp-field-name]]
-;;    (get-in-key-db db [entry-form-key :otp-fields otp-field-name :ttl])))
+   :entry-form/update-opt-ttl-indicator
+   (fn [{:keys [db]} [_event-id otp-field-name time-remaining]]
+     (let [otp-fields (get-in-key-db db [entry-form-key :otp-fields])
+           otp-fields (assoc-in otp-fields [otp-field-name :ttl] time-remaining)]
+       {:db (assoc-in-key-db db [entry-form-key :otp-fields] otp-fields)})))
 
 (reg-sub
  :otp-currrent-token
@@ -1885,35 +1881,6 @@
   ;;    :notes :section-names :entry-type-icon-name :last-access-time :uuid :entry-type-uuid :group-uuid :creation-time
   )
 
-;; (reg-event-fx
-;;  :entry-form/update-opt-ttl-indicator
-;;  (fn [{:keys [db]} [_event-id otp-field-name time-remaining]]
-;;    (let [otp-fields (get-in-key-db db [entry-form-key :otp-fields])
-;;          otp-fields (assoc-in otp-fields [otp-field-name :time-remaining] time-remaining)]
-;;      {:db (assoc-in-key-db db [entry-form-key :otp-fields] otp-fields)})))
-
-;; (reg-sub
-;;  :otp-ttl-indicator
-;;  (fn [db [_query-id otp-field-name]]
-;;    (get-in-key-db db [entry-form-key :otp-fields otp-field-name :time-remaining])))
-
-;; (reg-sub
-;;  :otp-ttl-indicator
-;;  (fn [db [_query-id otp-field-name]]
-;;    (get-in-key-db db [entry-form-key :otp-fields otp-field-name :time-remaining])))
-
-
-  ;;As the form data is showing data from a selected history entry, 
-;; we are just  calling ok-entry-edit-ex just to update to this version of history as current entry
-#_(reg-event-fx
-   :restore-entry-from-history-ex
-   (fn [{:keys [db]} [_event-id]]
-     (let [entry-uuid (get-in-key-db db [entry-form-key :data :uuid])]
-       {:fx [[:dispatch [:ok-entry-edit-ex]]  ;; Need to be first;Otherwise [entry-form-key :data] will be {}
-             [:dispatch [:update-restore-confirm-open-ex false]]
-             #_[:dispatch [:entry-form-ex/show-welcome]]
-             [:dispatch [:common/show-content :group-entry]]
-             [:dispatch [:entry-form-ex/find-entry-by-id entry-uuid]]]})))
 
 
 ;;;;;;;;;;;;;;;;;;;;;    Custom Field Add Dialog     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2150,24 +2117,3 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#_(reg-fx
-   :bg-save-attachment-as-temp-file
-   ;; => :bg-save-attachment-as-temp-file
-
-   (fn [[db-key name attachment-hash]]
-     (bg/save-attachment-as-temp-file db-key name attachment-hash
-                                      (fn [api-response]
-                                        (when-let [temp-file-name (check-error api-response)]
-                                          (dispatch [:save-attachment-as-temp-file-completed temp-file-name])
-                                          (dispatch [:common/message-snackbar-open "Lauching the system viewer"]))))))
-
-#_(reg-event-fx
-   :save-attachment-as-temp-file-completed
-   (fn [{:keys [db]} [_event-id temp-attachment-file-name]]
-     {:fx [[:open-attachment-temp-file [temp-attachment-file-name]]]}))
-
-#_(reg-fx
-   :open-attachment-temp-file
-   (fn [[attachment-file-name]]
-     (bg/open-file attachment-file-name (fn [api-response]
-                                          (on-error api-response)))))
