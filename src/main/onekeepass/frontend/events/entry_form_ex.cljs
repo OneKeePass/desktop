@@ -1,4 +1,4 @@
-(ns onekeepass.frontend.events.entry-form-ex
+(ns onekeepass.frontend.events.entry-form-ex 
   (:require
    [clojure.string :as str]
    [re-frame.core :refer [reg-fx reg-event-db reg-event-fx reg-sub  dispatch subscribe]]
@@ -8,11 +8,18 @@
                                                              assoc-in-key-db
                                                              get-in-key-db
                                                              fix-tags-selection-prefix]]
-   [onekeepass.frontend.events.entry-form-common :refer [entry-form-key is-field-exist]]
-   [onekeepass.frontend.constants :refer [PASSWORD]]
+   [onekeepass.frontend.events.entry-form-common :refer [entry-form-key
+                                                         merge-section-key-value
+                                                         extract-form-otp-fields
+                                                         is-field-exist]]
+   [onekeepass.frontend.constants :as const :refer [PASSWORD]]
    [onekeepass.frontend.utils :as u :refer [contains-val?]]
    [onekeepass.frontend.background :as bg]
-   [onekeepass.frontend.constants :as const]))
+
+   ;; Need to be called here so that events are registered
+   ;; Should it be moved to core.cljs ?
+   #_{:clj-kondo/ignore [:unused-namespace]}
+   [onekeepass.frontend.events.entry-form-otp :as ef-otp-events]))
 
 (def Favorites "Favorites")
 
@@ -135,12 +142,14 @@
   (dispatch [:entry-form-group-selected-ex (js->clj group-info :keywordize-keys true)]))
 
 (defn entry-form-all
-  "Returns an atom that has the map entry-form's data "
+  "Returns an atom for the whole entry-form map
+   (keys @(entry-form-all)) are :showing :group-selection-info :otp-fields :edit :undo-data :data  :error-field ..
+  "
   []
   (subscribe [:entry-form-all]))
 
 (defn entry-form-data
-  "Returns an atom that has the map entry-form's data "
+  "Returns an atom that has the map of entry-form's :data "
   []
   (subscribe [:entry-form-data-ex]))
 
@@ -157,7 +166,7 @@
 
 (defn entry-form-data-fields
   " 
-  Called to get value of one more of form top level fields. 
+  Called to get value of one more of form 'data' level fields. 
   The arg is a single field name or  fields in a vector of two more field 
   names (Keywords) like [:title :icon-id]
   Returns an atom which resolves to a single value  or a map when derefenced
@@ -246,7 +255,7 @@
     (assoc-in-key-db app-db [entry-form-key :expiry-duration-selection] "custom-date")
     (assoc-in-key-db app-db [entry-form-key :expiry-duration-selection] "no-expiry")))
 
-(declare extract-form-otp-fields)
+#_(declare extract-form-otp-fields)
 
 (reg-event-fx
  :entry-form-data-load-completed-ok
@@ -279,10 +288,6 @@
 
      (-> db (assoc-in-key-db [entry-form-key :api-error-text] result)))))
 
-(defn merge-section-key-value [db section key value]
-  (let [section-kvs (get-in-key-db db [entry-form-key :data :section-fields section])
-        section-kvs (mapv (fn [m] (if (= (:key m) key) (assoc m :value value) m)) section-kvs)]
-    section-kvs))
 
 (reg-event-fx
  :entry-form-update-section-value
@@ -392,7 +397,7 @@
    ;; call to stop polling is called only once
    (if (= :welcome (get-in-key-db db [entry-form-key :showing]))
      {}
-     {:fx [[:otp/stop-all-entry-form-polling [nil]]]
+     {:fx [[:otp/stop-all-entry-form-polling [(active-db-key db) nil]]]
       :db (-> db (assoc-in-key-db [entry-form-key :data] {})
               (assoc-in-key-db [entry-form-key :undo-data] {})
               (assoc-in-key-db [entry-form-key :otp-fields] {})
@@ -566,13 +571,12 @@
    (get-in data [:section-fields section])))
 
 ;; Gets a :data level field value
+;; Arg 'fields' may be a vector if we need to get values for more than one field
+;; Returns a single value or a map
 (reg-sub
  :entry-form-data-fields
  :<- [:entry-form-data-ex]
- (fn [data [_query-id fields]]
-   ;;(println "form Data is " data)
-   ;;(assert (vector? fields))
-   ;;(println "fields " fields)
+ (fn [data [_query-id fields]] 
    (if-not (vector? fields)
      ;; fields is a single field name
      (get data fields)
@@ -1706,160 +1710,17 @@
 
 ;;;;;;;;;;;;;;;;;;;;; Otp (TOPT) related ;;;;;;;;;;;
 
-;; (defn otp-ttl-indicator [opt-field-name]
-;;   (subscribe [:otp-ttl-indicator opt-field-name]))
+;; All entry-form otp related events are moved to the 
+;; namespace onekeepass.frontend.events.entry-form-otp 
+;; TODO: Need to do similar moving of other events - auto type, section adding, custom field adding etc  
+;; from here to a separate namespace
+
 
 (defn entry-form-delete-otp-field [section otp-field-name]
   (dispatch [:entry-form-delete-otp-field section otp-field-name]))
 
 (defn otp-currrent-token [opt-field-name]
   (subscribe [:otp-currrent-token opt-field-name]))
-
-(defn extract-form-otp-fields
-  "Returns a map with a otp field name as key and current-opt-token value as value"
-  [form-data]
-  ;; :section-fields returns a map with section name as keys
-  ;; vals fn return 'values' ( a vec of field info map) for all sections. Once vec for each section. 
-  ;; And need to use flatten to combine all section values
-  ;; For example if two sections, vals call will return a two member ( 2 vec)
-  ;; sequence. Flatten combines both vecs and returns a single sequence of field info maps
-  (let [fields (-> form-data :section-fields vals flatten)
-        otp-fields (filter (fn [m] (=  const/ONE_TIME_PASSWORD (:data-type m))) fields)
-        names-values (into {} (for [{:keys [key current-opt-token]} otp-fields] [key current-opt-token]))]
-    names-values))
-
-;; Called to update with the current tokens 
-(reg-event-fx
- :entry-form/update-otp-tokens
- (fn [{:keys [db]} [_event-id entry-uuid current-opt-tokens-by-field]]
-
-   ;; First we need to ensure that the incoming entry id is the same one showing
-   (if (= entry-uuid (get-in-key-db db [entry-form-key :data :uuid]))
-
-     ;; otp-fields is a map with otp field name as key and its token info with time ttl 
-     (let [db (reduce (fn [db [otp-field-name {:keys [token ttl]}]]
-                        (let [otp-field-name (name otp-field-name) ;; make sure field name is string
-                              otp-field-m (get-in-key-db db [entry-form-key :otp-fields otp-field-name])
-                              otp-field-m (if (nil? token)
-                                            (assoc otp-field-m :ttl ttl)
-                                            (assoc otp-field-m :token token :ttl ttl))]
-                          (assoc-in-key-db db [entry-form-key :otp-fields otp-field-name] otp-field-m)))
-                      db current-opt-tokens-by-field)]
-
-       {:db db})
-     {})))
-
-(defn remove-section-otp-field [otp-field-name {:keys [key] :as section-field-m}]
-  (cond
-    ;; current-opt-token is Option type in struct CurrentOtpTokenData and should be set to nil and not {}
-    (= key "otp")
-    (assoc section-field-m :value nil :current-opt-token nil)
-
-    (= key otp-field-name)
-    nil
-
-    :else
-    section-field-m))
-
-
-(reg-event-fx
- :entry-form-delete-otp-field
- (fn [{:keys [_db]} [_event-id section otp-field-name]]
-   (let [dispatch-fn (fn [api-response]
-                       (when-not (on-error api-response)
-                         (dispatch [:entry-form-delete-otp-field-complete section otp-field-name])))]
-     ;; First we stop all otp update polling
-     {:fx [[:otp/stop-all-entry-form-polling [dispatch-fn]]]})))
-
-(reg-event-fx
- :entry-form-delete-otp-field-complete
- (fn [{:keys [db]} [_event-id section otp-field-name]]
-   (let [section-kvs (get-in-key-db db [entry-form-key :data :section-fields section])
-         section-kvs (mapv (fn [m] (remove-section-otp-field otp-field-name m)) section-kvs)
-         ;; Remove nil values
-         section-kvs (filterv (fn [m] m) section-kvs)
-         otp-fields (-> db (get-in-key-db [entry-form-key :otp-fields])
-                        (dissoc otp-field-name))
-         ;; Set the db before using in fx
-         db (-> db
-                (assoc-in-key-db [entry-form-key :data :section-fields section] section-kvs)
-                (assoc-in-key-db [entry-form-key :otp-fields] otp-fields))]
-     {:db db
-      ;; Calling update will reload the entry form 
-      :fx [[:bg-update-entry [(active-db-key db) (get-in-key-db db [entry-form-key :data])]]]})))
-
-(reg-event-fx
- :entry-form/otp-url-formed
- (fn [{:keys [db]} [_event-id section otp-field-name otp-url]]
-   (let [form-status (get-in-key-db db [entry-form-key :showing])
-         section-kvs (merge-section-key-value db section otp-field-name otp-url)
-         ;; Set the db before using in fx
-         db (-> db
-                (assoc-in-key-db [entry-form-key :data :section-fields section] section-kvs))]
-     (println "entry-form/otp-url-formed form-status is  " form-status)
-     {:db db
-      :fx [(if (= form-status :new)
-             [:bg-insert-entry [(active-db-key db) (get-in-key-db db [entry-form-key :data])]]
-             [:bg-update-entry [(active-db-key db) (get-in-key-db db [entry-form-key :data])]])]})))
-
-(reg-event-fx
- :entry-form/otp-stop-polling-on-lock
- (fn [{:keys [db]} [_event-id _locked-db-key]]
-   (let [form-status (get-in-key-db db [entry-form-key :showing])
-         _entry-uuid (get-in-key-db db [entry-form-key :data :uuid])]
-     (if (= form-status :selected)
-       {:fx [[:otp/stop-all-entry-form-polling [nil]]]}
-       {}))))
-
-(reg-event-fx
- :entry-form/otp-start-polling-on-unlock
- (fn [{:keys [db]} [_event-id]]
-   (let [form-status (get-in-key-db db [entry-form-key :showing])
-         entry-uuid (get-in-key-db db [entry-form-key :data :uuid])
-         otp-fields (extract-form-otp-fields (get-in-key-db db [entry-form-key :data]))]
-     (if (= form-status :selected)
-       {:fx [[:otp/start-polling-otp-fields [(active-db-key db)
-                                             nil
-                                             entry-uuid
-                                             otp-fields]]]}
-       {}))))
-
-#_(defn update-otp-field
-    "Updates a otp field with current token value by looking for this field in a section
-  The arg 'sections' is a map with section name as key and a vec of KVs as its value
-  The arg 'current-opt-token' is a map 
-  "
-    [sections otp-field-name current-opt-token]
-    (reduce (fn [section-m [section-name section-kvs]]
-              (let [section-kvs (mapv (fn [m]
-                                        (if
-                                         (= (:key m) otp-field-name)
-                                          (assoc m :current-opt-token current-opt-token)
-                                          m)) section-kvs)]
-                (assoc section-m section-name section-kvs))) {} sections))
-
-#_(reg-event-fx
-   :entry-form/update-otp-token
-   (fn [{:keys [db]} [_event-id entry-uuid otp-field-name current-opt-token]]
-   ;; First we need to ensure that the incoming entry id is the same one showing
-     (if (= entry-uuid (get-in-key-db db [entry-form-key :data :uuid]))
-       (let [sections (get-in-key-db db [entry-form-key :data :section-fields])
-             updated-sections (update-otp-field sections otp-field-name current-opt-token)]
-
-         {:db (assoc-in-key-db db [entry-form-key :data :section-fields] updated-sections)})
-       {})))
-
-#_(reg-event-fx
-   :entry-form/update-opt-ttl-indicator
-   (fn [{:keys [db]} [_event-id otp-field-name time-remaining]]
-     (let [otp-fields (get-in-key-db db [entry-form-key :otp-fields])
-           otp-fields (assoc-in otp-fields [otp-field-name :ttl] time-remaining)]
-       {:db (assoc-in-key-db db [entry-form-key :otp-fields] otp-fields)})))
-
-(reg-sub
- :otp-currrent-token
- (fn [db [_query-id otp-field-name]]
-   (get-in-key-db db [entry-form-key :otp-fields otp-field-name])))
 
 (comment
   (keys @re-frame.db/app-db)

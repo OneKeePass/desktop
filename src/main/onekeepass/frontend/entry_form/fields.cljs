@@ -1,64 +1,29 @@
 (ns onekeepass.frontend.entry-form.fields
   (:require
    [clojure.string :as str]
-   [onekeepass.frontend.entry-form.common :refer []]
-   [onekeepass.frontend.common-components :as cc :refer [alert-dialog-factory
-                                                         enter-key-pressed-factory
-                                                         list-items-factory
-                                                         selection-autocomplete tags-field]]
+   [reagent.core :as r]
+   [onekeepass.frontend.entry-form.common :as ef-cmn]
+   [onekeepass.frontend.common-components :as cc]
    [onekeepass.frontend.constants :as const]
 
    [onekeepass.frontend.events.entry-form-ex :as form-events]
-   [onekeepass.frontend.events.otp :as otp-events]
    [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
-   [onekeepass.frontend.mui-components :as m :refer [color-primary-main
-                                                     date-adapter
-                                                     mui-alert
-                                                     mui-alert-title
-                                                     mui-avatar
-                                                     mui-box
-                                                     mui-button
-                                                     mui-button
-                                                     mui-checkbox
+   [onekeepass.frontend.mui-components :as m :refer [mui-box
                                                      mui-circular-progress
                                                      mui-date-time-picker
-                                                     mui-desktop-date-picker
-                                                     mui-dialog
-                                                     mui-dialog-actions
-                                                     mui-dialog-content
-                                                     mui-dialog-title
-                                                     mui-divider
-                                                     mui-form-control-label mui-grid
-                                                     mui-icon-add-circle-outline-outlined
-                                                     mui-icon-article-outlined
                                                      mui-icon-autorenew
                                                      mui-icon-button
                                                      mui-icon-button
-                                                     mui-icon-check
                                                      mui-icon-delete-outline
-                                                     mui-icon-edit-outlined
-                                                     mui-icon-more-vert
-                                                     mui-icon-more-vert
-                                                     mui-icon-save-as-outlined
                                                      mui-icon-visibility
                                                      mui-icon-visibility-off
                                                      mui-input-adornment mui-link
-                                                     mui-list-item
-                                                     mui-list-item-avatar
-                                                     mui-list-item-icon
-                                                     mui-list-item-text
-                                                     mui-list-item-text
                                                      mui-localization-provider
-                                                     mui-menu
                                                      mui-menu-item
-                                                     mui-popper
                                                      mui-stack
                                                      mui-text-field
                                                      mui-tooltip
-                                                     mui-typography]]
-
-   [reagent.core :as r]
-   [onekeepass.frontend.entry-form.common :as ef-cmn]))
+                                                     mui-typography]]))
 
 (defn end-icons [key value protected visibile? edit]
   [:<>
@@ -82,7 +47,7 @@
    [(cc/copy-icon-factory) value {:sx {:mr "-1px"}}]])
 
 (defn simple-selection-field [{:keys [key
-                                      value 
+                                      value
                                       edit
                                       error-text
                                       helper-text
@@ -92,7 +57,7 @@
   ;; Another way also, this type of simple select list can be done using the following. 
   ;; The examples given in mui.com uses now this method
   ;; [mui-form-control [mui-input-label] [mui-select {} [mui-menu-item]] [mui-form-helper-text]  ]
-  [mui-text-field {:id key 
+  [mui-text-field {:id key
                    :required false
                    :classes {:root "entry-cnt-field"}
                    :select true

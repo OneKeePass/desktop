@@ -73,8 +73,8 @@
   (subscribe [:os-name]))
 
 (reg-event-fx
- :init-process 
- (fn [{:keys [_db]} [_event-id]  ]
+ :init-process
+ (fn [{:keys [_db]} [_event-id]]
    {:fx [[:bg-system-info-with-preference]
          [:bg-init-timers]]}))
 
@@ -88,7 +88,7 @@
 
 (reg-fx
  :bg-init-timers
- (fn [] 
+ (fn []
    (bg/init-timers #(on-error %))))
 
 (reg-event-fx
@@ -181,7 +181,8 @@
 (defn set-active-db-key
   "Sets the new current active db"
   [db-key]
-  (dispatch [:set-active-db-key db-key]))
+  #_(dispatch [:set-active-db-key db-key])
+  (dispatch [:change-active-db-complete db-key]))
 
 (defn opened-db-list
   "Gets an atom to get all opened db summary list if app-db is not passed"
@@ -276,8 +277,11 @@
 (reg-event-fx
  :common/kdbx-database-opened
  (fn [{:keys [db]} [_event-id kdbx-loaded]]
-   {:db (db-opened db kdbx-loaded)
-    :fx [[:dispatch [:common/kdbx-database-loading-complete kdbx-loaded]]]}))
+   (let [old-db-key (active-db-key db)]
+     {:db (db-opened db kdbx-loaded)
+      :fx [(when-not (nil? old-db-key)
+             [:otp/stop-all-entry-form-polling [old-db-key nil]])
+           [:dispatch [:common/kdbx-database-loading-complete kdbx-loaded]]]})))
 
 (reg-event-fx
  :common/kdbx-database-loading-complete
@@ -404,7 +408,12 @@
               (assoc :opened-db-list dbs)
               (assoc :current-db-file-name next-active-db-key)
               (dissoc db-key))
-      :fx [[:otp/stop-all-entry-form-polling [nil]]
+      :fx [;; Stop any backend otp update polling of this database
+           [:otp/stop-all-entry-form-polling [db-key nil]]
+           ;; Start otp update polling if required for the next active db shown
+           (when-not (nil? next-active-db-key)
+             [:dispatch [:entry-form/otp-start-polling-on-unlock]])
+
            [:dispatch [:common/message-snackbar-open
                        (str "Closed database " db-key)]]
            [:dispatch [:common/load-app-preference]]]})))
@@ -671,10 +680,18 @@
  (fn [_db _event]              ;; Ignore both params (db and event)
    {:opened-db-list []}))
 
-(reg-event-db
- :set-active-db-key
- (fn [db [_event-id db-key]]
-   (assoc db :current-db-file-name db-key)))
+(reg-event-fx
+ :change-active-db-complete
+ (fn [{:keys [db]} [_event-id db-key]]
+   (let [old-db-key (active-db-key db)
+         db (assoc db :current-db-file-name db-key)]
+     {:db db
+      :fx [;; Assumed the following events happen in the order 
+           ;; active db key is set to 'db-key' before fx events are called
+           ;; Stop any backend otp update polling of previous database
+           [:otp/stop-all-entry-form-polling [old-db-key nil]]
+           ;; Start otp update polling if required for the next active db shown
+           [:dispatch [:entry-form/otp-start-polling-on-unlock]]]})))
 
 (reg-sub
  :current-db-file-name

@@ -1,68 +1,30 @@
 (ns onekeepass.frontend.entry-form.menus
   (:require
+   [reagent.core :as r]
    [onekeepass.frontend.entry-form.common :refer []]
    [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.common-components :as cc]
-   [onekeepass.frontend.mui-components :as m :refer [color-primary-main
-                                                     date-adapter
-                                                     mui-alert
-                                                     mui-alert-title
-                                                     mui-avatar
-                                                     mui-box
-                                                     mui-button
-                                                     mui-button
-                                                     mui-checkbox
-                                                     mui-circular-progress
-                                                     mui-date-time-picker
-                                                     mui-desktop-date-picker
-                                                     mui-dialog
-                                                     mui-dialog-actions
-                                                     mui-dialog-content
-                                                     mui-dialog-title
-                                                     mui-divider
-                                                     mui-form-control-label mui-grid
-                                                     mui-icon-add-circle-outline-outlined
-                                                     mui-icon-article-outlined
-                                                     mui-icon-autorenew
+   [onekeepass.frontend.mui-components :as m :refer [mui-icon-add-circle-outline-outlined
                                                      mui-icon-button
                                                      mui-icon-button
                                                      mui-icon-check
-                                                     mui-icon-delete-outline
-                                                     mui-icon-edit-outlined
                                                      mui-icon-more-vert
                                                      mui-icon-more-vert
-                                                     mui-icon-save-as-outlined
-                                                     mui-icon-visibility
-                                                     mui-icon-visibility-off
-                                                     mui-input-adornment
-                                                     mui-link
-                                                     mui-list-item
-                                                     mui-list-item-avatar
                                                      mui-list-item-icon
                                                      mui-list-item-text
                                                      mui-list-item-text
-                                                     mui-localization-provider
                                                      mui-menu
-                                                     mui-menu-item
-                                                     mui-popper
-                                                     mui-stack
-                                                     mui-text-field
-                                                     mui-tooltip
-                                                     mui-typography]]
+                                                     mui-menu-item]]
    [onekeepass.frontend.events.tauri-events :as tauri-events]
    [onekeepass.frontend.events.common :as ce]
    [onekeepass.frontend.events.entry-form-ex :as form-events]
-   [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
-   [onekeepass.frontend.utils :as u :refer [contains-val?
-                                            to-file-size-str]]
-   [reagent.core :as r]))
+   [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]))
 
 (defn- menu-action [anchor-el action & action-args]
   (fn [^js/Event e]
     (reset! anchor-el nil)
     (apply action action-args)
     (.stopPropagation ^js/Event e)))
-
 
 (defn- auto-type-menu-items [anchor-el entry-uuid]
   [:<>

@@ -1,8 +1,8 @@
 (ns onekeepass.frontend.events.otp
   (:require
-   [re-frame.core :refer [reg-fx  dispatch]]
+   [clojure.string :as str]
+   [re-frame.core :refer [reg-fx]]
    [onekeepass.frontend.events.common :as cmn-events :refer [on-error]]
-
    [onekeepass.frontend.background :as bg]))
 
 (reg-fx
@@ -17,18 +17,22 @@
         db-key previous-entry-uuid
         entry-uuid fields-m #(on-error %))
        (bg/stop-polling-all-entries-otp-fields
-        "None"
+        db-key
         #(on-error %))))))
 
+;; Stops all otp polling of an entry form
+;; db-key should not be nil 
+;; Api call will fail if db-key is nil
 (reg-fx
  :otp/stop-all-entry-form-polling
- (fn [[dispatch-fn]]
-   (bg/stop-polling-all-entries-otp-fields "None" (if-not (nil? dispatch-fn) dispatch-fn #(on-error %)) )))
+ (fn [[db-key dispatch-fn]]
+   ;;(println "Stopping form polling for db-key " (last (str/split db-key "/")))
+   (bg/stop-polling-all-entries-otp-fields db-key (if-not (nil? dispatch-fn) dispatch-fn #(on-error %)))))
 
-(reg-fx
- :otp/stop-entry-form-polling
- (fn [[entry-uuid]]
-   (bg/stop_polling_entry_otp_fields "None" entry-uuid #(on-error %))))
+#_(reg-fx
+   :otp/stop-entry-form-polling
+   (fn [[entry-uuid]]
+     (bg/stop_polling_entry_otp_fields "None" entry-uuid #(on-error %))))
 
 
 

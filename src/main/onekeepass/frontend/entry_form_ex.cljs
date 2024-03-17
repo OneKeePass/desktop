@@ -26,12 +26,9 @@
             [onekeepass.frontend.events.common :as ce]
             [onekeepass.frontend.events.entry-form-ex :as form-events]
             [onekeepass.frontend.events.move-group-entry :as move-events]
-            [onekeepass.frontend.events.tauri-events :as tauri-events]
-            [onekeepass.frontend.group-tree-content :as gt-content]
-            [onekeepass.frontend.events.otp :as otp-events]
+            [onekeepass.frontend.group-tree-content :as gt-content] 
             [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
             [onekeepass.frontend.mui-components :as m :refer [color-primary-main
-                                                              date-adapter
                                                               mui-alert
                                                               mui-alert-title
                                                               mui-avatar
@@ -39,9 +36,6 @@
                                                               mui-button
                                                               mui-button
                                                               mui-checkbox
-                                                              mui-circular-progress
-                                                              mui-date-time-picker
-                                                              mui-desktop-date-picker
                                                               mui-dialog
                                                               mui-dialog-actions
                                                               mui-dialog-content
@@ -50,26 +44,16 @@
                                                               mui-form-control-label mui-grid
                                                               mui-icon-add-circle-outline-outlined
                                                               mui-icon-article-outlined
-                                                              mui-icon-autorenew
                                                               mui-icon-button
                                                               mui-icon-button
-                                                              mui-icon-check
                                                               mui-icon-delete-outline
                                                               mui-icon-edit-outlined
-                                                              mui-icon-more-vert
-                                                              mui-icon-more-vert
                                                               mui-icon-save-as-outlined
-                                                              mui-icon-visibility
-                                                              mui-icon-visibility-off
-                                                              mui-input-adornment
                                                               mui-link
                                                               mui-list-item
                                                               mui-list-item-avatar
-                                                              mui-list-item-icon
                                                               mui-list-item-text
                                                               mui-list-item-text
-                                                              mui-localization-provider
-                                                              mui-menu
                                                               mui-menu-item
                                                               mui-popper
                                                               mui-stack
@@ -81,7 +65,6 @@
             [reagent.core :as r]))
 
 ;;(set! *warn-on-infer* true)
-
 
 (defn on-change-factory
   [handler-name field-name-kw]
@@ -169,37 +152,6 @@
          [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-top "10px"}}
           [mui-typography "Expires:"]
           [mui-typography (u/to-local-datetime-str expiry-dt ENTRY_DATETIME_FORMAT)]])])))
-
-#_(defn text-area-field [{:keys [key value edit on-change-handler]
-                          :or {edit false
-                               on-change-handler #()}}]
-    [m/text-field {:classes {:root "entry-cnt-field"}
-                   :fullWidth true
-                   :id key :label "";;name
-                   :variant "standard"
-                   :value value
-                   :onChange on-change-handler
-                   :multiline true
-                   :rows 4
-                    ;;minRows and maxRows should not be used with the fixed 'm/text-field'
-                    ;;:minRows 3 
-                    ;;:maxRows 10
-                    ;;:classes {:root "entry-cnt-notes-field"}
-                   :InputLabelProps {:shrink true}
-                   :InputProps {:id key
-                                  ;; This did not fix the cursor jumping
-                                  ;;  :inputComponent
-                                  ;;  (r/reactify-component
-                                  ;;   (fn [props]
-                                  ;;     ;;(println "props are" props)
-                                  ;;     [:input (-> props
-                                  ;;                    (assoc :ref (:inputRef props))
-                                  ;;                    (dissoc :inputRef))]))
-                                }
-
-                   :inputProps  {:readOnly (not edit)
-                                 :sx {:ml ".5em" :mr ".5em"}
-                                 :style {:resize "vertical"}}}])
 
 (defn add-modify-section-popper [{:keys [dialog-show
                                          popper-anchor-el
@@ -305,8 +257,7 @@
   [{:keys [dialog-show
            section-name
            field-name
-           protected
-           required
+           protected 
            _data-type
            mode
            add-more
@@ -351,10 +302,10 @@
                                    :on-change (on-change-factory form-events/section-field-dialog-update :protected)}])
           :label "Protected"}]
         #_[mui-form-control-label
-         {:control (r/as-element
-                    [mui-checkbox {:checked required
-                                   :on-change (on-check-factory form-events/section-field-dialog-update :required)}])
-          :label "Required"}]]
+           {:control (r/as-element
+                      [mui-checkbox {:checked required
+                                     :on-change (on-check-factory form-events/section-field-dialog-update :required)}])
+            :label "Required"}]]
 
        (when add-more [mui-stack
                        [mui-alert {:severity "success" :sx {"&.MuiAlert-root" {:width "100%"}}} ;; need to override the paper width 60%

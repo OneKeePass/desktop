@@ -21,7 +21,7 @@
                                                      mui-grid
                                                      mui-box
                                                      mui-stack]]))
-(set! *warn-on-infer* true)
+;;(set! *warn-on-infer* true)
 
 (defn form-text-field
   [field-name value on-change editing]
