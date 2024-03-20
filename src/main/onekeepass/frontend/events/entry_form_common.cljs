@@ -1,9 +1,8 @@
 (ns onekeepass.frontend.events.entry-form-common
-  (:require
-   ;;[clojure.string :as str] 
-   [onekeepass.frontend.events.common :as cmn-events :refer [get-in-key-db]]
-   [onekeepass.frontend.constants :refer [ONE_TIME_PASSWORD]]
-   [onekeepass.frontend.utils :as u :refer [contains-val?]]))
+  (:require [onekeepass.frontend.constants :refer [ONE_TIME_PASSWORD_TYPE]]
+            [onekeepass.frontend.events.common :as cmn-events :refer [assoc-in-key-db
+                                                                      get-in-key-db]]
+            [onekeepass.frontend.utils :as u :refer [contains-val?]]))
 
 (def entry-form-key :entry-form-data)
 
@@ -25,6 +24,31 @@
     (or (contains-val? standard-kv-fields field-name)
         (-> (filter (fn [m] (= field-name (:key m))) all-section-fields) seq boolean))))
 
+(defn add-section-field
+  "Creates a new KV for the added section field and updates the 'section-name' section
+  Returns the updated app-db
+  "
+  [app-db {:keys [section-name
+                  field-name
+                  protected
+                  required
+                  data-type]}]
+  (println "add-section-field called with section-name field-name data-type protected " section-name field-name data-type protected)
+  (let [section-fields-m (get-in-key-db
+                          app-db
+                          [entry-form-key :data :section-fields])
+        ;;_ (println "section-fields-m " section-fields-m)
+        ;; fields is a vec of KVs for a given section
+        fields (-> section-fields-m (get section-name []))
+        fields (conj fields {:key field-name
+                             :value nil
+                             :protected protected
+                             :required required
+                             :data-type data-type
+                             :standard-field false})]
+    (assoc-in-key-db app-db [entry-form-key :data :section-fields]
+                     (assoc section-fields-m section-name fields))))
+
 (defn merge-section-key-value [db section key value]
   (let [section-kvs (get-in-key-db db [entry-form-key :data :section-fields section])
         section-kvs (mapv (fn [m] (if (= (:key m) key) (assoc m :value value) m)) section-kvs)]
@@ -39,6 +63,6 @@
   ;; For example if two sections, vals call will return a two member ( 2 vec)
   ;; sequence. Flatten combines both vecs and returns a single sequence of field info maps
   (let [fields (-> form-data :section-fields vals flatten)
-        otp-fields (filter (fn [m] (=  ONE_TIME_PASSWORD (:data-type m))) fields)
+        otp-fields (filter (fn [m] (=  ONE_TIME_PASSWORD_TYPE (:data-type m))) fields)
         names-values (into {} (for [{:keys [key current-opt-token]} otp-fields] [key current-opt-token]))]
     names-values))

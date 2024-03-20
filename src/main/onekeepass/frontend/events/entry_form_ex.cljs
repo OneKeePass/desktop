@@ -1,25 +1,25 @@
-(ns onekeepass.frontend.events.entry-form-ex 
-  (:require
-   [clojure.string :as str]
-   [re-frame.core :refer [reg-fx reg-event-db reg-event-fx reg-sub  dispatch subscribe]]
-   [onekeepass.frontend.events.common :as cmn-events :refer [on-error
-                                                             check-error
-                                                             active-db-key
-                                                             assoc-in-key-db
-                                                             get-in-key-db
-                                                             fix-tags-selection-prefix]]
-   [onekeepass.frontend.events.entry-form-common :refer [entry-form-key
-                                                         merge-section-key-value
-                                                         extract-form-otp-fields
-                                                         is-field-exist]]
-   [onekeepass.frontend.constants :as const :refer [PASSWORD]]
-   [onekeepass.frontend.utils :as u :refer [contains-val?]]
-   [onekeepass.frontend.background :as bg]
-
-   ;; Need to be called here so that events are registered
-   ;; Should it be moved to core.cljs ?
-   #_{:clj-kondo/ignore [:unused-namespace]}
-   [onekeepass.frontend.events.entry-form-otp :as ef-otp-events]))
+(ns onekeepass.frontend.events.entry-form-ex
+  (:require [clojure.string :as str]
+            [onekeepass.frontend.background :as bg] ;; Need to be called here so that events are registered
+            [onekeepass.frontend.constants :as const :refer [PASSWORD]]
+            [onekeepass.frontend.events.common :as cmn-events :refer [active-db-key
+                                                                      assoc-in-key-db
+                                                                      check-error
+                                                                      fix-tags-selection-prefix
+                                                                      get-in-key-db
+                                                                      on-error]]
+            [onekeepass.frontend.events.entry-form-common :refer [add-section-field
+                                                                  entry-form-key
+                                                                  extract-form-otp-fields
+                                                                  is-field-exist
+                                                                  merge-section-key-value]]
+            ;; Need to be called here so that events are registered
+            ;; Should it be moved to core.cljs ?
+            #_{:clj-kondo/ignore [:unused-namespace]}
+            [onekeepass.frontend.events.entry-form-otp :as ef-otp-events]
+            [onekeepass.frontend.utils :as u :refer [contains-val?]]
+            [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-fx
+                                   reg-sub subscribe]]))
 
 (def Favorites "Favorites")
 
@@ -413,16 +413,44 @@
    {:fx [[:dispatch [:entry-form-ex/show-welcome]]
          [:dispatch [:entry-list/update-selected-entry-id nil]]]}))
 
-(reg-event-db
+(reg-event-fx
  :entry-form-ex/edit
- (fn [db [_event-id edit?]]
+ (fn [{:keys [db]} [_event-id edit?]]
    (if edit?
-     (-> db
-         (assoc-in-key-db [entry-form-key :undo-data] (get-in-key-db db [entry-form-key :data]))
-         (assoc-in-key-db [entry-form-key :edit] edit?))
-     (assoc-in-key-db db [entry-form-key :edit] edit?))))
+     {:db (-> db
+              (assoc-in-key-db [entry-form-key :undo-data] (get-in-key-db db [entry-form-key :data]))
+              (assoc-in-key-db [entry-form-key :edit] edit?))
+      :fx [[:dispatch [:entry-form/otp-stop-polling]]]}
+     {:db (assoc-in-key-db db [entry-form-key :edit] edit?)})))
 
-(reg-event-db
+
+
+#_(reg-event-db
+   :entry-form-ex/edit
+   (fn [db [_event-id edit?]]
+     (if edit?
+       (-> db
+           (assoc-in-key-db [entry-form-key :undo-data] (get-in-key-db db [entry-form-key :data]))
+           (assoc-in-key-db [entry-form-key :edit] edit?))
+       (assoc-in-key-db db [entry-form-key :edit] edit?))))
+
+(reg-event-fx
+ :cancel-entry-edit-ex
+ (fn [{:keys [db]} [_event-id]]
+   (let [undo-data (get-in-key-db db [entry-form-key :undo-data])
+         data (get-in-key-db db [entry-form-key :data])]
+     {:db (if (and (seq undo-data) (not= undo-data data))
+            (-> db (assoc-in-key-db [entry-form-key :data] undo-data)
+                (assoc-in-key-db [entry-form-key :undo-data] {})
+                (assoc-in-key-db [entry-form-key :edit] false)
+                (assoc-in-key-db [entry-form-key :error-fields] {}))
+            (-> db (assoc-in-key-db  [entry-form-key :edit] false)
+                (assoc-in-key-db [entry-form-key :undo-data] {})
+                (assoc-in-key-db [entry-form-key :error-fields] {})))
+      :fx [[:dispatch [:entry-form/otp-start-polling]]]})))
+
+
+#_(reg-event-db
  :cancel-entry-edit-ex
  (fn [db [_event-id]]
    (let [undo-data (get-in-key-db db [entry-form-key :undo-data])
@@ -576,7 +604,7 @@
 (reg-sub
  :entry-form-data-fields
  :<- [:entry-form-data-ex]
- (fn [data [_query-id fields]] 
+ (fn [data [_query-id fields]]
    (if-not (vector? fields)
      ;; fields is a single field name
      (get data fields)
@@ -985,30 +1013,6 @@
 
 (defn- init-section-field-dialog-data [db]
   (assoc-in-key-db db [entry-form-key field-edit-dialog-key] section-field-dialog-init-data))
-
-(defn- add-section-field
-  "Creates a new KV for the added section field and updates the 'section-name' section
-  Returns the updated app-db
-  "
-  [app-db {:keys [section-name
-                  field-name
-                  protected
-                  required
-                  data-type]}]
-  (let [section-fields-m (get-in-key-db
-                          app-db
-                          [entry-form-key :data :section-fields])
-        ;;_ (println "section-fields-m " section-fields-m)
-        ;; fields is a vec of KVs for a given section
-        fields (-> section-fields-m (get section-name []))
-        fields (conj fields {:key field-name
-                             :value nil
-                             :protected protected
-                             :required required
-                             :data-type data-type
-                             :standard-field false})]
-    (assoc-in-key-db app-db [entry-form-key :data :section-fields]
-                     (assoc section-fields-m section-name fields))))
 
 (defn- modify-section-field [app-db {:keys [section-name
                                             current-field-name

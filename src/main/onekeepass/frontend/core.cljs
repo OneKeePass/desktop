@@ -1,5 +1,4 @@
-(ns  onekeepass.frontend.core  ;;ns ^:figwheel-always onekeepass.frontend.core
-  
+(ns  onekeepass.frontend.core  ;;ns ^:figwheel-always onekeepass.frontend.core 
   (:require
    [reagent.dom :as rdom]
    ;;Events 

@@ -1,29 +1,28 @@
 (ns onekeepass.frontend.entry-form.fields
-  (:require
-   [clojure.string :as str]
-   [reagent.core :as r]
-   [onekeepass.frontend.entry-form.common :as ef-cmn]
-   [onekeepass.frontend.common-components :as cc]
-   [onekeepass.frontend.constants :as const]
-
-   [onekeepass.frontend.events.entry-form-ex :as form-events]
-   [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
-   [onekeepass.frontend.mui-components :as m :refer [mui-box
-                                                     mui-circular-progress
-                                                     mui-date-time-picker
-                                                     mui-icon-autorenew
-                                                     mui-icon-button
-                                                     mui-icon-button
-                                                     mui-icon-delete-outline
-                                                     mui-icon-visibility
-                                                     mui-icon-visibility-off
-                                                     mui-input-adornment mui-link
-                                                     mui-localization-provider
-                                                     mui-menu-item
-                                                     mui-stack
-                                                     mui-text-field
-                                                     mui-tooltip
-                                                     mui-typography]]))
+  (:require [clojure.string :as str]
+            [onekeepass.frontend.common-components :as cc]
+            [onekeepass.frontend.constants :as const :refer [OTP PASSWORD]]
+            [onekeepass.frontend.entry-form.common :as ef-cmn]
+            [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
+            [onekeepass.frontend.events.entry-form-ex :as form-events]
+            [onekeepass.frontend.mui-components :as m :refer [mui-box
+                                                              mui-circular-progress
+                                                              mui-date-time-picker
+                                                              mui-icon-autorenew
+                                                              mui-icon-button
+                                                              mui-icon-button
+                                                              mui-icon-delete-outline
+                                                              mui-icon-visibility
+                                                              mui-icon-visibility-off
+                                                              mui-input-adornment
+                                                              mui-link
+                                                              mui-localization-provider
+                                                              mui-menu-item
+                                                              mui-stack
+                                                              mui-text-field
+                                                              mui-tooltip
+                                                              mui-typography]]
+            [reagent.core :as r]))
 
 (defn end-icons [key value protected visibile? edit]
   [:<>
@@ -38,7 +37,7 @@
                          :on-click #(form-events/entry-form-field-visibility-toggle key)}
         [mui-icon-visibility-off]]))
    ;; Password generator 
-   (when (and edit protected (= key const/PASSWORD))
+   (when (and edit protected (= key PASSWORD))
      [mui-icon-button {:sx {:margin-right "-8px"}
                        :edge "end"
                        :on-click form-events/password-generator-show}
@@ -131,7 +130,6 @@
                                    ;;:readonly "readonly"
                                }}])
 
-
 (def otp-txt-input-sx {"& .MuiInputBase-input" {:color "green"
                                                 :font-size "1.75em"
                                                 :font-weight "300"  ;; To make it bold
@@ -145,6 +143,25 @@
     [mui-typography {:vaiant "caption" :component "div"}
      ttl-time]]])
 
+(defn formatted-token 
+  "Groups digits with spaces between them for easy reading"
+  [token]
+  (let [len (count token)
+        n (cond
+            (or (= len 6) (= len 7) (= len 9))
+            3
+
+            (or (= len 8) (= len 10))
+            4
+
+            :else
+            3)
+        ;; step = n, pad = ""
+        parts (partition n n "" token)
+        parts (map (fn [c] (str/join c)) parts)
+        spaced (str/join " " parts)]
+    spaced))
+
 (defn otp-read-field [kv]
   (fn [{:keys [key
                value
@@ -157,17 +174,14 @@
              edit false
              no-end-icons false}}]
 
-    (let [{:keys [token ttl period]} @(form-events/otp-currrent-token key)
-        ;;   ttl-time @(form-events/otp-ttl-indicator key)
-        ;;   ttl-time (if (nil? ttl-time) ttl ttl-time)
-          ]
+    (let [{:keys [token ttl period]} @(form-events/otp-currrent-token key)]
       [mui-stack {:direction "row" :sx {:width "100%"}}
        [mui-text-field {:sx (if-not edit otp-txt-input-sx  {})
                         :fullWidth true
-                        :label (if (= "otp" key) "One-Time Password(TOTP)" key)
+                        :label (if (= OTP key) "One-Time Password(TOTP)" key)
                         :variant "standard"
                         :classes {:root "entry-cnt-field"}
-                        :value (if edit value token)
+                        :value (if edit value (formatted-token token))
                         :error  (not (nil? error-text))
                         :helperText error-text
                         :required false
@@ -218,7 +232,7 @@
         [mui-stack {:direction "row" :sx {:width "100%" :justify-content "center"}}
          [mui-link {:sx {:color "primary.dark"}
                     :underline "hover"
-                    :on-click  #(dlg-events/otp-settings-dialog-show section-name)}
+                    :on-click  #(dlg-events/otp-settings-dialog-show section-name true)}
           [mui-typography {:variant "h6" :sx {:font-size "1.1em"}}
            "Set up One-Time Password"]]]
         [mui-stack {:direction "row" :sx {:width "100%"}}

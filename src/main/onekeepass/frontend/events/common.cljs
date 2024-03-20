@@ -412,7 +412,7 @@
            [:otp/stop-all-entry-form-polling [db-key nil]]
            ;; Start otp update polling if required for the next active db shown
            (when-not (nil? next-active-db-key)
-             [:dispatch [:entry-form/otp-start-polling-on-unlock]])
+             [:dispatch [:entry-form/otp-start-polling]])
 
            [:dispatch [:common/message-snackbar-open
                        (str "Closed database " db-key)]]
@@ -480,7 +480,7 @@
                                             #(dispatch [:database-change-detected %]))
                                    ;; When there is no database change, nothing is done
                                    ;; #()
-                                   (dispatch [:entry-form/otp-start-polling-on-unlock]))))))
+                                   (dispatch [:entry-form/otp-start-polling]))))))
 
 (reg-event-fx
  :database-change-detected
@@ -691,7 +691,7 @@
            ;; Stop any backend otp update polling of previous database
            [:otp/stop-all-entry-form-polling [old-db-key nil]]
            ;; Start otp update polling if required for the next active db shown
-           [:dispatch [:entry-form/otp-start-polling-on-unlock]]]})))
+           [:dispatch [:entry-form/otp-start-polling]]]})))
 
 (reg-sub
  :current-db-file-name
@@ -874,14 +874,17 @@
    "move_entry_to_recycle_bin"
    "remove_entry_permanently"
    "upload_entry_attachment"
-
+   
+   "delete_history_entry_by_index"
+   "delete_history_entries"
+   
    "update_group"
    "insert_group"
    "move_group"
    "mark_group_as_category"
    "move_group_to_recycle_bin"
-   "remove_group_permanently"
-
+   "remove_group_permanently" 
+   
    "insert-or-update-custom-entry-type"
    "delete-custom-entry-type"
    "set_db_settings"])

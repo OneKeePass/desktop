@@ -11,6 +11,8 @@
 (def WIRELESS_ROUTER_TYPE_NAME "Wireless Router")
 (def PASSPORT_TYPE_NAME "Passport")
 (def BANK_ACCOUNT_TYPE_NAME "Bank Account")
+
+(def ADDITIONAL_ONE_TIME_PASSWORDS "Additional One-Time Passwords")
 ;;
 (def CATEGORY_ALL_ENTRIES "AllEntries")
 (def CATEGORY_FAV_ENTRIES "Favorites")
@@ -59,7 +61,8 @@
 
 (def MACOS "macos")
 
-(def ONE_TIME_PASSWORD "Field type" "OneTimePassword")
+(def ONE_TIME_PASSWORD_TYPE "Field type" "OneTimePassword")
+
 (def OTP "Standard field name used" "otp")
 
 (def OTP_URL_PREFIX "otpauth://totp")

@@ -1,19 +1,21 @@
 (ns onekeepass.frontend.entry-form.dialogs
-  (:require [onekeepass.frontend.entry-form.common :as ef-cmn] 
-            [onekeepass.frontend.events.common :as ce :refer [on-change-factory]]
-            [onekeepass.frontend.events.entry-form-ex :as form-events] 
-            [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
+  (:require [clojure.string :as str]
             [onekeepass.frontend.common-components :refer [confirm-text-dialog]]
-            [onekeepass.frontend.mui-components :as m :refer [mui-alert 
+            [onekeepass.frontend.constants :refer [OTP_URL_PREFIX]]
+            [onekeepass.frontend.entry-form.common :as ef-cmn]
+            [onekeepass.frontend.events.common :as ce :refer [on-change-factory]]
+            [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
+            [onekeepass.frontend.events.entry-form-ex :as form-events]
+            [onekeepass.frontend.mui-components :as m :refer [mui-alert
                                                               mui-button
-                                                              mui-button 
+                                                              mui-button
                                                               mui-dialog
                                                               mui-dialog-actions
                                                               mui-dialog-content
                                                               mui-dialog-title
                                                               mui-link
                                                               mui-menu-item
-                                                              mui-stack 
+                                                              mui-stack
                                                               mui-tooltip
                                                               mui-typography]]))
 
@@ -42,6 +44,7 @@
                                   secret-code
                                   otp-uri-used
                                   section-name
+                                  standard-field
                                   field-name
                                   hash-algorithm
                                   period
@@ -56,8 +59,9 @@
    [mui-dialog-title "TOTP Setup"]
    [mui-dialog-content
     [mui-stack
-     (when (not= field-name "otp")
-       [m/text-field {:label "Field Name" 
+     (when (not standard-field) #_(not= field-name "otp")
+       [m/text-field {:sx {:mb 2}
+                      :label "Field Name" 
                       :value field-name
                       :required true
                       :error (contains? error-fields :field-name)
@@ -69,6 +73,7 @@
                     :placeholder "Please enter encoded key or full TOTPAuth URL"
                     :value secret-code
                     :required true
+                    ;;:multiline (if (and secret-code (str/starts-with? secret-code OTP_URL_PREFIX)) true false)
                     :error (contains? error-fields :secret-code)
                     :helperText (get error-fields :secret-code)
                     :on-change (on-change-factory dlg-events/otp-settings-dialog-update :secret-code)

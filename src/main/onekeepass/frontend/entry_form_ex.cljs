@@ -3,31 +3,30 @@
             [onekeepass.frontend.common-components :as cc :refer [alert-dialog-factory
                                                                   enter-key-pressed-factory
                                                                   list-items-factory
-                                                                  selection-autocomplete tags-field]]
-
-            [onekeepass.frontend.entry-form.fields :refer [datetime-field
-                                                           otp-field text-area-field
-                                                           simple-selection-field
-                                                           text-field]]
-            [onekeepass.frontend.entry-form.common :as ef-cmn :refer [ENTRY_DATETIME_FORMAT
-                                                                      background-color1
-                                                                      popper-button-sx
-                                                                      popper-box-sx
-                                                                      content-sx]]
-
-            [onekeepass.frontend.entry-form.menus :as menus]
-
-            [onekeepass.frontend.entry-form.dialogs :as dlg :refer [delete-totp-confirm-dialog
-                                                                    set-up-totp-dialog]]
-
-            [onekeepass.frontend.constants :as const]
+                                                                  selection-autocomplete
+                                                                  tags-field]]
+            [onekeepass.frontend.constants :as const :refer [ADDITIONAL_ONE_TIME_PASSWORDS
+                                                             ONE_TIME_PASSWORD_TYPE]]
             [onekeepass.frontend.db-icons :as db-icons :refer [entry-icon
                                                                entry-type-icon]]
+            [onekeepass.frontend.entry-form.common :as ef-cmn :refer [background-color1
+                                                                      content-sx
+                                                                      ENTRY_DATETIME_FORMAT
+                                                                      popper-box-sx
+                                                                      popper-button-sx]]
+            [onekeepass.frontend.entry-form.dialogs :as dlg :refer [delete-totp-confirm-dialog
+                                                                    set-up-totp-dialog]]
+            [onekeepass.frontend.entry-form.fields :refer [datetime-field
+                                                           otp-field
+                                                           simple-selection-field
+                                                           text-area-field
+                                                           text-field]]
+            [onekeepass.frontend.entry-form.menus :as menus]
             [onekeepass.frontend.events.common :as ce]
+            [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
             [onekeepass.frontend.events.entry-form-ex :as form-events]
             [onekeepass.frontend.events.move-group-entry :as move-events]
-            [onekeepass.frontend.group-tree-content :as gt-content] 
-            [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
+            [onekeepass.frontend.group-tree-content :as gt-content]
             [onekeepass.frontend.mui-components :as m :refer [color-primary-main
                                                               mui-alert
                                                               mui-alert-title
@@ -41,7 +40,8 @@
                                                               mui-dialog-content
                                                               mui-dialog-title
                                                               mui-divider
-                                                              mui-form-control-label mui-grid
+                                                              mui-form-control-label
+                                                              mui-grid
                                                               mui-icon-add-circle-outline-outlined
                                                               mui-icon-article-outlined
                                                               mui-icon-button
@@ -257,7 +257,7 @@
   [{:keys [dialog-show
            section-name
            field-name
-           protected 
+           protected
            _data-type
            mode
            add-more
@@ -331,6 +331,18 @@
                           {:label "No" :on-click  #(form-events/section-delete-confirm false)}])
    dialog-data])
 
+(defn section-field-add-icon-button [section-name]
+  (if (not= section-name ADDITIONAL_ONE_TIME_PASSWORDS)
+    [mui-tooltip {:title "Add a field" :enterDelay 2500}
+     [mui-icon-button {:edge "end" :color "primary"
+                       :on-click #(form-events/open-section-field-dialog section-name nil)}
+      [mui-icon-add-circle-outline-outlined]]]
+
+    [mui-tooltip {:title "Set up TOPT" :enterDelay 2500}
+     [mui-icon-button {:edge "end" :color "primary"
+                       :on-click #(dlg-events/otp-settings-dialog-show section-name false)}
+      [mui-icon-add-circle-outline-outlined]]]))
+
 (defn section-header [section-name]
   (let [edit @(form-events/form-edit-mode)
         standard-sections @(form-events/entry-form-data-fields :standard-section-names)
@@ -356,15 +368,12 @@
                               :on-click  #(form-events/section-delete section-name)}
              [mui-icon-delete-outline]]]])
 
-        [menus/add-additional-field-menu section-name]
+        [section-field-add-icon-button section-name]
+        #_[menus/add-additional-field-menu section-name]
         #_[mui-tooltip {:title "Add a field" :enterDelay 2500}
            [mui-icon-button {:edge "end" :color "primary"
                              :on-click #(form-events/open-section-field-dialog section-name @comp-ref)}
-            [mui-icon-add-circle-outline-outlined]]]
-        #_[add-modify-section-popper @(form-events/section-name-dialog-data)]
-        #_[add-modify-section-field-dialog @(form-events/section-field-dialog-data)]
-
-        #_[add-modify-section-field-popper @(form-events/section-field-dialog-data)]])]))
+            [mui-icon-add-circle-outline-outlined]]]])]))
 
 (defn section-content [edit section-name section-data]
   (let [errors @(form-events/entry-form-field :error-fields)]
@@ -401,7 +410,7 @@
                                                      :on-change-handler #(form-events/update-section-value-on-change
                                                                           section-name key (-> % .-target  .-value)))]
 
-                      (= data-type const/ONE_TIME_PASSWORD)
+                      (= data-type ONE_TIME_PASSWORD_TYPE)
                       [otp-field (assoc kv :edit edit :section-name section-name)]
 
                       :else
@@ -413,7 +422,7 @@
                                          :on-change-handler #(form-events/update-section-value-on-change
                                                               section-name key (-> % .-target  .-value)))])]
 
-                   (when (and edit (not standard-field) (not= data-type const/ONE_TIME_PASSWORD))
+                   (when (and edit (not standard-field) (not= data-type ONE_TIME_PASSWORD_TYPE))
                      [mui-stack {:direction "row" :sx {:width "8%" :align-items "flex-end"}}
                       [mui-tooltip  {:title "Modify Field" :enterDelay 2500}
                        [mui-icon-button {:edge "end"

@@ -95,8 +95,17 @@
        {:fx [[:otp/stop-all-entry-form-polling [(active-db-key db) nil]]]}
        {}))))
 
+
 (reg-event-fx
- :entry-form/otp-start-polling-on-unlock
+ :entry-form/otp-stop-polling
+ (fn [{:keys [db]} [_event-id]]
+   (let [form-status (get-in-key-db db [entry-form-key :showing])]
+     (if (= form-status :selected)
+       {:fx [[:otp/stop-all-entry-form-polling [(active-db-key db) nil]]]}
+       {}))))
+
+(reg-event-fx
+ :entry-form/otp-start-polling
  (fn [{:keys [db]} [_event-id]]
    (let [form-status (get-in-key-db db [entry-form-key :showing])
          entry-uuid (get-in-key-db db [entry-form-key :data :uuid])
