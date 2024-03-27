@@ -53,15 +53,23 @@ pub(crate) async fn init_timers<R: Runtime>(
     kp_async_service::async_runtime().spawn(async move {
       loop {
         //debug!("Going to wait for value...");
-        let reply = rx.recv().await;
+        let reply:Option<kp_async_service::AsyncResponse> = rx.recv().await;
 
         //debug!("Received value as {:?}", &reply);
 
         // Only valid values are send to UI
         if let Some(ov) = reply {
-          window.emit(OTP_TOKEN_UPDATE_EVENT, &ov).unwrap();
+          match  ov {
+            kp_async_service::AsyncResponse::EntryOtpToken(t) => {
+              window.emit(OTP_TOKEN_UPDATE_EVENT, &t).unwrap();
+            },
+            kp_async_service::AsyncResponse::Tick(t) => {
+              window.emit("TIMER_EVENT", &t).unwrap();
+            },
+          }
+          
         } else {
-          debug!("None received for EntryOtpTokenReply")
+          debug!("No reply of type 'AsyncResponse' was received in channel");
         }
       }
     });
@@ -80,7 +88,6 @@ pub(crate) async fn start_polling_entry_otp_fields(
 ) -> Result<()> {
   kp_async_service::start_polling_entry_otp_fields(
     db_key,
-    previous_entry_uuid.as_ref(),
     &entry_uuid,
     otp_fields,
   );

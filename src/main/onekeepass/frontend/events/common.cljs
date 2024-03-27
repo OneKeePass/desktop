@@ -467,7 +467,7 @@
          [:bg-read-and-verify-db-file [(active-db-key db)]]]}))
 
 
-;; Called to detect whether databae has been changed externally or not
+;; Called to detect whether database has been changed externally or not
 (reg-fx
  :bg-read-and-verify-db-file
  (fn [[db-key]]
