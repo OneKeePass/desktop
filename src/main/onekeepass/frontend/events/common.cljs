@@ -157,6 +157,7 @@
   (let [app-db  (if (nil? (:opened-db-list app-db)) (assoc app-db :opened-db-list []) app-db)]
     (-> app-db
         (assoc :current-db-file-name db-key)
+        (assoc :last-closed-db-file-name nil)
          ;; TODO: Need to avoid duplicate entries for the same db-key. 
          ;;       This should be done in open db dialog validation itself (?)
         (update-in [:opened-db-list] conj {:db-key db-key
@@ -174,6 +175,11 @@
   ;; Used in reg-event-db , reg-event-fx by passing the main re-frame global 'app-db' 
   ([app-db]
    (:current-db-file-name app-db)))
+
+(defn last-active-db-key 
+  "Gets the last closed database. Mainly used in entry form use effect event call"
+  [app-db]
+  (:last-closed-db-file-name app-db))
 
 ;; db-file-name is the same as db-key
 (def active-db-file-name active-db-key)
@@ -407,6 +413,7 @@
      {:db (-> db
               (assoc :opened-db-list dbs)
               (assoc :current-db-file-name next-active-db-key)
+              (assoc :last-closed-db-file-name db-key)
               (dissoc db-key))
       :fx [;; Stop any backend otp update polling of this database
            [:otp/stop-all-entry-form-polling [db-key nil]]

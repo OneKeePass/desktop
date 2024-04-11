@@ -53,25 +53,31 @@ pub(crate) async fn init_timers<R: Runtime>(
     kp_async_service::async_runtime().spawn(async move {
       loop {
         //debug!("Going to wait for value...");
-        let reply:Option<kp_async_service::AsyncResponse> = rx.recv().await;
+        let reply: Option<kp_async_service::AsyncResponse> = rx.recv().await;
 
         //debug!("Received value as {:?}", &reply);
 
         // Only valid values are send to UI
         if let Some(ov) = reply {
-          match  ov {
+          match ov {
             kp_async_service::AsyncResponse::EntryOtpToken(t) => {
               window.emit(OTP_TOKEN_UPDATE_EVENT, &t).unwrap();
-            },
+            }
             kp_async_service::AsyncResponse::Tick(t) => {
               window.emit("TIMER_EVENT", &t).unwrap();
-            },
+            }
+            kp_async_service::AsyncResponse::ServiceStopped => {
+              break;
+            }
           }
-          
         } else {
           debug!("No reply of type 'AsyncResponse' was received in channel");
         }
       }
+
+      info!("Exited the AsyncResponse handling loop and closing channel receiver...");
+      rx.close();
+      info!("Closed receiver side of the channel");
     });
     app_state.timers_init_completed();
   }
@@ -82,15 +88,10 @@ pub(crate) async fn init_timers<R: Runtime>(
 #[tauri::command]
 pub(crate) async fn start_polling_entry_otp_fields(
   db_key: &str,
-  previous_entry_uuid: Option<Uuid>,
   entry_uuid: Uuid,
   otp_fields: kp_async_service::OtpTokenTtlInfoByField,
 ) -> Result<()> {
-  kp_async_service::start_polling_entry_otp_fields(
-    db_key,
-    &entry_uuid,
-    otp_fields,
-  );
+  kp_async_service::start_polling_entry_otp_fields(db_key, &entry_uuid, otp_fields);
   Ok(())
 }
 

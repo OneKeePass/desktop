@@ -375,7 +375,7 @@
                              :on-click #(form-events/open-section-field-dialog section-name @comp-ref)}
             [mui-icon-add-circle-outline-outlined]]]])]))
 
-(defn section-content [edit section-name section-data]
+(defn section-content [edit section-name section-data group-uuid]
   (let [errors @(form-events/entry-form-field :error-fields)]
     ;; Show a section in edit mode irrespective of its contents; In non edit mode a section is shown only 
     ;; if it has some fields with non blank value. 
@@ -411,7 +411,9 @@
                                                                           section-name key (-> % .-target  .-value)))]
 
                       (= data-type ONE_TIME_PASSWORD_TYPE)
-                      [otp-field (assoc kv :edit edit :section-name section-name)]
+                      [otp-field (assoc kv :edit edit
+                                        :section-name section-name
+                                        :group-uuid group-uuid)]
 
                       :else
                       [text-field (assoc kv
@@ -441,12 +443,28 @@
          #_[custom-section-delete-confirm @(form-events/section-delete-dialog-data)]]))))
 
 (defn all-sections-content []
-  (let [{:keys [edit]
-         {:keys [section-names section-fields]} :data} @(form-events/entry-form-all)]
+  (let [{:keys [edit showing]
+         {:keys [section-names section-fields uuid group-uuid]} :data}
+        @(form-events/entry-form-all)
+        deleted? @(form-events/is-entry-parent-group-deleted group-uuid)]
+    (m/react-use-effect
+     (fn []
+       #_(println "init - uuid showing edit deleted? : \n" uuid showing edit deleted?)
+       (when (and (= showing :selected) (not edit) (not deleted?))
+        ;; (println "Will fire entry-form-otp-start-polling")
+         (form-events/entry-form-otp-start-polling))
+
+       (fn []
+         ;;(println "cleanup - uuid showing edit deleted? : \n" uuid showing edit deleted?))
+         (form-events/entry-form-otp-stop-polling uuid)))
+
+         ;; Need to pass the list of all reactive values (dependencies) referenced inside of the setup code or empty list
+     (clj->js [uuid showing edit deleted?]))
+
     [mui-stack
      (doall
       (for [section-name section-names]
-        ^{:key section-name} [section-content edit section-name (get section-fields section-name)]))]))
+        ^{:key section-name} [section-content edit section-name (get section-fields section-name) group-uuid]))]))
 
 (def icons-dialog-flag (r/atom false))
 
@@ -638,7 +656,7 @@
   (fn []
     [mui-box
      [title-with-icon-field]
-     [all-sections-content]
+     [:f>  all-sections-content]
      [add-section-content]
      [notes-content]
      [tags-selection]

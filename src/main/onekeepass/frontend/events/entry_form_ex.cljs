@@ -196,6 +196,10 @@
   ;;Delegates to a subcriber in group tree event
   (subscribe [:group-tree-content/groups-listing]))
 
+(defn is-entry-parent-group-deleted 
+  [group-uuid]
+  (subscribe [:group-tree-content/group-in-recycle-bin group-uuid]))
+
 ;;;;;;;;;;;;;;;;;;;;;;;  Form Events ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn validate-entry-form-data
@@ -1722,6 +1726,12 @@
 
 (defn entry-form-delete-otp-field [section otp-field-name]
   (dispatch [:entry-form-delete-otp-field section otp-field-name]))
+
+(defn entry-form-otp-start-polling []
+  (dispatch [:entry-form-otp-start-polling]))
+
+(defn entry-form-otp-stop-polling [entry-uuid]
+  (dispatch [:entry-form-otp-stop-polling entry-uuid]))
 
 (defn otp-currrent-token [opt-field-name]
   (subscribe [:otp-currrent-token opt-field-name]))

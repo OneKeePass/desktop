@@ -8,17 +8,21 @@
 (reg-fx
  :otp/start-polling-otp-fields
  (fn [[db-key previous-entry-uuid entry-uuid otp-field-m]]
+   ;;(println "Empty :otp/start-polling-otp-fields")
+   
    ;;(println "previous-entry-uuid entry-uuid otp-field-m are " previous-entry-uuid entry-uuid otp-field-m)
    ;; otp-field-m is a map with otp field name as key and token data as its value
    ;; See 'start-polling-otp-fields' fn
-   (let [fields-m (into {} (filter (fn [[_k v]] (not (nil? v))) otp-field-m))]
-     (if (boolean (seq fields-m))
-       (bg/start-polling-entry-otp-fields
-        db-key previous-entry-uuid
-        entry-uuid fields-m #(on-error %))
-       (bg/stop-polling-all-entries-otp-fields
-        db-key
-        #(on-error %))))))
+   #_(let [fields-m (into {} (filter (fn [[_k v]] (not (nil? v))) otp-field-m))]
+       (if (boolean (seq fields-m))
+         (bg/start-polling-entry-otp-fields
+          db-key previous-entry-uuid
+          entry-uuid fields-m #(on-error %))
+         (bg/stop-polling-all-entries-otp-fields
+          db-key
+          #(on-error %))))
+   
+   ))
 
 ;; Stops all otp polling of an entry form
 ;; db-key should not be nil 
@@ -26,14 +30,9 @@
 (reg-fx
  :otp/stop-all-entry-form-polling
  (fn [[db-key dispatch-fn]]
+   ;;(println "Empty :otp/stop-all-entry-form-polling")
    ;;(println "Stopping form polling for db-key " (last (str/split db-key "/")))
-   (bg/stop-polling-all-entries-otp-fields db-key (if-not (nil? dispatch-fn) dispatch-fn #(on-error %)))))
-
-#_(reg-fx
-   :otp/stop-entry-form-polling
-   (fn [[entry-uuid]]
-     (bg/stop_polling_entry_otp_fields "None" entry-uuid #(on-error %))))
-
+   #_(bg/stop-polling-all-entries-otp-fields db-key (if-not (nil? dispatch-fn) dispatch-fn #(on-error %)))))
 
 
 

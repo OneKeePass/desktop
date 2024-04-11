@@ -61,7 +61,7 @@
 (defn expanded-nodes []
   (subscribe [:expanded-nodes]))
 
-(defn recycle-bin-empty-check [] 
+(defn recycle-bin-empty-check []
   (subscribe [:recycle-bin-empty-check]))
 
 
@@ -117,7 +117,6 @@
   (when-let [result (check-error api-response)]
     (dispatch [:groups-tree-data-update (js->clj result)])))
 
-
 ;;;;;;; 
 
 ;;This event handler loads the group summary data once only.  
@@ -129,6 +128,12 @@
        {:fx [[:dispatch [:groups-tree-data-update nil]]
              [:load-bg-groups-summary-data (active-db-key db)]]}
        {}))))
+
+;; TODO: It appears, 'load-groups' is not called for all db changes
+;; For example, when a new entry is created, the tree data is not loaded 
+;; and because of that 'entry_uuids' does not include the newly created 
+;; entry under the parent group
+;; Needs fixing
 
 ;;An event to reload group tree data whenever any group data update or insert is done
 (reg-event-fx
@@ -147,7 +152,7 @@
  (fn [db [_event-id v]]
    (assoc-in-key-db db [:groups-tree :data] v)))
 
-;; Called when a new entry is created under a gouup selected in the category view
+;; Called when a new entry is created under a group selected in the category view
 (reg-event-fx
  :group-tree-content/entry-inserted
  (fn [{:keys [_db]} [_event-id entry-uuid  group-uuid]]
@@ -209,6 +214,16 @@
      ;; the following is equivalent to  '(not (empty? (filter #(= % selected)  recycle-groups)))' 
      ;;(boolean (seq (filter #(= % selected)  recycle-groups)))
      (contains-val? recycle-groups selected))))
+
+;; Checks whether a given group uuid is a recycle bin group or found in deleted_group_uuids vector
+(reg-sub
+ :group-tree-content/group-in-recycle-bin
+ :<- [:groups-tree-data-updated]
+ (fn [data [_query-id group-uuid]]
+   (let [recycled-groups  (get data "deleted_group_uuids")
+         recycle-bin-group (get data "recycle_bin_uuid")]
+     (or (= recycle-bin-group group-uuid) 
+         (contains-val?  recycled-groups group-uuid)))))
 
 ;; Forms a group info map for any selected group in group tree view or a group category 
 ;; in category view

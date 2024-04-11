@@ -1,14 +1,14 @@
 (ns onekeepass.frontend.events.entry-form-otp
-  (:require
-
-   [re-frame.core :refer [reg-event-fx reg-sub  dispatch]]
-   [onekeepass.frontend.events.common :as cmn-events :refer [on-error
-                                                             active-db-key
-                                                             assoc-in-key-db
-                                                             get-in-key-db]]
-   [onekeepass.frontend.events.entry-form-common :refer [entry-form-key 
-                                                         extract-form-otp-fields
-                                                         merge-section-key-value]]))
+  (:require [onekeepass.frontend.background :as bg]
+            [onekeepass.frontend.events.common :as cmn-events :refer [active-db-key
+                                                                      assoc-in-key-db
+                                                                      get-in-key-db
+                                                                      last-active-db-key
+                                                                      on-error]]
+            [onekeepass.frontend.events.entry-form-common :refer [entry-form-key
+                                                                  extract-form-otp-fields
+                                                                  merge-section-key-value]]
+            [re-frame.core :refer [dispatch reg-event-fx reg-fx reg-sub]]))
 
 
 ;; Called to update with the current tokens 
@@ -89,33 +89,88 @@
 (reg-event-fx
  :entry-form/otp-stop-polling-on-lock
  (fn [{:keys [db]} [_event-id _locked-db-key]]
-   (let [form-status (get-in-key-db db [entry-form-key :showing])
-         _entry-uuid (get-in-key-db db [entry-form-key :data :uuid])]
-     (if (= form-status :selected)
-       {:fx [[:otp/stop-all-entry-form-polling [(active-db-key db) nil]]]}
-       {}))))
+   {}
+   #_(let [form-status (get-in-key-db db [entry-form-key :showing])
+           _entry-uuid (get-in-key-db db [entry-form-key :data :uuid])]
+       (if (= form-status :selected)
+         {:fx [[:otp/stop-all-entry-form-polling [(active-db-key db) nil]]]}
+         {}))))
 
 
 (reg-event-fx
  :entry-form/otp-stop-polling
  (fn [{:keys [db]} [_event-id]]
-   (let [form-status (get-in-key-db db [entry-form-key :showing])]
-     (if (= form-status :selected)
-       {:fx [[:otp/stop-all-entry-form-polling [(active-db-key db) nil]]]}
-       {}))))
+   {}
+   #_(let [form-status (get-in-key-db db [entry-form-key :showing])]
+       (if (= form-status :selected)
+         {:fx [[:otp/stop-all-entry-form-polling [(active-db-key db) nil]]]}
+         {}))))
 
 (reg-event-fx
  :entry-form/otp-start-polling
  (fn [{:keys [db]} [_event-id]]
-   (let [form-status (get-in-key-db db [entry-form-key :showing])
-         entry-uuid (get-in-key-db db [entry-form-key :data :uuid])
+   {}
+   #_(let [form-status (get-in-key-db db [entry-form-key :showing])
+           entry-uuid (get-in-key-db db [entry-form-key :data :uuid])
+           otp-fields (extract-form-otp-fields (get-in-key-db db [entry-form-key :data]))]
+       (if (= form-status :selected)
+         {:fx [[:otp/start-polling-otp-fields [(active-db-key db)
+                                               nil
+                                               entry-uuid
+                                               otp-fields]]]}
+         {}))))
+
+;;; Events used in useEffect 
+
+;; TODO: 
+;; Explore Whether we need to use 'db-key' in the backend fns 
+;; 'stop_polling_entry_otp_fields', 'stop-polling-all-entries-otp-fields' 
+;; For now, db-key is ignored for 'stop_polling_entry_otp_fields' and for 'stop-polling-all-entries-otp-fields'
+
+(reg-event-fx
+ :entry-form-otp-start-polling
+ (fn [{:keys [db]} [_event-id]]
+   (let [entry-uuid (get-in-key-db db [entry-form-key :data :uuid])
          otp-fields (extract-form-otp-fields (get-in-key-db db [entry-form-key :data]))]
-     (if (= form-status :selected)
-       {:fx [[:otp/start-polling-otp-fields [(active-db-key db)
-                                             nil
-                                             entry-uuid
-                                             otp-fields]]]}
-       {}))))
+     {:fx [[:bg-otp-start-polling-otp-fields [(active-db-key db)
+                                              entry-uuid
+                                              otp-fields]]]})))
+
+(reg-fx
+ :bg-otp-start-polling-otp-fields
+ (fn [[db-key entry-uuid otp-field-m]]
+   ;; otp-field-m is a map with otp field name as key and token data as its value
+   ;; See 'start-polling-otp-fields' fn
+   (let [fields-m (into {} (filter (fn [[_k v]] (not (nil? v))) otp-field-m))]
+     ;; (println "Will call bg/start-polling-entry-otp-fields")
+     (when (boolean (seq fields-m))
+       (bg/start-polling-entry-otp-fields
+        db-key nil
+        entry-uuid fields-m #(on-error %))))))
+
+
+;; Called from entry form a usEffect cleanup fn
+;; When a single database is opened and closed
+;; There will be no active db key when this event is triggered
+;; We store the last closed db key and use that
+(reg-event-fx
+ :entry-form-otp-stop-polling
+ (fn [{:keys [db]} [_event-id entry-uuid]]
+   (let [db-key (last-active-db-key db) 
+         db-key (if-not (nil? db-key) db-key (active-db-key db))]
+     {:fx [[:bg-stop-all-entry-form-polling [db-key entry-uuid]]]})))
+
+;; Stops all otp fields polling of an entry form
+;; db-key should not be nil 
+;; Api call will fail if db-key is nil
+(reg-fx
+ :bg-stop-all-entry-form-polling
+ (fn [[db-key entry-uuid]]
+   (bg/stop-polling-entry-otp-fields db-key entry-uuid #(on-error %))
+
+   #_(bg/stop-polling-all-entries-otp-fields db-key
+                                             (if-not (nil? dispatch-fn) dispatch-fn #(on-error %)))))
+
 
 (reg-sub
  :otp-currrent-token

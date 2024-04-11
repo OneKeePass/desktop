@@ -143,7 +143,7 @@
     [mui-typography {:vaiant "caption" :component "div"}
      ttl-time]]])
 
-(defn formatted-token 
+(defn formatted-token
   "Groups digits with spaces between them for easy reading"
   [token]
   (let [len (count token)
@@ -205,7 +205,7 @@
        [mui-stack {:sx {:width "10%" :align-items "center" :justify-content "center"}}
         [otp-progress-circle period ttl]]])))
 
-(defn otp-field-in-history-form [kv]
+(defn opt-field-no-token [kv]
   [mui-stack {:direction "row" :sx {:width "100%"}}
    [mui-stack {:direction "row" :sx {:width "100%"}}
     [text-field (assoc kv
@@ -217,12 +217,13 @@
                        :on-change-handler #())]]
    [mui-stack {:direction "row" :sx {:align-items "flex-end"}}]])
 
-(defn otp-field [{:keys [edit key value section-name] :as kv}]
-  (let [history-form? @(form-events/history-entry-form-showing)]
+(defn otp-field [{:keys [edit key value section-name group-uuid] :as kv}]
+  (let [history-form? @(form-events/history-entry-form-showing)
+        deleted? @(form-events/is-entry-parent-group-deleted group-uuid)]
     ;; cond order is important
     (cond
-      history-form?
-      [otp-field-in-history-form kv]
+      (or history-form?  deleted?)
+      [opt-field-no-token kv]
 
       (not edit)
       [otp-read-field kv]

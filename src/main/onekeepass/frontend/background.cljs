@@ -616,13 +616,12 @@
   ;; Tauri api arg names are in camelCase and however any struct used as value 
   ;; the field names should be in snake_case
   ;; e.g see :token_ttls 
-  (let [args (clj->js {:dbKey  db-key
-                       :previousEntryUuid previous-entry-uuid
+  (let [args (clj->js {:dbKey  db-key 
                        :entryUuid entry-uuid
                        :otpFields {:token_ttls otp-token-ttls-by-field-m}})]
     (invoke-api "start_polling_entry_otp_fields" args dispatch-fn :convert-request false)))
 
-(defn stop_polling_entry_otp_fields [db-key entry-uuid dispatch-fn]
+(defn stop-polling-entry-otp-fields [db-key entry-uuid dispatch-fn]
   (invoke-api "stop_polling_entry_otp_fields"
               {:db-key db-key :entry-uuid entry-uuid} dispatch-fn))
 
