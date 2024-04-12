@@ -4,10 +4,7 @@
    ;;Events 
    [onekeepass.frontend.events.tauri-events :as tauri-events]
    [onekeepass.frontend.events.common :as cmn-events]
-   ;; Need to be called at least once so that events from this namespace are registered
-   #_{:clj-kondo/ignore [:unused-namespace]}
-   [onekeepass.frontend.events.otp :as otp-events]
-
+   
    ;;App UI components   
    [onekeepass.frontend.common-components :as cc]
    [onekeepass.frontend.entry-form-ex :as eform-ex]

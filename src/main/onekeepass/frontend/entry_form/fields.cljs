@@ -298,44 +298,6 @@
                                :sx {:ml ".5em" :mr ".5em"}
                                :style {:resize "vertical"}}}])
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; This is based om mui x date time picker 5.x version and does not work with 6.x version
-#_(defn datetime-field
-    [{:keys [key value on-change-handler]
-      :or [on-change-handler #()]}]
-    [mui-localization-provider {:dateAdapter date-adapter}
-     (println "Value is " value)
-     [mui-date-time-picker {:label key
-                            :value value
-                            :onChange on-change-handler
-                            :renderInput (fn [props]
-                                           (let [p (js->clj props :keywordize-keys true)
-                                                 p (merge p {:variant "standard"
-                                                             :classes {:root "entry-cnt-field"}
-                                                             :fullWidth true})]
-                                             #_(println "Props called: " (-> p   keys))
-                                             (r/as-element [mui-text-field p])))}]])
 
 
-;; Not used and it is based on old mui x datepicker version and also did not work 
-;; Need to replaced with new version based one if required
-#_(defn date-field
-    [{:keys [key value edit on-change-handler]
-      :or [on-change-handler #()]}]
-    (if-not edit
-      [text-field  {:key (str key " (MM/DD/YYYY)") :value value :edit false}]
-      [mui-stack {:direction "row" :sx {:width "40%"}}
-       [mui-localization-provider {:dateAdapter date-adapter}
-        [mui-desktop-date-picker
-         {:label (str key " (MM/DD/YYYY)")
-          :value value
-          :onChange on-change-handler
-          :renderInput (fn [props]
-                         (let [p (js->clj props :keywordize-keys true)
-                               p (merge p {:variant "standard"
-                                           :classes {:root "entry-cnt-field"}
-                                           :fullWidth true})]
-                           #_(println "Props called: " (-> p   keys))
-                           (r/as-element [mui-text-field p])))}]]]))
 

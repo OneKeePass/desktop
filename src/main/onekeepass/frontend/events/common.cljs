@@ -157,7 +157,6 @@
   (let [app-db  (if (nil? (:opened-db-list app-db)) (assoc app-db :opened-db-list []) app-db)]
     (-> app-db
         (assoc :current-db-file-name db-key)
-        (assoc :last-closed-db-file-name nil)
          ;; TODO: Need to avoid duplicate entries for the same db-key. 
          ;;       This should be done in open db dialog validation itself (?)
         (update-in [:opened-db-list] conj {:db-key db-key
@@ -175,11 +174,6 @@
   ;; Used in reg-event-db , reg-event-fx by passing the main re-frame global 'app-db' 
   ([app-db]
    (:current-db-file-name app-db)))
-
-(defn last-active-db-key 
-  "Gets the last closed database. Mainly used in entry form use effect event call"
-  [app-db]
-  (:last-closed-db-file-name app-db))
 
 ;; db-file-name is the same as db-key
 (def active-db-file-name active-db-key)
@@ -283,11 +277,8 @@
 (reg-event-fx
  :common/kdbx-database-opened
  (fn [{:keys [db]} [_event-id kdbx-loaded]]
-   (let [old-db-key (active-db-key db)]
-     {:db (db-opened db kdbx-loaded)
-      :fx [(when-not (nil? old-db-key)
-             [:otp/stop-all-entry-form-polling [old-db-key nil]])
-           [:dispatch [:common/kdbx-database-loading-complete kdbx-loaded]]]})))
+   {:db (db-opened db kdbx-loaded)
+    :fx [[:dispatch [:common/kdbx-database-loading-complete kdbx-loaded]]]}))
 
 (reg-event-fx
  :common/kdbx-database-loading-complete
@@ -412,16 +403,9 @@
          next-active-db-key (if (empty? dbs) nil (:db-key (last dbs)))]
      {:db (-> db
               (assoc :opened-db-list dbs)
-              (assoc :current-db-file-name next-active-db-key)
-              (assoc :last-closed-db-file-name db-key)
+              (assoc :current-db-file-name next-active-db-key) 
               (dissoc db-key))
-      :fx [;; Stop any backend otp update polling of this database
-           [:otp/stop-all-entry-form-polling [db-key nil]]
-           ;; Start otp update polling if required for the next active db shown
-           (when-not (nil? next-active-db-key)
-             [:dispatch [:entry-form/otp-start-polling]])
-
-           [:dispatch [:common/message-snackbar-open
+      :fx [[:dispatch [:common/message-snackbar-open
                        (str "Closed database " db-key)]]
            [:dispatch [:common/load-app-preference]]]})))
 
@@ -451,8 +435,7 @@
                           (when-not (on-error api-response)
                             ;; Add any relevant dispatch calls here
                             ;;(println "Database is locked")
-                            ;;#()
-                            (dispatch [:entry-form/otp-stop-polling-on-lock db-key]))))))
+                            #())))))
 
 ;; Dispatched from a open-db-form event
 (reg-event-fx
@@ -486,8 +469,7 @@
                                             api-response
                                             #(dispatch [:database-change-detected %]))
                                    ;; When there is no database change, nothing is done
-                                   ;; #()
-                                   (dispatch [:entry-form/otp-start-polling]))))))
+                                   #())))))
 
 (reg-event-fx
  :database-change-detected
@@ -690,15 +672,8 @@
 (reg-event-fx
  :change-active-db-complete
  (fn [{:keys [db]} [_event-id db-key]]
-   (let [old-db-key (active-db-key db)
-         db (assoc db :current-db-file-name db-key)]
-     {:db db
-      :fx [;; Assumed the following events happen in the order 
-           ;; active db key is set to 'db-key' before fx events are called
-           ;; Stop any backend otp update polling of previous database
-           [:otp/stop-all-entry-form-polling [old-db-key nil]]
-           ;; Start otp update polling if required for the next active db shown
-           [:dispatch [:entry-form/otp-start-polling]]]})))
+   (let [db (assoc db :current-db-file-name db-key)]
+     {:db db})))
 
 (reg-sub
  :current-db-file-name
@@ -881,17 +856,17 @@
    "move_entry_to_recycle_bin"
    "remove_entry_permanently"
    "upload_entry_attachment"
-   
+
    "delete_history_entry_by_index"
    "delete_history_entries"
-   
+
    "update_group"
    "insert_group"
    "move_group"
    "mark_group_as_category"
    "move_group_to_recycle_bin"
-   "remove_group_permanently" 
-   
+   "remove_group_permanently"
+
    "insert-or-update-custom-entry-type"
    "delete-custom-entry-type"
    "set_db_settings"])

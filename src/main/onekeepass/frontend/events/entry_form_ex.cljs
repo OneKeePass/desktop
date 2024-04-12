@@ -264,18 +264,13 @@
 (reg-event-fx
  :entry-form-data-load-completed-ok
  (fn [{:keys [db]} [_event-id entry-data]]
-   (let [previous-entry-uuid (get-in-key-db db [entry-form-key :data :uuid])
-         otp-fields (extract-form-otp-fields entry-data)]
+   (let [otp-fields (extract-form-otp-fields entry-data)]
      {:db (-> db
               (assoc-in-key-db [entry-form-key :data] entry-data)
               (assoc-in-key-db [entry-form-key :edit] false)
               (init-expiry-duration-selection entry-data)
               (assoc-in-key-db [entry-form-key :showing] :selected)
-              (assoc-in-key-db [entry-form-key :otp-fields] otp-fields))
-      :fx [[:otp/start-polling-otp-fields [(active-db-key db)
-                                           previous-entry-uuid
-                                           (:uuid entry-data)
-                                           otp-fields]]]})))
+              (assoc-in-key-db [entry-form-key :otp-fields] otp-fields))})))
 
 ;; Rename :entry-form-data-load-completed-error
 ;; and remove ok part
@@ -401,8 +396,7 @@
    ;; call to stop polling is called only once
    (if (= :welcome (get-in-key-db db [entry-form-key :showing]))
      {}
-     {:fx [[:otp/stop-all-entry-form-polling [(active-db-key db) nil]]]
-      :db (-> db (assoc-in-key-db [entry-form-key :data] {})
+     {:db (-> db (assoc-in-key-db [entry-form-key :data] {})
               (assoc-in-key-db [entry-form-key :undo-data] {})
               (assoc-in-key-db [entry-form-key :otp-fields] {})
               (assoc-in-key-db [entry-form-key :showing] :welcome)
@@ -423,8 +417,7 @@
    (if edit?
      {:db (-> db
               (assoc-in-key-db [entry-form-key :undo-data] (get-in-key-db db [entry-form-key :data]))
-              (assoc-in-key-db [entry-form-key :edit] edit?))
-      :fx [[:dispatch [:entry-form/otp-stop-polling]]]}
+              (assoc-in-key-db [entry-form-key :edit] edit?))}
      {:db (assoc-in-key-db db [entry-form-key :edit] edit?)})))
 
 
@@ -451,7 +444,7 @@
             (-> db (assoc-in-key-db  [entry-form-key :edit] false)
                 (assoc-in-key-db [entry-form-key :undo-data] {})
                 (assoc-in-key-db [entry-form-key :error-fields] {})))
-      :fx [[:dispatch [:entry-form/otp-start-polling]]]})))
+      :fx []})))
 
 
 #_(reg-event-db

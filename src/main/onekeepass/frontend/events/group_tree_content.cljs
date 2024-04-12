@@ -103,16 +103,6 @@
  (fn [db [_eid node-ids]] ;; node-ids is a js array
    (assoc-in-key-db db [:groups-tree :expanded-nodes] (js->clj node-ids))))
 
-#_(defn- on-group-tree-load
-    "A dispatch funtion called on successful loading of group tree data backend API call.
-  See bg/groups-summary-data 
-  "
-    [[result error]]
-    (if (nil? error)
-      (dispatch [:groups-tree-data-update (js->clj result)])
-    ;;Need to send to an alert
-      (println "Error: " error)))
-
 (defn- group-summary-load-callback [api-response]
   (when-let [result (check-error api-response)]
     (dispatch [:groups-tree-data-update (js->clj result)])))
@@ -297,12 +287,9 @@
          [:dispatch [:common/refresh-forms-2]]]}))
 
 ;;;;;;;;;;;;;;;;;; Group Delete End ;;;;;;;;;;;;;;;;;
-
 ;;;;;;;;;;;;;;;;;;; Group Put back  ;;;;;;;;;;;;;;;;;;;;
 
 ;; See onekeepass.frontend.events.move-group-entry for corresponding events
-
-;;;;;;;;;;;;;;;;;;; Group Put back End ;;;;;;;;;;;;;;;;;
 
 
 (comment
