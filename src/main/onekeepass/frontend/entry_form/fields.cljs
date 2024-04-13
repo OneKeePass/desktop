@@ -174,7 +174,10 @@
              edit false
              no-end-icons false}}]
 
-    (let [{:keys [token ttl period]} @(form-events/otp-currrent-token key)]
+    (let [{:keys [token ttl period]} @(form-events/otp-currrent-token key)
+          ;; If otp url is not parseable for any reason, the Entry struct's 'parsed_otp_values' hashmap will 
+          ;; have a nil value with this otp field name's as key. Accordingly otp-currrent-token will be nil
+          valid-token-found (not (nil? token))] 
       [mui-stack {:direction "row" :sx {:width "100%"}}
        [mui-text-field {:sx (if-not edit otp-txt-input-sx  {})
                         :fullWidth true
@@ -182,28 +185,31 @@
                         :variant "standard"
                         :classes {:root "entry-cnt-field"}
                         :value (if edit value (formatted-token token))
-                        :error  (not (nil? error-text))
-                        :helperText error-text
+                        ;; Is there any use of suing 'error-text' with otp field ? 
+                        :error  (or (not (nil? error-text)) (not valid-token-found))
+                        :helperText (if-not valid-token-found "Invalid otp url" error-text)
                         :required false
                         :InputLabelProps {} ;; setting props in this is not working
                         :InputProps {:id key
-                                     :classes {:root   (if edit "entry-cnt-text-field-edit" "entry-cnt-text-field-read")
-                                               :focused (if edit "entry-cnt-text-field-edit-focused" "entry-cnt-text-field-read-focused")}
+                                     :classes {:root   (if edit "entry-cnt-text-field-edit" 
+                                                           "entry-cnt-text-field-read")
+                                               :focused (if edit "entry-cnt-text-field-edit-focused" 
+                                                            "entry-cnt-text-field-read-focused")}
                                                 ;;:sx (if editing {} read-sx1)
                                      :endAdornment (if no-end-icons nil
                                                        (r/as-element
                                                         [mui-input-adornment {:position "end"}
-                                                         [end-icons key value false visible edit]
-                                                         #_(seq icons)]))
+                                                         [end-icons key value false visible edit]]))
                                      :type "text"}
 
                         :inputProps  {:readOnly true}}]
 
 
 
-             ;; :border "1px solid black"
-       [mui-stack {:sx {:width "10%" :align-items "center" :justify-content "center"}}
-        [otp-progress-circle period ttl]]])))
+
+       (when valid-token-found
+         [mui-stack {:sx {:width "10%" :align-items "center" :justify-content "center"}}
+          [otp-progress-circle period ttl]])])))
 
 (defn opt-field-no-token [kv]
   [mui-stack {:direction "row" :sx {:width "100%"}}

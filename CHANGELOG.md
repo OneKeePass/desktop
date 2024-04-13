@@ -1,3 +1,9 @@
+### 0.12.0
+- Time-based One-time Password (TOTP) can be added to an Entry
+- You can use custom settings while adding a TOTP
+- Generated time based token can be used for two-factor authentication (2FA) in any supported sites and apps 
+- For each entry, more than one OTP fields can be added and used 
+
 ### 0.11.0
 - Entry form fields are now optional except the title. An entry can be created without entering any values in the fields
 - Upgraded backend tauri and frotend mui packages to the latest versions

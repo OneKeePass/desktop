@@ -32,8 +32,7 @@
                   field-name
                   protected
                   required
-                  data-type]}]
-  (println "add-section-field called with section-name field-name data-type protected " section-name field-name data-type protected)
+                  data-type]}] 
   (let [section-fields-m (get-in-key-db
                           app-db
                           [entry-form-key :data :section-fields])
