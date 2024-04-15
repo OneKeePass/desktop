@@ -76,7 +76,7 @@ jobs:
         with:
           tag_name: v${{ env.version }}
           name: OneKeePass v${{ env.version }}
-          body: See the assets to download this version and install. See the [CHANGELOG](https://github.com/OneKeePass/desktop/blob/main/CHANGELOG.md)
+          body: See the assets to download this version and install. See the [CHANGELOG](https://github.com/OneKeePass/desktop/blob/main/CHANGELOG.md) for release details
           prerelease: false
           generate_release_notes: false
           files:  |
