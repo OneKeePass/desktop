@@ -259,8 +259,6 @@
     (assoc-in-key-db app-db [entry-form-key :expiry-duration-selection] "custom-date")
     (assoc-in-key-db app-db [entry-form-key :expiry-duration-selection] "no-expiry")))
 
-#_(declare extract-form-otp-fields)
-
 (reg-event-fx
  :entry-form-data-load-completed-ok
  (fn [{:keys [db]} [_event-id entry-data]]
@@ -270,6 +268,8 @@
               (assoc-in-key-db [entry-form-key :edit] false)
               (init-expiry-duration-selection entry-data)
               (assoc-in-key-db [entry-form-key :showing] :selected)
+              ;; otp-fields is map with otp field name as key and token info (map) as value
+              ;; This map is updated periodically when polling is started
               (assoc-in-key-db [entry-form-key :otp-fields] otp-fields))})))
 
 ;; Rename :entry-form-data-load-completed-error

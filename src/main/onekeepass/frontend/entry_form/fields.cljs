@@ -137,7 +137,9 @@
 
 (defn otp-progress-circle [period ttl-time]
   [mui-box {:position "relative" :display "inline-flex"}
-   [mui-circular-progress {:variant "determinate" :value (js/Math.round (* -100 (/ ttl-time period)))}]
+   [mui-circular-progress {:variant "determinate" 
+                           :size 45 ;; default 40
+                           :value (js/Math.round (* -100 (/ ttl-time period)))}]
    [mui-box {:sx {:top 0 :left 0 :bottom 0 :right 0
                   :position "absolute" :display "flex" :alignItems "center" :justifyContent "center"}}
     [mui-typography {:vaiant "caption" :component "div"}
@@ -162,53 +164,52 @@
         spaced (str/join " " parts)]
     spaced))
 
-(defn otp-read-field [kv]
-  (fn [{:keys [key
-               value
-               visible
-               ;;current-opt-token
-               edit
+(defn otp-read-field 
+  "This is called only during read time and edit flag is false"
+  [_kv]
+  (fn [{:keys [key 
+               visible 
                error-text
                no-end-icons]
-        :or {visible true
-             edit false
+        :or {visible true 
              no-end-icons false}}]
 
-    (let [{:keys [token ttl period]} @(form-events/otp-currrent-token key)
+    (let [;; ensure that edit is always false
+          edit false
+          {:keys [token ttl period]} @(form-events/otp-currrent-token key)
           ;; If otp url is not parseable for any reason, the Entry struct's 'parsed_otp_values' hashmap will 
           ;; have a nil value with this otp field name's as key. Accordingly otp-currrent-token will be nil
-          valid-token-found (not (nil? token))] 
+          valid-token-found (not (nil? token))]
       [mui-stack {:direction "row" :sx {:width "100%"}}
-       [mui-text-field {:sx (if-not edit otp-txt-input-sx  {})
+       [mui-text-field {:sx otp-txt-input-sx
                         :fullWidth true
                         :label (if (= OTP key) "One-Time Password(TOTP)" key)
                         :variant "standard"
                         :classes {:root "entry-cnt-field"}
-                        :value (if edit value (formatted-token token))
+                        :value (formatted-token token)
                         ;; Is there any use of suing 'error-text' with otp field ? 
                         :error  (or (not (nil? error-text)) (not valid-token-found))
-                        :helperText (if-not valid-token-found "Invalid otp url" error-text)
+                        :helperText (if-not valid-token-found "Invalid otp url. No token is generated" error-text)
                         :required false
-                        :InputLabelProps {} ;; setting props in this is not working
+                        ;; setting props in this is not working
+                        :InputLabelProps {} 
                         :InputProps {:id key
-                                     :classes {:root   (if edit "entry-cnt-text-field-edit" 
-                                                           "entry-cnt-text-field-read")
-                                               :focused (if edit "entry-cnt-text-field-edit-focused" 
-                                                            "entry-cnt-text-field-read-focused")}
-                                                ;;:sx (if editing {} read-sx1)
-                                     :endAdornment (if no-end-icons nil
+                                     :classes {:root "entry-cnt-text-field-read"
+                                               :focused "entry-cnt-text-field-read-focused"} 
+                                     :endAdornment (if (or (not valid-token-found) no-end-icons) nil
                                                        (r/as-element
                                                         [mui-input-adornment {:position "end"}
-                                                         [end-icons key value false visible edit]]))
+                                                         [end-icons key token false visible edit]]))
                                      :type "text"}
 
                         :inputProps  {:readOnly true}}]
 
-
-
-
        (when valid-token-found
-         [mui-stack {:sx {:width "10%" :align-items "center" :justify-content "center"}}
+         [mui-stack {:sx {:width "10%" 
+                          ;; This margin aligns progress circle to field's top margin
+                          :margin-top "16px"
+                          :align-items "center" 
+                          :justify-content "center"}}
           [otp-progress-circle period ttl]])])))
 
 (defn opt-field-no-token [kv]

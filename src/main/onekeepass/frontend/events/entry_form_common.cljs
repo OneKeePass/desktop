@@ -1,5 +1,6 @@
 (ns onekeepass.frontend.events.entry-form-common
-  (:require [onekeepass.frontend.constants :refer [ONE_TIME_PASSWORD_TYPE]]
+  (:require [clojure.string :as str]
+            [onekeepass.frontend.constants :refer [ONE_TIME_PASSWORD_TYPE]]
             [onekeepass.frontend.events.common :as cmn-events :refer [assoc-in-key-db
                                                                       get-in-key-db]]
             [onekeepass.frontend.utils :as u :refer [contains-val?]]))
@@ -14,7 +15,8 @@
   "Checks that a given field name exists in the entry form or not "
   [app-db field-name]
   ;(println "field-name is " field-name)
-  (let [all-section-fields (-> (get-in-key-db
+  (let [field-name (str/trim field-name)
+        all-section-fields (-> (get-in-key-db
                                 app-db
                                 [entry-form-key :data :section-fields])
                                vals flatten) ;;all-section-fields is a list of maps for all sections
@@ -54,14 +56,18 @@
     section-kvs))
 
 (defn extract-form-otp-fields
-  "Returns a map with a otp field name as key and current-opt-token value as value"
+  "Returns a map with a otp field name as key and current-opt-token value as value
+   This is formed by going through all otp fields in KVs (section-fields)
+  "
   [form-data]
   ;; :section-fields returns a map with section name as keys
-  ;; vals fn return 'values' ( a vec of field info map) for all sections. Once vec for each section. 
+  ;; vals fn return 'values' ( a vec of field info map) for all sections. One vec for each section. 
   ;; And need to use flatten to combine all section values
-  ;; For example if two sections, vals call will return a two member ( 2 vec)
+  ;; For example if we have two sections, vals call will return a two member ( 2 vec)
   ;; sequence. Flatten combines both vecs and returns a single sequence of field info maps
-  (let [fields (-> form-data :section-fields vals flatten)
+  (let [;; fields is a vec of KV maps 
+        fields (-> form-data :section-fields vals flatten) 
+        ;; otp-fields is a vec of KV maps only for otp fields
         otp-fields (filter (fn [m] (=  ONE_TIME_PASSWORD_TYPE (:data-type m))) fields)
         names-values (into {} (for [{:keys [key current-opt-token]} otp-fields] [key current-opt-token]))]
     names-values))

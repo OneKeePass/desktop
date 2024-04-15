@@ -581,6 +581,7 @@
 
 ;;;;;;;;;;;;;;;; OTP related ;;;;;;;;;;;;
 
+;; deprecate
 (defn entry-form-current-otp
   "Gets the current topt token for a give given db-key,the entry uuid and form field name "
   [db-key entry-uuid otp-field-name dispatch-fn]
@@ -590,6 +591,7 @@
                :otp-field-name otp-field-name}
               dispatch-fn))
 
+;; deprecate
 (defn entry-form-current-otps
   "Gets the current topt tokens for a give given db-key,the entry uuid and form field names "
   [db-key entry-uuid otp-field-names dispatch-fn]
