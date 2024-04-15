@@ -25,14 +25,16 @@ All created database files are encrypted using the best and most secure encrypti
 - Quick database unlock feature using TouchID for macOS
 - Any number of databases can be created and used
 - Optional additional security by using a key file with or without a master password
+- Time based One-Time Passwords (TOTP) can added and used
 - Fully offline 
 
 ## Todo
-- [ ] Browser extension and integration
-- [ ] TOTP storage and generation 
-- [ ] Merge changed entries
-- [ ] Synchronize the database between the devices 
 - [ ] Multi-language support
+- [ ] Light/Dark Theme support
+- [ ] Merge changed entries
+- [ ] Browser extension and integration
+- [ ] Synchronize the database between the devices 
+
 
 
 ## Installation and Quick start

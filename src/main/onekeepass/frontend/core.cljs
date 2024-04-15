@@ -1,10 +1,10 @@
-(ns  onekeepass.frontend.core  ;;ns ^:figwheel-always onekeepass.frontend.core
+(ns  onekeepass.frontend.core  ;;ns ^:figwheel-always onekeepass.frontend.core 
   (:require
    [reagent.dom :as rdom]
    ;;Events 
    [onekeepass.frontend.events.tauri-events :as tauri-events]
    [onekeepass.frontend.events.common :as cmn-events]
-
+   
    ;;App UI components   
    [onekeepass.frontend.common-components :as cc]
    [onekeepass.frontend.entry-form-ex :as eform-ex]

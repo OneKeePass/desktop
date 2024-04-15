@@ -107,6 +107,8 @@
                (println "error is " (ex-cause err))
                (js/console.log (ex-cause err))))))
       ;;To log the following messsage use 'if' instead of 'when' form
+       (when-not (nil? el)
+         (println "Tauri event listener for " event-name " is already registered"))
        #_(println "Tauri event listener for " event-name " is already registered"))))
   ([event-name event-handler-fn]
    (register-event-listener :common event-name event-handler-fn)))
@@ -236,11 +238,11 @@
   `{:entry-type-uuid \"9e644c27-d00b-4aca-8355-5078c5a4fb44\"}`
   `{:tag \"Bank\"}`,   
   "
-  [db-key entry-category dispatch-fn] 
-  (invoke-api "entry_summary_data" 
+  [db-key entry-category dispatch-fn]
+  (invoke-api "entry_summary_data"
               {:db-key db-key :entry-category
-               (if (map? entry-category) 
-                 entry-category 
+               (if (map? entry-category)
+                 entry-category
                  (csk/->camelCaseString entry-category))} dispatch-fn :convert-response true))
 
 (defn history-entries-summary [db-key entry-uuid dispatch-fn]
@@ -436,9 +438,9 @@
                                            :grouping-kind grouping-kind} dispatch-fn))
 
 #_(defn mark-group-as-category
-  [db-key group-uuid dispatch-fn & opts]
+    [db-key group-uuid dispatch-fn & opts]
   ;;TODO: Rename group_id to group_uuid in backend API and then change here the key group-id to group-uuid
-  (apply invoke-api "mark_group_as_category" {:db-key db-key :group-id group-uuid} dispatch-fn opts))
+    (apply invoke-api "mark_group_as_category" {:db-key db-key :group-id group-uuid} dispatch-fn opts))
 
 (defn search-term
   [db-key term dispatch-fn]
@@ -577,6 +579,60 @@
     (invoke-api api-to-call (clj->js api-args) dispatch-fn
                 :convert-request false)))
 
+;;;;;;;;;;;;;;;; OTP related ;;;;;;;;;;;;
+
+;; deprecate
+(defn entry-form-current-otp
+  "Gets the current topt token for a give given db-key,the entry uuid and form field name "
+  [db-key entry-uuid otp-field-name dispatch-fn]
+  (invoke-api "entry_form_current_otp"
+              {:db-key db-key
+               :entry-uuid entry-uuid
+               :otp-field-name otp-field-name}
+              dispatch-fn))
+
+;; deprecate
+(defn entry-form-current-otps
+  "Gets the current topt tokens for a give given db-key,the entry uuid and form field names "
+  [db-key entry-uuid otp-field-names dispatch-fn]
+  (invoke-api "entry_form_current_otps"
+              {:db-key db-key
+               :entry-uuid entry-uuid
+               :otp-field-names otp-field-names}
+              dispatch-fn))
+
+(defn form-otp-url [otp-settings dispatch-fn]
+  ;; Tauri api args are in camelcase, but any value struct passed should have its 
+  ;; field name in snake_case
+  (let [args (clj->js {:otpSettings (->> otp-settings
+                                         (cske/transform-keys csk/->snake_case))})]
+    (invoke-api "form_otp_url" args dispatch-fn :convert-request false :convert-response false)))
+
+(defn init-timers
+  "Needs to be called one time in the start. This starts the polling thread for otp token update"
+  [dispatch-fn]
+  (invoke-api "init_timers" {} dispatch-fn))
+
+(defn start-polling-entry-otp-fields
+  [db-key entry-uuid otp-token-ttls-by-field-m dispatch-fn]
+  ;; Tauri api arg names are in camelCase and however any struct used as value 
+  ;; the field names should be in snake_case
+  ;; e.g see :token_ttls 
+  (let [args (clj->js {:dbKey  db-key
+                       :entryUuid entry-uuid
+                       :otpFields {:token_ttls otp-token-ttls-by-field-m}})]
+    (invoke-api "start_polling_entry_otp_fields" args dispatch-fn :convert-request false)))
+
+(defn stop-polling-entry-otp-fields [db-key entry-uuid dispatch-fn]
+  (invoke-api "stop_polling_entry_otp_fields"
+              {:db-key db-key :entry-uuid entry-uuid} dispatch-fn))
+
+(defn stop-polling-all-entries-otp-fields [db-key dispatch-fn]
+  (invoke-api "stop_polling_all_entries_otp_fields"
+              {:db-key db-key} dispatch-fn))
+
+;;;;;;;;;;;;;;;;;;;;;;;  
+
 (defn export-main-content-as-xml [db-key xml-file-name]
   (invoke-api "export_main_content_as_xml"  {:db-key db-key :xml-file-name xml-file-name} #(println %)))
 
@@ -588,9 +644,14 @@
   ;; Useful during development 
   (invoke-api "test_call" (clj->js {:arg arg-m}) #(println %)))
 
+
 (comment
   (-> @re-frame.db/app-db keys)
   (def db-key (:current-db-file-name @re-frame.db/app-db))
   (-> @re-frame.db/app-db (get db-key) keys)
+  (-> (get @re-frame.db/app-db db-key) :entry-form-data)
   ;; (-> "13.6.0" (str/split ".") first str->int )
-  )
+  (def entry-uuid (-> (get @re-frame.db/app-db db-key) :entry-form-data :data :uuid))
+  (def m1 {"otp" {:period 30 :ttl 5}})
+  (start-polling-entry-otp-fields db-key entry-uuid m1 #(println %))
+  (stop_polling_entry_otp_fields db-key entry-uuid #(println %)))

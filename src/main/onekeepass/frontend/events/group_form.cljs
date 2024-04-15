@@ -12,7 +12,7 @@
    [onekeepass.frontend.utils :refer [tags->vec vec->tags]]
    [onekeepass.frontend.background :as bg]))
 
-(set! *warn-on-infer* true)
+;;(set! *warn-on-infer* true)
 
 (defn form-on-change-factory
   "Called to update whenever form text field data is changed"

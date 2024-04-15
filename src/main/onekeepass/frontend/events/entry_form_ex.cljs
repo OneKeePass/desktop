@@ -1,19 +1,25 @@
 (ns onekeepass.frontend.events.entry-form-ex
-  (:require
-   [clojure.string :as str]
-   [re-frame.core :refer [reg-fx reg-event-db reg-event-fx reg-sub  dispatch subscribe]]
-   [onekeepass.frontend.events.common :as cmn-events :refer [on-error
-                                                             check-error
-                                                             active-db-key
-                                                             assoc-in-key-db
-                                                             get-in-key-db
-                                                             fix-tags-selection-prefix]]
-   [onekeepass.frontend.constants :refer [PASSWORD]]
-   [onekeepass.frontend.utils :as u :refer [contains-val?]]
-   [onekeepass.frontend.background :as bg]))
-
-
-(def standard-kv-fields ["Title" "Notes"])
+  (:require [clojure.string :as str]
+            [onekeepass.frontend.background :as bg] ;; Need to be called here so that events are registered
+            [onekeepass.frontend.constants :as const :refer [PASSWORD]]
+            [onekeepass.frontend.events.common :as cmn-events :refer [active-db-key
+                                                                      assoc-in-key-db
+                                                                      check-error
+                                                                      fix-tags-selection-prefix
+                                                                      get-in-key-db
+                                                                      on-error]]
+            [onekeepass.frontend.events.entry-form-common :refer [add-section-field
+                                                                  entry-form-key
+                                                                  extract-form-otp-fields
+                                                                  is-field-exist
+                                                                  merge-section-key-value]]
+            ;; Need to be called here so that events are registered
+            ;; Should it be moved to core.cljs ?
+            #_{:clj-kondo/ignore [:unused-namespace]}
+            [onekeepass.frontend.events.entry-form-otp :as ef-otp-events]
+            [onekeepass.frontend.utils :as u :refer [contains-val?]]
+            [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-fx
+                                   reg-sub subscribe]]))
 
 (def Favorites "Favorites")
 
@@ -22,8 +28,6 @@
              ;; A call back fn that is to be called with the new generated password and score
              (fn [password score]
                (dispatch [:entry-form-update-generated-password password score]))]))
-
-(def entry-form-key :entry-form-data)
 
 (defn update-section-value-on-change
   "Updates a section's KeyValue map with the given key and value"
@@ -138,12 +142,14 @@
   (dispatch [:entry-form-group-selected-ex (js->clj group-info :keywordize-keys true)]))
 
 (defn entry-form-all
-  "Returns an atom that has the map entry-form's data "
+  "Returns an atom for the whole entry-form map
+   (keys @(entry-form-all)) are :showing :group-selection-info :otp-fields :edit :undo-data :data  :error-field ..
+  "
   []
   (subscribe [:entry-form-all]))
 
 (defn entry-form-data
-  "Returns an atom that has the map entry-form's data "
+  "Returns an atom that has the map of entry-form's :data "
   []
   (subscribe [:entry-form-data-ex]))
 
@@ -160,7 +166,7 @@
 
 (defn entry-form-data-fields
   " 
-  Called to get value of one more of form top level fields. 
+  Called to get value of one more of form 'data' level fields. 
   The arg is a single field name or  fields in a vector of two more field 
   names (Keywords) like [:title :icon-id]
   Returns an atom which resolves to a single value  or a map when derefenced
@@ -190,6 +196,10 @@
   ;;Delegates to a subcriber in group tree event
   (subscribe [:group-tree-content/groups-listing]))
 
+(defn is-entry-parent-group-deleted 
+  [group-uuid]
+  (subscribe [:group-tree-content/group-in-recycle-bin group-uuid]))
+
 ;;;;;;;;;;;;;;;;;;;;;;;  Form Events ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn validate-entry-form-data
@@ -206,16 +216,16 @@
                        (assoc :title "Please enter a title for this form"))]
     error-fields))
 
-(defn validate-required-fields [error-fields kvsd]
+(defn validate-required-fields [error-fields _kvsd]
   error-fields
   #_(loop [{:keys [key value required] :as m} (first kvsd)
-         rest-kvsd (next kvsd)
-         acc error-fields]
-    (if (nil? m) acc
-        (let [acc (if (and required (str/blank? value))
-                    (assoc acc key "Please enter a valid value for this required field")
-                    acc)]
-          (recur (first rest-kvsd) (next rest-kvsd) acc)))))
+           rest-kvsd (next kvsd)
+           acc error-fields]
+      (if (nil? m) acc
+          (let [acc (if (and required (str/blank? value))
+                      (assoc acc key "Please enter a valid value for this required field")
+                      acc)]
+            (recur (first rest-kvsd) (next rest-kvsd) acc)))))
 
 (defn validate-all
   "Validates all required fields including title, parent group etc
@@ -232,13 +242,13 @@
 (reg-event-fx
  :entry-form-ex/find-entry-by-id
  (fn [{:keys [db]} [_event-id  entry-id]]
-   ;;(println "Called entry-form-ex/find-entry-by-id for entry-id " entry-id)
+   ;; (println "Called entry-form-ex/find-entry-by-id for entry-id " entry-id)
    (bg/get-entry-form-data-by-id (active-db-key db) entry-id
                                  (fn [api-response]
                                    (when-let [entry (check-error
                                                      api-response
                                                      #(dispatch [:entry-form-data-load-completed :error %]))]
-                                     (dispatch [:entry-form-data-load-completed :ok entry]))))
+                                     (dispatch [:entry-form-data-load-completed-ok entry]))))
    {}))
 
 (defn- init-expiry-duration-selection
@@ -249,6 +259,21 @@
     (assoc-in-key-db app-db [entry-form-key :expiry-duration-selection] "custom-date")
     (assoc-in-key-db app-db [entry-form-key :expiry-duration-selection] "no-expiry")))
 
+(reg-event-fx
+ :entry-form-data-load-completed-ok
+ (fn [{:keys [db]} [_event-id entry-data]]
+   (let [otp-fields (extract-form-otp-fields entry-data)]
+     {:db (-> db
+              (assoc-in-key-db [entry-form-key :data] entry-data)
+              (assoc-in-key-db [entry-form-key :edit] false)
+              (init-expiry-duration-selection entry-data)
+              (assoc-in-key-db [entry-form-key :showing] :selected)
+              ;; otp-fields is map with otp field name as key and token info (map) as value
+              ;; This map is updated periodically when polling is started
+              (assoc-in-key-db [entry-form-key :otp-fields] otp-fields))})))
+
+;; Rename :entry-form-data-load-completed-error
+;; and remove ok part
 (reg-event-db
  :entry-form-data-load-completed
  (fn [db [_event-id status result]] ;;result is )
@@ -262,11 +287,13 @@
 
      (-> db (assoc-in-key-db [entry-form-key :api-error-text] result)))))
 
+
 (reg-event-fx
  :entry-form-update-section-value
  (fn [{:keys [db]} [_event-id section key value]]
-   (let [section-kvs (get-in-key-db db [entry-form-key :data :section-fields section])
-         section-kvs (mapv (fn [m] (if (= (:key m) key) (assoc m :value value) m)) section-kvs)]
+   (let [;;section-kvs (get-in-key-db db [entry-form-key :data :section-fields section])
+         ;;section-kvs (mapv (fn [m] (if (= (:key m) key) (assoc m :value value) m)) section-kvs)
+         section-kvs (merge-section-key-value db section key value)]
 
      (if-not (= key PASSWORD)
        {:db (assoc-in-key-db db [entry-form-key :data :section-fields section] section-kvs)}
@@ -360,17 +387,23 @@
    ;;(println "Calling with entry-form-tags-selected in event " tags)
    (assoc-in-key-db db [entry-form-key :data :tags] tags)))
 
-(reg-event-db
+(reg-event-fx
  :entry-form-ex/show-welcome
- (fn [db [_event-id text-to-show]]
-   ;;(println "In entry-form-ex/show-welcome")
-   (-> db (assoc-in-key-db [entry-form-key :data] {})
-       (assoc-in-key-db [entry-form-key :undo-data] {})
-       (assoc-in-key-db [entry-form-key :showing] :welcome)
-       (assoc-in-key-db [entry-form-key :welcome-text-to-show] text-to-show)
-       (assoc-in-key-db [entry-form-key :edit] false)
-       (assoc-in-key-db [entry-form-key :error-fields] {})
-       (assoc-in-key-db [entry-form-key :group-selection-info] nil))))
+ (fn [{:keys [db]} [_event-id text-to-show]]
+   ;; Sometime this event may be called twice in succession 
+   ;; For example, load-category-entry-items and in turn :entry-list/load-entry-items
+   ;; may trigger this. This check prevents successive calls and thus backend api 
+   ;; call to stop polling is called only once
+   (if (= :welcome (get-in-key-db db [entry-form-key :showing]))
+     {}
+     {:db (-> db (assoc-in-key-db [entry-form-key :data] {})
+              (assoc-in-key-db [entry-form-key :undo-data] {})
+              (assoc-in-key-db [entry-form-key :otp-fields] {})
+              (assoc-in-key-db [entry-form-key :showing] :welcome)
+              (assoc-in-key-db [entry-form-key :welcome-text-to-show] text-to-show)
+              (assoc-in-key-db [entry-form-key :edit] false)
+              (assoc-in-key-db [entry-form-key :error-fields] {})
+              (assoc-in-key-db [entry-form-key :group-selection-info] nil))})))
 
 (reg-event-fx
  :close-form-ex
@@ -378,16 +411,43 @@
    {:fx [[:dispatch [:entry-form-ex/show-welcome]]
          [:dispatch [:entry-list/update-selected-entry-id nil]]]}))
 
-(reg-event-db
+(reg-event-fx
  :entry-form-ex/edit
- (fn [db [_event-id edit?]]
+ (fn [{:keys [db]} [_event-id edit?]]
    (if edit?
-     (-> db
-         (assoc-in-key-db [entry-form-key :undo-data] (get-in-key-db db [entry-form-key :data]))
-         (assoc-in-key-db [entry-form-key :edit] edit?))
-     (assoc-in-key-db db [entry-form-key :edit] edit?))))
+     {:db (-> db
+              (assoc-in-key-db [entry-form-key :undo-data] (get-in-key-db db [entry-form-key :data]))
+              (assoc-in-key-db [entry-form-key :edit] edit?))}
+     {:db (assoc-in-key-db db [entry-form-key :edit] edit?)})))
 
-(reg-event-db
+
+
+#_(reg-event-db
+   :entry-form-ex/edit
+   (fn [db [_event-id edit?]]
+     (if edit?
+       (-> db
+           (assoc-in-key-db [entry-form-key :undo-data] (get-in-key-db db [entry-form-key :data]))
+           (assoc-in-key-db [entry-form-key :edit] edit?))
+       (assoc-in-key-db db [entry-form-key :edit] edit?))))
+
+(reg-event-fx
+ :cancel-entry-edit-ex
+ (fn [{:keys [db]} [_event-id]]
+   (let [undo-data (get-in-key-db db [entry-form-key :undo-data])
+         data (get-in-key-db db [entry-form-key :data])]
+     {:db (if (and (seq undo-data) (not= undo-data data))
+            (-> db (assoc-in-key-db [entry-form-key :data] undo-data)
+                (assoc-in-key-db [entry-form-key :undo-data] {})
+                (assoc-in-key-db [entry-form-key :edit] false)
+                (assoc-in-key-db [entry-form-key :error-fields] {}))
+            (-> db (assoc-in-key-db  [entry-form-key :edit] false)
+                (assoc-in-key-db [entry-form-key :undo-data] {})
+                (assoc-in-key-db [entry-form-key :error-fields] {})))
+      :fx []})))
+
+
+#_(reg-event-db
  :cancel-entry-edit-ex
  (fn [db [_event-id]]
    (let [undo-data (get-in-key-db db [entry-form-key :undo-data])
@@ -414,13 +474,31 @@
      ;;(println "auto type is " (:auto-type form-data))
      (if (boolean (seq error-fields))
        {:db (assoc-in-key-db db [entry-form-key :error-fields] error-fields)}
-       ;; TODO: Move update-entry call to a reg-fx
+       ;; clear any previous errors as 'error-fields' will be empty at this time
+       {:db (assoc-in-key-db db [entry-form-key :error-fields] error-fields)
+        :fx [[:bg-update-entry [(active-db-key db) form-data]]]}))))
+
+;; Called to validate required fields are valid or not
+;; e.g Title, parent group and type
+;; Calls the 'callback-fn' if there is no error
+(reg-event-fx
+ :entry-form/validate-form-fields
+ (fn [{:keys [db]} [_event-id callback-fn]]
+   (let [form-data (get-in-key-db db [entry-form-key :data])
+         error-fields (validate-all form-data)]
+     (if (boolean (seq error-fields))
+       {:db (assoc-in-key-db db [entry-form-key :error-fields] error-fields)}
        (do
-         (update-entry db (fn [api-response]
-                            (when-not (on-error api-response)
-                              (dispatch [:entry-update-complete-ex]))))
-         ;; clear any previous errors as 'error-fields' will be empty at this time
-         {:db (assoc-in-key-db db [entry-form-key :error-fields] error-fields)})))))
+         (callback-fn)
+         {:db (assoc-in-key-db db [entry-form-key :error-fields] {})})))))
+
+(reg-fx
+ :bg-update-entry
+ (fn [[db-key form-data]]
+   ;;(println "bg-update-entry section fileds " (-> form-data :section-fields (get "Login Details")))
+   (bg/update-entry db-key form-data (fn [api-response]
+                                       (when-not (on-error api-response)
+                                         (dispatch [:entry-update-complete-ex]))))))
 
 (reg-event-fx
  :entry-form/auto-type-updated
@@ -431,9 +509,10 @@
     ;; be any validation error!
     :fx [[:dispatch [:ok-entry-edit-ex]]]}))
 
+;; :entry-form/find-entry-by-id is called indirectly 
 (reg-event-fx
  :entry-update-complete-ex
- (fn [{:keys [db]} [_event-id]]
+ (fn [{:keys [_db]} [_event-id]]
    {:fx [[:dispatch [:common/message-snackbar-open "Entry is updated"]]
          ;; We need not call any explicit resetting of Edit mode to false, as the call 
          ;; to :entry-list/entry-updated -> :entry-form/find-entry-by-id will put the form in read only mode
@@ -517,19 +596,17 @@
    (get-in data [:section-fields section])))
 
 ;; Gets a :data level field value
+;; Arg 'fields' may be a vector if we need to get values for more than one field
+;; Returns a single value or a map
 (reg-sub
  :entry-form-data-fields
  :<- [:entry-form-data-ex]
  (fn [data [_query-id fields]]
-   ;;(println "form Data is " data)
-   ;;(assert (vector? fields))
-   ;;(println "fields " fields)
    (if-not (vector? fields)
      ;; fields is a single field name
      (get data fields)
      ;; a vector field names
-     (select-keys data fields))
-   #_(select-keys data fields #_[:title :icon-id])))
+     (select-keys data fields))))
 
 ;; Gets the value of a field at top level 'entry-form' itself
 (reg-sub
@@ -719,6 +796,11 @@
    #_(mapv (fn [{:keys [key]}] {:key "Name" :value key}) (:binary-key-values data))))
 
 ;;;;;;;;;;;;;;;;;;;;;;; Section name add/modify ;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;; 
+;; Note: popper-anchor-el was used for mui-popper in 'add-modify-section-field-popper'
+;; add-modify-section-field-popper use is replaced with 'add-modify-section-field-dialog' 
+;; popper-anchor-el is not used to anchor dialog and nil can be passed
 
 (defn open-section-name-dialog [popper-anchor-el]
   (dispatch [:section-name-dialog-open  popper-anchor-el]))
@@ -928,44 +1010,6 @@
 
 (defn- init-section-field-dialog-data [db]
   (assoc-in-key-db db [entry-form-key field-edit-dialog-key] section-field-dialog-init-data))
-
-(defn- is-field-exist
-  "Checks that a given field name exists in the entry form or not "
-  [app-db field-name]
-  ;(println "field-name is " field-name)
-  (let [all-section-fields (-> (get-in-key-db
-                                app-db
-                                [entry-form-key :data :section-fields])
-                               vals flatten) ;;all-section-fields is a list of maps for all sections
-       ;;_ (println "all-section-fields are " all-section-fields)
-        ;;found  (filter (fn [m] (= field-name (:key m))) all-section-fields)
-        ]
-    (or (contains-val? standard-kv-fields field-name)
-        (-> (filter (fn [m] (= field-name (:key m))) all-section-fields) seq boolean))))
-
-(defn- add-section-field
-  "Creates a new KV for the added section field and updates the 'section-name' section
-  Returns the updated app-db
-  "
-  [app-db {:keys [section-name
-                  field-name
-                  protected
-                  required
-                  data-type]}]
-  (let [section-fields-m (get-in-key-db
-                          app-db
-                          [entry-form-key :data :section-fields])
-        ;;_ (println "section-fields-m " section-fields-m)
-        ;; fields is a vec of KVs for a given section
-        fields (-> section-fields-m (get section-name []))
-        fields (conj fields {:key field-name
-                             :value nil
-                             :protected protected
-                             :required required
-                             :data-type data-type
-                             :standard-field false})]
-    (assoc-in-key-db app-db [entry-form-key :data :section-fields]
-                     (assoc section-fields-m section-name fields))))
 
 (defn- modify-section-field [app-db {:keys [section-name
                                             current-field-name
@@ -1305,10 +1349,10 @@
          errors-found (boolean (seq error-fields))]
      (if errors-found
        {:db (assoc-in-key-db db [entry-form-key :error-fields] error-fields)}
-       {:fx [[:bg-insert-entry-ex [(active-db-key db) form-data]]]}))))
+       {:fx [[:bg-insert-entry [(active-db-key db) form-data]]]}))))
 
 (reg-fx
- :bg-insert-entry-ex
+ :bg-insert-entry
  (fn [[db-key {:keys [uuid group-uuid entry-type-uuid entry-type-name]
                :as new-entry-form-data}]]
    (bg/insert-entry db-key
@@ -1391,6 +1435,11 @@
 
 (defn loaded-history-entry-uuid []
   (subscribe [:loaded-history-entry-uuid]))
+
+(defn history-entry-form-showing
+  "Returns true if the entry form is showing a history content"
+  []
+  (subscribe [:history-entry-form-showing]))
 
 (reg-event-fx
  :load-history-entries-summary
@@ -1497,7 +1546,6 @@
  (fn [db [_ open?]]
    (assoc-in-key-db db  [entry-form-key :entry-history-form :delete-all-flag] open?)))
 
-
 (reg-event-fx
  :restore-entry-from-histore-complete
  (fn [{:keys [db]} [_event-id]]
@@ -1555,6 +1603,11 @@
  :<- [:entry-form-data-ex]
  (fn [data _query-vec]
    (> (:history-count data) 0)))
+
+(reg-sub
+ :history-entry-form-showing
+ (fn [db _query_vec]
+   (= :history-entry-selected (get-in-key-db db [entry-form-key :showing]))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Entry delete ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;   
 (defn deleted-category-showing []
@@ -1655,6 +1708,27 @@
          entry-form-fields (extract-form-field-names-values form-data)]
      {:fx [[:dispatch [:auto-type/edit-init uuid auto-type entry-form-fields]]]})))
 
+
+;;;;;;;;;;;;;;;;;;;;; Otp (TOPT) related ;;;;;;;;;;;
+
+;; All entry-form otp related events are moved to the 
+;; namespace onekeepass.frontend.events.entry-form-otp 
+;; TODO: Need to do similar moving of other events - auto type, section adding, custom field adding etc  
+;; from here to a separate namespace
+
+
+(defn entry-form-delete-otp-field [section otp-field-name]
+  (dispatch [:entry-form-delete-otp-field section otp-field-name]))
+
+(defn entry-form-otp-start-polling []
+  (dispatch [:entry-form-otp-start-polling]))
+
+(defn entry-form-otp-stop-polling [entry-uuid]
+  (dispatch [:entry-form-otp-stop-polling entry-uuid]))
+
+(defn otp-currrent-token [opt-field-name]
+  (subscribe [:otp-currrent-token opt-field-name]))
+
 (comment
   (keys @re-frame.db/app-db)
 
@@ -1662,21 +1736,19 @@
   (-> @re-frame.db/app-db (get db-key) keys)
 
   (-> (get @re-frame.db/app-db db-key) :entry-form-data) ;; for now
+
+  ;; All entry map keys
+  (-> (get @re-frame.db/app-db db-key) :entry-form-data keys)
+  ;; => (:showing :group-selection-info :edit :expiry-duration-selection :welcome-text-to-show 
+  ;;     :error-fields :entry-history-form :api-error-text :undo-data :data)
+
+  ;; All entry form data keys
+  (-> (get @re-frame.db/app-db db-key) :entry-form-data :data keys)
+  ;; => :tags :icon-id :binary-key-values :section-fields :title :expiry-time :history-count
+  ;;    :expires :standard-section-names :last-modification-time :entry-type-name :auto-type
+  ;;    :notes :section-names :entry-type-icon-name :last-access-time :uuid :entry-type-uuid :group-uuid :creation-time
   )
 
-
-
-  ;;As the form data is showing data from a selected history entry, 
-;; we are just  calling ok-entry-edit-ex just to update to this version of history as current entry
-#_(reg-event-fx
-   :restore-entry-from-history-ex
-   (fn [{:keys [db]} [_event-id]]
-     (let [entry-uuid (get-in-key-db db [entry-form-key :data :uuid])]
-       {:fx [[:dispatch [:ok-entry-edit-ex]]  ;; Need to be first;Otherwise [entry-form-key :data] will be {}
-             [:dispatch [:update-restore-confirm-open-ex false]]
-             #_[:dispatch [:entry-form-ex/show-welcome]]
-             [:dispatch [:common/show-content :group-entry]]
-             [:dispatch [:entry-form-ex/find-entry-by-id entry-uuid]]]})))
 
 
 ;;;;;;;;;;;;;;;;;;;;;    Custom Field Add Dialog     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1913,24 +1985,3 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#_(reg-fx
-   :bg-save-attachment-as-temp-file
-   ;; => :bg-save-attachment-as-temp-file
-
-   (fn [[db-key name attachment-hash]]
-     (bg/save-attachment-as-temp-file db-key name attachment-hash
-                                      (fn [api-response]
-                                        (when-let [temp-file-name (check-error api-response)]
-                                          (dispatch [:save-attachment-as-temp-file-completed temp-file-name])
-                                          (dispatch [:common/message-snackbar-open "Lauching the system viewer"]))))))
-
-#_(reg-event-fx
-   :save-attachment-as-temp-file-completed
-   (fn [{:keys [db]} [_event-id temp-attachment-file-name]]
-     {:fx [[:open-attachment-temp-file [temp-attachment-file-name]]]}))
-
-#_(reg-fx
-   :open-attachment-temp-file
-   (fn [[attachment-file-name]]
-     (bg/open-file attachment-file-name (fn [api-response]
-                                          (on-error api-response)))))

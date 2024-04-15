@@ -58,7 +58,7 @@ pub fn raise_window(process_id: i32) -> kp_service::Result<()> {
   let r = unsafe { auto_type_activate_window(process_id) };
 
   match r {
-    Some(s) => Err(kp_service::Error::Other(s.to_string())),
+    Some(s) => Err(kp_service::Error::UnexpectedError(s.to_string())),
     None => Ok(()),
   }
 }
@@ -83,8 +83,8 @@ async fn send_text_aync(text: &str, inter_key_delay: u64) {
 async fn sleep(time_in_ms: u64) {
   //std::thread::sleep(std::time::Duration::from_millis(time_in_ms));
 
-  // We should use thread::sleep as send_sequence_to_winow_async is called from a tokio async thread
-  // and we need to use sleep fn from tokio crate
+  // When send_sequence_to_winow_async is called from a tokio async thread (tauri async command)
+  // and then we need to use sleep fn from tokio crate
   // https://users.rust-lang.org/t/thread-tokio-runtime-worker-panicked-at-thread-called-result-unwrap-on-an-err-value-io-os-code-24-kind-other-message-too-many-open-files/40587/7
   // See https://users.rust-lang.org/t/how-to-handle-a-vector-of-async-function-pointers/39804/6
 
@@ -109,7 +109,7 @@ pub async fn send_sequence_to_winow_async(
 
   // Parse sequence first
   let parsed = parsing::parse_auto_type_sequence(sequence, &entry_fields_case_converted)
-    .map_err(|e| kp_service::Error::Other(e))?;
+    .map_err(|e| kp_service::Error::UnexpectedError(e))?;
 
   // Raise window to the top
   raise_window(window.process_id)?;
@@ -248,7 +248,7 @@ pub fn send_sequence_to_winow(
 
   // Parse sequence first
   let parsed = parsing::parse_auto_type_sequence(sequence, &entry_fields_case_converted)
-    .map_err(|e| kp_service::Error::Other(e))?;
+    .map_err(|e| kp_service::Error::UnexpectedError(e))?;
 
   // Raise window to the top
   raise_window(window.process_id)?;

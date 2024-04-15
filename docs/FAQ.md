@@ -8,7 +8,6 @@ OneKeePass stores all your passwords and other details in a single encrypted fil
 ## What is the format of the OneKeePass database?
 OneKeePass supports the well known [KeePass](https://keepass.info/help/kb/kdbx_4.1.html) database format KDBX 4
 
-
 ## How many databases can be opened ?
 You can open many databases at the same time. Each database is opened in a separate tab
 
@@ -25,12 +24,20 @@ The database file is encrypted using a master key. This master key is derived us
 Accordingly you can use only a master password or only a key file or both to secure your database
 
 ## How are entries organized ?
-Entries are organized so that you can view them as  Entry types or Categories or Group tree. 
+Entries are organized so that you can view them as  Entry types or Categories or Group tree or Tagged entries. 
 
 <details>
 <summary>Types</summary>
 <h1 align="center">
   <img src="../screenshots/Entry-Cat-Types.jpg" alt=""  />
+  <br>
+</h1>
+</details>
+
+<details>
+<summary>Tags</summary>
+<h1 align="center">
+  <img src="../screenshots/Entry-Cat-Tags.jpg" alt=""  />
   <br>
 </h1>
 </details>
@@ -80,6 +87,21 @@ Yes. You can attach any number of files to an entry. In the entry form screen, y
 It is recommended to use this feature only to store few/small files.
  
 As these attached file contents are encrypted and stored within the database, attaching many/large files is considered to be out of the scope of a password manager. The database opening and saving then will be slow. It is better to use a specialized file encryption softwares - VeraCrypt,Cryptomator - to store many/large files
+
+## How do to add one or more TOTPs (Timed One-Time Passwords) to an Entry?
+Select an entry and click **Edit** button or add a new entry. When the entry form is in edit mode, you can click **Set up One-Time Password** to add a TOTP - [Fig 1](../screenshots/to-show-setupotp-additional-otp-link.jpg). A dialog box is opened - [Fig 2](../screenshots/setup-otp-dialog1.jpg). In the dialog box, you can enter the secret string or OTP url that you got from the website or application you are authenticating to. On entering valid values, the otp token will be generated 
+
+You can add more than one TOTP fields for an Entry under the section **ADDITIONAL ONE-TIME PASSWORDS**. To add additional OTP fields, please click on the **+** as seen in [Fig 1](../screenshots/to-show-setupotp-additional-otp-link.jpg). In the opened dialog - see [Fig 3](../screenshots/Additional-otp-dialog1.jpg) and [Fig 4](../screenshots/Additional-otp-dialog2.jpg), please provide a field name and then secret string or otp url
+
+If you want to update or to change an OTP field, the existing field needs to be deleted first and added with new values
+
+<details>
+<summary>You can see generated OTP values with progress indicators</summary>
+<h1 align="center">
+  <img src="../screenshots/Showing-Generated-Tokens-With-Time-Progress.jpg" alt=""  />
+  <br>
+</h1>
+</details>
 
 ## Is Auto-Type supported ?
 Yes. For now few basic features are supported for macOS and soon supports for other platforms will be added. See [here](./AUTO-TYPE.md) for additional details

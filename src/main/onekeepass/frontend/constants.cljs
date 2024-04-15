@@ -11,6 +11,8 @@
 (def WIRELESS_ROUTER_TYPE_NAME "Wireless Router")
 (def PASSPORT_TYPE_NAME "Passport")
 (def BANK_ACCOUNT_TYPE_NAME "Bank Account")
+
+(def ADDITIONAL_ONE_TIME_PASSWORDS "Additional One-Time Passwords")
 ;;
 (def CATEGORY_ALL_ENTRIES "AllEntries")
 (def CATEGORY_FAV_ENTRIES "Favorites")
@@ -55,7 +57,20 @@
 (def TITLE "Title")
 (def MODIFIED_TIME "Modified Time")
 (def CREATED_TIME "Created Time")
-
 (def PASSWORD "Password")
 
 (def MACOS "macos")
+
+(def ONE_TIME_PASSWORD_TYPE "Field type" "OneTimePassword")
+
+(def OTP "Standard field name used" "otp")
+
+(def OTP_URL_PREFIX "otpauth://totp")
+
+(def MAIN_WINDOW_EVENT "MainWindowEvent")
+(def OTP_TOKEN_UPDATE_EVENT "OtpTokenUpdateEvent")
+(def TAURI_MENU_EVENT "TauriMenuEvent")
+(def WINDOW_FOCUS_CHANGED "WindowFocusChanged")
+(def CLOSE_REQUESTED  "CloseRequested" )
+
+
