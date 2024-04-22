@@ -117,7 +117,33 @@
                                 DateTimePicker
                                 ArticleOutlined
                                 PreviewOutlined
-                                LocalizationProvider]}
+                                LocalizationProvider
+                                
+                                
+                                basicDatabaseInformation
+                                dbDisplayName
+                                description
+                                passwordForYourDb
+                                confirmPassword
+                                addAdditionalProtection
+                                kdf
+                                hideAdditionalProtection
+                                getStarted
+                                openDatabase
+                                newDatabase
+                                recent
+                                start
+                                saveAs
+                                security
+                                newDbPage
+                                openDbPage
+                                txt1
+                                txt2
+                                txt3
+                                txt4
+                                txt5
+                                
+                                ]}
 
   :unresolved-var {:exclude [onekeepass.frontend.mui-components 
                              onekeepass.frontend.background/go

@@ -13,6 +13,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::result::Result;
 use std::sync::{Arc, Mutex};
+use sys_locale::get_locale;
 
 use tauri::{
   api::path::{document_dir, home_dir, resolve_path, BaseDirectory},
@@ -282,18 +283,11 @@ pub fn app_resources_dir<R: Runtime>(app: tauri::AppHandle<R>) -> Result<String,
 
 // TODO Return Result<HashMap<>>
 pub fn load_custom_svg_icons<R: Runtime>(app: tauri::AppHandle<R>) -> HashMap<String, String> {
+  
+  //IMPORTANT: 
+  // "../resources/public/icons/custom-svg" should be included in "resources" key in  /desktop/src-tauri/tauri.conf.json
+
   // Note: ../ in path will add _up_
-
-  // debug!("app.path_resolver() is {:?}", app.path_resolver().resource_dir());
-  // debug!(
-  //   "app.config() {:?}, app.package_info() {:?},Env::default() {:?}, BaseDirectory::Resource {:?} ",
-  //   &app.config(),
-  //   &app.package_info(),
-  //   &Env::default(),
-  //   BaseDirectory::Resource
-  // );
-
-  debug!(" BaseDirectory::Resource {:?} ", BaseDirectory::Resource);
 
   let path = resolve_path(
     &app.config(),
@@ -320,6 +314,81 @@ pub fn load_custom_svg_icons<R: Runtime>(app: tauri::AppHandle<R>) -> HashMap<St
     }
   }
   files
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct TranslationResource {
+  current_locale:String,
+  translations:HashMap<String, String>,
+}
+
+pub fn load_language_translations<R: Runtime>(
+  app: tauri::AppHandle<R>,
+  language_ids: Vec<String>,
+) -> kp_service::Result<TranslationResource> {
+
+  let current_locale = get_locale().unwrap_or_else(|| String::from("en")); //"en-US" language+region
+  debug!("current_locale is {}", &current_locale);
+
+
+  let language_ids_to_load = if !language_ids.is_empty() {
+    language_ids
+  } else {
+    
+    if current_locale != "en" || current_locale != "en-US" {
+      current_locale
+        .split("-")
+        .map(|s| s.to_string())
+        .next()
+        .map_or_else(
+          || vec![String::from("en")],
+          |lng| vec![String::from("en"), lng],
+        )
+    } else {
+      // locale is 'en'
+      vec![String::from("en")]
+    }
+  };
+
+  //IMPORTANT: 
+  // "../resources/public/locales" should be included in "resources" key in  /desktop/src-tauri/tauri.conf.json
+  // Note: ../ in path will add _up_ 
+
+  let path = resolve_path(
+    &app.config(),
+    app.package_info(),
+    &Env::default(),
+    "../resources/public/locales",
+    Some(BaseDirectory::Resource),
+  )
+  .map_err(|e| {
+    kp_service::Error::UnexpectedError(format!(
+      "Resource translations dir locations not found. Errpor is {} ",
+      e
+    ))
+  })?;
+
+
+  info!("Translation files root dir for i18n is {:?} ",&path);
+
+  let mut translations: HashMap<String, String> = HashMap::new();
+
+  for lng in language_ids_to_load {
+    let p = path.join(&lng).join( "translation.json");
+    //debug!("Going to load translation file  {:?} ",&p);
+    
+    let data = fs::read_to_string(p).ok().map_or_else(||"{}".to_string(), |d|d);
+    //let data = fs::read_to_string(p)?;
+    
+    translations.insert(lng, data);
+  }
+
+  
+
+  Ok(TranslationResource {
+    current_locale,
+    translations,
+  })
 }
 
 fn init_log(log_dir: &PathBuf) {

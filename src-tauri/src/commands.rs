@@ -663,6 +663,13 @@ pub(crate) async fn export_as_xml(db_key: &str, xml_file_name: &str) -> Result<(
 }
 
 #[tauri::command]
+pub async fn load_language_translations<R: Runtime>(
+  app: tauri::AppHandle<R>, language_ids: Vec<String>,
+) -> Result<utils::TranslationResource> {
+  Ok(utils::load_language_translations(app,language_ids)?)
+}
+
+#[tauri::command]
 pub async fn load_custom_svg_icons<R: Runtime>(
   app: tauri::AppHandle<R>,
 ) -> Result<HashMap<String, String>> {

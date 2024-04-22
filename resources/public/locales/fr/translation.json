@@ -1,0 +1,16 @@
+{
+
+    "titles": {
+        "recent": "Récent",
+        "start": "Commencer",
+        "basicDatabaseInformation": "Informations de base sur la base de données",
+        "databaseCredentials": "Informations d'identification de la base de données",
+        "openDatabase": "Ouvrir la base de données"
+    },
+    
+    "labels": {
+        "newDatabase": "Nouvelle base de données",
+        "openDatabase": "Ouvrir la base de données",
+        "cancel": "Annuler"
+    }
+}

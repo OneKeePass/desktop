@@ -1,6 +1,7 @@
 (ns onekeepass.frontend.open-db-form
   (:require
    [reagent.core :as r]
+   [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-t tr-h tr-m]]
    [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.events.open-db-form :as od-events]
    [onekeepass.frontend.common-components :refer [enter-key-pressed-factory]]
@@ -37,7 +38,7 @@
                     #(od-events/ok-on-click file-name password key-file-name opened-db-list))]
     [mui-dialog {:open (if (nil? dialog-show) false dialog-show) :on-click #(.stopPropagation %)
                  :classes {:paper "pwd-dlg-root"}}
-     [mui-dialog-title (if unlock-request "Unlock Database" "Open Database")]
+     [mui-dialog-title (if unlock-request (tr-t "unlockDatabase") (tr-t "openDatabase"))]
      [mui-dialog-content {:dividers true}
       [mui-stack
        (if (not in-progress?)

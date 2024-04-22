@@ -1,0 +1,54 @@
+{
+    "getStarted": "Get Started",
+    "helperTexts": {
+        "dbDisplayName": "Display name for your database",
+        "passwordForYourDb": "Password for your database"
+    },
+    "titles": {
+        "basicDatabaseInformation": "Basic Database Information",
+        "databaseCredentials": "Database Credentials",
+        "openDatabase": "Open Database",
+        "recent": "Recent",
+        "start": "Start",
+        "unlockDatabase": "Unlock Database"
+        
+    },
+    "labels": {
+        "addAdditionalProtection": "Add additional protection(optional)",
+        "browse": "Browse",
+        "cancel": "Cancel",
+        "confirmPassword": "Confirm Password",
+        "description": "Description",
+        "done":"Done",
+        "encriptionAlgorithm": "Encription Algorithm",
+        "fileName": "File Name",
+        "generate": "Generate",
+        "hideAdditionalProtection": "Hide additional protection",
+        "kdf": "Key Derivation Function",
+        "keyFileName": "Key File Name",
+        "memoryUsage": "Memory Usage",
+        "name": "Name",
+        "newDatabase": "New Database",
+        "openDatabase": "Open Database",
+        "next":"Next",
+        "password": "Password",
+        "parallelism":"Parallelism",
+        "previous":"Previous",
+        "saveAs": "Save As",
+        "security":"Security",
+        "transformRounds":"Transform Rounds",
+        "remove": "Remove"
+    },
+    "messages": {
+        "newDbPage": {
+            "txt1": "You can pick any random file that does not change. A hash of the file's content is used as an additional passsord.",
+            "txt2": "Alternatively, OneKeePass can generate a key file with a random key to use as an additional key",
+            "txt3": "Database creation is in progress",
+            "txt4": "Database file already exists and will be replaced with this new one"
+        },
+        "openDbPage": {
+            "txt1": "Please provide a valid password or a key file or both password and key file",
+            "txt2": "Database opening is in progress"
+        }
+    }
+}

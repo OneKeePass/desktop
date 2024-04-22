@@ -12,6 +12,8 @@
    [onekeepass.frontend.entry-category :as ec]
    [onekeepass.frontend.start-page :as sp]
    [onekeepass.frontend.tool-bar :as tool-bar]
+   
+   [onekeepass.frontend.translation :as tr]
 
    [onekeepass.frontend.mui-components :as m :refer [split-pane
                                                      custom-theme-atom
@@ -199,9 +201,13 @@
 (defn ^:export init
   "Render the created components to the element that has an id 'app' in index.html"
   []
+  ;; Some initializations need to be done before app window loads
+  (tr/load-locale-translation)
   (cmn-events/sync-initialize)
   (tauri-events/register-tauri-events)
   (cmn-events/init-session-timeout-tick)
+  
+  
   (rdom/render [main-app]
                (.getElementById  ^js/Window js/document "app")))
 

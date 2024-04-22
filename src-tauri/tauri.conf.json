@@ -21,7 +21,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "resources": ["../resources/public/icons"],
+      "resources": ["../resources/public/icons", "../resources/public/locales"],
       "externalBin": [],
       "copyright": "",
       "category": "Productivity",

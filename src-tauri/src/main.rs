@@ -95,6 +95,7 @@ fn main() {
       commands::is_path_exists,
       commands::kdbx_context_statuses,
       commands::load_custom_svg_icons,
+      commands::load_language_translations,
       commands::load_kdbx,
       commands::lock_kdbx,
       commands::mark_group_as_category,

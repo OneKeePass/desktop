@@ -449,6 +449,15 @@
 (defn new-blank-group [mark-as-category dispatch-fn]
   (invoke-api "new_blank_group" {:mark-as-category mark-as-category} dispatch-fn))
 
+(defn load-language-translations
+  "Loads the language tranalations
+   The arg language-ids is a vec of languages to load
+   It is an empty vec to load current locale language 
+   and fallback language 'en'
+  "
+  [language-ids dispatch-fn]
+  (invoke-api "load_language_translations" {:language_ids language-ids} dispatch-fn :convert-response false))
+
 (defn load-custom-svg-icons
   [dispatch-fn]
   (invoke-api "load_custom_svg_icons" {} dispatch-fn :convert-response false))
