@@ -1,5 +1,6 @@
 (ns onekeepass.frontend.entry-form.fields
   (:require [clojure.string :as str]
+            [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-bl tr-entry-field-name-cv]]
             [onekeepass.frontend.common-components :as cc]
             [onekeepass.frontend.constants :as const :refer [OTP PASSWORD]]
             [onekeepass.frontend.entry-form.common :as ef-cmn]
@@ -60,7 +61,7 @@
                    :required false
                    :classes {:root "entry-cnt-field"}
                    :select true
-                   :label key
+                   :label (tr-entry-field-name-cv key)
                    :value value
                    :on-change on-change-handler
                    :error  (not (nil? error-text))
@@ -82,6 +83,7 @@
                           placeholder
                           helper-text
                           error-text
+                          standard-field
                           no-end-icons]
                    :or {visible true
                         edit false
@@ -93,7 +95,8 @@
 
   [m/text-field {:sx   (merge {} (cc/password-helper-text-sx (:name password-score)))
                  :fullWidth true
-                 :label key :variant "standard"
+                 :label (if standard-field (tr-entry-field-name-cv key) key)
+                 :variant "standard"
                  :classes {:root "entry-cnt-field"}
                  :value value
                  :placeholder placeholder

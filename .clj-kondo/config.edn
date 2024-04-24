@@ -120,6 +120,23 @@
                                 LocalizationProvider
                                 
                                 
+                                close
+                                title 
+                                modifiedTime
+                                createdTime
+                                addEntry
+                                addCategory
+                                fileName
+                                browse
+                                cancel
+                                encriptionAlgorithm
+                                generate
+                                next
+                                previous
+                                transformRounds
+                                remove
+                                keyFileName
+                                
                                 basicDatabaseInformation
                                 dbDisplayName
                                 description

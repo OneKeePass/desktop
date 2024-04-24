@@ -6,9 +6,10 @@
             [onekeepass.frontend.background :as bg]
             [onekeepass.frontend.events.common :as cmn-events :refer [check-error]]))
 
-;;(set! *warn-on-infer* true)
+(set! *warn-on-infer* true)
 
-(def i18n-obj ^js/i18nObj i18n)
+
+(def ^:private i18n-obj ^js/i18nObj i18n)
 
 ;; Need a flag to show that all tranlations json file data are loaded 
 ;; and available to use
@@ -26,9 +27,8 @@
 
 (defn lstr [txt-key]
   ;;(println "lstr is called for key " txt-key)
-  (if @translations-loaded-and-init-done
-    #_(.t i18n-obj txt-key)
-    (.t @i18n-instance txt-key)
+  (if (and @translations-loaded-and-init-done (not (nil? @i18n-instance)))
+    (.t ^js/i18nObj @i18n-instance txt-key)
     (get trans-defaults txt-key txt-key)
     #_(do
         (println "translations-loaded-and-init-done is false and use defaults for key " txt-key)
@@ -38,31 +38,9 @@
 
 (defonce ^:private current-locale (atom nil))
 
-#_(defn language-translation [language-id]
-    (get @translations-data name))
-
 (declare ^:private  setup-i18n-with-backend)
 
 (declare ^:private create-back-end)
-
-#_(defn- translations-loaded
-    "Handles response on successful loading of all tranalations json files found in app resource dir
-   Resource root dir: _up_/resources/public/translations
-  "
-    [api-response]
-  ;; api-response's ok value found in :result is not transformed to clj 
-  ;; That means the serialized data from 'TranslationResource' struct is not tranformed
-  ;; See the use of :strs and snake_case
-    (let [{:strs [current_locale translations] :as res} (check-error api-response)
-        ;; translations is a map where key is the language id and value is a json string and 
-        ;; the json string needs to be parsed 
-        ;; TODO: use a try block to parse and handle error if any
-          parsed-translations (reduce (fn [m [k v]] (assoc m k (.parse js/JSON v)))  {} translations)]
-      (when-not (empty? res)
-        (reset! current-locale current_locale)
-        (reset! translations-data parsed-translations)
-        (setup-i18n-with-backend (-> current_locale (str/split #"-") first)
-                                 (create-back-end parsed-translations)))))
 
 (defn- translations-loaded
   "Handles response on successful loading of all tranalations json files found in app resource dir
@@ -92,13 +70,20 @@
   []
   (bg/load-language-translations [] (partial translations-loaded :use-current-locale)))
 
-(defn- load-translations [language language-ids]
+(defn- load-translations 
+  "The arg is used as the default language in i18n's option
+   The arg language-ids is vec of languages to load. 
+   Typically it will be having two languages. One is the the 'language' and another
+   is the 'fallbackLng'
+   e.g language language-ids - 'fr' ['fr' 'en'] 
+  "
+  [language language-ids]
   (bg/load-language-translations language-ids (partial translations-loaded language)))
 
 (defn- create-i18n-init
   "The init call on an instance of 'i18n' returns a promise and we need to r
    esolve here before using any fns from 'i18n'"
-  [instance options]
+  [^js/i18nObj instance options]
   (go
     (try
       (let [_f (<p! (.init instance (clj->js options)))]
@@ -110,73 +95,33 @@
       (catch js/Error err
         (js/console.log (ex-cause err))))))
 
-;; This uses i18n default instance
-#_(defn- init-i18n
-    "The init call on 'i18n' returns a promise and we need to resolve here before using any fns from 'i18n'"
-    [options]
-    (go
-      (try
-        (let [_f (<p! (.init i18n-obj (clj->js options)))]
-          (reset! translations-loaded-and-init-done true)
-          (js/console.log  "i18n init is done successfully"))
-      ;; Error should not happen as we have already loaded a valid translations data before calling init 
-      ;; Still what to do if there is any error in initializing 'i18n'? 
-        (catch js/Error err
-          (js/console.log (ex-cause err))))))
-
-;; This uses i18n default instance and uses passed i18n-obj-in
-#_(defn- init-i18n
-    "The init call on 'i18n' returns a promise and we need to resolve here before using any fns from 'i18n'"
-    [i18n-obj-in options]
-    (go
-      (try
-        (let [_f (<p! (.init i18n-obj-in (clj->js options)))]
-          (reset! translations-loaded-and-init-done true)
-          (js/console.log  "i18n init is done successfully"))
-      ;; Error should not happen as we have already loaded a valid translations data before calling init 
-      ;; Still what to do if there is any error in initializing 'i18n'? 
-        (catch js/Error err
-          (js/console.log (ex-cause err))))))
-
 ;;https://www.i18next.com/misc/creating-own-plugins#backend
-
-#_(def temp-services (atom {}))
 
 (defn- create-back-end [translations]
   {:type "backend"
 
-   :init (fn [services, backendOptions, i18nextOptions]
-           ;;(println "services:  " services) (println "backendOptions: "  backendOptions) (println "i18nextOptions: " i18nextOptions)
-           #_(reset! temp-services services))
+   :init (fn [_services _backendOptions _i18nextOptions]
+           ;;(println "services:  " services) 
+           ;; (println "backendOptions: "  backendOptions) 
+           ;;(println "i18nextOptions: " i18nextOptions)
+           )
 
    ;; Typically read woul have been called when we call use fn
    ;; The translations data for the main language and fallback language will be 
    ;; called through callback and i18n retains internally
    :read (fn [language _namespace callback]
-           (println "create-back-end language namespace callback " language namespace callback)
+           ;;(println "create-back-end language namespace callback " language namespace callback)
            ;;(println "data  is... " (clj->js (get @translations-data language)))
-           (callback nil (clj->js
-                          ;; (get @translations-data language)
-                          (get translations language))))})
+           (callback nil (clj->js (get translations language))))})
 
 (defn- setup-i18n-with-backend [language back-end]
   (let [m  {:lng language
             :fallbackLng "en"
             :compatibilityJSON "v4"
             :debug true}
-        instance (.createInstance i18n-obj)]
+        ^js/i18nObj instance (.createInstance i18n-obj)]
     (.use instance (clj->js back-end))
     (create-i18n-init instance m)))
-
-;; Used with default prebuilt 'i18n' instance
-#_(defn- setup-i18n-with-backend [language back-end]
-    (let [m  {:lng language
-              :fallbackLng "en"
-              :compatibilityJSON "v4"
-              :debug true}]
-      (.use i18n-obj (clj->js back-end))
-      (init-i18n m)
-      #_(init-i18n (.use i18n-obj (clj->js back-end)) m)))
 
 (comment
 
@@ -189,25 +134,3 @@
       "getFixedT" "t" "exists"
       "setDefaultNamespace" "hasLoadedNamespace"
       "loadNamespaces" "loadLanguages" "dir" "cloneInstance" "toJSON" "createInstance"])
-
-
-#_(defn setup-i18n []
-    (let [m  {:lng "en"
-              :debug true
-              :resources {:en {:translation {"key" "hello world"}}}}]
-      (init-i18n m)))
-
-#_(def back-end {:type "backend"
-                 :read (fn [language namespace callback]
-                         (println "language namespace callback " language namespace callback)
-                         (callback nil (clj->js {"key" "hello world...."})))
-
-                 :create (fn [languages, namespace, key, fallbackValue]
-                           (println "languages namespace key, fallbackValue " languages namespace key fallbackValue))})
-
-
-#_(defn setup-i18n-with-backend []
-    (let [m  {:lng "en"
-              :debug true}]
-      (.use i18n (clj->js back-end))
-      (init-i18n m)))

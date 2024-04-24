@@ -1,6 +1,8 @@
 (ns onekeepass.frontend.entry-category
   (:require
    [reagent.core :as r]
+   [camel-snake-kebab.core] ;; required for use in macro
+   [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-bl tr-ml tr-l-cv tr-entry-type-title-cv]]
    [onekeepass.frontend.events.entry-category :as ec-events]
    [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.events.group-form :as gf-events]  ;;need to be replaced events from ec-events 
@@ -33,6 +35,9 @@
 
 ;;(set! *warn-on-infer* true)
 
+#_(defn translate [key]
+    (t/lstr (str/join "." ["labels" (csk/->camelCase key)])))
+
 (defn- menu-action [anchor-el action & action-args]
   (fn [^js/Event e]
     (reset! anchor-el nil)
@@ -56,33 +61,37 @@
                        :on-click (menu-action anchor-el ec-events/show-as-type-category)}
         (when show-types?
           [mui-list-item-icon [mui-icon-check]])
-        (if show-types? GROUPING_LABEL_TYPES [mui-list-item-text {:inset true} GROUPING_LABEL_TYPES])]
+        (if show-types? (tr-l-cv GROUPING_LABEL_TYPES)
+            [mui-list-item-text {:inset true} (tr-l-cv GROUPING_LABEL_TYPES)])]
 
        [mui-menu-item {:sx {:padding-left "1px"}
                        :on-click (menu-action anchor-el ec-events/show-as-tag-category)}
         (when show-tags?
           [mui-list-item-icon [mui-icon-check]])
-        (if show-tags? GROUPING_LABEL_TAGS [mui-list-item-text {:inset true} GROUPING_LABEL_TAGS])]
+        (if show-tags? (tr-l-cv GROUPING_LABEL_TAGS)
+            [mui-list-item-text {:inset true} (tr-l-cv GROUPING_LABEL_TAGS)])]
 
        [mui-menu-item {:sx {:padding-left "1px"}
                        :divider false
                        :on-click (menu-action anchor-el ec-events/show-as-group-category)}
         (when show-category?
           [mui-list-item-icon [mui-icon-check]])
-        (if show-category? GROUPING_LABEL_CATEGORIES [mui-list-item-text {:inset true} GROUPING_LABEL_CATEGORIES])]
+        (if show-category? (tr-l-cv GROUPING_LABEL_CATEGORIES)
+            [mui-list-item-text {:inset true} (tr-l-cv GROUPING_LABEL_CATEGORIES)])]
 
        [mui-menu-item {:sx {:padding-left "1px"}
                        :divider (if show-category? true false)
                        :on-click (menu-action anchor-el ec-events/show-as-group-tree)}
         (when show-groups?
           [mui-list-item-icon [mui-icon-check]])
-        (if show-groups? GROUPING_LABEL_GROUPS [mui-list-item-text {:inset true} GROUPING_LABEL_GROUPS])]
+        (if show-groups? (tr-l-cv GROUPING_LABEL_GROUPS)
+            [mui-list-item-text {:inset true} (tr-l-cv GROUPING_LABEL_GROUPS)])]
 
        (when show-category?
          [mui-menu-item {:sx {:padding-left "1px"}
                          :divider false
                          :on-click (menu-action anchor-el ec-events/initiate-new-blank-group-form root-group-uuid)}
-          [mui-list-item-text {:inset true} "Add category"]])])))
+          [mui-list-item-text {:inset true} (tr-ml addCategory)]])])))
 
 (defn category-title-menu
   "Menu popup to provide options to swicth between various category grouping in the left bottom panel"
@@ -108,12 +117,12 @@
                      :on-click #(do
                                   (reset! anchor-el nil)
                                   (gf-events/find-group-by-id g-uuid :edit)
-                                  (.stopPropagation ^js/Event %))} "Edit"]
+                                  (.stopPropagation ^js/Event %))} (tr-l "edit")]
      [mui-menu-item {:divider false
                      :on-click #(do
                                   (reset! anchor-el nil)
                                   (gf-events/find-group-by-id g-uuid :info)
-                                  (.stopPropagation ^js/Event %))} "Info"]]))
+                                  (.stopPropagation ^js/Event %))} (tr-l "info")]]))
 
 (defn group-category-item-menu []
   (let [anchor-el (r/atom nil)]
@@ -142,7 +151,7 @@
                      :on-click #(do
                                   (reset! anchor-el nil)
                                   (ec-events/delete-custom-entry-type entry-type-uuid)
-                                  (.stopPropagation ^js/Event %))} "Delete type"]]))
+                                  (.stopPropagation ^js/Event %))} (tr-l "deleteType")]]))
 
 (defn type-category-item-menu
   "Menu popup to provide menu options when a type category is selected on the bottom panel"
@@ -204,30 +213,47 @@
 
 (defn category-title
   [showing-groups-as]
-
   [mui-stack {:direction "row" :sx {:width "100%"}}
    [mui-stack {:direction "row" :sx {:width "90%"  :align-items "center"}}
-    [mui-typography {:sx {:padding-left "16px"}}  (cond
-                                                    (or (nil? showing-groups-as) (= showing-groups-as :type))
-                                                    GROUPING_LABEL_TYPES
+    [mui-typography {:sx {:padding-left "16px"}}
+     (cond
+       (or (nil? showing-groups-as) (= showing-groups-as :type))
+       (tr-l-cv GROUPING_LABEL_TYPES)
 
-                                                    (= showing-groups-as :tag)
-                                                    GROUPING_LABEL_TAGS
+       (= showing-groups-as :tag)
+       (tr-l-cv GROUPING_LABEL_TAGS)
 
-                                                    (= showing-groups-as :category)
-                                                    GROUPING_LABEL_CATEGORIES
+       (= showing-groups-as :category)
+       (tr-l-cv GROUPING_LABEL_CATEGORIES)
 
-                                                    (= showing-groups-as :group)
-                                                    GROUPING_LABEL_GROUPS)]]
+       (= showing-groups-as :group)
+       (tr-l-cv GROUPING_LABEL_GROUPS))]]
    [mui-stack {:direction "row" :sx {:width "10%"}}
     [category-title-menu showing-groups-as]]])
-
 
 (def general-category-icons {const/CATEGORY_ALL_ENTRIES mui-icon-done-all
                              const/CATEGORY_FAV_ENTRIES mui-icon-favorite-border
                              const/CATEGORY_DELETED_ENTRIES mui-icon-delete-outline})
+
 (defn general-category-icon [name]
   [(get general-category-icons name mui-icon-access-time)])
+
+(defn traslate-category-item-title
+  [title categories-kind custom-entry-type?]
+  (cond
+    ;; It appears 'category-item' is called with nil title initially
+    ;; Should not call macros with nil key!
+    (nil? title)
+    title
+
+    (and (= categories-kind :type-categories) (not custom-entry-type?))
+    (tr-entry-type-title-cv title)
+
+    (= categories-kind :general-categories)
+    (tr-l-cv title)
+
+    :else
+    title))
 
 (defn category-item
   "Returns form-2 reagent component"
@@ -257,7 +283,8 @@
           type-category?  (= categories-kind :type-categories)
 
           row-selected? @(ec-events/is-selected-category category-detail-m)
-          custom-entry-type?  (if-not type-category? false @(cmn-events/is-custom-entry-type entry-type-uuid))]
+          custom-entry-type?  (if-not type-category? false @(cmn-events/is-custom-entry-type entry-type-uuid))
+          display-name (traslate-category-item-title display-name categories-kind custom-entry-type?)]
 
       [mui-list-item-button {:sx {"&.MuiListItemButton-root" {:padding-right "1px"}}
                              :on-click #(ec-events/load-category-entry-items

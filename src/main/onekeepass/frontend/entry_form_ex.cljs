@@ -1,5 +1,6 @@
 (ns onekeepass.frontend.entry-form-ex
   (:require [clojure.string :as str]
+            [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-h tr-entry-section-name-cv tr-bl tr-ml tr-l-cv]]
             [onekeepass.frontend.common-components :as cc :refer [alert-dialog-factory
                                                                   enter-key-pressed-factory
                                                                   list-items-factory
@@ -137,20 +138,20 @@
       [mui-box {:sx content-sx}
 
        [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
-        [mui-typography "Uuid:"]
+        [mui-typography (str (tr-l "uuid") ":")]
         [mui-typography @(form-events/entry-form-data-fields :uuid)]]
 
        [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
-        [mui-typography "Created:"]
+        [mui-typography (str (tr-l "created") ":")]
         [mui-typography (u/to-local-datetime-str creation-time ENTRY_DATETIME_FORMAT)]]
 
        [mui-stack {:direction "row" :sx {:justify-content "space-between"}}
-        [mui-typography "Last Modified:"]
+        [mui-typography (str (tr-l "lastModified") ":")]
         [mui-typography (u/to-local-datetime-str last-modification-time ENTRY_DATETIME_FORMAT)]]
 
        (when-not (= expiry-duration-selection "no-expiry")
          [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-top "10px"}}
-          [mui-typography "Expires:"]
+          [mui-typography (str (tr-l "expires") ":") ]
           [mui-typography (u/to-local-datetime-str expiry-dt ENTRY_DATETIME_FORMAT)]])])))
 
 (defn add-modify-section-popper [{:keys [dialog-show
@@ -346,13 +347,14 @@
 (defn section-header [section-name]
   (let [edit @(form-events/form-edit-mode)
         standard-sections @(form-events/entry-form-data-fields :standard-section-names)
+        standard-section? (contains-val? standard-sections section-name)
         comp-ref (atom nil)]
     [mui-stack {:direction "row"
                 :ref (fn [e]
                          ;;(println "ref is called " e)
                        (reset! comp-ref e))}
      [mui-stack {:direction "row" :sx {:width "85%"}}
-      [box-caption section-name]]
+      [box-caption  (if standard-section? (tr-entry-section-name-cv section-name) section-name  )]]
      (when edit
        [mui-stack {:direction "row" :sx {:width "15%" :justify-content "center"}}
         ;; Allow section name change only if the section name is not the standard one
@@ -533,14 +535,14 @@
        [mui-stack {:direction "row"}]
        [tags-field all-tags tags form-events/on-tags-selection edit]
        (when edit
-         [mui-typography {:variant "caption"} "Select a tag or start entering a new tag and add"])])))
+         [mui-typography {:variant "caption"} (tr-h "selectTag")])])))
 
 (defn notes-content []
   (let [edit @(form-events/form-edit-mode)
         notes @(form-events/entry-form-data-fields :notes)]
     (when (or edit (not (str/blank? notes)))
       [mui-box {:sx content-sx}
-       [mui-stack {:direction "row"} [box-caption "Notes"]]
+       [mui-stack {:direction "row"} [box-caption (tr-entry-section-name-cv "Notes")]]
        [mui-stack
         [text-area-field {:key "Notes"
                           :value notes
@@ -562,7 +564,7 @@
       [mui-box {:sx content-sx}
        [mui-stack {:direction "row"}
         [mui-stack {:direction "row" :sx {:margin-bottom "10px" :width "90%"}}
-         [box-caption "Attachments"]]
+         [box-caption (tr-entry-section-name-cv "Attachments") ]]
         (when edit
           [mui-stack {:direction "row"
                       :sx {:width "10%"
@@ -731,20 +733,20 @@
             [:<>
              [mui-button {:variant "contained"
                           :color "secondary"
-                          :on-click form-events/entry-update-cancel-on-click} "Cancel"]
+                          :on-click form-events/entry-update-cancel-on-click} (tr-bl cancel)]
              [mui-button {:variant "contained"
                           :color "secondary"
                           :disabled  (not @(form-events/modified))
-                          :on-click form-events/ok-edit-on-click} "Apply"]]
+                          :on-click form-events/ok-edit-on-click} (tr-bl apply)]]
 
             :else
             [:<>
              [mui-button {:variant "contained"
                           :color "secondary"
-                          :on-click form-events/close-on-click} "Close"]
+                          :on-click form-events/close-on-click} (tr-bl close)]
              [mui-button {:variant "contained"
                           :color "secondary"
-                          :on-click form-events/edit-mode-menu-clicked} "Edit"]])
+                          :on-click form-events/edit-mode-menu-clicked} (tr-bl "edit") ]])
 
           #_(when (or deleted-cat? recycle-bin? group-in-recycle-bin?)
               [:<>

@@ -1,6 +1,7 @@
 (ns onekeepass.frontend.entry-list
   (:require
    [reagent.core :as r]
+   [onekeepass.frontend.translation :refer-macros [tr-bl tr-ml]]
    [onekeepass.frontend.constants :as const :refer [TITLE
                                                     MODIFIED_TIME
                                                     CREATED_TIME
@@ -38,17 +39,17 @@
      [mui-menu-item {:sx {:padding-left "1px"}
                      :divider false
                      :on-click (menu-action anchor-el #(el-events/entry-list-sort-key-changed TITLE))}
-      [mui-list-item-text {:inset true} TITLE]]
+      [mui-list-item-text {:inset true} (tr-ml title)]]
 
      [mui-menu-item {:sx {:padding-left "1px"}
                      :divider false
                      :on-click (menu-action anchor-el #(el-events/entry-list-sort-key-changed MODIFIED_TIME))}
-      [mui-list-item-text {:inset true} MODIFIED_TIME]]
+      [mui-list-item-text {:inset true} (tr-ml modifiedTime)]]
 
      [mui-menu-item {:sx {:padding-left "1px"}
                      :divider false
                      :on-click (menu-action anchor-el #(el-events/entry-list-sort-key-changed CREATED_TIME))}
-      [mui-list-item-text {:inset true} CREATED_TIME]]]))
+      [mui-list-item-text {:inset true} (tr-ml createdTime)]]]))
 
 (defn entries-sort-menu []
   (let [anchor-el (r/atom nil)]
@@ -177,7 +178,7 @@
                                  #_(if (nil? entry-type-uuid)
                                      UUID_OF_ENTRY_TYPE_LOGIN
                                      entry-type-uuid))}
-         "Add Entry"]]]]]))
+         (tr-bl addEntry)]]]]]))
 
 (defn entry-list-content []
   [:f> fn-entry-list-content])

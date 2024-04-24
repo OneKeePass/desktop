@@ -43,7 +43,7 @@
       [mui-stack
        (if (not in-progress?)
          [mui-stack
-          [m/text-field {:label "File Name" :value file-name
+          [m/text-field {:label (tr-l fileName) :value file-name
                          :on-change od-events/file-name-on-change
                          :disabled unlock-request
                          :variant "standard" :fullWidth true
@@ -58,7 +58,7 @@
           
           [mui-stack {:sx { :margin-bottom "20px"} }]
 
-          [m/text-field {:label "Password"
+          [m/text-field {:label (tr-l password)
                          :value password
                          ;;:required true
                          :error (not (nil? passord-error-text))
@@ -79,7 +79,7 @@
                                                          [mui-icon-visibility-off]])])}
                          :type (if password-visibility-on "text" "password")}]
 
-          [m/text-field {:label "Key File Name" :value key-file-name
+          [m/text-field {:label (tr-l keyFileName) :value key-file-name
                          :on-change od-events/key-file-name-on-change
                          :variant "standard" :fullWidth true
                          ;;:placeholder "Optional"
@@ -101,7 +101,7 @@
           [mui-stack {:sx {:margin-top "10px" :margin-bottom "5px"}} 
            [mui-typography {:variant "caption"} "Please provide a valid password or a key file or both password and key file"]]
           ]
-         [mui-stack "Database opening is in progress"])
+         [mui-stack (tr-m openDbPage txt2)])
        (cond
          (= status :in-progress)
          [mui-linear-progress {:sx {:mt 2}}]
