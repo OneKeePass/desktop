@@ -1,6 +1,5 @@
 (ns onekeepass.frontend.entry-form.fields
   (:require [clojure.string :as str]
-            [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-bl tr-entry-field-name-cv]]
             [onekeepass.frontend.common-components :as cc]
             [onekeepass.frontend.constants :as const :refer [OTP PASSWORD]]
             [onekeepass.frontend.entry-form.common :as ef-cmn]
@@ -23,6 +22,7 @@
                                                               mui-text-field
                                                               mui-tooltip
                                                               mui-typography]]
+            [onekeepass.frontend.translation :as t :refer-macros [tr-h tr-l  tr-entry-field-name-cv]]
             [reagent.core :as r]))
 
 (defn end-icons [key value protected visibile? edit]
@@ -186,13 +186,13 @@
       [mui-stack {:direction "row" :sx {:width "100%"}}
        [mui-text-field {:sx otp-txt-input-sx
                         :fullWidth true
-                        :label (if (= OTP key) "One-Time Password(TOTP)" key)
+                        :label (if (= OTP key) (tr-l "oneTimePasswordTotp") key)
                         :variant "standard"
                         :classes {:root "entry-cnt-field"}
                         :value (formatted-token token)
                         ;; Is there any use of suing 'error-text' with otp field ? 
                         :error  (or (not (nil? error-text)) (not valid-token-found))
-                        :helperText (if-not valid-token-found "Invalid otp url. No token is generated" error-text)
+                        :helperText (if-not valid-token-found (tr-h "invalidOtpUrl") error-text)
                         :required false
                         ;; setting props in this is not working
                         :InputLabelProps {} 

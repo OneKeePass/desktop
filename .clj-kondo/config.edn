@@ -120,11 +120,54 @@
                                 LocalizationProvider
                                 
                                 
+                                
+                                
+                                passwordIsChanged
+                                passwordWillBeChanged
+                                databaseSettingsChange
+                                keyFileWillBeChanged
+                                keyFileWillBeRemoved
+                                keyFileWillBeUsed
+                                generateNewKeyFile
+                                databaseCredentials
+                                databaseFile
+                                addPassword
+                                passwordNotUsed
+                                changePassword
+                                removePassword
+                                general
+                                credentials
+                                keyFileNotUsed
+                                addKeyFile
+                                changeKeyFile
+                                removeKeyFile
+                                databaseSettings
+                                memoryUsage
+                                deletePermanent
+                                selectAValidGroup
+                                group
+                                selectAGroup
+                                putBack
+                                info
+                                addGroup
+                                groupDeletePermanent
+                                emptyRecycleBin
+                                creationTime
+                                lastModificationTime
+                                setUpTOPT
+                                addField
+                                edit
+                                favorites
+                                delete
+                                history
+                                performAutoType
+                                editAutoType
                                 close
                                 otpDelete
                                 otpSetup
                                 yes 
-                                no
+                                no 
+                                ok
                                 title 
                                 modifiedTime
                                 createdTime

@@ -100,7 +100,7 @@
              ;; https://material.io/inline-tools/color/
              ;; https://bareynol.github.io/mui-theme-creator/ may be used to see some color combinations
              ;; Default primary #1976d2, secondary #9c27b0 (https://mui.com/material-ui/customization/palette/)
-             :palette {:type "light"
+             :palette {:mode "light"
                        :primary {:main  "#1976d2" #_"#6d4c41"}
                        :secondary {:main "#9c27b0" #_"#ffa000"}}
              :components

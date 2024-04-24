@@ -7,6 +7,7 @@
    [onekeepass.frontend.events.group-form :as gf-events]
    [onekeepass.frontend.common-components :refer [tags-field]]
    [onekeepass.frontend.db-icons :as db-icons :refer [group-icon]]
+   [onekeepass.frontend.translation  :refer-macros [tr-l tr-bl tr-dlg-title]]
    [onekeepass.frontend.mui-components :as m :refer [mui-dialog
                                                      mui-button
                                                      mui-icon-button
@@ -54,11 +55,11 @@
              :classes {:root "entry-cnt-container"}
              :style {:width "95%" :margin-top "calc(2*var(--mui-theme-spacing-1))"}}
 
-   [form-readonly-item "Creation Time" (:creation-time times)]
+   [form-readonly-item (tr-l creationTime) (:creation-time times)]
    [mui-grid {:item true :xs true}
     [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]]
 
-   [form-readonly-item "Last Modification Time" (:last-modification-time times)]
+   [form-readonly-item (tr-l lastModificationTime) (:last-modification-time times)]
    [mui-grid {:item true :xs true}
     [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]]])
 
@@ -72,11 +73,11 @@
    [mui-grid {:container true :item true :spacing 0
               :classes {:root "entry-cnt-container"}}
 
-    [form-readonly-item "Name" name]
+    [form-readonly-item (tr-l "name") name]
     [mui-grid {:item true :xs true}
      [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]]
 
-    [form-readonly-item "Tags" (vec->tags tags)]
+    [form-readonly-item (tr-l "tags") (vec->tags tags)]
 
     [mui-grid {:item true :xs true}
      [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]]
@@ -85,7 +86,7 @@
     ;; TODO: Replace this with read only text area 
     (when-not (empty? notes)
       [mui-stack
-       [mui-typography "Notes"]
+       [mui-typography (tr-l "notes")]
        [mui-stack {:sx {:mt 1}}
         [mui-typography notes]]])
     
@@ -98,8 +99,8 @@
   [value on-change editing]
   [mui-stack
    [m/text-field {:fullWidth true
-
-                  :id :notes :label "Notes";;name
+                  :id :notes 
+                  :label (tr-l "notes")
                   :variant "standard"
                   :value value
                   :onChange on-change
@@ -127,7 +128,7 @@
     [:div [mui-dialog {:open (if (nil? dialog-open?) false dialog-open?)
                        :on-click #(.stopPropagation ^js/Event %) ;;prevents on click for any parent components to avoid closing dialog by external clicking
                        :classes {:paper "group-form-flg-root"}}
-           [mui-dialog-title "Icons"]
+           [mui-dialog-title (tr-dlg-title "icons")]
            [mui-dialog-content {:dividers true}
             [mui-grid {:container true :xs true :spacing 0}
              (for [[idx svg-icon] db-icons/all-icons]
@@ -137,7 +138,7 @@
                                                (close-icons-dialog))} [mui-tooltip {:title "Icon"} svg-icon]])]]
            [mui-dialog-actions
             [mui-button {:variant "contained" :color "secondary"
-                         :on-click close-icons-dialog} "Close"]]]]))
+                         :on-click close-icons-dialog} (tr-bl "close")]]]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -150,15 +151,15 @@
 (defn- form-readonly-content-1 [times]
   [mui-box {:sx {:margin-top 2 :border 1}}
    [mui-stack {:sx {:p "5px"}}
-    [form-readonly-item-1 "Creation Time" (:creation-time times)]
+    [form-readonly-item-1 (tr-l creationTime) (:creation-time times)]
     [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]
-    [form-readonly-item-1 "Last Modification Time" (:last-modification-time times)]]])
+    [form-readonly-item-1 (tr-l lastModificationTime) (:last-modification-time times)]]])
 
 (defn- group-content [{:keys [name icon-id tags notes times]}]
   [mui-stack
    [mui-stack {:direction "row" :spacing 1}
     [mui-stack {:direction "row" :sx {:width "90%" :justify-content "center" :align-items "center"}}
-     [form-text-field "Name" name (gf-events/form-on-change-factory :name) true]]
+     [form-text-field (tr-l "name") name (gf-events/form-on-change-factory :name) true]]
 
     [mui-stack {:direction "row" :sx {:width "10%" :align-items "flex-end"}}
      [mui-typography {:align "center" :paragraph false :variant "subtitle1"} "Icon"]
@@ -174,7 +175,7 @@
                                         [mui-checkbox {:checked @(gf-events/marked-as-category)
                                                        :disabled @(gf-events/showing-groups-as-category)
                                                        :on-change gf-events/marked-as-category-on-check}])
-                                       :label "Category"}]]
+                                       :label (tr-l "category")}]]
 
    [mui-stack
     [form-textarea-field-1 notes (gf-events/form-on-change-factory :notes) true]
@@ -187,7 +188,7 @@
    [mui-dialog {:open (if (nil? flag) false flag)
                 :on-click #(.stopPropagation ^js/Event %) ;;prevents on click for any parent components to avoid closing dialog by external clicking
                 :classes {:paper "group-form-flg-root"}}
-    [mui-dialog-title "Group Details"]
+    [mui-dialog-title (tr-dlg-title "groupDetails")]
     [mui-dialog-content
      (if (= mode :edit)
        [group-content form-data]
@@ -198,17 +199,21 @@
         [mui-dialog-actions
          [mui-button {:variant "contained" :color "secondary"
                       :on-click
-                      gf-events/cancel-edit-on-click} "Cancel"]
+                      gf-events/cancel-edit-on-click} 
+          (tr-bl "cancel")]
          [mui-button {:variant "contained" :color "secondary"
                       :on-click (if new-group gf-events/ok-new-group-on-click gf-events/ok-edit-on-click)
-                      :disabled (not modified)} "Ok"]])
+                      :disabled (not modified)} 
+          (tr-bl "ok")]])
       [mui-dialog-actions
        [mui-button {:variant "contained" :color "secondary"
                     :on-click
-                    #(gf-events/close-dialog)} "Cancel"]
+                    #(gf-events/close-dialog)} 
+        (tr-bl "cancel") ]
        [mui-button {:variant "contained" :color "secondary"
                     :on-click
-                    #(gf-events/edit-form)} "Edit"]])]])
+                    #(gf-events/edit-form)} 
+        (tr-bl "edit")]])]])
 
 (defn group-content-dialog-main []
   (let [{:keys [dialog-open data mode new-group]} @(gf-events/dialog-form-data)]

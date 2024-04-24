@@ -9,16 +9,24 @@
 (defmacro tr-with-prefix [prefix & keys]
   `(onekeepass.frontend.translation/lstr ~(str/join "." (conj keys prefix))))
 
-(defmacro tr-l [& keys]
+(defmacro tr-l 
+   "Prefixes 'labels' to the keys"
+  [& keys]
   `(tr-with-prefix "labels" ~@keys))
 
-(defmacro tr-bl [& keys]
+(defmacro tr-bl 
+  "Prefixes 'button.labels' to the keys"
+  [& keys]
   `(tr-with-prefix "button" "labels" ~@keys))
 
-(defmacro tr-ml [& keys]
+(defmacro tr-ml 
+  "Prefixes 'menu.labels' to the keys"
+  [& keys]
   `(tr-with-prefix "menu" "labels" ~@keys))
 
-(defmacro tr-t [& keys]
+(defmacro tr-t 
+  "Prefixes 'titles' to the keys"
+  [& keys]
   `(tr-with-prefix "titles" ~@keys))
 
 (defmacro tr-h
@@ -26,13 +34,19 @@
   [& keys]
   `(tr-with-prefix "helperTexts" ~@keys))
 
-(defmacro tr-m [& keys]
+(defmacro tr-m 
+  "Adds prefix 'messages'"
+  [& keys]
   `(tr-with-prefix "messages" ~@keys))
 
-(defmacro tr-dlg-title [& keys]
+(defmacro tr-dlg-title 
+  "Prefixes 'dialog.titles' to the keys"
+  [& keys]
   `(tr-with-prefix "dialog" "titles" ~@keys))
 
-(defmacro tr-dlg-text [& keys]
+(defmacro tr-dlg-text 
+   "Prefixes 'dialog.texts' to the keys"
+  [& keys]
   `(tr-with-prefix "dialog" "texts" ~@keys))
 
 ;; An internal utility macro used in '*-cv' macros
