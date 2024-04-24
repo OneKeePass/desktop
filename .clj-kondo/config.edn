@@ -121,6 +121,10 @@
                                 
                                 
                                 close
+                                otpDelete
+                                otpSetup
+                                yes 
+                                no
                                 title 
                                 modifiedTime
                                 createdTime

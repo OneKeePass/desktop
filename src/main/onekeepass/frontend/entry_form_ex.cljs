@@ -650,7 +650,7 @@
                        #_(fn [^js/Event _e]
                            (reset! anchor-el @comp-ref))}
              [mui-typography {:variant "h6" :sx {:font-size "1.1em"}}
-              "Add Section"]]]]]
+              (tr-l "addSection")]]]]]
          [add-modify-section-popper @(form-events/section-name-dialog-data)]
          #_[add-section-popper anchor-el]]))))
 

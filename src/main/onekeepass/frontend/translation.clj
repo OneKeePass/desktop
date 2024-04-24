@@ -29,6 +29,12 @@
 (defmacro tr-m [& keys]
   `(tr-with-prefix "messages" ~@keys))
 
+(defmacro tr-dlg-title [& keys]
+  `(tr-with-prefix "dialog" "titles" ~@keys))
+
+(defmacro tr-dlg-text [& keys]
+  `(tr-with-prefix "dialog" "texts" ~@keys))
+
 ;; An internal utility macro used in '*-cv' macros
 ;; This uses map to get values from the symbols passed as keys
 ;; Basically this is used in a 'let' block in the calling site

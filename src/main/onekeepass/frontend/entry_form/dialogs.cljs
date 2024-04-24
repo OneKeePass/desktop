@@ -1,31 +1,33 @@
 (ns onekeepass.frontend.entry-form.dialogs
-  (:require [onekeepass.frontend.common-components :refer [confirm-text-dialog]] 
-            [onekeepass.frontend.entry-form.common :as ef-cmn]
-            [onekeepass.frontend.events.common :as ce :refer [on-change-factory]]
-            [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
-            [onekeepass.frontend.events.entry-form-ex :as form-events]
-            [onekeepass.frontend.mui-components :as m :refer [mui-alert
-                                                              mui-button
-                                                              mui-button
-                                                              mui-dialog
-                                                              mui-dialog-actions
-                                                              mui-dialog-content
-                                                              mui-dialog-title
-                                                              mui-link
-                                                              mui-menu-item
-                                                              mui-stack
-                                                              mui-tooltip
-                                                              mui-typography]]))
+  (:require 
+   [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-dlg-title tr-dlg-text tr-h tr-bl tr-ml tr-l-cv]]
+   [onekeepass.frontend.common-components :refer [confirm-text-dialog]] 
+   [onekeepass.frontend.entry-form.common :as ef-cmn]
+   [onekeepass.frontend.events.common :as ce :refer [on-change-factory]]
+   [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
+   [onekeepass.frontend.events.entry-form-ex :as form-events]
+   [onekeepass.frontend.mui-components :as m :refer [mui-alert
+                                                     mui-button
+                                                     mui-button
+                                                     mui-dialog
+                                                     mui-dialog-actions
+                                                     mui-dialog-content
+                                                     mui-dialog-title
+                                                     mui-link
+                                                     mui-menu-item
+                                                     mui-stack
+                                                     mui-tooltip
+                                                     mui-typography]]))
 
 (defn delete-totp-confirm-dialog [{:keys [section-name otp-field-name] :as dialog-data}]
   ;; we can use either 'alert-dialog-factory' or confirm-text-dialog for this
   [confirm-text-dialog
-   "Delete One-Time password?"
-   "Are you sure you want to delete this TOTP field?"
-   [{:label "Yes" :on-click (fn []
+   (tr-dlg-title otpDelete)
+   (tr-dlg-text otpDelete)
+   [{:label (tr-bl yes) :on-click (fn []
                               (form-events/entry-form-delete-otp-field section-name otp-field-name)
                               (ef-cmn/close-delete-totp-confirm-dialog))}
-    {:label "No" :on-click (fn []
+    {:label (tr-bl no) :on-click (fn []
                              (ef-cmn/close-delete-totp-confirm-dialog))}]
    dialog-data])
 
@@ -54,12 +56,12 @@
                :on-click #(.stopPropagation %)
                :sx {"& .MuiPaper-root" {:width "60%"}}}
 
-   [mui-dialog-title "TOTP Setup"]
+   [mui-dialog-title (tr-dlg-title otpSetup)]
    [mui-dialog-content
     [mui-stack
      (when (not standard-field) 
        [m/text-field {:sx {:mb 2}
-                      :label "Field Name" 
+                      :label (tr-l "fieldName")
                       :value field-name
                       :required true
                       :error (contains? error-fields :field-name)
@@ -67,8 +69,8 @@
                       :on-change (on-change-factory dlg-events/otp-settings-dialog-update :field-name)
                       :variant "standard" :fullWidth true}])
 
-     [m/text-field {:label "Secret or TOTPAuth URL"
-                    :placeholder "Please enter encoded key or full TOTPAuth URL"
+     [m/text-field {:label (tr-l "secretOrTotpAuthUrl")
+                    :placeholder (tr-h "keyOrAuthurl")
                     :value secret-code
                     :required true 
                     :error (contains? error-fields :secret-code)
@@ -83,12 +85,12 @@
                     :underline "hover"
                     :on-click  dlg-events/otp-settings-dialog-custom-settings-show}
           [mui-typography {:variant "h6" :sx {:font-size "1.1em"}}
-           "Custom Settings"]]]])
+           (tr-l "customSettings") ]]]])
 
      (when (and (not otp-uri-used) show-custom-settings)
        [mui-stack {:direction "row" :sx {:mt 4}}
         [mui-stack {:sx {:width "40%"}}
-         [m/text-field {:label "Algorithm"
+         [m/text-field {:label (tr-l "algorithm")
                         :value hash-algorithm
                         :required true
                         :select true
@@ -99,7 +101,7 @@
            (for [{:keys [name value]} algorithms]
              ^{:key value} [mui-menu-item {:value value} name]))]]
         [mui-stack {:sx {:width "30%" :ml 3}}
-         [m/text-field {:label "Period(sec)"
+         [m/text-field {:label (tr-l "period")
                         :value period ;;(:memory kdf)
                         :type "number"
                         :error (contains? error-fields :period)
@@ -109,7 +111,7 @@
                         :variant "standard" :fullWidth true}]]
 
         [mui-stack {:sx {:width "30%" :ml 3}}
-         [m/text-field {:label "Token length"
+         [m/text-field {:label (tr-l "tokenlength")
                         :value digits ;;(:memory kdf)
                         :type "number"
                         :error (contains? error-fields :digits)
@@ -131,6 +133,6 @@
          api-error-text]])]]
    [mui-dialog-actions
     [mui-stack  {:sx {:justify-content "end"} :direction "row" :spacing 1}   ;;{:sx {:align-items "end"}}
-     [mui-button {:on-click  dlg-events/otp-settings-dialog-close} "Cancel"]
+     [mui-button {:on-click  dlg-events/otp-settings-dialog-close} (tr-bl "cancel")]
      [mui-button {:on-click dlg-events/otp-settings-dialog-ok}
-      "Ok"]]]])
+      (tr-bl "ok")]]]])

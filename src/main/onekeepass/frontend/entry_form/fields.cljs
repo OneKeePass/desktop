@@ -245,7 +245,7 @@
                     :underline "hover"
                     :on-click  #(dlg-events/otp-settings-dialog-show section-name true)}
           [mui-typography {:variant "h6" :sx {:font-size "1.1em"}}
-           "Set up One-Time Password"]]]
+           (tr-l "setUpOneTimePassword")]]]
         [mui-stack {:direction "row" :sx {:width "100%"}}
          [mui-stack {:direction "row" :sx {:width "100%"}}
           [text-field (assoc kv
