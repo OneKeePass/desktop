@@ -12,7 +12,7 @@ use std::fs::read_to_string;
 use std::path::Path;
 use uuid::Uuid;
 
-use crate::menu::{self, MenuActionRequest};
+use crate::menu::{self, MenuActionRequest, MenuTitleChangeRequest};
 use crate::utils::SystemInfoWithPreference;
 use crate::{auto_type, biometric, OTP_TOKEN_UPDATE_EVENT};
 use crate::{preference, utils};
@@ -148,6 +148,15 @@ pub(crate) async fn menu_action_requested<R: Runtime>(
   request: MenuActionRequest,
 ) -> Result<()> {
   menu::menu_action_requested(request, app);
+  Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn menu_titles_change_requested<R: Runtime>(
+  app: tauri::AppHandle<R>,
+  request:MenuTitleChangeRequest ,
+) -> Result<()> {
+  menu::menu_titles_change_requested(request, app);
   Ok(())
 }
 

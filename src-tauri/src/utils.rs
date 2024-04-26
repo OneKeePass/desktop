@@ -8,11 +8,11 @@ use serde::{Deserialize, Serialize};
 
 use log::info;
 use std::collections::HashMap;
-use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::result::Result;
 use std::sync::{Arc, Mutex};
+use std::fs;
 use sys_locale::get_locale;
 
 use tauri::{
@@ -73,7 +73,7 @@ impl AppState {
     *store_pref = pref;
   }
 
-  /// Gets the full backfile name
+  /// Gets the full backupfile name
   pub fn get_backup_file(&self, db_file_name: &str) -> Option<String> {
     let store_pref = self.preference.lock().unwrap();
     if !store_pref.backup.enabled {
@@ -283,8 +283,7 @@ pub fn app_resources_dir<R: Runtime>(app: tauri::AppHandle<R>) -> Result<String,
 
 // TODO Return Result<HashMap<>>
 pub fn load_custom_svg_icons<R: Runtime>(app: tauri::AppHandle<R>) -> HashMap<String, String> {
-  
-  //IMPORTANT: 
+  //IMPORTANT:
   // "../resources/public/icons/custom-svg" should be included in "resources" key in  /desktop/src-tauri/tauri.conf.json
 
   // Note: ../ in path will add _up_
@@ -316,25 +315,36 @@ pub fn load_custom_svg_icons<R: Runtime>(app: tauri::AppHandle<R>) -> HashMap<St
   files
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct TranslationResource {
-  current_locale:String,
-  translations:HashMap<String, String>,
+#[inline]
+pub fn current_locale() -> String {
+  let lng = get_locale().unwrap_or_else(|| String::from("en")); //"en-US" language+region
+  lng
+    .split("-")
+    .map(|s| s.to_string())
+    .next()
+    .unwrap_or_else(|| String::from("en"))
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct TranslationResource {
+  current_locale: String,
+  translations: HashMap<String, String>,
+}
+
+const TRANSLATION_RESOURCE_DIR:&str = "../resources/public/locales";
+
+// Loads language translation strings for the passed language ids
+// Typically it should en and the locale language 
 pub fn load_language_translations<R: Runtime>(
   app: tauri::AppHandle<R>,
   language_ids: Vec<String>,
 ) -> kp_service::Result<TranslationResource> {
-
-  let current_locale = get_locale().unwrap_or_else(|| String::from("en")); //"en-US" language+region
+  let current_locale = get_locale().unwrap_or_else(|| String::from("en")); // "en-US" language+region
   debug!("current_locale is {}", &current_locale);
-
 
   let language_ids_to_load = if !language_ids.is_empty() {
     language_ids
   } else {
-    
     if current_locale != "en" || current_locale != "en-US" {
       current_locale
         .split("-")
@@ -350,15 +360,15 @@ pub fn load_language_translations<R: Runtime>(
     }
   };
 
-  //IMPORTANT: 
+  //IMPORTANT:
   // "../resources/public/locales" should be included in "resources" key in  /desktop/src-tauri/tauri.conf.json
-  // Note: ../ in path will add _up_ 
+  // Note: ../ in path will add _up_
 
   let path = resolve_path(
     &app.config(),
     app.package_info(),
     &Env::default(),
-    "../resources/public/locales",
+    TRANSLATION_RESOURCE_DIR,
     Some(BaseDirectory::Resource),
   )
   .map_err(|e| {
@@ -368,27 +378,94 @@ pub fn load_language_translations<R: Runtime>(
     ))
   })?;
 
-
-  info!("Translation files root dir for i18n is {:?} ",&path);
+  info!("Translation files root dir for i18n is {:?} ", &path);
 
   let mut translations: HashMap<String, String> = HashMap::new();
 
   for lng in language_ids_to_load {
-    let p = path.join(&lng).join( "translation.json");
+    let p = path.join(&lng).join("translation.json");
     //debug!("Going to load translation file  {:?} ",&p);
-    
-    let data = fs::read_to_string(p).ok().map_or_else(||"{}".to_string(), |d|d);
+
+    let data = fs::read_to_string(p)
+      .ok()
+      .map_or_else(|| "{}".to_string(), |d| d);
     //let data = fs::read_to_string(p)?;
-    
+
     translations.insert(lng, data);
   }
-
-  
 
   Ok(TranslationResource {
     current_locale,
     translations,
   })
+}
+
+// As this struct has only "system_menus" field, serde json deserialization 
+// will parse only that part of data from the file translation.json
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SystemMenuTranslation {
+  system_menus: HashMap<String, HashMap<String, String>>,
+}
+
+impl SystemMenuTranslation {
+  
+  // Gets the translated string for a main menu from "main" map
+  pub fn main_menu(&self, name: &str) -> String {
+    let d = HashMap::default();
+    let s = self.system_menus.get("main").map_or_else(|| &d, |n| n);
+    s.get(name).map_or_else(|| name.into(), |v| v.into())
+  }
+
+  // Gets the translated string for a submenu from the "subMenus" map 
+  pub fn sub_menu(&self, menu_id: &str, default_name: &str) -> String {
+    let d = HashMap::default();
+    let s = self.system_menus.get("subMenus").map_or_else(|| &d, |n| n);
+    let sm = s
+      .get(menu_id)
+      .map_or_else(|| default_name.into(), |v| v.into());
+    debug!("Submenu for menu_id {} is {}", menu_id, &sm);
+    sm
+  }
+}
+
+// Called to load the menu string translations before building the app
+pub fn load_system_menu_translations(
+  language: &str,
+  config: &tauri::Config,
+  package_info: &tauri::PackageInfo,
+) -> SystemMenuTranslation {
+  let mut system_menu_tr = SystemMenuTranslation {
+    system_menus: HashMap::default(),
+  };
+
+  let Ok(path) = resolve_path(
+    &config,
+    &package_info,
+    &Env::default(),
+    TRANSLATION_RESOURCE_DIR,
+    Some(BaseDirectory::Resource),
+  ) else {
+    return system_menu_tr;
+  };
+
+  let p = path.join(language).join("translation.json");
+
+  //println!("Json file is {:?}", &p);
+
+  let data = fs::read_to_string(p)
+    .ok()
+    .map_or_else(|| "{}".to_string(), |d| d);
+
+  // As SystemMenuTranslation struct has only "system_menus" field, serde json deserialization 
+  // will parse only that part of data from the file translation.json
+
+  system_menu_tr =
+    serde_json::from_str::<SystemMenuTranslation>(&data).map_or(system_menu_tr, |v| v);
+
+  //println!("Loaded system menus {:?}", system_menu_tr);
+
+  system_menu_tr
 }
 
 fn init_log(log_dir: &PathBuf) {

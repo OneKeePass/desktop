@@ -203,5 +203,34 @@
             "txt1": "Please provide a valid password or a key file or both password and key file",
             "txt2": "Database opening is in progress"
         }
+    },
+
+    "systemMenus": {
+        "main": {
+            "Database":"Database",
+            "Edit":"Edit",
+            "Entries":"Entries",
+            "File":"File",
+            "Groups":"Groups",
+            "Tools":"Tools"
+        },
+
+        "subMenus": {
+            "NewDatabase":"New Database",
+            "OpenDatabase":"Open Database",
+            "SaveDatabase":"Save Database",
+            "SaveDatabaseAs":"Save Database As",
+            "SaveDatabaseBackup":"Save Database Backup",
+            "CloseDatabase":"Close Database",
+            "LockDatabase":"Lock Database",
+            "LockAllDatabases":"Lock All Databases",
+            "NewEntry":"New Entry",
+            "EditEntry":"Edit Entry",
+            "NewGroup":"New Group",
+            "EditGroup":"Edit Group",
+            "PasswordGenerator":"Password Generator",
+            "Quit":"Quit OneKeePass"
+
+        }
     }
 }

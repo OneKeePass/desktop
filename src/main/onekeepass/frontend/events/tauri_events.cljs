@@ -131,8 +131,10 @@
 
 (defn enable-app-menu [menu-id enable? & {:as menu-args}]
   ;;(println "Going to call for menu-id " menu-id enable? menu-args)
-
+  
   ;; Stores any menu specific args and that is used when menu is selected in the menu bar
+  ;; See as an example how the third arg (a map) is passed in entry-list/fn-entry-list-content
+  ;; For now only this is used wrt const/MENU_ID_NEW_ENTRY
   (swap! all-menu-args assoc menu-id menu-args)
 
   (bg/menu-action-requested menu-id

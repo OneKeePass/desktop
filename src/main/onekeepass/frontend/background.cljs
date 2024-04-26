@@ -501,9 +501,14 @@
   "The args menu-id and action should match MenuActionRequest and action should match enum 'MenuAction'"
   [menu-id action dispatch-fn]
   ;; We need to form api-args as expected tauri backend API
-  ;; The api 'menu_action_requested' expects one arument 'request' of type MenuActionRequest
+  ;; The api 'menu_action_requested' expects one argument 'request' of type MenuActionRequest
   (let [api-args (clj->js {:request {:menu_id menu-id :menu_action action}})]
     (invoke-api "menu_action_requested" api-args dispatch-fn :convert-request false)))
+
+;;menu_titles_change_requested
+(defn menu-titles-change-requested [menu-titles dispatch-fn]
+  (let [api-args (clj->js {:request {:menu_titles menu-titles}})]
+    (invoke-api "menu_titles_change_requested" api-args dispatch-fn :convert-request false)))
 
 (defn is-file-exists [file-name dispatch-fn]
   (invoke-api "is_path_exists" {:in-path file-name} dispatch-fn))
