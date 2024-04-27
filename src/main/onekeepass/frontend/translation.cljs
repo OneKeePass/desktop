@@ -1,9 +1,10 @@
 (ns onekeepass.frontend.translation
   (:require ["i18next" :as i18n]
-            [cljs.core.async :refer [go]]
-            [cljs.core.async.interop :refer-macros [<p!]] 
-            [clojure.string :as str]
             [camel-snake-kebab.core :as csk]
+            [camel-snake-kebab.extras :as cske]
+            [cljs.core.async :refer [go]]
+            [cljs.core.async.interop :refer-macros [<p!]]
+            [clojure.string :as str]
             [onekeepass.frontend.background :as bg]
             [onekeepass.frontend.events.common :as cmn-events :refer [check-error]]))
 
@@ -26,14 +27,52 @@
 
 (def i18n-instance (atom nil))
 
-(defn lstr [txt-key]
+#_(defn lstr [txt-key]
   ;;(println "lstr is called for key " txt-key)
-  (if (and @translations-loaded-and-init-done (not (nil? @i18n-instance)))
-    (.t ^js/i18nObj @i18n-instance txt-key)
-    (get trans-defaults txt-key txt-key)
-    #_(do
-        (println "translations-loaded-and-init-done is false and use defaults for key " txt-key)
-        (get trans-defaults txt-key txt-key))))
+    (if (and @translations-loaded-and-init-done (not (nil? @i18n-instance)))
+      (.t ^js/i18nObj @i18n-instance txt-key)
+      (get trans-defaults txt-key txt-key)
+      #_(do
+          (println "translations-loaded-and-init-done is false and use defaults for key " txt-key)
+          (get trans-defaults txt-key txt-key))))
+
+(defn lstr
+  "Gets the translation text for the given key and applying the interpolation if passed
+  Arg interpolation-args is a map that provides value for any variable names used in text
+  "
+  ([txt-key interpolation-args]
+   (let [args (when-not (empty? interpolation-args)
+                (->> interpolation-args (cske/transform-keys csk/->camelCaseString) clj->js))]
+     ;; transform-keys will be called recursively though here interpolation-args 
+     ;; will not have any inner map
+     (if (and @translations-loaded-and-init-done (not (nil? @i18n-instance)))
+       (.t ^js/i18nObj @i18n-instance txt-key args)
+       (get trans-defaults txt-key txt-key))))
+  ([txt-key]
+   (lstr txt-key nil)))
+
+(defn- convert 
+  "Converts the case of the key string to the camelCase key as used in translation.json 
+  IMPORTANT: 
+   camel-snake-kebab.core/->camelCase expects a non nil value;Otherwise an error 
+   will be thrown resulting UI not showing!
+  "
+  [txt-key]
+  (csk/->camelCase
+   (if (string? txt-key) txt-key "")))
+
+(defn lstr-dlg-title 
+  "Adds prefix 'dialog.titles' to the key before getting the translation"
+  [txt-key interpolation-args]
+  (-> (str "dialog.titles." (convert  txt-key)) (lstr interpolation-args)))
+
+(defn lstr-l-cv
+  "Adds 'labels' prefix to the key and gets the traslated text. 
+   This is similar to the macro tr-l-cv. This fn needs to be used if we want to evaluate a expression 
+   and then call translate
+   "
+  [txt-key]
+  (-> (str "labels." (convert txt-key)) lstr))
 
 (defonce ^:private translations-data (atom {}))
 
@@ -71,7 +110,7 @@
   []
   (bg/load-language-translations [] (partial translations-loaded :use-current-locale)))
 
-(defn- load-translations 
+(defn- load-translations
   "The arg is used as the default language in i18n's option
    The arg language-ids is vec of languages to load. 
    Typically it will be having two languages. One is the the 'language' and another

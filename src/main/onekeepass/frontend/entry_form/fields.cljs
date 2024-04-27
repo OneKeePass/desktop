@@ -22,7 +22,10 @@
                                                               mui-text-field
                                                               mui-tooltip
                                                               mui-typography]]
-            [onekeepass.frontend.translation :as t :refer-macros [tr-h tr-l  tr-entry-field-name-cv]]
+            [onekeepass.frontend.translation :as t :refer [lstr-l-cv] :refer-macros [tr-h 
+                                                                                     tr-l 
+                                                                                     tr-l-cv 
+                                                                                     tr-entry-field-name-cv] ]
             [reagent.core :as r]))
 
 (defn end-icons [key value protected visibile? edit]
@@ -103,7 +106,8 @@
                  :error  (not (nil? error-text))
                  :helperText (cond
                                (and (nil? error-text) (not (nil? password-score)))
-                               (:score-text password-score)
+                               (-> password-score :name lstr-l-cv)
+                               #_(:score-text password-score)
 
                                (nil? error-text)
                                helper-text
@@ -268,7 +272,7 @@
   [{:keys [key value on-change-handler]
     :or [on-change-handler #()]}]
   [mui-localization-provider {:dateAdapter m/adapter-date-fns}
-   [mui-date-time-picker {:label key
+   [mui-date-time-picker {:label (tr-l-cv key) 
                           ;; value should be of Date type (type value) => #object[Date]
                           ;; and it is in UTC. The view side shown in local time 
                           :value value

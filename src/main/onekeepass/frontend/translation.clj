@@ -56,8 +56,8 @@
 (defmacro to-vals 
   "Extracts values found in the symbols passed as keys in the caller space"
   [& keys]
-  (list 'map '(fn [x] (camel-snake-kebab.core/->camelCase x)) (vec keys)
-        #_(list reverse (-> keys vec (conj "labels")))))
+  (list 'map '(fn [x] (camel-snake-kebab.core/->camelCase 
+                       (if (string? x) x ""))) (vec keys)))
 
 (defmacro tr-l-cv 
   "Uses values found in the symbols passed as keys and adds the prefix before calling lstr"
@@ -80,10 +80,49 @@
      (onekeepass.frontend.translation/lstr (str/join "." (conj v# "entry.fields")))))
 
 (defmacro tr-entry-section-name-cv
-  "Uses values found in the symbols passed as keys and adds the prefix before calling lstr"
+  "Uses values found in the symbols or string values passed as keys and adds the prefix before calling lstr"
   [& keys]
   `(let [v# (to-vals ~@keys)]
      (onekeepass.frontend.translation/lstr (str/join "." (conj v# "entry.sections")))))
+
+(comment
+
+  (macroexpand-1 '(tr-l Browse))
+  ;;  =>  (onekeepass.frontend.okp-macros/tr-with-prefix "labels" Browse)
+  
+  (macroexpand-1 '(tr-with-prefix labels name db))
+  ;;  =>  (onekeepass.frontend.translation/lstr "labels.name.db")
+  
+  (macroexpand '(tr getStarted))
+  ;;  =>  (onekeepass.frontend.translation/lstr "getStarted")
+  
+  (macroexpand '(tr-l name db))
+  ;;  =>  (onekeepass.frontend.translation/lstr "labels.name.db")
+  
+  (macroexpand '(tr-t unlockDatabase))
+  ;;  =>  (onekeepass.frontend.translation/lstr "titles.unlockDatabase")
+  
+  ;; firstName secondName should have some string values in the calling site
+  (macroexpand-1 '(to-vals firstName secondName))
+  ;;  =>  (map (fn [x] (camel-snake-kebab.core/->camelCase (if (string? x) x ""))) [firstName secondName])
+  
+  (macroexpand-1 '(tr-l-cv firstName secondName))
+  ;;  =>   (clojure.core/let [v__31370__auto__ (onekeepass.frontend.translation/to-vals firstName secondName)]
+  ;;          (onekeepass.frontend.translation/lstr (clojure.string/join "." (clojure.core/conj v__31370__auto__ "labels"))))
+  
+
+  ;; Here is an example where we can pass string instead of symbol as 
+  ;; compared to (macroexpand-1 '(tr-l-cv firstName secondName))
+  (macroexpand-1 '(tr-entry-section-name-cv "Attachments"))
+  ;; (clojure.core/let [v__31808__auto__ (onekeepass.frontend.translation/to-vals "Attachments")] 
+  ;;   (onekeepass.frontend.translation/lstr (clojure.string/join "." (clojure.core/conj v__31808__auto__ "entry.sections"))))
+  
+  (macroexpand-1 '(to-vals "Attachments"))
+  ;; => (map (fn [x] (camel-snake-kebab.core/->camelCase (if (string? x) x ""))) ["Attachments"])
+  
+  ;; (lstr "entry.sections.attachments")
+  )
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -94,7 +133,7 @@
 ;; Finally the workable solution is using the macro 'to-vals' instead of using a fn to get values
 ;; from symbols. This is achieved by creating anonymous function and use it in another macro
 
-(defn to-cc 
+#_(defn to-cc 
   [& keys]
   ;;keys
   (map (fn [v] (csk/->camelCase v)) keys))
@@ -102,7 +141,7 @@
 ;; Calling site needs define something similar 'to-cc' and pass that to this macro
 ;; ~to-cc used to evalute the arg 'to-cc' to a fn
 ;; Need to use gensym based v1 and v2 to be clear from any conflicts with variables in the calling site
-(defmacro tr-l-cv1 [to-cc & keys]
+#_(defmacro tr-l-cv1 [to-cc & keys]
   (let [v1 (gensym)
         v2 (gensym)]
     `(let [~v1  (~to-cc ~@keys)
@@ -111,50 +150,30 @@
        ~v2
        #_(str/join "." (conj  ~v1 "labels")))))
 
-(defmacro tr-l-cv2 [to-cc & keys]
+#_(defmacro tr-l-cv2 [to-cc & keys]
   `(let [v1#  (~to-cc ~@keys)
          v2# (str/join "." (conj  v1# "labels"))]
          ;;(onekeepass.frontend.translation/lstr ~v2)
      v2#
      #_(str/join "." (conj  ~v1 "labels"))))
 
-(defmacro mac1 [& keys ]
+#_(defmacro mac1 [& keys ]
   (list str/join "." (list 'map (fn [x] (csk/->camelCase x)) 
                            (list reverse (-> keys vec (conj "labels"))))))
 
-
-(defmacro mac2 [& keys]
+#_(defmacro mac2 [& keys]
   (list 'map (fn [x] (csk/->camelCase x))
         (list reverse (-> keys vec (conj "labels"))))
   )
 
-(defmacro mac4 [& keys]
+#_(defmacro mac4 [& keys]
   (list 'map (fn [x] (csk/->camelCase x)) (vec keys)
         #_(list reverse (-> keys vec (conj "labels")))))
 
-(defmacro mac3 [& keys]
+#_(defmacro mac3 [& keys]
   `(let [v# (mac4 ~@keys)]
      (str/join "." (conj v# "labels"))
      #_(onekeepass.frontend.translation/lstr v#)))
-
-(comment
-
-  (macroexpand-1 '(tr-l Browse))
-  ;;  =>  (onekeepass.frontend.okp-macros/tr-with-prefix "labels" Browse)
-
-  (macroexpand-1 '(tr-with-prefix labels name db))
-  ;;  =>  (onekeepass.frontend.translation/lstr "labels.name.db")
-
-  (macroexpand '(tr getStarted))
-  ;;  =>  (onekeepass.frontend.translation/lstr "getStarted")
-
-  (macroexpand '(tr-l name db))
-  ;;  =>  (onekeepass.frontend.translation/lstr "labels.name.db")
-
-  (macroexpand '(tr-t unlockDatabase))
-  ;;  =>  (onekeepass.frontend.translation/lstr "titles.unlockDatabase")
-  )
-
 
 #_(defmacro tr-l-cv [& keys]
     (let [v1 (gensym)
@@ -175,7 +194,6 @@
              ~v2 (str/join "." (conj  ~v1 "labels"))]
          ~v2
          #_(str/join "." (conj  ~v1 "labels")))))
-
 
 #_(defmacro tr-l-ck
   "Converts each key to a camelCase word before forming combined key and Adds prefix 'labels'"

@@ -122,6 +122,45 @@
                                 
                                 
                                 
+                                restore
+                                delete
+                                deleteAttachment
+                                entryDeletePermanent
+                                protected
+                                noEntrySelected
+                                backToEntry
+                                foundHistoryEntries
+                                deleteAll
+                                previousVersions
+                                deleteAllHistories
+                                deleteHistory
+                                restoreEntry
+                                create
+                                newEntrType
+                                entryTypeName
+                                entryType
+                                deleteSectionAndField
+                                deleteField
+                                fieldName
+                                customDate
+                                noExpiry
+                                expiryDate
+                                expiryDuration
+                                above8
+                                length0
+                                oneKindCharaterRequired
+                                veryDangerous
+                                dangerous
+                                copyClose
+                                copiedToClipboard
+                                success
+                                password
+                                symbols
+                                numbers
+                                lowerCaseAZ
+                                upperCaseAZ
+                                length
+                                passwordGenerator
                                 passwordIsChanged
                                 passwordWillBeChanged
                                 databaseSettingsChange
