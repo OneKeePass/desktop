@@ -1,48 +1,48 @@
 (ns onekeepass.frontend.tool-bar
-  (:require
-   [onekeepass.frontend.events.common :as cmn-events]
-   [onekeepass.frontend.events.tool-bar :as tb-events]
-   [onekeepass.frontend.events.open-db-form :as od-events]
-   [onekeepass.frontend.events.search :as srch-event]
-   [onekeepass.frontend.events.db-settings :as settings-events]
-   [onekeepass.frontend.events.password-generator :as gen-events]
-   [onekeepass.frontend.constants :as const :refer [DB_CHANGED]]
-   [onekeepass.frontend.events.tauri-events :as tauri-events]
-   [onekeepass.frontend.events.auto-type :as at-events]
-   [onekeepass.frontend.auto-type :as at-form]
-   
-   [onekeepass.frontend.db-settings :as settings-form]
-   [onekeepass.frontend.search :as search]
-   [onekeepass.frontend.open-db-form :as od-form]
-   [onekeepass.frontend.new-database :as nd-form]
-   [onekeepass.frontend.common-components :refer [message-dialog
-                                                  progress-message-dialog
-                                                  error-info-dialog
-                                                  confirm-text-dialog]]
-   [onekeepass.frontend.password-generator :as gen-form]
-   [onekeepass.frontend.mui-components :as m :refer [color-primary-main
-                                                     mui-dialog
-                                                     mui-dialog-title
-                                                     mui-dialog-content
-                                                     mui-dialog-actions
-                                                     mui-divider
-                                                     mui-linear-progress
-                                                     mui-button
-                                                     mui-alert
-                                                     mui-stack
-                                                     mui-box
-                                                     mui-icon-button
-                                                     mui-app-bar
-                                                     mui-toolbar mui-tooltip
-                                                     mui-icon-cancel-presentation
-                                                     mui-icon-lock-open-outlined
-                                                     mui-icon-lock-outlined
-                                                     mui-icon-folder
-                                                     mui-icon-save
-                                                     mui-icon-save-as
-                                                     mui-icon-search
-                                                     mui-icon-settings-outlined
-                                                     mui-typography]]))
+  (:require [onekeepass.frontend.auto-type :as at-form]
+            [onekeepass.frontend.common-components :refer [confirm-text-dialog
+                                                           error-info-dialog
+                                                           message-dialog
+                                                           progress-message-dialog]]
+            [onekeepass.frontend.constants :as const :refer [DB_CHANGED]]
+            [onekeepass.frontend.db-settings :as settings-form]
+            [onekeepass.frontend.events.auto-type :as at-events]
+            [onekeepass.frontend.events.common :as cmn-events]
+            [onekeepass.frontend.events.db-settings :as settings-events]
+            [onekeepass.frontend.events.open-db-form :as od-events]
+            [onekeepass.frontend.events.password-generator :as gen-events]
+            [onekeepass.frontend.events.search :as srch-event]
+            [onekeepass.frontend.events.tauri-events :as tauri-events]
+            [onekeepass.frontend.events.tool-bar :as tb-events]
+            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
+                                                              mui-alert
+                                                              mui-app-bar
+                                                              mui-box
+                                                              mui-button
+                                                              mui-dialog
+                                                              mui-dialog-actions
+                                                              mui-dialog-content
+                                                              mui-dialog-title
+                                                              mui-divider
+                                                              mui-icon-button
+                                                              mui-icon-cancel-presentation
+                                                              mui-icon-folder
+                                                              mui-icon-lock-open-outlined
+                                                              mui-icon-lock-outlined
+                                                              mui-icon-save
+                                                              mui-icon-save-as
+                                                              mui-icon-search
+                                                              mui-icon-settings-outlined
+                                                              mui-linear-progress
+                                                              mui-stack
+                                                              mui-toolbar
+                                                              mui-tooltip
+                                                              mui-typography 
+                                                              theme-color]]
+            [onekeepass.frontend.new-database :as nd-form]
+            [onekeepass.frontend.open-db-form :as od-form]
+            [onekeepass.frontend.password-generator :as gen-form]
+            [onekeepass.frontend.search :as search]))
 
 (set! *warn-on-infer* true)
 
@@ -102,7 +102,7 @@
      #_[mui-typography {:sx  {} #_{"&.MuiTypography-root" {:color "secondary"}}
                         :color "secondary" :variant  "button"} "Save as"]]
     [mui-stack
-     [mui-typography {:sx {"&.MuiTypography-root" {:color color-primary-main}}}
+     [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
       "You can save your changes to a new database and manually merge (auto merge feature will be added in the  future release)"]]
 
     [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
@@ -113,7 +113,7 @@
                    :on-click tb-events/confirm-overwrite-external-db} "Overwrite"]
       #_[mui-typography {:sx {}
                          :color "error" :variant  "button"} "Overwrite"]]
-     [mui-typography {:sx {"&.MuiTypography-root" {:color color-primary-main}}}
+     [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
       "You can overwrite the database with your changes"]]
 
     [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
@@ -127,7 +127,7 @@
                               {:margin-left "5px"}}
                          :color "error" :variant  "button"} "Discard & Close database"]]
 
-     [mui-typography {:sx {"&.MuiTypography-root" {:color color-primary-main}}}
+     [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
       "You can discard your changes and close the database "]]
     [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]]
 

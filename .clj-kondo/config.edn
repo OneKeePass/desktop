@@ -121,7 +121,8 @@
                                 
                                 
                                 
-                                
+                                groupOrCategory
+                                entryTypeFields
                                 restore
                                 delete
                                 deleteAttachment

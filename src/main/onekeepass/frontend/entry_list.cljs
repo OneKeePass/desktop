@@ -1,32 +1,32 @@
 (ns onekeepass.frontend.entry-list
-  (:require
-   [reagent.core :as r]
-   [onekeepass.frontend.translation :refer-macros [tr-bl tr-ml]]
-   [onekeepass.frontend.constants :as const :refer [TITLE
-                                                    MODIFIED_TIME
-                                                    CREATED_TIME
-                                                    ASCENDING
-                                                    UUID_OF_ENTRY_TYPE_LOGIN]]
-   [onekeepass.frontend.events.entry-list :as el-events]
-   [onekeepass.frontend.events.group-tree-content :as gt-events]
-   [onekeepass.frontend.events.tauri-events :as tauri-events]
-   [onekeepass.frontend.entry-form-ex :as entry-form-ex]
-   [onekeepass.frontend.common-components :refer [list-items-factory menu-action]]
-   [onekeepass.frontend.db-icons :refer [entry-icon]]
-   [onekeepass.frontend.mui-components :as m :refer [mui-icon-arrow-drop-up-outlined
-                                                     mui-icon-arrow-drop-down-outlined
-
-                                                     mui-icon-keyboard-arrow-down-outlined
-
-                                                     mui-menu
-                                                     mui-menu-item
-                                                     mui-icon-button
-                                                     mui-button
-                                                     mui-stack
-                                                     mui-avatar
-                                                     mui-list-item
-                                                     mui-list-item-text
-                                                     mui-list-item-avatar]]))
+  (:require [onekeepass.frontend.common-components :refer [list-items-factory
+                                                           menu-action]]
+            [onekeepass.frontend.constants :as const :refer [ASCENDING
+                                                             CREATED_TIME
+                                                             MODIFIED_TIME
+                                                             TITLE
+                                                             UUID_OF_ENTRY_TYPE_LOGIN]]
+            [onekeepass.frontend.db-icons :refer [entry-icon]]
+            [onekeepass.frontend.entry-form-ex :as entry-form-ex]
+            [onekeepass.frontend.events.entry-list :as el-events]
+            [onekeepass.frontend.events.group-tree-content :as gt-events]
+            [onekeepass.frontend.events.tauri-events :as tauri-events]
+            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom 
+                                                              mui-avatar
+                                                              mui-button
+                                                              mui-icon-arrow-drop-down-outlined
+                                                              mui-icon-arrow-drop-up-outlined
+                                                              mui-icon-button
+                                                              mui-icon-keyboard-arrow-down-outlined
+                                                              mui-list-item
+                                                              mui-list-item-avatar
+                                                              mui-list-item-text
+                                                              mui-menu
+                                                              mui-menu-item
+                                                              mui-stack
+                                                              theme-color]]
+            [onekeepass.frontend.translation :refer-macros [tr-bl tr-ml]]
+            [reagent.core :as r]))
 (set! *warn-on-infer* true)
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Menu ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -57,7 +57,7 @@
      [mui-icon-button {:sx {:ml "5px"}
                        :edge "start"
                        :on-click (fn [^js/Event e] (reset! anchor-el (-> e .-currentTarget)))
-                       :style {:color "#000000"}} [mui-icon-keyboard-arrow-down-outlined]]
+                       :style {}} [mui-icon-keyboard-arrow-down-outlined]]
      [entries-sort-menu-items anchor-el]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -140,9 +140,10 @@
       (when entries-found?
         [mui-stack {;; box-shadow css found in https://mui.com/material-ui/react-stack/ example component
                     ;; and copied here
-                    :sx {:box-shadow "rgba(0, 0, 0, 0.2) 0px 2px 1px -1px, rgba(0, 0, 0, 0.14) 0px 1px 1px 0px, rgba(0, 0, 0, 0.12) 0px 1px 3px 0px"}
+                    :sx {:bgcolor (theme-color @custom-theme-atom :header-footer) ;;"text.disabled"
+                         :box-shadow "rgba(0, 0, 0, 0.2) 0px 2px 1px -1px, rgba(0, 0, 0, 0.14) 0px 1px 1px 0px, rgba(0, 0, 0, 0.12) 0px 1px 3px 0px"}
                     :style {:alignItems "center"
-                            :background "var(--mui-color-grey-200)"
+                            ;;:background "primary.main" #_"var(--mui-color-grey-200)"
                             :margin-bottom 10
                             :margin-right 0
                             :margin-left 0}}
@@ -162,7 +163,7 @@
      [:div {:class "gcontent" :style {:margin-bottom 2 :height "200px"}}
       [entry-items]]
      [:div {:class "gfooter" :style {:margin-top 5
-                                     :background "var(--mui-color-grey-200)"}}
+                                     :background (theme-color @custom-theme-atom :header-footer)}}
       [mui-stack {:style {:alignItems "center"
                           ;; need this to align this footer with entry form footer
                           :max-height "46px"}}

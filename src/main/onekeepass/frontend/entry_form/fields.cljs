@@ -1,6 +1,7 @@
 (ns onekeepass.frontend.entry-form.fields
   (:require [clojure.string :as str]
-            [onekeepass.frontend.common-components :as cc]
+            [onekeepass.frontend.common-components :as cc :refer [theme-text-field-edit-sx
+                                                                  theme-text-field-read-sx]]
             [onekeepass.frontend.constants :as const :refer [OTP PASSWORD]]
             [onekeepass.frontend.entry-form.common :as ef-cmn]
             [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
@@ -22,10 +23,10 @@
                                                               mui-text-field
                                                               mui-tooltip
                                                               mui-typography]]
-            [onekeepass.frontend.translation :as t :refer [lstr-l-cv] :refer-macros [tr-h 
-                                                                                     tr-l 
-                                                                                     tr-l-cv 
-                                                                                     tr-entry-field-name-cv] ]
+            [onekeepass.frontend.translation :as t :refer [lstr-l-cv] :refer-macros [tr-h
+                                                                                     tr-l
+                                                                                     tr-l-cv
+                                                                                     tr-entry-field-name-cv]]
             [reagent.core :as r]))
 
 (defn end-icons [key value protected visibile? edit]
@@ -61,8 +62,9 @@
   ;; The examples given in mui.com uses now this method
   ;; [mui-form-control [mui-input-label] [mui-select {} [mui-menu-item]] [mui-form-helper-text]  ]
   [mui-text-field {:id key
+                   :sx {:margin-top cc/entry-cnt-field-margin-top}
                    :required false
-                   :classes {:root "entry-cnt-field"}
+                   ;;:classes {:root "entry-cnt-field"}
                    :select true
                    :label (tr-entry-field-name-cv key)
                    :value value
@@ -96,11 +98,12 @@
                         on-change-handler #(println (str "No on change handler yet registered for " key))
                         required false}}]
 
-  [m/text-field {:sx   (merge {} (cc/password-helper-text-sx (:name password-score)))
+  ;;:margin-top "16px" here is equivalent to the one used by "entry-cnt-field"
+  [m/text-field {:sx   (merge {:margin-top "16px"} (cc/password-helper-text-sx (:name password-score)))
                  :fullWidth true
                  :label (if standard-field (tr-entry-field-name-cv key) key)
                  :variant "standard"
-                 :classes {:root "entry-cnt-field"}
+                 ;;:classes {:root "entry-cnt-field"}
                  :value value
                  :placeholder placeholder
                  :error  (not (nil? error-text))
@@ -120,9 +123,7 @@
                  :disabled disabled
                  :InputLabelProps {}
                  :InputProps {:id key
-                              :classes {:root (if edit "entry-cnt-text-field-edit" "entry-cnt-text-field-read")
-                                        :focused  (if edit "entry-cnt-text-field-edit-focused" "entry-cnt-text-field-read-focused")}
-                                 ;;:sx (if editing {} read-sx1)
+                              :sx (if edit (theme-text-field-edit-sx @m/theme-mode) (theme-text-field-read-sx @m/theme-mode)) 
                               :endAdornment (if no-end-icons nil
                                                 (r/as-element
                                                  [mui-input-adornment {:position "end"}
@@ -133,18 +134,25 @@
                          ;;It seems adding these 'InputProps' also works
                          ;;We need to use 'readOnly' and not 'readonly'
                  :inputProps  {:readOnly (not edit)
-
+                               ;;:sx (if edit sx2 sx1)
                                    ;;:readonly "readonly"
                                }}])
 
-(def otp-txt-input-sx {"& .MuiInputBase-input" {:color "green"
-                                                :font-size "1.75em"
-                                                :font-weight "300"  ;; To make it bold
-                                                }})
+;; Both works
+;;"& .MuiInputBase-input" 
+;; "& .MuiInput-input"
+(def otp-txt-input-sx 
+  {
+   "& .MuiInputBase-input"  
+   {:color "green"
+    :font-size "1.75em"
+    :font-weight "300"  ;; To make it bold
+    }
+   :margin-top cc/entry-cnt-field-margin-top})
 
 (defn otp-progress-circle [period ttl-time]
   [mui-box {:position "relative" :display "inline-flex"}
-   [mui-circular-progress {:variant "determinate" 
+   [mui-circular-progress {:variant "determinate"
                            :size 45 ;; default 40
                            :value (js/Math.round (* -100 (/ ttl-time period)))}]
    [mui-box {:sx {:top 0 :left 0 :bottom 0 :right 0
@@ -171,14 +179,14 @@
         spaced (str/join " " parts)]
     spaced))
 
-(defn otp-read-field 
+(defn otp-read-field
   "This is called only during read time and edit flag is false"
   [_kv]
-  (fn [{:keys [key 
-               visible 
+  (fn [{:keys [key
+               visible
                error-text
                no-end-icons]
-        :or {visible true 
+        :or {visible true
              no-end-icons false}}]
 
     (let [;; ensure that edit is always false
@@ -192,17 +200,16 @@
                         :fullWidth true
                         :label (if (= OTP key) (tr-l "oneTimePasswordTotp") key)
                         :variant "standard"
-                        :classes {:root "entry-cnt-field"}
+                        ;;:classes {:root "entry-cnt-field"}
                         :value (formatted-token token)
                         ;; Is there any use of suing 'error-text' with otp field ? 
                         :error  (or (not (nil? error-text)) (not valid-token-found))
                         :helperText (if-not valid-token-found (tr-h "invalidOtpUrl") error-text)
                         :required false
                         ;; setting props in this is not working
-                        :InputLabelProps {} 
+                        :InputLabelProps {}
                         :InputProps {:id key
-                                     :classes {:root "entry-cnt-text-field-read"
-                                               :focused "entry-cnt-text-field-read-focused"} 
+                                     :sx (if edit (theme-text-field-edit-sx @m/theme-mode) (theme-text-field-read-sx @m/theme-mode)) 
                                      :endAdornment (if (or (not valid-token-found) no-end-icons) nil
                                                        (r/as-element
                                                         [mui-input-adornment {:position "end"}
@@ -212,10 +219,10 @@
                         :inputProps  {:readOnly true}}]
 
        (when valid-token-found
-         [mui-stack {:sx {:width "10%" 
+         [mui-stack {:sx {:width "10%"
                           ;; This margin aligns progress circle to field's top margin
                           :margin-top "16px"
-                          :align-items "center" 
+                          :align-items "center"
                           :justify-content "center"}}
           [otp-progress-circle period ttl]])])))
 
@@ -272,7 +279,7 @@
   [{:keys [key value on-change-handler]
     :or [on-change-handler #()]}]
   [mui-localization-provider {:dateAdapter m/adapter-date-fns}
-   [mui-date-time-picker {:label (tr-l-cv key) 
+   [mui-date-time-picker {:label (tr-l-cv key)
                           ;; value should be of Date type (type value) => #object[Date]
                           ;; and it is in UTC. The view side shown in local time 
                           :value value
@@ -284,18 +291,19 @@
 (defn text-area-field [{:keys [key value edit on-change-handler]
                         :or {edit false
                              on-change-handler #()}}]
-  [m/text-field {:classes {:root "entry-cnt-field"}
+  [m/text-field {;;:classes {:root "entry-cnt-field"}
+                 :sx {:margin-top "4px"}
                  :fullWidth true
-                 :id key :label "";;name
+                 :id key
+                 :label "";;name
                  :variant "standard"
                  :value value
                  :onChange on-change-handler
                  :multiline true
                  :rows 4
-                    ;;minRows and maxRows should not be used with the fixed 'm/text-field'
-                    ;;:minRows 3 
-                    ;;:maxRows 10
-                    ;;:classes {:root "entry-cnt-notes-field"}
+                 ;;minRows and maxRows should not be used with the fixed 'm/text-field'
+                 ;;:minRows 3 
+                 ;;:maxRows 10 
                  :InputLabelProps {:shrink true}
                  :InputProps {:id key
                                   ;; This did not fix the cursor jumping

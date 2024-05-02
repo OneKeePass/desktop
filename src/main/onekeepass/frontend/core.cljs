@@ -1,34 +1,30 @@
 (ns  onekeepass.frontend.core  ;;ns ^:figwheel-always onekeepass.frontend.core 
-  (:require
-   [reagent.dom :as rdom]
-   ;;Events 
-   [onekeepass.frontend.events.tauri-events :as tauri-events]
-   [onekeepass.frontend.events.common :as cmn-events]
-   
-   ;;App UI components   
-   [onekeepass.frontend.common-components :as cc]
-   [onekeepass.frontend.entry-form-ex :as eform-ex]
-   [onekeepass.frontend.entry-list :as el]
-   [onekeepass.frontend.entry-category :as ec]
-   [onekeepass.frontend.start-page :as sp]
-   [onekeepass.frontend.tool-bar :as tool-bar]
-   
-   [onekeepass.frontend.translation :as tr]
-
-   [onekeepass.frontend.mui-components :as m :refer [split-pane
-                                                     custom-theme-atom
-                                                     mui-icon-fingerprint
-                                                     mui-stack
-                                                     mui-box
-                                                     mui-tabs
-                                                     mui-tab
-                                                     mui-typography
-                                                     mui-button
-                                                     mui-icon-button
-                                                     mui-css-baseline
-                                                     mui-styled-engine-provider
-                                                     mui-theme-provider]]
-   [onekeepass.frontend.constants :as const]))
+  (:require [onekeepass.frontend.common-components :as cc]
+            [onekeepass.frontend.constants :as const]
+            [onekeepass.frontend.entry-category :as ec]
+            [onekeepass.frontend.entry-form-ex :as eform-ex]
+            [onekeepass.frontend.entry-list :as el]
+            [onekeepass.frontend.events.common :as cmn-events] ;;App UI components   
+            [onekeepass.frontend.events.tauri-events :as tauri-events]
+            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
+                                                              is-light-theme?
+                                                              mui-box
+                                                              mui-button
+                                                              mui-css-baseline
+                                                              mui-icon-button
+                                                              mui-icon-fingerprint
+                                                              mui-stack
+                                                              mui-styled-engine-provider
+                                                              mui-tab mui-tabs
+                                                              mui-theme-provider
+                                                              mui-typography
+                                                              split-pane
+                                                              theme-color]]
+            [onekeepass.frontend.start-page :as sp]
+            [onekeepass.frontend.tool-bar :as tool-bar]
+            [onekeepass.frontend.translation :as tr]
+            [reagent.dom :as rdom] ;;Events 
+            ))
 
 ;;(set! *warn-on-infer* true)
 
@@ -38,6 +34,7 @@
                :minSize "200"
                :maxSize "275"
                :primary "first"
+               :resizerClassName  (if (is-light-theme?) "Resizer1 vertical" "Resizer2 vertical")
                :style {:position "relative"}} ;;:background "var(--light)"
    ;; Pane1
    [el/entry-list-content]
@@ -53,8 +50,24 @@
                :maxSize "260"
                :primary "first"
                :style {:position "relative"}
+               :pane1Style {:background (theme-color @custom-theme-atom :bg-default) #_@m/background-default-color #_"rgba(241, 241, 241, 0.33)"}
+               :resizerClassName (if (is-light-theme?) "Resizer1 vertical" "Resizer2 vertical")
+
+              ;; :resizerStyle (if (is-light-theme?) {} {:opacity .5} )
+
+              ;;  :resizerStyle {:background "darkslategrey" 
+              ;;                 :width "11px"
+              ;;                 :margin "0 -5px"
+              ;;                 :border-left "5px solid rgba(255, 255, 255, 0)"
+              ;;                 :border-right "5px solid rgba(255, 255, 255, 0)" 
+              ;;                 :hover {:border-left "5px solid rgba(0, 0, 0, 0.5)"
+              ;;                         :border-right "5px solid rgba(0, 0, 0, 0.5)"
+              ;;                         ;;:background "yellow"
+              ;;                         }
+              ;;                 }
+
                ;;:pane2Style {:max-width "25%"}
-               :pane1Style {:background "rgba(241, 241, 241, 0.33)"}}
+               }
    ;; Pane1
    [ec/entry-category-content]
    ;; Pane2
@@ -139,7 +152,9 @@
 
        ;; A Gap between tab header and content
        [:div {:style {:height "2px"
-                      :border-bottom "1px solid rgb(241, 241, 241)"
+                      :border-bottom-width "1px"
+                      :border-bottom-style "solid"
+                      :border-bottom-color (theme-color @custom-theme-atom :color1)
                       :margin-bottom "2px"}}]
        (cond
          (= content-to-show :group-entry)
@@ -195,8 +210,22 @@
    ;; See 'Style Library Interoperability' in https://material-ui.com/guides/interoperability/
    [mui-styled-engine-provider {:injectFirst true}
     [mui-theme-provider {:theme @custom-theme-atom} ;;Showing custom theme 
+     (println "---- Using custom theme mode " (-> @custom-theme-atom .-palette .-mode))
      [mui-css-baseline
       [:f> root-content]]]]])
+
+(defn main-app2 []
+  (fn [theme-mode]
+    (let [theme (m/create-custom-theme theme-mode)]
+      #_(println "Mod of theme " (-> theme .-palette .-mode))
+      [mui-styled-engine-provider {:injectFirst true}
+       [mui-theme-provider {:theme theme} ;;Showing custom theme 
+        #_(println "---- Called in func comp Using custom theme mode " (-> theme .-palette .-mode))
+        [mui-css-baseline
+         [:f> root-content]]]])))
+
+(defn main-app1 []
+  [:f> main-app2 @m/theme-mode])
 
 (defn ^:export init
   "Render the created components to the element that has an id 'app' in index.html"
@@ -206,9 +235,8 @@
   (cmn-events/sync-initialize)
   (tauri-events/register-tauri-events)
   (cmn-events/init-session-timeout-tick)
-  
-  
-  (rdom/render [main-app]
+
+  (rdom/render [main-app1]
                (.getElementById  ^js/Window js/document "app")))
 
 ;;Renders on load
@@ -219,6 +247,18 @@
 ;; this only gets called once
 ;;(defonce start-up (do (init) true))
 
+
+;; (defn main-app2 []
+;;   (fn [name]
+;;     (println "...Passed " name)
+;;     [mui-styled-engine-provider {:injectFirst true}
+;;      [mui-theme-provider {:theme @custom-theme-atom} ;;Showing custom theme 
+;;       (println "---- Called in func comp Using custom theme mode " (-> @custom-theme-atom .-palette .-mode))
+;;       [mui-css-baseline
+;;        [:f> root-content]]]]))
+
+;; (defn main-app1 []
+;;   [:f> main-app2 @m/Test1])
 
 
 

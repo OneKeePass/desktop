@@ -142,8 +142,7 @@
                                      (reset! anchor-el (-> ^js/Event e .-currentTarget))
                                      ;; prevents tree collapsing
                                      (.stopPropagation ^js/Event e))
-                         :style {:color "#000000"
-                                 :padding 0
+                         :style {:padding 0
                                  :margin-left 15}} [mui-icon-more-vert]]
        [tree-item-recycle-sub-group-menu-items anchor-el g-uuid]])))
 
@@ -163,8 +162,7 @@
                        :on-click (fn [e]
                                    (reset! anchor-el (-> ^js/Event e .-currentTarget))
                                    (.stopPropagation ^js/Event e))
-                       :style {:color "#000000"
-                               :padding 0
+                       :style {:padding 0
                                :margin-left 15}} [mui-icon-more-vert]]
      [tree-item-recycle-bin-menu-items anchor-el]]))
 
@@ -200,8 +198,7 @@
                                        (reset! anchor-el (-> ^js/Event e .-currentTarget))
                                        ;;prevent tree collapsing
                                        (.stopPropagation ^js/Event e))
-                           :style {:color "#000000"
-                                   :padding 0
+                           :style {:padding 0
                                    :margin-left 15}} [mui-icon-more-vert]]
          (cond
            (and @group-in-recycle-bin? (not @recycle-bin?))

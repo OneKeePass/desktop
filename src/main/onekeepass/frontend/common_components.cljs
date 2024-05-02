@@ -1,34 +1,73 @@
 (ns onekeepass.frontend.common-components
-  (:require
-   [reagent.core :as r]
-   [clojure.string :as str]
-   [onekeepass.frontend.events.common :as cmn-events]
-   [onekeepass.frontend.background :as bg]
-   [onekeepass.frontend.constants :refer [ADD_TAG_PREFIX]]
-   [onekeepass.frontend.utils :refer [contains-val?]]
-   [onekeepass.frontend.mui-components :as m :refer [react-use-state
-                                                     auto-sizer
-                                                     fixed-size-list
-                                                     mui-tooltip
-                                                     mui-typography
-                                                     mui-icon-button
-                                                     mui-icon-close-outlined
-                                                     mui-autocomplete
-                                                     mui-text-field-type ;;to use with create-element
-                                                     mui-icon-file-copy-outlined
-                                                     mui-stack
-                                                     mui-snackbar
-                                                     mui-box
-                                                     mui-alert
-                                                     mui-button
-                                                     mui-linear-progress
-                                                     mui-dialog
-                                                     mui-dialog-title
-                                                     mui-dialog-content
-                                                     mui-dialog-actions
-                                                     mui-dialog-content-text]]))
+  (:require [clojure.string :as str]
+            [onekeepass.frontend.background :as bg]
+            [onekeepass.frontend.constants :refer [ADD_TAG_PREFIX]]
+            [onekeepass.frontend.events.common :as cmn-events]
+            [onekeepass.frontend.mui-components :as m :refer [auto-sizer
+                                                              fixed-size-list
+                                                              is-light-theme?
+                                                              mui-alert
+                                                              mui-autocomplete
+                                                              mui-box
+                                                              mui-button
+                                                              mui-dialog
+                                                              mui-dialog-actions
+                                                              mui-dialog-content
+                                                              mui-dialog-content-text
+                                                              mui-dialog-title
+                                                              mui-icon-button
+                                                              mui-icon-close-outlined
+                                                              mui-icon-file-copy-outlined
+                                                              mui-linear-progress
+                                                              mui-snackbar
+                                                              mui-stack
+                                                              mui-text-field-type
+                                                              mui-tooltip
+                                                              mui-typography
+                                                              react-use-state]]
+            [onekeepass.frontend.utils :refer [contains-val?]]
+            [reagent.core :as r]))
 
 #_(set! *warn-on-infer* true)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;; Styles ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def entry-cnt-field-margin-top "16px") ;; twice --mui-theme-spacing-1 
+
+;; "&.MuiInput-root" works; "& .MuiInput-root" did not work 
+;; However few other cases like "& .MuiInputBase-input", we need to use with space after &
+;; Why? 
+;; We should not have space when the sx is meant for the immediate slot and we need a space when we meant sx for 
+;; children ? 
+
+(defn theme-text-field-read-sx [theme-mode]
+  {"&.MuiInput-root"
+   {:border 0
+    :border-bottom  (if (is-light-theme?)
+                      "1px solid #eeeeee" (str "1px solid " "rgba(255, 255, 255, 0.3)"))
+                                    ;;  :border-bottom-color "#eeeeee"
+                                    ;;  :border-bottom-style "solid"
+                                    ;;  :border-bottom-width "1px"
+    }
+   
+  ;;  "&.Mui-focused"
+  ;;  {:border "1px solid var(--color-primary-main)"
+  ;;   :border-bottom "1px solid var(--color-primary-main)"}
+   
+   }
+  )
+
+(defn theme-text-field-edit-sx [theme-mode]
+  {"&.MuiInput-root"
+   {:border "1px solid grey"
+    :outline "1px solid transparent"}
+   
+   "&.Mui-focused"
+   {:border "1px solid var(--color-primary-main)"
+    :outline "1px solid var(--color-primary-main)"}
+   
+   }
+  )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Using Autocomplte ;;;;;;;;;;;;;;;;;;;;;;;;;;;;  
 
@@ -46,17 +85,17 @@
   (let [;; value-entered is the value entered in the Tag box  
         ;; instead of selecting any previous Tags from the list
         value-entered (.-inputValue params)
-        
+
         ;; Find any matching value from the options if any 
         ;; and that is returned in a seq if found
         existing (filter #(= % value-entered) options)
-        
+
         ;; When user clicks to the input,
         ;; all values are returned to show in select list
         ;; As we type, all matching values are filtered and returned
         ;; and shown in the select list. 
         filtered (js->clj (filter-fn options params))
-        
+
         final-filtered (if (and (boolean (seq value-entered))
                                 (empty? existing))
                          ;; If the option is one added by user, then we need add the prefix
@@ -65,7 +104,7 @@
                          filtered)]
     (clj->js final-filtered)))
 
-(defn tags-field 
+(defn tags-field
   "Returns a reagent component for the MUI Autocomplete (react component) with multiple 
    values also known as tags
 
@@ -84,7 +123,7 @@
     :ChipProps (when-not editing  {:onDelete nil})
     :disabled (not editing)
     ;;:readOnly (not editing) ;;Not working 
-    
+
     :id "tags-listing"
     :options (if (nil? all-tags) [] all-tags)
 
@@ -99,18 +138,13 @@
     :render-input (fn [^js/Okp.params params]
                        ;; use an atom p in this ns and do (reset! p params)
                        ;; to see props of params in repl
-                    
+
                        ;; Don't call js->clj because that would recursively
                        ;; convert all JS objects (e.g. React ref objects)
                        ;; to Cljs maps, which breaks them
                     (set! (.-variant params) "standard")
                     (set! (.-label params) "Tags")
-                       ;;(println "InputProps is " (.-label params)) results in stackoverflow
-                    
-                       ;;Not working
-                       ;;(set! (.-InputProps params) #js {:classes {:root (if editing "entry-cnt-text-field-edit" "entry-cnt-text-field-read")}})
-                       ;;(set! (.-inputProps  params) {:readOnly (not editing)})
-                    
+                    ;;(println "InputProps is " (.-label params)) results in stackoverflow
                     (r/create-element mui-text-field-type params)) ;;mui/TextField
     }])
 
@@ -507,7 +541,7 @@
     :else
     {}))
 
-(defn menu-action 
+(defn menu-action
   "Returns a fn that is used as on-click handler"
   [anchor-el action & action-args]
   (fn [^js/Event e]

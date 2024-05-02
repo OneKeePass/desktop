@@ -1,6 +1,6 @@
 
-    .Resizer {
-        /* background: rgb(23, 228, 159); */
+
+    /* .Resizer {
         background: darkslategrey;
         opacity: .2;
         z-index: 1;
@@ -48,5 +48,90 @@
     }
     .Resizer.disabled:hover {
       border-color: transparent;
+    } */
+
+
+    /* 
+    The following styles are based on the above one and these are used based on theme mode
+    Mixing resizerStyle and the above default 'Resizer' class did not work well and used
+    the following to take care of resizer color and width for both modes - light and dark
+
+    Only the vertical split spanes are used in the app
+    class Resizer1 is used for "light" mode
+    class Resizer2 is used for "dark" mode 
+    */
+
+    .Resizer1 {
+        /* background: rgb(23, 228, 159); */
+        background: darkslategrey;
+        opacity: .2;
+        z-index: 1;
+        -moz-box-sizing: border-box;
+        -webkit-box-sizing: border-box;
+        box-sizing: border-box;
+        -moz-background-clip: padding;
+        -webkit-background-clip: padding;
+        background-clip: padding-box;
     }
 
+     .Resizer1:hover {
+        -webkit-transition: all 2s ease;
+        transition: all 2s ease;
+    }
+
+    .Resizer1.vertical {
+        width: 11px;
+        margin: 0 -5px;
+        border-left: 5px solid rgba(255, 255, 255, 0);
+        border-right: 5px solid rgba(255, 255, 255, 0);
+        cursor: col-resize;
+    }
+
+    .Resizer1.vertical:hover {
+        border-left: 5px solid rgba(0, 0, 0, 0.5);
+        border-right: 5px solid rgba(0, 0, 0, 0.5);
+    }
+    .Resizer1.disabled {
+      cursor: not-allowed;
+    }
+    .Resizer1.disabled:hover {
+      border-color: transparent;
+    }
+
+
+
+    .Resizer2 {
+        background: ghostwhite;
+        opacity: .2;
+        z-index: 1;
+        -moz-box-sizing: border-box;
+        -webkit-box-sizing: border-box;
+        box-sizing: border-box;
+        -moz-background-clip: padding;
+        -webkit-background-clip: padding;
+        background-clip: padding-box;
+    }
+
+     .Resizer2:hover {
+        -webkit-transition: all 2s ease;
+        transition: all 2s ease;
+    }
+
+    .Resizer2.vertical {
+        width: 11px;
+        margin: 0 -5px;
+        border-left: 5px solid rgba(255, 255, 255, 0);
+        border-right: 5px solid rgba(255, 255, 255, 0);
+        cursor: col-resize;
+    }
+
+    .Resizer2.vertical:hover {
+        border-left: 5px solid rgba(0, 0, 0, 0.5);
+        border-right: 5px solid rgba(0, 0, 0, 0.5);
+    }
+    .Resizer2.disabled {
+      cursor: not-allowed;
+    }
+    .Resizer2.disabled:hover {
+      border-color: transparent;
+    }

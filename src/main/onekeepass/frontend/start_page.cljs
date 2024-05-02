@@ -1,35 +1,35 @@
 (ns ^:figwheel-always onekeepass.frontend.start-page 
-  (:require
-   [reagent.core :as r]
-   [onekeepass.frontend.custom-icons :as cust-icons]
-   [onekeepass.frontend.translation :refer-macros [tr tr-l tr-t]]
-   [onekeepass.frontend.open-db-form :as od-form]
-   [onekeepass.frontend.new-database :as nd-form]
-   [onekeepass.frontend.common-components :refer [message-dialog]]
-
-   [onekeepass.frontend.events.new-database :as nd-events]
-   [onekeepass.frontend.events.open-db-form :as od-events]
-   [onekeepass.frontend.events.common :as cmn-events] 
-   [onekeepass.frontend.mui-components :as m :refer [mui-link
-                                                     mui-typography
-                                                     mui-container
-                                                     mui-icon-button
-                                                     mui-icon-folder-outlined 
-                                                     mui-box
-                                                     mui-divider
-                                                     mui-stack
-                                                     mui-tooltip]]))
+  (:require [onekeepass.frontend.common-components :refer [message-dialog]]
+            [onekeepass.frontend.custom-icons :as cust-icons]
+            [onekeepass.frontend.events.common :as cmn-events]
+            [onekeepass.frontend.events.new-database :as nd-events]
+            [onekeepass.frontend.events.open-db-form :as od-events]
+            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
+                                                              mui-box
+                                                              mui-container
+                                                              mui-divider
+                                                              mui-icon-button
+                                                              mui-icon-folder-outlined
+                                                              mui-link
+                                                              mui-stack
+                                                              mui-tooltip
+                                                              mui-typography
+                                                              theme-color]]
+            [onekeepass.frontend.new-database :as nd-form]
+            [onekeepass.frontend.open-db-form :as od-form]
+            [onekeepass.frontend.translation :refer-macros [tr tr-l tr-t]]
+            [reagent.core :as r]))
 
 (set! *warn-on-infer* true)
 
 (defn main-content []
   [mui-container {:sx {:height "100%"
                        ;;:bgcolor "text.disabled" 
-                       ;;:bgcolor "primary.main"
-                       :bgcolor "var(--mui-color-grey-200)"
+                       :bgcolor "background.default" 
                        :color "primary.main"}} ;;:mt 10
    [mui-stack {:direction "row" :gap 2 :alignItems "center"
-               :divider (r/as-element [mui-divider {:orientation "vertical" :flexItem true}])
+               :divider (r/as-element [mui-divider {:sx {:border-color (theme-color @custom-theme-atom :divider-color1)} 
+                                                    :orientation "vertical" :flexItem true}])
                :sx {:height "100%"}}
     [mui-box {:sx {:display "flex" :width "50%" :height "100%" :flexDirection "column"}}
      [mui-typography {:variant "h6"} (tr-t start)]
@@ -75,9 +75,10 @@
       [mui-typography {:variant "h4" :sx {:color "text.primary"}} "OneKeePass"]]]]])
 
 (defn welcome-content []
-  [:div {:class "box" :style {:overflow "hidden" :background-color "ghostwhite"}} ;; hidden used so to avoid showing scrollbar 
+  [:div {:class "box" :style {:overflow "hidden" :background-color (theme-color @custom-theme-atom :bg-default) #_"ghostwhite"}} ;; hidden used so to avoid showing scrollbar 
    [:div {:class "cust_row header" :style {:text-align "center"}}
-    [mui-stack {:direction "row" :justify-content "center"  :sx {:bgcolor #_(fn [^js/Mui.Theme theme] (-> theme .-status .-danger)) "secondary.main"}}
+    ;; Another way of getting color from theme (fn [^js/Mui.Theme theme] (-> theme .-status .-danger))
+    [mui-stack {:direction "row" :justify-content "center"  :sx {:bgcolor "secondary.main"}}
      [mui-typography {:variant "h5"
                       :sx {:color "secondary.contrastText"}} (tr getStarted)]]]
    [:div {:class "cust_row content" :style {:height "100%"}}

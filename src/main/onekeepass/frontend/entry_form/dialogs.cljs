@@ -3,16 +3,16 @@
              :refer [alert-dialog-factory confirm-text-dialog
                      enter-key-pressed-factory]]
             [onekeepass.frontend.db-icons :as db-icons]
-            [onekeepass.frontend.entry-form.common :as ef-cmn :refer [popper-box-sx
-                                                                      popper-button-sx]]
+            [onekeepass.frontend.entry-form.common :as ef-cmn :refer [popper-button-sx
+                                                                      theme-popper-box-sx]]
             [onekeepass.frontend.events.common :as ce :refer [on-change-factory]]
             [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
             [onekeepass.frontend.events.entry-form-ex :as form-events]
             [onekeepass.frontend.events.move-group-entry :as move-events]
             [onekeepass.frontend.mui-components :as m
-             :refer [mui-alert mui-alert-title mui-box mui-button mui-button
-                     mui-checkbox mui-dialog mui-dialog-actions
-                     mui-dialog-content mui-dialog-title
+             :refer [custom-theme-atom mui-alert mui-alert-title mui-box
+                     mui-button mui-button mui-checkbox mui-dialog
+                     mui-dialog-actions mui-dialog-content mui-dialog-title
                      mui-form-control-label mui-grid mui-link mui-menu-item
                      mui-popper mui-stack mui-tooltip mui-typography]]
             [onekeepass.frontend.translation :as t
@@ -151,7 +151,7 @@
                :sx {:z-index 2 :min-width "400px"}}
    #_[mui-click-away-listener #_{:onClickAway (fn [e] (println "Clicked outside box" (.-currentTarget e)))}]
 
-   [mui-box {:sx popper-box-sx}
+   [mui-box {:sx (theme-popper-box-sx @custom-theme-atom)}
     [mui-stack [mui-typography (if (= mode :add)
                                  (tr-l "newsectionName") (tr-l "modifySectionName"))]]
     [mui-stack [mui-dialog-content {:dividers true}

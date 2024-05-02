@@ -84,7 +84,7 @@
     [:div
      [mui-icon-button {:edge "start"
                        :on-click (fn [^js/Event e] (reset! anchor-el (-> e .-currentTarget)))
-                       :style {:color "#000000"}} [mui-icon-more-vert]]
+                       :style {}} [mui-icon-more-vert]]
      [entry-form-top-menu-items anchor-el entry-uuid favorites? os-name]
      [cc/info-dialog "Entry Delete" "Deleting entry is in progress"
       form-events/entry-delete-info-dialog-close

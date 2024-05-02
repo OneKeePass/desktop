@@ -1,41 +1,42 @@
 (ns onekeepass.frontend.group-form
-  (:require
-   [clojure.string :as str]
-   [reagent.core :as r]
-   [onekeepass.frontend.utils :refer [vec->tags]]
-   [onekeepass.frontend.events.common :as cmn-events]
-   [onekeepass.frontend.events.group-form :as gf-events]
-   [onekeepass.frontend.common-components :refer [tags-field]]
-   [onekeepass.frontend.db-icons :as db-icons :refer [group-icon]]
-   [onekeepass.frontend.translation  :refer-macros [tr-l tr-bl tr-dlg-title]]
-   [onekeepass.frontend.mui-components :as m :refer [mui-dialog
-                                                     mui-button
-                                                     mui-icon-button
-                                                     mui-tooltip
-                                                     mui-typography
-                                                     mui-divider
-                                                     mui-dialog-actions
-                                                     mui-dialog-content
-                                                     mui-dialog-title
-                                                     mui-form-control-label
-                                                     mui-checkbox
-                                                     mui-grid
-                                                     mui-box
-                                                     mui-stack]]))
+  (:require [clojure.string :as str]
+            [onekeepass.frontend.common-components :refer [tags-field
+                                                           theme-text-field-edit-sx
+                                                           theme-text-field-read-sx]]
+            [onekeepass.frontend.common-components :as cc]
+            [onekeepass.frontend.db-icons :as db-icons :refer [group-icon]]
+            [onekeepass.frontend.events.common :as cmn-events]
+            [onekeepass.frontend.events.group-form :as gf-events]
+            [onekeepass.frontend.mui-components :as m :refer [mui-box
+                                                              mui-button
+                                                              mui-checkbox
+                                                              mui-dialog
+                                                              mui-dialog-actions
+                                                              mui-dialog-content
+                                                              mui-dialog-title
+                                                              mui-divider
+                                                              mui-form-control-label
+                                                              mui-grid
+                                                              mui-icon-button
+                                                              mui-stack
+                                                              mui-tooltip
+                                                              mui-typography]]
+            [onekeepass.frontend.translation  :refer-macros [tr-l tr-bl tr-dlg-title]]
+            [onekeepass.frontend.utils :refer [vec->tags]]
+            [reagent.core :as r]))
 ;;(set! *warn-on-infer* true)
 
 (defn form-text-field
   [field-name value on-change editing]
   [m/text-field {:fullWidth true
                  :label field-name :variant "standard"
-                 :classes {:root "entry-cnt-field"}
+                 :sx {:margin-top cc/entry-cnt-field-margin-top}
+                 ;;:classes {:root "entry-cnt-field"}
                  :value value
                  :onChange on-change
                  :InputLabelProps {}
                  :InputProps {:id field-name
-                              :classes {:root (if editing "entry-cnt-text-field-edit" "entry-cnt-text-field-read")
-                                        :focused  (if editing "entry-cnt-text-field-edit-focused" "entry-cnt-text-field-read-focused")}
-
+                              :sx (if editing (theme-text-field-edit-sx @m/theme-mode) (theme-text-field-read-sx @m/theme-mode)) 
                               :type "text"}
                          ;;attributes for 'input' tag can be added here
                          ;;It seems adding these 'InputProps' also works
@@ -52,8 +53,14 @@
 
 (defn- form-readonly-content [times]
   [mui-grid {:container true :item true :spacing 0
-             :classes {:root "entry-cnt-container"}
-             :style {:width "95%" :margin-top "calc(2*var(--mui-theme-spacing-1))"}}
+            ;; :classes {:root "entry-cnt-container"}
+             :sx {:width "95%" :margin-top cc/entry-cnt-field-margin-top 
+                  ;;:background "white"
+                  :padding "0px 8px 24px 8px"
+                  :border ".1px solid"
+                  } 
+            ;;:style {:width "95%" :margin-top "calc(2*var(--mui-theme-spacing-1))"}
+             }
 
    [form-readonly-item (tr-l creationTime) (:creation-time times)]
    [mui-grid {:item true :xs true}
@@ -71,7 +78,13 @@
   [{:keys [name tags notes times]}]
   [mui-grid {:container true  :direction "column" :alignItems "center"}
    [mui-grid {:container true :item true :spacing 0
-              :classes {:root "entry-cnt-container"}}
+              ;;:classes {:root "entry-cnt-container"}
+              :sx {:width "95%" 
+                   :margin-top cc/entry-cnt-field-margin-top
+                   ;;:background "white"
+                   :padding "0px 8px 24px 8px"
+                   :border ".1px solid"} 
+              }
 
     [form-readonly-item (tr-l "name") name]
     [mui-grid {:item true :xs true}
@@ -149,7 +162,7 @@
     [mui-stack {:direction "row" :sx {:width "50%"}} [mui-typography value]]]])
 
 (defn- form-readonly-content-1 [times]
-  [mui-box {:sx {:margin-top 2 :border 1}}
+  [mui-box {:sx {:margin-top 2 :border .1}}
    [mui-stack {:sx {:p "5px"}}
     [form-readonly-item-1 (tr-l creationTime) (:creation-time times)]
     [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]

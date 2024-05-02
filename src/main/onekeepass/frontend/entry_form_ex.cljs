@@ -7,17 +7,16 @@
                                                              ONE_TIME_PASSWORD_TYPE]]
             [onekeepass.frontend.db-icons :as db-icons :refer [entry-icon
                                                                entry-type-icon]]
-            [onekeepass.frontend.entry-form.common :as ef-cmn :refer [background-color1
-                                                                      content-sx
-                                                                      ENTRY_DATETIME_FORMAT]]
+            [onekeepass.frontend.entry-form.common :as ef-cmn :refer [ENTRY_DATETIME_FORMAT
+                                                                      theme-content-sx]]
             [onekeepass.frontend.entry-form.dialogs :as dlg :refer [add-modify-section-field-dialog
                                                                     add-modify-section-popper
                                                                     attachment-delete-confirm-dialog
                                                                     custom-field-delete-confirm
                                                                     custom-section-delete-confirm
                                                                     delete-all-confirm-dialog
-                                                                    delete-permanent-dialog
                                                                     delete-confirm-dialog
+                                                                    delete-permanent-dialog
                                                                     delete-totp-confirm-dialog
                                                                     icons-dialog
                                                                     icons-dialog-flag
@@ -35,13 +34,13 @@
             [onekeepass.frontend.events.entry-form-ex :as form-events]
             [onekeepass.frontend.events.move-group-entry :as move-events]
             [onekeepass.frontend.group-tree-content :as gt-content]
-            [onekeepass.frontend.mui-components :as m :refer [color-primary-main
+            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom 
                                                               mui-alert
                                                               mui-avatar
                                                               mui-box
                                                               mui-button
-                                                              mui-button 
-                                                              mui-divider 
+                                                              mui-button
+                                                              mui-divider
                                                               mui-icon-add-circle-outline-outlined
                                                               mui-icon-article-outlined
                                                               mui-icon-button
@@ -54,11 +53,12 @@
                                                               mui-list-item-avatar
                                                               mui-list-item-text
                                                               mui-list-item-text
-                                                              mui-menu-item 
+                                                              mui-menu-item
                                                               mui-stack
                                                               mui-text-field
                                                               mui-tooltip
-                                                              mui-typography]]
+                                                              mui-typography
+                                                              theme-color]]
             [onekeepass.frontend.translation :as t :refer-macros [tr-bl tr-l tr-h tr-t  
                                                                   tr-entry-section-name-cv ]]
             [onekeepass.frontend.utils :as u :refer [contains-val?
@@ -92,7 +92,7 @@
 ;;;;;;;;;;;;;;;  
 
 (defn box-caption [text]
-  [mui-typography {:sx {"&.MuiTypography-root" {:color color-primary-main}}
+  [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :section-header)}}
                    :variant  "button"} text])
 
 (defn expiry-content []
@@ -102,17 +102,20 @@
         ;; chrono::NaiveDateTime is serialized in this format   
         expiry-dt @(form-events/entry-form-data-fields :expiry-time)]
     (when edit
-      [mui-box {:sx content-sx}
+      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
        [mui-stack {:direction "row" :sx {:align-items "flex-end"}}
         [mui-stack {:direction "row" :sx {:width "30%"}}
-         [mui-text-field {:classes {:root "entry-cnt-field"}
+         [mui-text-field {:sx {:padding-right "16px" :margin-top cc/entry-cnt-field-margin-top}
+                          ;;:classes {:root "entry-cnt-field"}
                           :select true
                           :label (tr-l expiryDuration)
                           :value  expiry-duration-selection
                        ;;;;TODO Need to work
                           :on-change #(form-events/expiry-duration-selection-on-change (-> % .-target  .-value)) ;;ee/expiry-selection-change-factory
                           :variant "standard" :fullWidth true
-                          :style {:padding-right "16px"}}
+                          ;;:style {:padding-right "16px"}
+                          
+                          }
           [mui-menu-item {:value "no-expiry"} (tr-l "noExpiry")]
           [mui-menu-item {:value "three-months"} (tr-l "3Months")]
           [mui-menu-item {:value "six-months"} (tr-l "6Months")]
@@ -137,7 +140,7 @@
         creation-time @(form-events/entry-form-data-fields :creation-time)
         last-modification-time @(form-events/entry-form-data-fields :last-modification-time)]
     (when-not edit
-      [mui-box {:sx content-sx}
+      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
 
        [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
         [mui-typography (str (tr-l "uuid") ":")]
@@ -208,7 +211,10 @@
     ;; if it has some fields with non blank value. 
     (when (or edit (boolean (seq (filter (fn [kv] (not (str/blank? (:value kv)))) section-data))))  ;;(seq section-data)
       (let [refs (atom {})]
-        [mui-box {:sx content-sx}
+        [mui-box {:sx (theme-content-sx @m/custom-theme-atom)
+                  ;;:sx content-sx
+                  ;;:style {:background @m/entry-content-bg-color}
+                  }
          [section-header section-name]
          (doall
           (for [{:keys [key value
@@ -299,7 +305,7 @@
         edit @(form-events/form-edit-mode)
         errors @(form-events/entry-form-field :error-fields)]
     (when edit
-      [mui-box {:sx content-sx}
+      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
        [mui-stack {:direction "row" :spacing 1}
         [mui-stack {:direction "row" :sx {:width "88%" :justify-content "center"}}
          [text-field {:key "Title"
@@ -327,7 +333,7 @@
         edit @(form-events/form-edit-mode)]
     ;;(println "tags-selection called tags:" tags " all-tags:" all-tags)
     (when (or edit (boolean (seq tags)))
-      [mui-box {:sx content-sx}
+      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
        [mui-stack {:direction "row"}]
        [tags-field all-tags tags form-events/on-tags-selection edit]
        (when edit
@@ -337,7 +343,7 @@
   (let [edit @(form-events/form-edit-mode)
         notes @(form-events/entry-form-data-fields :notes)]
     (when (or edit (not (str/blank? notes)))
-      [mui-box {:sx content-sx}
+      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
        [mui-stack {:direction "row"} [box-caption (tr-entry-section-name-cv "Notes")]]
        [mui-stack
         [text-area-field {:key "Notes"
@@ -350,7 +356,7 @@
   (let [edit @(form-events/form-edit-mode)
         attachments @(form-events/attachments)]
     (when (or edit (boolean (seq attachments)))
-      [mui-box {:sx content-sx}
+      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
        [mui-stack {:direction "row"}
         [mui-stack {:direction "row" :sx {:margin-bottom "10px" :width "90%"}}
          [box-caption (tr-entry-section-name-cv "Attachments")]]
@@ -469,7 +475,7 @@
              :style {:margin 0
                      :width "100%"}}
 
-       [:div {:class "gheader" :style {:background background-color1}}
+       [:div {:class "gheader" :style {:background  (theme-color @custom-theme-atom :bg-default)}}
         (when-not edit
           [mui-stack {:direction "row"}
            [mui-stack {:direction "row"  :sx {:width "95%" :justify-content "center"}}
@@ -485,13 +491,14 @@
              [form-menu entry-uuid]]]])]
 
        [:div {:class "gcontent" :style {:overflow-y "scroll"
-                                        :background background-color1}}
+                                        :background (theme-color @custom-theme-atom :bg-default)}}
         [center-content]
         #_[custom-field-dialogs]]
 
        [:div {:class "gfooter" :style {:margin-top 2
                                        :min-height "46px" ;; needed to align this footer with entry list 
-                                       :background m/color-grey-200
+                                       :background (theme-color @custom-theme-atom :header-footer)
+                                       ;;:background m/color-grey-200
                                        ;;:background "var(--mui-color-grey-200)"
                                        }}
 
@@ -587,17 +594,16 @@
         entry-type-uuid @(form-events/entry-form-data-fields :entry-type-uuid)
         field-error-text (:group-selection @(form-events/entry-form-field :error-fields))]
     ;;(println "entry-type-uuid is " entry-type-uuid)
-    [mui-box {:sx content-sx}
+    [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
      [mui-stack {:spacing 1}
       [mui-stack {:direction "row" :sx {:width "100%"}}
        [mui-stack {:direction "row" :sx {:width "90%"}}
         [mui-text-field  {:id  "select"
                           :select true
                           :required true
-                          :label "Entry Type"
+                          :label (tr-l entryType)
                           :value entry-type-uuid ;;field-type
-                          :helper-text "An entry's type determines available fields"
-                          ;;:InputProps {:classes {:focused "dialog-field-edit-focused"}}
+                          :helper-text (tr-h entryTypeFields)
                           :on-change (on-change-factory2 form-events/entry-type-uuid-on-change) #_de/custom-field-type-edit-on-change
                           :variant "standard" :fullWidth true}
          ;; select fields options
@@ -615,12 +621,12 @@
           [mui-icon-add-circle-outline-outlined]]]]]
 
 
-      [selection-autocomplete {:label "Group/Category"
+      [selection-autocomplete {:label (tr-l groupOrCategory)
                                :options @groups-listing
                                :current-value @group-selected
                                :on-change form-events/on-group-selection
                                :required true
-                               :helper-text "An entry's group/category"
+                               :helper-text (tr-h groupOrCategory)
                                :error (not (nil? field-error-text))
                                :error-text field-error-text}]]]))
 
@@ -632,21 +638,21 @@
            :style {:margin 0
                    :width "100%"}}
 
-     [:div {:class "gheader" :style {:background background-color1}}
+     [:div {:class "gheader" :style {:background (theme-color @custom-theme-atom :entry-content-bg)}}
       [mui-stack {:direction "row"  :sx {:width "100%" :justify-content "center"}}
        [mui-typography {:align "center"
                         :paragraph false
                         :variant "h6"}
         form-title]]]
      [:div {:class "gcontent" :style {:overflow-y "scroll"
-                                      :background background-color1}}
+                                      :background (theme-color @custom-theme-atom :entry-content-bg)}}
       [entry-type-group-selection]
       [center-content]
       #_[custom-field-dialogs]]
 
      [:div {:class "gfooter" :style {:margin-top 2
                                      :min-height "46px" ;; needed to align this footer with entry list 
-                                     :background "var(--mui-color-grey-200)"}}
+                                     :background (theme-color @custom-theme-atom :header-footer)}}
 
       [mui-stack {:sx {:align-items "flex-end"}}
        [:div.buttons1
@@ -705,7 +711,7 @@
 
 (defn entry-type-section-content [edit section-name section-data]
   (let [errors @(form-events/entry-form-field :error-fields)]
-    [mui-box {:sx content-sx}
+    [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
      [section-header section-name]
      (doall
       (for [{:keys [key
@@ -758,7 +764,7 @@
   (let [{:keys [entry-type-name entry-type-icon-name]} @(form-events/entry-form-data-fields
                                                          [:entry-type-name :entry-type-icon-name])
         errors @(form-events/entry-form-field :error-fields)]
-    [mui-box {:sx content-sx}
+    [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
      [mui-stack {:direction "row" :spacing 1}
       [mui-stack {:direction "row" :sx {:width "90%" :justify-content "center"}}
        [text-field {:key (tr-l entryType)
@@ -796,19 +802,19 @@
          :style {:margin 0
                  :width "100%"}}
 
-   [:div {:class "gheader" :style {:background background-color1}}
+   [:div {:class "gheader" :style {:background (theme-color @custom-theme-atom :entry-content-bg)}}
     [mui-stack {:direction "row"  :sx {:width "100%" :justify-content "center"}}
      [mui-typography {:align "center"
                       :paragraph false
                       :variant "h6"}
       (tr-t newEntrType)]]]
    [:div {:class "gcontent" :style {:overflow-y "scroll"
-                                    :background background-color1}}
+                                    :background (theme-color @custom-theme-atom :entry-content-bg)}}
     [entry-type-center-content]]
 
    [:div {:class "gfooter" :style {:margin-top 2
                                    :min-height "46px" ;; needed to align this footer with entry list 
-                                   :background "var(--mui-color-grey-200)"}}
+                                   :background (theme-color @custom-theme-atom :header-footer)}}
 
     [mui-stack {:sx {:align-items "flex-end"}}
      [:div.buttons1
@@ -830,7 +836,7 @@
              :style {:margin 0
                      :width "100%"}}
 
-       [:div {:class "gheader" :style {:background background-color1}}
+       [:div {:class "gheader" :style {:background (theme-color @custom-theme-atom :entry-content-bg)}}
         (when-not edit
           [mui-stack {:direction "row"}
            [mui-stack {:direction "row"  :sx {:width "95%" :justify-content "center"}}
@@ -838,7 +844,7 @@
             [mui-typography {:align "center" :paragraph false :variant "h6"} title]]])]
 
        [:div {:class "gcontent" :style {:overflow-y "scroll"
-                                        :background background-color1}}
+                                        :background (theme-color @custom-theme-atom :entry-content-bg)}}
         [center-content]
         [restore-confirm-dialog @(form-events/restore-flag)]
         [delete-confirm-dialog
@@ -848,7 +854,7 @@
 
        [:div {:class "gfooter" :style {:margin-top 2
                                        :min-height "46px" ;; needed to align this footer with entry list 
-                                       :background "var(--mui-color-grey-200)"}}
+                                       :background (theme-color @custom-theme-atom :header-footer)}}
 
         [mui-stack {:sx {:align-items "flex-end"}}
          [:div.buttons1
@@ -912,7 +918,9 @@
 
      [mui-stack {:sx {:min-height "46px"
                       :align-items "center"
-                      :background m/color-grey-200}}
+                      :background (theme-color @custom-theme-atom :header-footer) #_m/color-grey-200
+                      
+                      }}
       [:div {:style {:margin-top 10 :margin-bottom 10 :margin-right 5 :margin-left 5}}
        [mui-button {:variant "outlined"
                     :color "inherit"

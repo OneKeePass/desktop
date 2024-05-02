@@ -1,36 +1,37 @@
 (ns onekeepass.frontend.db-settings
-  (:require
-   [reagent.core :as r]
-   [onekeepass.frontend.translation  :refer-macros [tr-l
+  (:require [onekeepass.frontend.events.db-settings :as settings-events]
+            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
+                                                              mui-alert
+                                                              mui-box
+                                                              mui-button
+                                                              mui-dialog
+                                                              mui-dialog-actions
+                                                              mui-dialog-content
+                                                              mui-dialog-title
+                                                              mui-icon-button
+                                                              mui-icon-feed-outlined
+                                                              mui-icon-folder-outlined
+                                                              mui-icon-security-outlined
+                                                              mui-icon-settings-outlined
+                                                              mui-icon-visibility
+                                                              mui-icon-visibility-off
+                                                              mui-input-adornment
+                                                              mui-linear-progress
+                                                              mui-list
+                                                              mui-list-item-button
+                                                              mui-list-item-icon
+                                                              mui-list-item-text
+                                                              mui-menu-item
+                                                              mui-stack
+                                                              mui-tooltip
+                                                              mui-typography
+                                                              theme-color]]
+            [onekeepass.frontend.translation  :refer-macros [tr-l
                                                     tr-t 
                                                     tr-h
                                                     tr-bl
                                                     tr-dlg-title]]
-   [onekeepass.frontend.events.db-settings :as settings-events]
-   [onekeepass.frontend.mui-components :as m :refer [color-primary-main
-                                                     mui-list
-                                                     mui-list-item-button
-                                                     mui-list-item-icon
-                                                     mui-list-item-text
-                                                     mui-tooltip
-                                                     mui-menu-item
-                                                     mui-alert
-                                                     mui-linear-progress
-                                                     mui-input-adornment
-                                                     mui-icon-button
-                                                     mui-icon-feed-outlined
-                                                     mui-icon-security-outlined
-                                                     mui-icon-folder-outlined
-                                                     mui-icon-visibility
-                                                     mui-icon-visibility-off
-                                                     mui-typography
-                                                     mui-dialog
-                                                     mui-dialog-title
-                                                     mui-dialog-actions
-                                                     mui-dialog-content
-                                                     mui-box mui-stack
-                                                     mui-icon-settings-outlined
-                                                     mui-button]]))
+            [reagent.core :as r]))
 
 ;;(set! *warn-on-infer* true)
 
@@ -42,7 +43,7 @@
 (defn list-items [{:keys [panel]}]
   [mui-box {:sx {"& .MuiListItemButton-root" {:padding-left "8px"}
                  "& .MuiListItemIcon-root" {:min-width 0 :margin-right "25px"}
-                 "& .MuiSvgIcon-root" {:color color-primary-main} ;; primary main "#1976d2"
+                 "& .MuiSvgIcon-root" {:color  (theme-color @custom-theme-atom :db-settings-icons)} ;; primary main "#1976d2"
                  }}
    [mui-list
     [mui-list-item-button {:on-click #(settings-events/db-settings-panel-select :general-info)
@@ -303,7 +304,11 @@
      [mui-dialog-content {:sx {:padding-left "10px"}}
       [mui-stack
        [mui-stack {:direction "row" :sx {:height "350px " :min-height "300px"}}
-        [mui-box {:sx {:width "30%"  :background "#F1F1F1"}} [list-items dialog-data]  #_"List comes here"]
+        [mui-box {:sx {:width "30%"  
+                       ;;:background "#F1F1F1"
+                       :background "rgba(241, 241, 241, 0.33)"
+                       }} 
+         [list-items dialog-data]  #_"List comes here"]
         [mui-box {:sx {:width "70%"  :height "100%"
                        :align-self "center"
                        :background "rgba(241, 241, 241, 0.33)"

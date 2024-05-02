@@ -1,37 +1,38 @@
 (ns onekeepass.frontend.entry-category
-  (:require
-   [reagent.core :as r]
-   [camel-snake-kebab.core] ;; required for use in macro
-   [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-bl tr-ml tr-l-cv tr-entry-type-title-cv]]
-   [onekeepass.frontend.events.entry-category :as ec-events]
-   [onekeepass.frontend.events.common :as cmn-events]
-   [onekeepass.frontend.events.group-form :as gf-events]  ;;need to be replaced events from ec-events 
-
-   [onekeepass.frontend.db-icons :refer [group-icon entry-type-icon]]
-   [onekeepass.frontend.group-form :as gf]
-   [onekeepass.frontend.group-tree-content :as gt]
-   [onekeepass.frontend.constants :as const :refer [GROUPING_LABEL_TYPES GROUPING_LABEL_TAGS
-                                                    GROUPING_LABEL_CATEGORIES GROUPING_LABEL_GROUPS]]
-   [onekeepass.frontend.common-components :refer [overflow-tool-tip message-sanckbar-alert]]
-   [onekeepass.frontend.mui-components :as m :refer [color-primary-main
-                                                     color-secondary-main
-                                                     mui-icon-button
-                                                     mui-menu
-                                                     mui-menu-item
-                                                     mui-list-item-icon
-                                                     mui-list-item-text
-                                                     mui-icon-check
-                                                     mui-typography
-                                                     mui-box
-                                                     mui-list
-                                                     mui-list-item-button
-                                                     mui-stack
-                                                     mui-icon-sell-outlined
-                                                     mui-icon-done-all
-                                                     mui-icon-favorite-border
-                                                     mui-icon-delete-outline
-                                                     mui-icon-access-time
-                                                     mui-icon-more-vert]]))
+  (:require [camel-snake-kebab.core] ;; required for use in macro
+            [onekeepass.frontend.common-components :refer [message-sanckbar-alert
+                                                           overflow-tool-tip]]
+            [onekeepass.frontend.constants :as const :refer [GROUPING_LABEL_CATEGORIES
+                                                             GROUPING_LABEL_GROUPS
+                                                             GROUPING_LABEL_TAGS
+                                                             GROUPING_LABEL_TYPES]]
+            [onekeepass.frontend.db-icons :refer [entry-type-icon group-icon]]
+            [onekeepass.frontend.events.common :as cmn-events]
+            [onekeepass.frontend.events.entry-category :as ec-events]
+            [onekeepass.frontend.events.group-form :as gf-events] ;;need to be replaced events from ec-events 
+            [onekeepass.frontend.group-form :as gf]
+            [onekeepass.frontend.group-tree-content :as gt]
+            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
+                                                              mui-box
+                                                              mui-icon-access-time
+                                                              mui-icon-button
+                                                              mui-icon-check
+                                                              mui-icon-delete-outline
+                                                              mui-icon-done-all
+                                                              mui-icon-favorite-border
+                                                              mui-icon-more-vert
+                                                              mui-icon-sell-outlined
+                                                              mui-list
+                                                              mui-list-item-button
+                                                              mui-list-item-icon
+                                                              mui-list-item-text
+                                                              mui-menu
+                                                              mui-menu-item
+                                                              mui-stack
+                                                              mui-typography 
+                                                              theme-color]]
+            [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-bl tr-ml tr-l-cv tr-entry-type-title-cv]]
+            [reagent.core :as r]))
 
 ;;(set! *warn-on-infer* true)
 
@@ -101,7 +102,7 @@
       [:div
        [mui-icon-button {:edge "start"
                          :on-click (fn [^js/Event e] (reset! anchor-el (-> e .-currentTarget)))
-                         :style {:color "#000000"}} [mui-icon-more-vert]]
+                         :style {}} [mui-icon-more-vert]]
        [category-title-menu-items anchor-el showing-groups-as]
        [gf/group-content-dialog-main]])))
 
@@ -297,7 +298,7 @@
        [mui-stack {:direction "row" :sx {:width "100%"}}
 
         [mui-stack {:sx {:width "10%"}}
-         [mui-box {:sx {"& .MuiSvgIcon-root" {:color color-primary-main}}}
+         [mui-box {:sx {"& .MuiSvgIcon-root" {:color (theme-color @custom-theme-atom :entry-category-icons)}}}
           icon-comp]]
 
         [mui-stack {:sx {:width "70%"
@@ -309,7 +310,7 @@
         [mui-stack {:sx {:width "10%"}}
          [mui-typography  {:sx {:padding-right "0px"
                                 :color "white"
-                                :background-color color-secondary-main
+                                :background-color (theme-color @custom-theme-atom :category-item)
                                 :border-radius "10px"
                                 :text-align "center"
                                 :width "30px"}}

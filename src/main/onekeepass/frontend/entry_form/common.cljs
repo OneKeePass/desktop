@@ -1,29 +1,39 @@
 (ns onekeepass.frontend.entry-form.common
-  (:require [reagent.core :as r]))
+  (:require [onekeepass.frontend.mui-components :as m :refer [theme-color]]
+            [reagent.core :as r]))
 
 (def ENTRY_DATETIME_FORMAT "dd MMM yyyy pp")
 
-(def background-color1 "#F1F1F1")
 (def popper-border-color "#E7EBF0")
 (def popper-button-sx {:color "secondary.light"})
 
-(def popper-box-sx {:bgcolor  "whitesmoke";;"background.paper"
-                    ;;:boxShadow 3
-                    :p "15px"
-                    :pb "5px"
-                    :border-color popper-border-color
-                    :border-width "thin"
-                    :border-style "solid"})
+;; IMPORTANT: 
+;; We should not use something like  '(def bg-color (theme-color @custom-them-atom :entry-content-box-border))'
+;; The 'custom-them-atom' might have not been created yet
+;; The 'create-custom-theme' is only called when the app start page is mounted 
+;; Then only we can use 'custom-them-atom'
 
-(def content-sx {;;:width "98%"
-                 :border-color "lightgrey"
-                 :boxShadow 0
-                 :borderRadius 1
-                 :margin "5px"
-                 :background "white"
-                 :padding "8px 8px 8px 8px"
-                 :border ".1px solid"})
+(defn theme-popper-box-sx 
+  "Uses current them from reagent atom to get the colors based on the mode
+   IMPORTANT: We need to use a fn from the component to get sx props for the created theme 
+  "
+  [theme]
+  {:bgcolor  (theme-color theme :popper-box-bg)
+   :p "15px"
+   :pb "5px"
+   :border-color popper-border-color
+   :border-width "thin"
+   :border-style "solid"})
 
+(defn theme-content-sx [theme]
+  {:border-color (theme-color theme :entry-content-box-border)
+   :border-style "solid"
+   :border-width ".5px"
+   :background (theme-color theme :entry-content-bg)
+   :boxShadow 0
+   :borderRadius 1
+   :margin "5px"
+   :padding "8px 8px 8px 8px"})
 
 (def delete-totp-confirm-dialog-data (r/atom {:dialog-show false :section-name nil :otp-field-name nil}))
 

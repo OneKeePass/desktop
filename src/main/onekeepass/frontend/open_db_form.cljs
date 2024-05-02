@@ -1,25 +1,23 @@
 (ns onekeepass.frontend.open-db-form
-  (:require
-   [reagent.core :as r]
-   [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-t tr-h tr-m]]
-   [onekeepass.frontend.events.common :as cmn-events]
-   [onekeepass.frontend.events.open-db-form :as od-events]
-   [onekeepass.frontend.common-components :refer [enter-key-pressed-factory]]
-   [onekeepass.frontend.mui-components :as m :refer [mui-alert
-                                                     mui-dialog
-                                                     ;;color-primary-main
-                                                     mui-button
-                                                     mui-dialog-actions
-                                                     mui-dialog-content
-                                                     mui-dialog-title
-                                                     mui-linear-progress
-                                                     mui-stack
-                                                     mui-input-adornment
-                                                     mui-icon-folder-outlined
-                                                     mui-icon-button
-                                                     mui-typography
-                                                     mui-icon-visibility
-                                                     mui-icon-visibility-off]]))
+  (:require [onekeepass.frontend.common-components :refer [enter-key-pressed-factory]]
+            [onekeepass.frontend.events.common :as cmn-events]
+            [onekeepass.frontend.events.open-db-form :as od-events]
+            [onekeepass.frontend.mui-components :as m :refer [mui-alert
+                                                              mui-button
+                                                              mui-dialog
+                                                              mui-dialog-actions
+                                                              mui-dialog-content
+                                                              mui-dialog-title
+                                                              mui-icon-button
+                                                              mui-icon-folder-outlined
+                                                              mui-icon-visibility
+                                                              mui-icon-visibility-off
+                                                              mui-input-adornment
+                                                              mui-linear-progress
+                                                              mui-stack
+                                                              mui-typography]]
+            [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-t tr-h tr-m] :refer [tr-bl]]
+            [reagent.core :as r]))
 
 ;;(set! *warn-on-infer* true)
 
@@ -99,7 +97,7 @@
                          :type (if key-file-visibility-on "text" "password")}]
           
           [mui-stack {:sx {:margin-top "10px" :margin-bottom "5px"}} 
-           [mui-typography {:variant "caption"} "Please provide a valid password or a key file or both password and key file"]]
+           [mui-typography {:variant "caption"} (tr-m openDbPage txt1)]]
           ]
          [mui-stack (tr-m openDbPage txt2)])
        (cond
@@ -120,11 +118,13 @@
      [mui-dialog-actions
       [mui-button {:color "secondary"
                    :disabled in-progress?
-                   :on-click od-events/cancel-on-click} "Cancel"]
+                   :on-click od-events/cancel-on-click} 
+       (tr-bl cancel)]
       [mui-button {:color "secondary"
                    :disabled in-progress?
                    :on-click
-                   ok-action} "Ok"]]]))
+                   ok-action} 
+       (tr-bl ok)]]]))
 
 (defn open-db-dialog-main []
   [open-db-dialog @(od-events/dialog-data) @(cmn-events/opened-db-list)])
