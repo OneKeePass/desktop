@@ -21,7 +21,7 @@ use tauri::Manager;
 pub type Result<T> = std::result::Result<T, String>;
 
 #[derive(Clone, serde::Serialize)]
-/// Payload to send to the UI layer
+// Payload to send to the UI layer
 struct WindowEventPayload {
   action: String,
   focused: Option<bool>,
@@ -38,17 +38,23 @@ impl WindowEventPayload {
 
 fn main() {
   // Need to create 'context' here before building the app so that we can load language translation files
-  // for the current locale language from the resource dir
+  // for the current prefered language from the resource dir in order to prepare Menus
   let context = tauri::generate_context!();
 
-  // This loaded tranalation data is passed to menus creation call (builder.menu(..)) and there they are used 
-  // in preparing the system menu names in the locale language
-  // TODO: Need to figure out how to do use a dynamically chosen tranalation language 
-  let menu_translation = utils::load_system_menu_translations(
-    &utils::current_locale(),
-    &context.config(),
-    &context.package_info(),
-  );
+  // TODO: Reuse this preference file content in Preference::read_toml 
+  let pref_str = utils::read_preference_file();
+  let lng = utils::read_language_selection(&pref_str);
+
+  //println!("lng to use is {}", &lng);
+
+  // This loaded tranalation data is passed to menus creation call (builder.menu(..)) and there they are used
+  // in preparing the system menu names in the current prefered language. 
+  // If user changes the prefered language the app needs to be restarted. This is because
+  // the system menus's ttitles can not be changed without restarting though all sub menus's titles 
+  // can be changed dynamically 
+
+  let menu_translation =
+    utils::load_system_menu_translations(&lng, &context.config(), &context.package_info());
 
   // let rc_dir = tauri::api::path::resource_dir(context.package_info(),&tauri::Env::default());
   // println!("== Resource dir from context is {:?}",&rc_dir);
@@ -80,6 +86,7 @@ fn main() {
       commands::active_window_to_auto_type,
       commands::analyzed_password,
       commands::authenticate_with_biometric,
+      commands::clear_recent_files,
       commands::close_kdbx,
       commands::collect_entry_group_tags,
       commands::combined_category_details,
@@ -152,6 +159,7 @@ fn main() {
       commands::update_entry_from_form_data,
       commands::update_group,
       commands::upload_entry_attachment,
+      commands:: update_preference,
     ])
     .build(context)
     .expect("error while building tauri application");

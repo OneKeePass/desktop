@@ -86,8 +86,8 @@
 ;; We can change the theme type to 'light' or 'dark' by reseting this atom
 (defonce theme-mode (r/atom "light"))
 
-(defn is-light-theme? []
-  (= "light" @theme-mode))
+(defn is-light-theme? [^js/Mui.Theme theme]
+  (= "light" (-> theme .-palette .-mode)))
 
 ;; IMPORTANT: 
 ;; We should not use something like  
@@ -102,9 +102,10 @@
         light? (= mode "light")
         pm  (->  theme .-palette .-primary .-main)
         bg (->  theme .-palette .-background .-default)
+        dc1 (if light? "rgba(0, 0, 0, 0.12)" (gobj/get (.-blueGrey  ^js/Mui.Colors mui-colors) 500))
         c1 (if light? (gobj/get color-grey 200) (-> theme .-palette .-text .-disabled))]
     {:color1 c1
-     :divider-color1 (gobj/get (.-blueGrey  ^js/Mui.Colors mui-colors) 500)
+     :divider-color1 dc1
      :db-settings-icons pm
      :header-footer c1
      :primary-main pm
@@ -151,6 +152,9 @@
     
     (= color-kw :primary-main)
     (->  theme .-palette .-primary .-main)
+    
+    (= color-kw :info-main)
+    (->  theme .-palette .-info .-main)
 
     :else
     (->  theme .-palette .-primary .-main)))

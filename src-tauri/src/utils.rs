@@ -8,11 +8,11 @@ use serde::{Deserialize, Serialize};
 
 use log::info;
 use std::collections::HashMap;
+use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::result::Result;
 use std::sync::{Arc, Mutex};
-use std::fs;
 use sys_locale::get_locale;
 
 use tauri::{
@@ -21,8 +21,10 @@ use tauri::{
 };
 
 use crate::biometric;
+use crate::constants::standard_file_names::APP_PREFERENCE_FILE;
 use crate::key_secure;
-use crate::preference::Preference;
+use crate::preference::{Preference, PreferenceData};
+
 use onekeepass_core::db_service as kp_service;
 
 pub struct AppState {
@@ -41,7 +43,6 @@ impl AppState {
       // generating the name again
       // TODO: How to handle this when we want to include time info in the file name
       backup_files: Mutex::new(HashMap::default()),
-
       timers_init_completed: Mutex::new(false),
     }
   }
@@ -54,6 +55,12 @@ impl AppState {
   pub fn is_timers_init_completed(&self) -> bool {
     let init_status = self.timers_init_completed.lock().unwrap();
     *init_status
+  }
+
+  pub fn prefered_language(&self) -> String {
+    let store_pref = self.preference.lock().unwrap();
+    //store_pref.language.clone() will also works
+    (*store_pref.language).to_string()
   }
 
   /// Reads the preference from file system and store in state
@@ -71,6 +78,16 @@ impl AppState {
     let mut store_pref = self.preference.lock().unwrap();
     //sets the preference struct value inside the MutexGuard by dereferencing
     *store_pref = pref;
+  }
+
+  pub fn update_preference(&self, preference_data: PreferenceData) {
+    let mut store_pref = self.preference.lock().unwrap();
+    store_pref.update(preference_data);
+  }
+
+  pub fn clear_recent_files(&self) {
+    let mut store_pref = self.preference.lock().unwrap();
+    store_pref.clear_recent_files();
   }
 
   /// Gets the full backupfile name
@@ -154,6 +171,7 @@ impl SystemInfoWithPreference {
   }
 }
 
+// IMPORTANT: unwrap() is used. What is the alternative ?
 pub fn app_home_dir() -> PathBuf {
   #[cfg(not(feature = "onekeepass-dev"))]
   let p = home_dir()
@@ -217,6 +235,7 @@ pub fn generate_backup_file_name(backup_dir_path: PathBuf, db_file_name: &str) -
 }
 
 pub fn init_app(app: &App) {
+  // An example of using Short Cut Key to use with menus and auto typing
   use tauri::GlobalShortcutManager;
   let _r = app
     .app_handle()
@@ -224,6 +243,7 @@ pub fn init_app(app: &App) {
     .register("Alt+Shift+R", move || {
       println!("⌥⇧R is pressed");
     });
+  ////
 
   let app_dir = app_home_dir();
   let log_dir = app_logs_dir();
@@ -247,11 +267,6 @@ pub fn init_app(app: &App) {
 
   let state = app.state::<AppState>();
   state.read_preference(app);
-  // let pref = Preference::read();
-  // let state = app.state::<AppState>();
-  // let mut store_pref = state.preference.lock().unwrap();
-  // *store_pref = pref; //sets the preference inside the mutex guard
-  // drop(store_pref);
 
   init_log(&log_dir);
   // Now onwards all loggings calls will be effective
@@ -315,9 +330,28 @@ pub fn load_custom_svg_icons<R: Runtime>(app: tauri::AppHandle<R>) -> HashMap<St
   files
 }
 
+// Find out the language preferecne before app is initiated so that 
+// language specific translations can be used for system menu build ups
+pub fn read_language_selection(preference_file_content: &str) -> String {
+  let Some(s) = Preference::read_language_selection(preference_file_content) else {
+    println!("No language preference is found and will use current locale language instead");
+    return current_locale_language();
+  };
+  s
+}
+
+pub fn read_preference_file() -> String {
+  let pref_file_name = app_home_dir().join(APP_PREFERENCE_FILE);
+  fs::read_to_string(pref_file_name).unwrap_or("".into())
+}
+
 #[inline]
-pub fn current_locale() -> String {
-  let lng = get_locale().unwrap_or_else(|| String::from("en")); //"en-US" language+region
+pub fn current_locale_language() -> String {
+  // "en-US" language+region
+  // We use the language part only to locate translation json files
+  let lng = get_locale().unwrap_or_else(|| String::from("en"));
+
+  // Returns the language id ( two letters)
   lng
     .split("-")
     .map(|s| s.to_string())
@@ -327,33 +361,35 @@ pub fn current_locale() -> String {
 
 #[derive(Serialize, Deserialize)]
 pub struct TranslationResource {
-  current_locale: String,
+  current_locale_language: String,
+  prefered_language: String,
   translations: HashMap<String, String>,
 }
 
-const TRANSLATION_RESOURCE_DIR:&str = "../resources/public/locales";
+const TRANSLATION_RESOURCE_DIR: &str = "../resources/public/locales";
 
 // Loads language translation strings for the passed language ids
-// Typically it should en and the locale language 
+// Typically it should be en and the preferedd or the locale language 
 pub fn load_language_translations<R: Runtime>(
   app: tauri::AppHandle<R>,
   language_ids: Vec<String>,
 ) -> kp_service::Result<TranslationResource> {
-  let current_locale = get_locale().unwrap_or_else(|| String::from("en")); // "en-US" language+region
-  debug!("current_locale is {}", &current_locale);
+  let current_locale_lng = current_locale_language(); //get_locale().unwrap_or_else(|| String::from("en")); // "en-US" language+region
+  debug!("current_locale is {}", &current_locale_lng);
+
+  let state = app.state::<AppState>();
+
+  // prefered_language as stored in Preference is either current locale language or
+  // language selected by user in App settings screen
+  let prefered_language = state.prefered_language();
+
+  debug!("prefered_language is {}", &prefered_language);
 
   let language_ids_to_load = if !language_ids.is_empty() {
     language_ids
   } else {
-    if current_locale != "en" || current_locale != "en-US" {
-      current_locale
-        .split("-")
-        .map(|s| s.to_string())
-        .next()
-        .map_or_else(
-          || vec![String::from("en")],
-          |lng| vec![String::from("en"), lng],
-        )
+    if prefered_language != "en" {
+      vec![String::from("en"), prefered_language.clone()]
     } else {
       // locale is 'en'
       vec![String::from("en")]
@@ -373,7 +409,7 @@ pub fn load_language_translations<R: Runtime>(
   )
   .map_err(|e| {
     kp_service::Error::UnexpectedError(format!(
-      "Resource translations dir locations not found. Errpor is {} ",
+      "Resource translations dir locations not found. Error is {} ",
       e
     ))
   })?;
@@ -395,12 +431,13 @@ pub fn load_language_translations<R: Runtime>(
   }
 
   Ok(TranslationResource {
-    current_locale,
+    current_locale_language: current_locale_lng,
+    prefered_language,
     translations,
   })
 }
 
-// As this struct has only "system_menus" field, serde json deserialization 
+// As this struct has only "system_menus" field, serde json deserialization
 // will parse only that part of data from the file translation.json
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -409,7 +446,6 @@ pub struct SystemMenuTranslation {
 }
 
 impl SystemMenuTranslation {
-  
   // Gets the translated string for a main menu from "main" map
   pub fn main_menu(&self, name: &str) -> String {
     let d = HashMap::default();
@@ -417,7 +453,7 @@ impl SystemMenuTranslation {
     s.get(name).map_or_else(|| name.into(), |v| v.into())
   }
 
-  // Gets the translated string for a submenu from the "subMenus" map 
+  // Gets the translated string for a submenu from the "subMenus" map
   pub fn sub_menu(&self, menu_id: &str, default_name: &str) -> String {
     let d = HashMap::default();
     let s = self.system_menus.get("subMenus").map_or_else(|| &d, |n| n);
@@ -457,7 +493,7 @@ pub fn load_system_menu_translations(
     .ok()
     .map_or_else(|| "{}".to_string(), |d| d);
 
-  // As SystemMenuTranslation struct has only "system_menus" field, serde json deserialization 
+  // As SystemMenuTranslation struct has only "system_menus" field, serde json deserialization
   // will parse only that part of data from the file translation.json
 
   system_menu_tr =
@@ -500,7 +536,7 @@ fn init_log(log_dir: &PathBuf) {
 #[cfg(test)]
 mod tests {
   use crate::utils::Preference;
-  use std::{fs, path::PathBuf};
+  use std::{collections::HashMap, fs, path::PathBuf};
   use toml::Value;
 
   use super::generate_backup_file_name;
@@ -529,5 +565,29 @@ mod tests {
       "/Users/jeyasankar/mytemp/Keepass-sample/RustDevSamples/PasswordsXC1-Tags-1.kdbx",
     );
     println!("backup_file_name is {:#?}", backup_file_name);
+  }
+
+  #[test]
+  fn verify_serde_using_alias() {
+    // Json has 'menu.labels' as field name and it is mapped to 
+    // rust's menu_labels 
+    let input1 = r#"{
+      "menu.labels": {"addField": "Add field","addCategory": "Add category"}
+    }"#;
+
+    #[derive(Debug, PartialEq,serde::Deserialize)]
+    struct Translation {
+      #[serde(alias = "menu.labels")]
+      menu_labels: HashMap<String, String>,
+    }
+    let t = Translation {
+      menu_labels: HashMap::from([
+        ("addField".into(), "Add field".into()),
+        ("addCategory".into(), "Add category".into()),
+      ]),
+    };
+    let d: Translation = serde_json::from_str(input1).unwrap();
+    //println!("D is {:?}, t is {:?}", d,t);
+    assert_eq!(t,d);
   }
 }

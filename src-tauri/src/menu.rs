@@ -12,6 +12,7 @@ use tauri::{
 #[allow(dead_code)]
 pub mod menu_ids {
   pub const QUIT: &str = "Quit";
+  pub const APP_SETTINGS: &str = "AppSettings";
   pub const NEW_DATABASE: &str = "NewDatabase";
   pub const OPEN_DATABASE: &str = "OpenDatabase";
   pub const SAVE_DATABASE: &str = "SaveDatabase";
@@ -34,17 +35,28 @@ use menu_ids::*;
 pub fn get_app_menu(system_menu_translation: SystemMenuTranslation) -> Menu {
   let app_name = "OneKeePass";
 
+  let app_settings = CustomMenuItem::new(
+    APP_SETTINGS,
+    system_menu_translation.sub_menu(APP_SETTINGS, "Settings..."),
+  ).accelerator("CmdOrControl+,");
+
   let quit = CustomMenuItem::new(
     QUIT,
     system_menu_translation.sub_menu(QUIT, "Quit OneKeePass"),
-  );
+  ).accelerator("CmdOrControl+G");
 
   #[allow(unused_mut)]
   let mut first_menu;
   #[cfg(target_os = "macos")]
   {
     let about = MenuItem::About(app_name.to_string(), AboutMetadata::default());
-    first_menu = Menu::with_items([about.into(), MenuItem::Separator.into(), quit.into()]);
+    first_menu = Menu::with_items([
+      about.into(),
+      MenuItem::Separator.into(),
+      app_settings.into(),
+      MenuItem::Separator.into(),
+      quit.into(),
+    ]);
   }
 
   #[cfg(not(target_os = "macos"))]
@@ -155,16 +167,25 @@ pub fn get_app_menu(system_menu_translation: SystemMenuTranslation) -> Menu {
     .into(),
   ]);
 
-  let tools_sub_menu = Menu::with_items([CustomMenuItem::new(
+  // let tools_sub_menu = Menu::with_items([CustomMenuItem::new(
+  //   PASSWORD_GENERATOR,
+  //   system_menu_translation.sub_menu(PASSWORD_GENERATOR, "Password Generator"),
+  // )
+  // .accelerator("CmdOrControl+G")
+  // .disabled()
+  // .into()]);
+
+  let pw_gen_menu_item = CustomMenuItem::new(
     PASSWORD_GENERATOR,
     system_menu_translation.sub_menu(PASSWORD_GENERATOR, "Password Generator"),
   )
   .accelerator("CmdOrControl+G")
-  .disabled()
-  .into()]);
+  .disabled();
 
   #[cfg(target_os = "macos")]
   {
+    let tools_sub_menu = Menu::with_items([pw_gen_menu_item.into()]);
+
     Menu::new()
       .add_submenu(Submenu::new("App Menu", first_menu))
       .add_submenu(Submenu::new(
@@ -191,6 +212,7 @@ pub fn get_app_menu(system_menu_translation: SystemMenuTranslation) -> Menu {
 
   #[cfg(not(target_os = "macos"))]
   {
+    let tools_sub_menu = Menu::with_items([pw_gen_menu_item.into(),app_settings.into()]);
     Menu::new()
       .add_submenu(Submenu::new(
         system_menu_translation.main_menu("File"),
@@ -218,15 +240,6 @@ pub fn get_app_menu(system_menu_translation: SystemMenuTranslation) -> Menu {
       ))
   }
 }
-
-// fn locale_main_menu(name: &str) -> String {
-//   let lng = crate::utils::current_locale();
-//   if name == "Database" {
-//     "Base de données".into()
-//   } else {
-//     name.into()
-//   }
-// }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MenuAction {

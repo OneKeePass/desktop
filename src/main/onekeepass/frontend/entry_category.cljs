@@ -36,9 +36,6 @@
 
 ;;(set! *warn-on-infer* true)
 
-#_(defn translate [key]
-    (t/lstr (str/join "." ["labels" (csk/->camelCase key)])))
-
 (defn- menu-action [anchor-el action & action-args]
   (fn [^js/Event e]
     (reset! anchor-el nil)

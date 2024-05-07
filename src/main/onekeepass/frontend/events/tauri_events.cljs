@@ -74,6 +74,9 @@
 
       (= menu-id const/MENU_ID_SEARCH)
       (dispatch [:search/dialog-show])
+      
+      (= menu-id const/APP_SETTINGS)
+      (dispatch [:app-settings/read-start])
 
       :else
       (dispatch [:common/message-box-show "Work In Progress" (str "Menu action for " menu-id " will be implemented soon")]))))

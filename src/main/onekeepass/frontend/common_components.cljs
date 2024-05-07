@@ -1,5 +1,6 @@
 (ns onekeepass.frontend.common-components
   (:require [clojure.string :as str]
+            [onekeepass.frontend.translation :refer-macros [tr-bl]]
             [onekeepass.frontend.background :as bg]
             [onekeepass.frontend.constants :refer [ADD_TAG_PREFIX]]
             [onekeepass.frontend.events.common :as cmn-events]
@@ -40,7 +41,7 @@
 ;; We should not have space when the sx is meant for the immediate slot and we need a space when we meant sx for 
 ;; children ? 
 
-(defn theme-text-field-read-sx [theme-mode]
+#_(defn theme-text-field-read-sx [theme-mode]
   {"&.MuiInput-root"
    {:border 0
     :border-bottom  (if (is-light-theme?)
@@ -49,25 +50,39 @@
                                     ;;  :border-bottom-style "solid"
                                     ;;  :border-bottom-width "1px"
     }
-   
+
   ;;  "&.Mui-focused"
   ;;  {:border "1px solid var(--color-primary-main)"
   ;;   :border-bottom "1px solid var(--color-primary-main)"}
-   
-   }
-  )
+   })
 
-(defn theme-text-field-edit-sx [theme-mode]
+#_(defn theme-text-field-edit-sx [theme-mode]
   {"&.MuiInput-root"
    {:border "1px solid grey"
     :outline "1px solid transparent"}
-   
+
    "&.Mui-focused"
    {:border "1px solid var(--color-primary-main)"
-    :outline "1px solid var(--color-primary-main)"}
-   
-   }
-  )
+    :outline "1px solid var(--color-primary-main)"}})
+
+(defn theme-text-field-sx [edit theme]
+  (if edit
+    {"&.MuiInput-root"
+     {:border "1px solid grey"
+      :outline "1px solid transparent"}
+
+     "&.Mui-focused"
+     {:border "1px solid var(--color-primary-main)"
+      :outline "1px solid var(--color-primary-main)"}}
+
+    {"&.MuiInput-root"
+     {:border 0
+      :border-bottom  (if (is-light-theme? theme)
+                        "1px solid #eeeeee" (str "1px solid " "rgba(255, 255, 255, 0.3)"))
+                                        ;;  :border-bottom-color "#eeeeee"
+                                        ;;  :border-bottom-style "solid"
+                                        ;;  :border-bottom-width "1px"
+      }}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Using Autocomplte ;;;;;;;;;;;;;;;;;;;;;;;;;;;;  
 
@@ -376,7 +391,7 @@
    [mui-dialog-actions
     [mui-button {:color "secondary"
                  :disabled (= status :in-progress)
-                 :on-click close-fn} "Close"]]])
+                 :on-click close-fn} (tr-bl close)]]])
 
 (defn error-info-dialog
   "Creates a reagent component to show a dialog"
@@ -390,7 +405,7 @@
         [mui-alert {:severity "error" :sx {:mt 1}} error-text])]]
     [mui-dialog-actions
      [mui-button {:color "secondary"
-                  :on-click cmn-events/close-error-info-dialog} "Close"]]])
+                  :on-click cmn-events/close-error-info-dialog} (tr-bl close)]]])
   ([]
    (error-info-dialog @(cmn-events/error-info-dialog-data))))
 
@@ -403,7 +418,7 @@
      [mui-dialog-content-text message]]
     [mui-dialog-actions
      [mui-button {:color "secondary"
-                  :on-click cmn-events/close-message-dialog} "Ok"]]])
+                  :on-click cmn-events/close-message-dialog} (tr-bl ok)]]])
   ([]
    [message-dialog @(cmn-events/message-dialog-data)]))
 

@@ -1,13 +1,12 @@
 (ns onekeepass.frontend.group-form
   (:require [clojure.string :as str]
-            [onekeepass.frontend.common-components :refer [tags-field
-                                                           theme-text-field-edit-sx
-                                                           theme-text-field-read-sx]]
-            [onekeepass.frontend.common-components :as cc]
+            [onekeepass.frontend.common-components :as cc  :refer [tags-field
+                                                           theme-text-field-sx]] 
             [onekeepass.frontend.db-icons :as db-icons :refer [group-icon]]
             [onekeepass.frontend.events.common :as cmn-events]
             [onekeepass.frontend.events.group-form :as gf-events]
-            [onekeepass.frontend.mui-components :as m :refer [mui-box
+            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
+                                                              mui-box
                                                               mui-button
                                                               mui-checkbox
                                                               mui-dialog
@@ -36,7 +35,7 @@
                  :onChange on-change
                  :InputLabelProps {}
                  :InputProps {:id field-name
-                              :sx (if editing (theme-text-field-edit-sx @m/theme-mode) (theme-text-field-read-sx @m/theme-mode)) 
+                              :sx (theme-text-field-sx editing @custom-theme-atom)
                               :type "text"}
                          ;;attributes for 'input' tag can be added here
                          ;;It seems adding these 'InputProps' also works

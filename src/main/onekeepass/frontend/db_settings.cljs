@@ -27,10 +27,10 @@
                                                               mui-typography
                                                               theme-color]]
             [onekeepass.frontend.translation  :refer-macros [tr-l
-                                                    tr-t 
-                                                    tr-h
-                                                    tr-bl
-                                                    tr-dlg-title]]
+                                                             tr-t
+                                                             tr-h
+                                                             tr-bl
+                                                             tr-dlg-title]]
             [reagent.core :as r]))
 
 ;;(set! *warn-on-infer* true)
@@ -126,7 +126,7 @@
 
      [mui-stack
       [m/text-field {:label (tr-l password)
-                     :value password 
+                     :value password
                      :placeholder (if password-use-added (tr-l addPassword)  (tr-l changePassword))
                      :error (contains? error-fields :password)
                      :helperText (get error-fields :password (tr-h passwordForYourDb))
@@ -297,22 +297,32 @@
     [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
                  :on-click #(.stopPropagation %)
                  :sx {:min-width "600px"
-                      "& .MuiDialog-paper" {:max-width "650px" :width "90%"}}
-               ;;:classes {:paper "pwd-dlg-root"} 
-                 }
+                      "& .MuiDialog-paper" {:max-width "650px" :width "90%"}}}
      [mui-dialog-title (tr-dlg-title databaseSettings)]
      [mui-dialog-content {:sx {:padding-left "10px"}}
       [mui-stack
        [mui-stack {:direction "row" :sx {:height "350px " :min-height "300px"}}
-        [mui-box {:sx {:width "30%"  
-                       ;;:background "#F1F1F1"
-                       :background "rgba(241, 241, 241, 0.33)"
-                       }} 
-         [list-items dialog-data]  #_"List comes here"]
+        ;; Left side list
+        [mui-box {:sx {:width "30%"
+                       :background "rgba(241, 241, 241, 0.33)"}}
+         [:div {:class "gbox"
+                :style {:margin 0
+                        :width "100%"}}
+          [:div {:class "gcontent" :style {}}
+           [list-items dialog-data]]
+          [:div {:class "gfooter"}
+           [mui-stack {:justify-content "center"}
+            [mui-button {:variant "text" 
+                         :disabled (or modified in-progress? (-> error-fields seq boolean))
+                         :color "secondary"
+                         :on-click settings-events/app-settings-dialog-read-start } 
+             (tr-l "appSettings")]]]]]
+
+        ;; Right side panel
         [mui-box {:sx {:width "70%"  :height "100%"
                        :align-self "center"
                        :background "rgba(241, 241, 241, 0.33)"
-                       :margin-left "5px"}}  ;;:text-align "center"
+                       :margin-left "5px"}}
 
          (cond
            (= panel :general-info)
@@ -327,10 +337,13 @@
            in-progress?
            [mui-stack (tr-h databaseSettingsChange)]
 
+           ;; IMPORATNT: Need this clause when dialog-data is empty
+           ;; This happens when the component is created first time with 
+           ;; default dialog-data
            :else
            [:div])]]
 
-       (when api-error-text #_(not (nil? api-error-text))
+       (when api-error-text 
              [mui-alert {:severity "error" :sx {:mt 1}} api-error-text])
 
        (when (and (nil? api-error-text) in-progress?)
@@ -341,7 +354,7 @@
                    :disabled in-progress?
                    :on-click settings-events/cancel-on-click} (tr-bl cancel)]
       [mui-button {:variant "contained" :color "secondary"
-                   :disabled (or (not modified) in-progress? (-> error-fields seq boolean) #_(not (empty? error-fields)))
+                   :disabled (or (not modified) in-progress? (-> error-fields seq boolean))
                    :on-click settings-events/ok-on-click} (tr-bl ok)]]]))
 
 (defn settings-dialog-main []

@@ -217,6 +217,22 @@ pub(crate) async fn system_info_with_preference(
 }
 
 #[tauri::command]
+pub(crate) async fn update_preference(
+  app_state: State<'_, utils::AppState>,
+  preference_data:preference::PreferenceData
+) -> Result<()> {
+  Ok(app_state.update_preference(preference_data))
+}
+
+//clear_recent_files
+#[tauri::command]
+pub(crate) async fn clear_recent_files(
+  app_state: State<'_, utils::AppState>
+) -> Result<()> {
+  Ok(app_state.clear_recent_files())
+}
+
+#[tauri::command]
 pub(crate) async fn get_db_settings(db_key: &str) -> Result<kp_service::DbSettings> {
   Ok(kp_service::get_db_settings(db_key)?)
 }

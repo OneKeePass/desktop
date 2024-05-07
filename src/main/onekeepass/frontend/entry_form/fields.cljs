@@ -1,12 +1,12 @@
 (ns onekeepass.frontend.entry-form.fields
   (:require [clojure.string :as str]
-            [onekeepass.frontend.common-components :as cc :refer [theme-text-field-edit-sx
-                                                                  theme-text-field-read-sx]]
+            [onekeepass.frontend.common-components :as cc :refer [theme-text-field-sx]]
             [onekeepass.frontend.constants :as const :refer [OTP PASSWORD]]
             [onekeepass.frontend.entry-form.common :as ef-cmn]
             [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
             [onekeepass.frontend.events.entry-form-ex :as form-events]
-            [onekeepass.frontend.mui-components :as m :refer [mui-box
+            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
+                                                              mui-box
                                                               mui-circular-progress
                                                               mui-date-time-picker
                                                               mui-icon-autorenew
@@ -123,7 +123,7 @@
                  :disabled disabled
                  :InputLabelProps {}
                  :InputProps {:id key
-                              :sx (if edit (theme-text-field-edit-sx @m/theme-mode) (theme-text-field-read-sx @m/theme-mode)) 
+                              :sx (theme-text-field-sx edit @custom-theme-atom)
                               :endAdornment (if no-end-icons nil
                                                 (r/as-element
                                                  [mui-input-adornment {:position "end"}
@@ -209,7 +209,7 @@
                         ;; setting props in this is not working
                         :InputLabelProps {}
                         :InputProps {:id key
-                                     :sx (if edit (theme-text-field-edit-sx @m/theme-mode) (theme-text-field-read-sx @m/theme-mode)) 
+                                     :sx (theme-text-field-sx edit @custom-theme-atom)
                                      :endAdornment (if (or (not valid-token-found) no-end-icons) nil
                                                        (r/as-element
                                                         [mui-input-adornment {:position "end"}

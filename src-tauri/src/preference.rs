@@ -1,8 +1,11 @@
-use log::error;
+use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::fs;
 
-use crate::utils::*;
+use crate::{
+  constants::{standard_file_names::APP_PREFERENCE_FILE, themes::LIGHT},
+  utils::{self, *},
+};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct BackupPreference {
@@ -19,8 +22,17 @@ impl Default for BackupPreference {
   }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct Preference {
+#[derive(Deserialize)]
+pub struct PreferenceData {
+  pub session_timeout: Option<u8>,
+  pub clipboard_timeout: Option<u16>,
+  pub default_entry_category_groupings: Option<String>,
+  pub theme: Option<String>,
+  pub language: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Preference1 {
   pub version: String,
   // In minutes
   pub session_timeout: u8,
@@ -29,13 +41,35 @@ pub struct Preference {
   pub backup: BackupPreference,
 }
 
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct Preference {
+  pub version: String,
+  // In minutes
+  pub session_timeout: u8,
+  // In seconds
+  pub clipboard_timeout: u16,
+  // Determines the theme colors etc
+  pub theme: String,
+  // Should be a two letters language id
+  pub language: String,
+  //Valid values one of Types,Categories,Groups,Tags
+  pub default_entry_category_groupings: String,
+
+  pub recent_files: Vec<String>,
+
+  pub backup: BackupPreference,
+}
+
 impl Default for Preference {
   fn default() -> Self {
     Self {
       // Same as in tauri.conf.json and will be reset to the latest version from tauri.conf.json
       // in read_toml
-      version: "0.0.5".into(),
+      version: "0.13.0".into(),
       session_timeout: (15 as u8),
+      clipboard_timeout: (30 as u16),
+      theme: LIGHT.into(),
+      language: utils::current_locale_language(),
       default_entry_category_groupings: "Types".into(),
       recent_files: vec![],
       backup: BackupPreference::default(),
@@ -49,7 +83,7 @@ impl Preference {
     // As read_toml is called before log setup, any log calls will not work.
     // May need to use println if we want to see any console output during development
 
-    let pref_file_name = app_home_dir().join("preference.toml");
+    let pref_file_name = app_home_dir().join(APP_PREFERENCE_FILE);
     let pref_str = fs::read_to_string(pref_file_name).unwrap_or("".into());
     // let pref:Preference = toml::from_str(&pref_str).unwrap();
 
@@ -71,18 +105,33 @@ impl Preference {
     let mut pref: Preference = match toml::from_str(&pref_str) {
       Ok(p) => p,
       _e => {
-        // Parsing fails if the Preference file read from file system is not deserializable
-        // In that case, we start using the default one
-        let mut p = Preference::default();
-        p.backup.dir = Some(app_backup_dir().as_os_str().to_string_lossy().to_string());
-        // Let us write back the default as what is read from file system is not a valid pref
-        p.write_toml();
-        p
+        // Parsing fails if the file read from file system is not deserializable to current version of Preference
+        // We attempt to parse as the previous version
+        if let Some(mut p) = Self::read_previous_preference(&pref_str) {
+          p.version = version.clone();
+          p.write_toml();
+          p
+        } else {
+          // Parsing of the file data to any version of Preference struct failed
+          // In that case, we start using the default one
+          let mut p = Preference::default();
+          p.version = version.clone();
+          p.backup.dir = Some(app_backup_dir().as_os_str().to_string_lossy().to_string());
+          // Let us write back the default as what is read from file system is not a valid pref
+          p.write_toml();
+          p
+        }
+
+        // let mut p = Preference::default();
+        // p.backup.dir = Some(app_backup_dir().as_os_str().to_string_lossy().to_string());
+        // // Let us write back the default as what is read from file system is not a valid pref
+        // p.write_toml();
+        // p
       }
     };
 
     if pref.version != version {
-      // The read preference from file system has version whic is not the same as current one
+      // The read preference from file system has version which is not the same as current one
       // So we need to write the new one
       pref.version = version;
       pref.write_toml();
@@ -90,12 +139,45 @@ impl Preference {
     pref
   }
 
+  fn read_previous_preference(pref_str: &str) -> Option<Preference> {
+    if let Ok(p1) = toml::from_str::<Preference1>(&pref_str) {
+      info!("Found previous version of Preference and using that");
+      let mut p = Preference::default();
+      p.session_timeout = p1.session_timeout;
+      p.backup = p1.backup;
+      p.recent_files = p1.recent_files;
+      p.default_entry_category_groupings = p1.default_entry_category_groupings;
+      p.version = p1.version;
+      Some(p)
+    } else {
+      None
+    }
+  }
+
+  // Extracts only the language field value from the prefernce file's content
+  // The arg pref_file_content_str is the previously read preference.toml as string
+  pub fn read_language_selection(pref_file_content_str: &str) -> Option<String> {
+    // let pref_file_name = app_home_dir().join(APP_PREFERENCE_FILE);
+    // let pref_str = fs::read_to_string(pref_file_name).unwrap_or("".into());
+    if let Ok(value) = pref_file_content_str.parse::<toml::Value>() {
+      if let Some(s) = value.get("language") {
+        println!("Language preference is found and it is {:#?}", s.as_str());
+        s.as_str().map(|s| s.into())
+      } else {
+        println!("Language preference is not found");
+        None
+      }
+    } else {
+      None
+    }
+  }
+
   /// Writes the preference with any updates
   pub fn write_toml(&mut self) {
     // Remove old file names from the list before writing
     self.remove_old_recent_files();
 
-    let pref_file_name = app_home_dir().join("preference.toml");
+    let pref_file_name = app_home_dir().join(APP_PREFERENCE_FILE);
 
     let toml_str_result = toml::to_string(self);
     if let Ok(toml_str) = toml_str_result {
@@ -105,9 +187,43 @@ impl Preference {
     }
   }
 
+  // Update the preference with any non null values
+  pub fn update(&mut self,preference_data:PreferenceData) {
+    let mut updated = false;
+    if let Some(v) = preference_data.language {
+      self.language = v;
+      updated = true;
+    }
+
+    if let Some(v) = preference_data.theme {
+      self.theme = v;
+      updated = true;
+    }
+
+    if let Some(v) = preference_data.default_entry_category_groupings {
+      self.default_entry_category_groupings = v;
+      updated = true;
+    }
+
+    if let Some(v) = preference_data.session_timeout {
+      self.session_timeout = v;
+      updated = true;
+    }
+
+    if let Some(v) = preference_data.clipboard_timeout {
+      self.clipboard_timeout = v;
+      updated = true;
+    }
+
+    if updated  {
+      self.write_toml();
+    }
+
+  }
+
   /// Reads the previously stored preference if any and returns the newly created Preference instance
   pub fn _read_json() -> Self {
-    let pref_file_name = app_home_dir().join("preference.json");
+    let pref_file_name = app_home_dir().join(APP_PREFERENCE_FILE);
     let json_str = fs::read_to_string(pref_file_name).unwrap_or("".into());
     if json_str.is_empty() {
       Self::default()
@@ -145,9 +261,14 @@ impl Preference {
     self
   }
 
+  pub fn clear_recent_files(&mut self) -> &mut Self {
+    self.recent_files.clear();
+    self
+  }
+
   fn remove_old_recent_files(&mut self) -> &mut Self {
-    // Keeps the most recet 5 entries
-    self.recent_files.truncate(5);
+    // Keeps the most recent 8 entries
+    self.recent_files.truncate(8);
     self
   }
 }

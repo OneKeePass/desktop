@@ -8,8 +8,9 @@
                           dispatch
                           dispatch-sync
                           subscribe]]
-   [clojure.string :as str]
+   [clojure.string :as str] 
    [cljs.core.async :refer [go-loop timeout <!]]
+   [onekeepass.frontend.translation :refer-macros [tr-dlg-title tr-dlg-text ]]
    [onekeepass.frontend.constants :as const :refer [ADD_TAG_PREFIX DB_CHANGED]]
    [onekeepass.frontend.utils :refer [contains-val? str->int utc-to-local-datetime-str]]
    [onekeepass.frontend.background :as bg]))
@@ -58,13 +59,33 @@
 
 (declare set-session-timeout)
 
+(defn load-language-translation-completed []
+  (dispatch [:load-language-translation-complete]))
+
 (defn new-db-full-file-name [app-db db-name]
   (let [document-dir (-> app-db :standard-dirs :document-dir)
         path-sep (:path-sep app-db)]
     (str document-dir path-sep "OneKeePass" path-sep db-name ".kdbx")))
 
+(defn clear-recent-files []
+  (bg/clear-recent-files (fn [api-response]
+                           (when-not (on-error api-response)
+                             (dispatch [:clear-recent-files-done])))))
+
 (defn recent-files []
   (subscribe [:recent-files]))
+
+(defn app-preference-loading-completed []
+  (subscribe [:app-preference-loading-completed]))
+
+(defn language-translation-loading-completed []
+  (subscribe [:language-translation-loading-completed]))
+
+(defn app-theme []
+  (subscribe [:app-theme]))
+
+(defn app-theme-light? []
+  (subscribe [:app-theme-light]))
 
 (defn biometric-type-available []
   (subscribe [:biometric-type-available]))
@@ -109,7 +130,8 @@
             (assoc :biometric-type-available biometric-type-available)
             (assoc :os-name os-name)
             (assoc :os-version os-version)
-            (assoc :arch arch))}))
+            (assoc :arch arch)
+            (assoc-in [:background-loading-statuses :app-preference] true))}))
 
 (reg-event-db
  :common/load-app-preference
@@ -123,13 +145,48 @@
 (reg-event-fx
  :load-app-preference-complete
  (fn [{:keys [db]} [_event-id preference]]
+   ;; A temp side effect call. Need to move to a reg-fx call
+   (set-session-timeout (:session-timeout preference))
    {:db (assoc db :app-preference preference)}))
+
+(reg-event-fx
+ :load-language-translation-complete
+ (fn [{:keys [db]} [_event-id]]
+   {:db (assoc-in db [:background-loading-statuses :load-language-translation] true)}))
+
+(reg-event-fx
+ :clear-recent-files-done
+ (fn [{:keys [db]} [_event-id]] 
+   {:db (assoc-in db [:app-preference :recent-files] [])}))
 
 (reg-sub
  :recent-files
  :<- [:app-preference]
  (fn [pref _query-vec]
    (:recent-files pref)))
+
+(reg-sub
+ :app-theme
+ :<- [:app-preference]
+ (fn [pref _query-vec]
+   (:theme pref)))
+
+(reg-sub
+ :app-theme-light
+ :<- [:app-preference]
+ (fn [pref _query-vec]
+   ;; valid values (:theme pref) => light or dark
+   (= "light" (:theme pref))))
+
+(reg-sub
+ :app-preference-loading-completed
+ (fn [db _query-vec]
+   (get-in db [:background-loading-statuses :app-preference] false)))
+
+(reg-sub
+ :language-translation-loading-completed
+ (fn [db _query-vec]
+   (get-in db [:background-loading-statuses :load-language-translation] false)))
 
 (reg-sub
  :app-preference
@@ -221,11 +278,20 @@
         kdb (get app-db kdbx-db-key)]
     (assoc app-db kdbx-db-key (assoc-in kdb ks v))))
 
+#_(defn get-in-key-db
+    "Gets the value for the key lists from an active kdbx content"
+    [app-db ks]
+  ;; First we get the kdbx content map and then supplied keys 'ks' used to get the actual value
+    (get-in app-db (into [(active-db-key app-db)] ks)))
+
 (defn get-in-key-db
   "Gets the value for the key lists from an active kdbx content"
-  [app-db ks]
-  ;; First we get the kdbx content map and then supplied keys 'ks' used to get the actual value
-  (get-in app-db (into [(active-db-key app-db)] ks)))
+  ([app-db ks]
+     ;; First we get the kdbx content map and then supplied keys 'ks' used to get the actual value
+   (get-in app-db (into [(active-db-key app-db)] ks)))
+
+  ([app-db ks default]
+   (get-in app-db (into [(active-db-key app-db)] ks) default)))
 
 (defn on-error
   "A common error handler for the background API call.
@@ -272,6 +338,12 @@
    to show in the entry category bottom panel"
   [app-db]
   (-> app-db :app-preference :default-entry-category-groupings))
+
+
+(defn app-preference
+  "Gets the current loaded app preference"
+  [app-db]
+  (-> app-db :app-preference))
 
 ;; Called after creating a new database or after opening an existing database
 (reg-event-fx
@@ -403,7 +475,7 @@
          next-active-db-key (if (empty? dbs) nil (:db-key (last dbs)))]
      {:db (-> db
               (assoc :opened-db-list dbs)
-              (assoc :current-db-file-name next-active-db-key) 
+              (assoc :current-db-file-name next-active-db-key)
               (dissoc db-key))
       :fx [[:dispatch [:common/message-snackbar-open
                        (str "Closed database " db-key)]]
@@ -411,8 +483,14 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; DB Lock/Unlock ;;;;;;;;;;;;;;;;;;;;;
 
-(defn locked? []
-  (subscribe [:common/current-db-locked]))
+#_(defn locked? []
+    (subscribe [:common/current-db-locked]))
+
+(defn locked?
+  ([]
+   (subscribe [:common/current-db-locked]))
+  ([app-db]
+   (boolean (get-in-key-db app-db [:locked]))))
 
 (defn unlock-current-db
   "Unlocks the database using biometric option if available"
@@ -477,9 +555,8 @@
    ;; Need to check error code for specific value ''
    ;; if we have unsaved data, need to give user options for the next actions
    (if (and (= error DB_CHANGED) (get-in-key-db db [:db-modification :save-pending]))
-     {:fx [[:dispatch [:common/error-info-box-show {:title "Database changed"
-                                                    :message (str "The database content of the file has changed since the last opening."
-                                                                  " Please save to see options availble to resolve this")}]]]}
+     {:fx [[:dispatch [:common/error-info-box-show {:title (tr-dlg-title databaseChanged)
+                                                    :message (str (tr-dlg-text "databaseChangedTxt1") "." " " (tr-dlg-text "databaseChangedTxt2"))}]]]}
      {:fx [[:dispatch [:reload-database]]]})))
 
 (reg-event-fx

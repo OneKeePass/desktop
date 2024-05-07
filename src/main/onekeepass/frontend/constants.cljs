@@ -28,6 +28,10 @@
 (def ASCENDING "Ascending")
 (def DESCENDING "Descending")
 
+(def THEME_LIGHT "light")
+
+
+(def APP_SETTINGS "AppSettings")
 (def MENU_ID_QUIT "Quit")
 (def MENU_ID_SEARCH "Search")
 (def MENU_ID_NEW_DATABASE "NewDatabase")

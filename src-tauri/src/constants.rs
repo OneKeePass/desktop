@@ -8,3 +8,12 @@ pub mod event_action_names {
   pub const WINDOW_FOCUS_CHANGED: &str = "WindowFocusChanged";
   pub const CLOSE_REQUESTED: &str = "CloseRequested";
 }
+
+pub mod themes {
+  pub const LIGHT: &str ="light";
+  pub const DARK: &str ="dark";
+}
+
+pub mod standard_file_names {
+  pub const APP_PREFERENCE_FILE: &str ="preference.toml";
+}

@@ -1,120 +1,119 @@
 (ns onekeepass.frontend.tool-bar
-  (:require [onekeepass.frontend.auto-type :as at-form]
-            [onekeepass.frontend.common-components :refer [confirm-text-dialog
-                                                           error-info-dialog
-                                                           message-dialog
-                                                           progress-message-dialog]]
-            [onekeepass.frontend.constants :as const :refer [DB_CHANGED]]
-            [onekeepass.frontend.db-settings :as settings-form]
-            [onekeepass.frontend.events.auto-type :as at-events]
-            [onekeepass.frontend.events.common :as cmn-events]
-            [onekeepass.frontend.events.db-settings :as settings-events]
-            [onekeepass.frontend.events.open-db-form :as od-events]
-            [onekeepass.frontend.events.password-generator :as gen-events]
-            [onekeepass.frontend.events.search :as srch-event]
-            [onekeepass.frontend.events.tauri-events :as tauri-events]
-            [onekeepass.frontend.events.tool-bar :as tb-events]
-            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
-                                                              mui-alert
-                                                              mui-app-bar
-                                                              mui-box
-                                                              mui-button
-                                                              mui-dialog
-                                                              mui-dialog-actions
-                                                              mui-dialog-content
-                                                              mui-dialog-title
-                                                              mui-divider
-                                                              mui-icon-button
-                                                              mui-icon-cancel-presentation
-                                                              mui-icon-folder
-                                                              mui-icon-lock-open-outlined
-                                                              mui-icon-lock-outlined
-                                                              mui-icon-save
-                                                              mui-icon-save-as
-                                                              mui-icon-search
-                                                              mui-icon-settings-outlined
-                                                              mui-linear-progress
-                                                              mui-stack
-                                                              mui-toolbar
-                                                              mui-tooltip
-                                                              mui-typography 
-                                                              theme-color]]
-            [onekeepass.frontend.new-database :as nd-form]
-            [onekeepass.frontend.open-db-form :as od-form]
-            [onekeepass.frontend.password-generator :as gen-form]
-            [onekeepass.frontend.search :as search]))
+  (:require
+   [onekeepass.frontend.translation :as t :refer-macros [tr-bl tr-dlg-title tr-dlg-text]]
+   [onekeepass.frontend.app-settings :refer [app-settings-dialog-main]]
+   [onekeepass.frontend.auto-type :as at-form]
+   [onekeepass.frontend.common-components :refer [confirm-text-dialog
+                                                  error-info-dialog
+                                                  message-dialog
+                                                  progress-message-dialog]]
+   [onekeepass.frontend.constants :as const :refer [DB_CHANGED]]
+   [onekeepass.frontend.db-settings :as settings-form]
+   [onekeepass.frontend.events.auto-type :as at-events]
+   [onekeepass.frontend.events.common :as cmn-events]
+   [onekeepass.frontend.events.db-settings :as settings-events]
+   [onekeepass.frontend.events.open-db-form :as od-events]
+   [onekeepass.frontend.events.password-generator :as gen-events]
+   [onekeepass.frontend.events.search :as srch-event]
+   [onekeepass.frontend.events.tauri-events :as tauri-events]
+   [onekeepass.frontend.events.tool-bar :as tb-events]
+   [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
+                                                     mui-alert
+                                                     mui-app-bar
+                                                     mui-box
+                                                     mui-button
+                                                     mui-dialog
+                                                     mui-dialog-actions
+                                                     mui-dialog-content
+                                                     mui-dialog-title
+                                                     mui-divider
+                                                     mui-icon-button
+                                                     mui-icon-cancel-presentation
+                                                     mui-icon-folder
+                                                     mui-icon-lock-open-outlined
+                                                     mui-icon-lock-outlined
+                                                     mui-icon-save
+                                                     mui-icon-save-as
+                                                     mui-icon-search
+                                                     mui-icon-settings-outlined
+                                                     mui-linear-progress
+                                                     mui-stack
+                                                     mui-toolbar
+                                                     mui-tooltip
+                                                     mui-typography
+                                                     theme-color]]
+   [onekeepass.frontend.new-database :as nd-form]
+   [onekeepass.frontend.open-db-form :as od-form]
+   [onekeepass.frontend.password-generator :as gen-form]
+   [onekeepass.frontend.search :as search]))
 
 (set! *warn-on-infer* true)
 
 ;; TODO: Something similar to what we do for close database
 (defn ask-save-on-lock [dialog-data]
   [confirm-text-dialog
-   "Unsaved Changes"
-   "There are changes yet to be saved. Please save before locking the database"
-   [{:label "Ok" :on-click #(tb-events/on-lock-ask-save-dialog-hide)}]
+   (tr-dlg-title unsavedChanges)
+   (tr-dlg-text "unsavedChangesTxt1")
+   [{:label (tr-bl ok) :on-click #(tb-events/on-lock-ask-save-dialog-hide)}]
    dialog-data])
 
 (defn ask-save-dialog [dialog-data]
   [confirm-text-dialog
-   "Unsaved Changes"
-   "There are changes yet to be saved. Do you want to save and then quit?"
-   [{:label "Save" :on-click #(tb-events/on-save-click)}
-    {:label "Quit" :on-click #(tb-events/on-do-not-save-click)}
-    {:label "Cancel" :on-click #(tb-events/ask-save-dialog-show false)}]
+   (tr-dlg-title unsavedChanges)
+   (tr-dlg-text "unsavedChangesTxt2")
+   [{:label (tr-bl save) :on-click #(tb-events/on-save-click)}
+    {:label (tr-bl quit) :on-click #(tb-events/on-do-not-save-click)}
+    {:label (tr-bl cancel) :on-click #(tb-events/ask-save-dialog-show false)}]
    dialog-data])
 
 (defn close-current-db-save-dialog [dialog-data]
   [confirm-text-dialog
-   "Unsaved Changes"
-   "There are changes yet to be saved. Do you want to save before closing the database?"
-   [{:label "Save" :on-click tb-events/close-current-db-on-save-click}
-    {:label "Do not Save" :on-click tb-events/close-current-db-no-save}
-    {:label "Cancel" :on-click tb-events/close-current-db-on-cancel-click}]
+   (tr-dlg-title unsavedChanges)
+   (tr-dlg-text "unsavedChangesTxt3")
+   [{:label (tr-bl save) :on-click tb-events/close-current-db-on-save-click}
+    {:label (tr-bl doNotSave)  :on-click tb-events/close-current-db-no-save}
+    {:label (tr-bl cancel) :on-click tb-events/close-current-db-on-cancel-click}]
    dialog-data])
 
 (defn conflict-action-confirm-dialog [{:keys [dialog-show confirm]}]
   (if (= confirm :overwrite)
     [confirm-text-dialog
-     "Confirm Overwrite"
-     "Do you want to overwrite the externally changed database with your changes?"
-     [{:label "Yes,Overwrite" :on-click tb-events/overwrite-external-changes}
-      {:label "Cancel" :on-click tb-events/conflict-action-confirm-dialog-hide}]
+     (tr-dlg-title confirmOverwrite)
+     (tr-dlg-text confirmOverwrite)
+     [{:label (tr-bl yesOverwrite) :on-click tb-events/overwrite-external-changes}
+      {:label (tr-bl cancel) :on-click tb-events/conflict-action-confirm-dialog-hide}]
      {:dialog-show dialog-show}]
     [confirm-text-dialog
-     "Confirm Discard"
-     "Do you want to discard your changes and close the database?"
-     [{:label "Discard" :on-click tb-events/conflict-action-discard}
-      {:label "Cancel" :on-click tb-events/conflict-action-confirm-dialog-hide}]
+     (tr-dlg-title confirmDiscard)
+     (tr-dlg-text confirmDiscard)
+     [{:label (tr-bl discard) :on-click tb-events/conflict-action-discard}
+      {:label (tr-bl cancel) :on-click tb-events/conflict-action-confirm-dialog-hide}]
      {:dialog-show dialog-show}]))
 
 (defn content-change-action-dialog [open?]
   [mui-dialog {:open open? :on-click #(.stopPropagation ^js/Event %)}
-   [mui-dialog-title "Content conflicts detected"]
+   [mui-dialog-title (tr-dlg-title conflictOnSave)]
    [mui-dialog-content
-    [mui-stack
-     "The database content of the file has changed since the last opening. Please take one of the following action:"]
+    [mui-stack (tr-dlg-text "conflictOnSaveTxt1")]
 
     [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
     [mui-stack {:style {:align-items "center"}}
      [mui-button {:color "secondary"
                   :variant "text"
-                  :on-click tb-events/conflict-action-save-as} "Save as"]
-     #_[mui-typography {:sx  {} #_{"&.MuiTypography-root" {:color "secondary"}}
-                        :color "secondary" :variant  "button"} "Save as"]]
+                  :on-click tb-events/conflict-action-save-as} (tr-bl saveAs)]]
     [mui-stack
      [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
-      "You can save your changes to a new database and manually merge (auto merge feature will be added in the  future release)"]]
+      (tr-dlg-text "conflictOnSaveTxt2")]]
 
     [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
     [mui-stack  {:direction "column"}
      [mui-stack {:style {:align-items "center"}}
       [mui-button {:color "error"
                    :variant "text"
-                   :on-click tb-events/confirm-overwrite-external-db} "Overwrite"]
-      #_[mui-typography {:sx {}
-                         :color "error" :variant  "button"} "Overwrite"]]
+                   :on-click tb-events/confirm-overwrite-external-db} (tr-bl overwrite)]]
+
      [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
-      "You can overwrite the database with your changes"]]
+      (tr-dlg-text "conflictOnSaveTxt3")]]
 
     [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
     [mui-stack  {:direction "column"}
@@ -122,26 +121,16 @@
      [mui-stack {:style {:align-items "center"}}
       [mui-button {:color "error"
                    :variant "text"
-                   :on-click tb-events/confirm-discard-current-db} "Discard & Close database"]
-      #_[mui-typography {:sx {"&.MuiTypography-root"
-                              {:margin-left "5px"}}
-                         :color "error" :variant  "button"} "Discard & Close database"]]
+                   :on-click tb-events/confirm-discard-current-db} (tr-bl discardClose)]]
 
      [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
-      "You can discard your changes and close the database "]]
+      (tr-dlg-text "conflictOnSaveTxt4")]]
     [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]]
 
    [mui-dialog-actions
 
     [mui-button {:color "secondary"
-                 :on-click tb-events/save-current-db-msg-dialog-hide} "Cancel"]
-    ;; [mui-button {:color "error"
-    ;;              :on-click tb-events/confirm-overwrite-external-db} "Overwrite"]
-    ;; [mui-button {:color "error"
-    ;;              :on-click tb-events/confirm-discard-current-db} "Discard & Close database"]
-    ;; [mui-button {:color "secondary"
-    ;;              :on-click tb-events/conflict-action-save-as} "Save as"]
-    ]])
+                 :on-click tb-events/save-current-db-msg-dialog-hide} (tr-bl cancel)]]])
 
 (defn save-info-dialog [{:keys [status api-error-text]}]
   (if (= api-error-text DB_CHANGED)
@@ -247,14 +236,21 @@
                             :color "inherit"
                             :disabled locked?
                             :on-click srch-event/search-dialog-show}
-           [mui-icon-search]]]]] 
-       
+           [mui-icon-search]]]]]
+
+       ;; Include all dialogs that we need to use when the toll bar is visibible
+       ;; Also see start_page.cljs for other dialogs  
+
        ;; Auto type dialogs
        [at-form/perform-auto-type-dialog @(at-events/auto-type-perform-dialog-data)]
        [at-form/auto-type-edit-dialog @(at-events/auto-type-edit-dialog-data)]
-       
-       [gen-form/password-generator-dialog @(gen-events/generator-dialog-data)] 
+
+       ;; These are used here and in start_page.cljs
        [message-dialog]
+       [app-settings-dialog-main]
+
+       [gen-form/password-generator-dialog @(gen-events/generator-dialog-data)]
+
        [progress-message-dialog]
        [error-info-dialog]
        [od-form/open-db-dialog-main]

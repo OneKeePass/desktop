@@ -121,6 +121,33 @@
                                 
                                 
                                 
+                                
+                                
+                                discard
+                                confirmDiscard
+                                yesOverwrite
+                                confirmOverwrite
+                                doNotSave
+                                quit
+                                save
+                                unsavedChanges
+                                databaseChanged
+                                discardClose
+                                overwrite
+                                conflictOnSave
+                                passwordConfirm
+                                parallelism
+                                noCredentialSet
+                                memory
+                                iterations
+                                databaseName
+                                databaseSettings
+                                appSettings
+                                applicationSettings
+                                requiresApplicationRestart
+                                sessionTimeout
+                                quickUnlock
+                                databaseLocked
                                 groupOrCategory
                                 entryTypeFields
                                 restore
