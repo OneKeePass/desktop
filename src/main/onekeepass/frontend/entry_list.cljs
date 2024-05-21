@@ -11,7 +11,7 @@
             [onekeepass.frontend.events.entry-list :as el-events]
             [onekeepass.frontend.events.group-tree-content :as gt-events]
             [onekeepass.frontend.events.tauri-events :as tauri-events]
-            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom 
+            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                               mui-avatar
                                                               mui-button
                                                               mui-icon-arrow-drop-down-outlined
@@ -25,7 +25,7 @@
                                                               mui-menu-item
                                                               mui-stack
                                                               theme-color]]
-            [onekeepass.frontend.translation :refer-macros [tr-bl tr-ml]]
+            [onekeepass.frontend.translation :refer-macros [tr-bl tr-ml] :refer [lstr-ml]]
             [reagent.core :as r]))
 (set! *warn-on-infer* true)
 
@@ -155,7 +155,7 @@
                        :startIcon (if (= direction ASCENDING)
                                     (r/as-element [mui-icon-arrow-drop-up-outlined])
                                     (r/as-element [mui-icon-arrow-drop-down-outlined]))}
-           key-name]
+           (lstr-ml key-name)]
           [entries-sort-menu]]])]
      ;; Need to use some height for 'gcontent' div so that 
      ;; entry list is shown - particularly in mac Catalina OS (10.15+)

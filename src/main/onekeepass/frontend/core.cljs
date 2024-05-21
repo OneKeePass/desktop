@@ -4,7 +4,7 @@
             [onekeepass.frontend.entry-category :as ec]
             [onekeepass.frontend.entry-form-ex :as eform-ex]
             [onekeepass.frontend.entry-list :as el]
-            [onekeepass.frontend.events.common :as cmn-events]
+            [onekeepass.frontend.events.common :as cmn-events] 
             [onekeepass.frontend.events.tauri-events :as tauri-events]
             [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                               mui-box

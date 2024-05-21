@@ -49,7 +49,7 @@
 
 (def languages [{:name "en - English" :value "en"}
                 {:name "es - Español" :value "es"}
-                {:name "fr - Français" :value "fr"}])
+                #_{:name "fr - Français" :value "fr"}])
 
 
 (defn- user-interface

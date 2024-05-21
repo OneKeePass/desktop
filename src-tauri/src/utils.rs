@@ -79,6 +79,7 @@ impl AppState {
     //sets the preference struct value inside the MutexGuard by dereferencing
     *store_pref = pref;
   }
+  
 
   pub fn update_preference(&self, preference_data: PreferenceData) {
     let mut store_pref = self.preference.lock().unwrap();
@@ -366,7 +367,7 @@ pub struct TranslationResource {
   translations: HashMap<String, String>,
 }
 
-const TRANSLATION_RESOURCE_DIR: &str = "../resources/public/locales";
+const TRANSLATION_RESOURCE_DIR: &str = "../resources/public/translations";
 
 // Loads language translation strings for the passed language ids
 // Typically it should be en and the preferedd or the locale language 
@@ -419,7 +420,8 @@ pub fn load_language_translations<R: Runtime>(
   let mut translations: HashMap<String, String> = HashMap::new();
 
   for lng in language_ids_to_load {
-    let p = path.join(&lng).join("translation.json");
+    
+    let p = path.join(format!("{}.json",&lng));
     //debug!("Going to load translation file  {:?} ",&p);
 
     let data = fs::read_to_string(p)
@@ -485,7 +487,7 @@ pub fn load_system_menu_translations(
     return system_menu_tr;
   };
 
-  let p = path.join(language).join("translation.json");
+  let p = path.join(format!("{}.json",&language));
 
   //println!("Json file is {:?}", &p);
 

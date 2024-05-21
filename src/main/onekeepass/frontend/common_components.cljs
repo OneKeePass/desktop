@@ -1,6 +1,5 @@
 (ns onekeepass.frontend.common-components
   (:require [clojure.string :as str]
-            [onekeepass.frontend.translation :refer-macros [tr-bl]]
             [onekeepass.frontend.background :as bg]
             [onekeepass.frontend.constants :refer [ADD_TAG_PREFIX]]
             [onekeepass.frontend.events.common :as cmn-events]
@@ -26,6 +25,7 @@
                                                               mui-tooltip
                                                               mui-typography
                                                               react-use-state]]
+            [onekeepass.frontend.translation :refer-macros [tr-bl] :refer [lstr-sm]]
             [onekeepass.frontend.utils :refer [contains-val?]]
             [reagent.core :as r]))
 
@@ -450,7 +450,12 @@
                                          {:color "inherit"
                                           :on-click cmn-events/close-message-snackbar}
                                          [mui-icon-close-outlined]])
-                  :message message
+                  ;; Mostly message is a quoted symbol key and used 
+                  ;; in lstr-sm to get the translated text
+                  ;; If the message is a string, then it is assumed either
+                  ;; we have already a translated text or some text string which
+                  ;; is yet to be translated
+                  :message (lstr-sm message)
                   :auto-hide-duration 6000
                   :on-close cmn-events/close-message-snackbar}])
   ([]

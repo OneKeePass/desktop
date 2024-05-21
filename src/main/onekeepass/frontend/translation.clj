@@ -1,6 +1,10 @@
 (ns onekeepass.frontend.translation
   (:require [clojure.string :as str]
-            [camel-snake-kebab.core :as csk]))
+            [camel-snake-kebab.core ]))
+
+;; TODO: Replace these macro uses with functions as done in mobile cljs files. 
+;; Functions will be defined in ns onekeepass.frontend.translation (translation.cljs file)
+;; and will be used intead of calling the macros defined here
 
 (defmacro tr [& keys]
   "Joins all symbols or strings passed in keys and calls lstr"
@@ -15,14 +19,14 @@
   `(tr-with-prefix "labels" ~@keys))
 
 (defmacro tr-bl 
-  "Prefixes 'button.labels' to the keys"
+  "Prefixes 'buttonLabels' to the keys"
   [& keys]
-  `(tr-with-prefix "button" "labels" ~@keys))
+  `(tr-with-prefix "buttonLabels"  ~@keys))
 
 (defmacro tr-ml 
-  "Prefixes 'menu.labels' to the keys"
+  "Prefixes 'menuLabels' to the keys"
   [& keys]
-  `(tr-with-prefix "menu" "labels" ~@keys))
+  `(tr-with-prefix "menuLabels"  ~@keys))
 
 (defmacro tr-t 
   "Prefixes 'titles' to the keys"
@@ -71,19 +75,19 @@
   [& keys]
   `(let [v# (to-vals ~@keys)]
      #_(str/join "." (conj v# "labels"))
-     (onekeepass.frontend.translation/lstr (str/join "." (conj v# "entryType.titles")))))
+     (onekeepass.frontend.translation/lstr (str/join "." (conj v# "entryTypeTitles")))))
 
 (defmacro tr-entry-field-name-cv
   "Uses values found in the symbols passed as keys and adds the prefix before calling lstr"
   [& keys]
   `(let [v# (to-vals ~@keys)] 
-     (onekeepass.frontend.translation/lstr (str/join "." (conj v# "entry.fields")))))
+     (onekeepass.frontend.translation/lstr (str/join "." (conj v# "entryFields")))))
 
 (defmacro tr-entry-section-name-cv
   "Uses values found in the symbols or string values passed as keys and adds the prefix before calling lstr"
   [& keys]
   `(let [v# (to-vals ~@keys)]
-     (onekeepass.frontend.translation/lstr (str/join "." (conj v# "entry.sections")))))
+     (onekeepass.frontend.translation/lstr (str/join "." (conj v# "entrySections")))))
 
 (comment
 
@@ -122,80 +126,3 @@
   
   ;; (lstr "entry.sections.attachments")
   )
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;; Few experimental code ....
-
-;; All tr macros treat 'keys' as sequence of symbols and do try evaluate values of those symbols and then use
-;; Tried various ways to evaluete values passed in 'keys' instead of symbols. But not statified with the following solution
-;; Finally the workable solution is using the macro 'to-vals' instead of using a fn to get values
-;; from symbols. This is achieved by creating anonymous function and use it in another macro
-
-#_(defn to-cc 
-  [& keys]
-  ;;keys
-  (map (fn [v] (csk/->camelCase v)) keys))
-
-;; Calling site needs define something similar 'to-cc' and pass that to this macro
-;; ~to-cc used to evalute the arg 'to-cc' to a fn
-;; Need to use gensym based v1 and v2 to be clear from any conflicts with variables in the calling site
-#_(defmacro tr-l-cv1 [to-cc & keys]
-  (let [v1 (gensym)
-        v2 (gensym)]
-    `(let [~v1  (~to-cc ~@keys)
-           ~v2 (str/join "." (conj  ~v1 "labels"))]
-       ;;(onekeepass.frontend.translation/lstr ~v2)
-       ~v2
-       #_(str/join "." (conj  ~v1 "labels")))))
-
-#_(defmacro tr-l-cv2 [to-cc & keys]
-  `(let [v1#  (~to-cc ~@keys)
-         v2# (str/join "." (conj  v1# "labels"))]
-         ;;(onekeepass.frontend.translation/lstr ~v2)
-     v2#
-     #_(str/join "." (conj  ~v1 "labels"))))
-
-#_(defmacro mac1 [& keys ]
-  (list str/join "." (list 'map (fn [x] (csk/->camelCase x)) 
-                           (list reverse (-> keys vec (conj "labels"))))))
-
-#_(defmacro mac2 [& keys]
-  (list 'map (fn [x] (csk/->camelCase x))
-        (list reverse (-> keys vec (conj "labels"))))
-  )
-
-#_(defmacro mac4 [& keys]
-  (list 'map (fn [x] (csk/->camelCase x)) (vec keys)
-        #_(list reverse (-> keys vec (conj "labels")))))
-
-#_(defmacro mac3 [& keys]
-  `(let [v# (mac4 ~@keys)]
-     (str/join "." (conj v# "labels"))
-     #_(onekeepass.frontend.translation/lstr v#)))
-
-#_(defmacro tr-l-cv [& keys]
-    (let [v1 (gensym)
-          v2 (gensym)
-          my-fn  (fn [& keys]
-                 ;;keys
-                   (map (fn [v] v #_(csk/->camelCase v)) keys))]
-
-      `(let [~v1  (~my-fn ~@keys)
-             ~v2 (str/join "." (conj  ~v1 "labels"))]
-         ~v2
-         #_(str/join "." (conj  ~v1 "labels")))))
-
-#_(defmacro tr-l-cv [& keys]
-    (let [v1 (gensym)
-          v2 (gensym)]
-      `(let [~v1 (my-fn1 ~@keys)
-             ~v2 (str/join "." (conj  ~v1 "labels"))]
-         ~v2
-         #_(str/join "." (conj  ~v1 "labels")))))
-
-#_(defmacro tr-l-ck
-  "Converts each key to a camelCase word before forming combined key and Adds prefix 'labels'"
-  [& keys]
-  `(tr-with-prefix "labels" ~@(map (fn [k] (csk/->camelCase k)) keys)))

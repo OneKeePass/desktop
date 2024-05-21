@@ -1,28 +1,28 @@
 (ns onekeepass.frontend.search
-  (:require
-   [reagent.core :as r]
-   [clojure.string :as str]
-   [onekeepass.frontend.events.search :as sch-event]
-   [onekeepass.frontend.events.common :as cmn-events]
-   [onekeepass.frontend.db-icons :refer [entry-icon]]
-   [onekeepass.frontend.common-components :refer [list-items-factory]]
-   [onekeepass.frontend.mui-components :as m :refer [mui-alert
-                                                     mui-input-adornment
-                                                     mui-icon-button
-                                                     mui-dialog
-                                                     mui-dialog-title
-                                                     mui-dialog-actions
-                                                     mui-dialog-content 
-                                                     mui-stack
-                                                     mui-button
-                                                     mui-tooltip 
-                                                     mui-list-item-secondary-action
-                                                     mui-list-item-button
-                                                     mui-list-item-avatar
-                                                     mui-avatar
-                                                     mui-list-item-text
-                                                     mui-icon-clear-outlined
-                                                     mui-icon-more-vert]]))
+  (:require [clojure.string :as str]
+            [onekeepass.frontend.common-components :refer [list-items-factory]]
+            [onekeepass.frontend.db-icons :refer [entry-icon]]
+            [onekeepass.frontend.events.common :as cmn-events]
+            [onekeepass.frontend.events.search :as sch-event]
+            [onekeepass.frontend.mui-components :as m :refer [mui-alert
+                                                              mui-avatar
+                                                              mui-button
+                                                              mui-dialog
+                                                              mui-dialog-actions
+                                                              mui-dialog-content
+                                                              mui-dialog-title
+                                                              mui-icon-button
+                                                              mui-icon-clear-outlined
+                                                              mui-icon-more-vert
+                                                              mui-input-adornment
+                                                              mui-list-item-avatar
+                                                              mui-list-item-button
+                                                              mui-list-item-secondary-action
+                                                              mui-list-item-text
+                                                              mui-stack
+                                                              mui-tooltip]] 
+            [onekeepass.frontend.translation :refer [tr-dlg-title tr-l]]
+            [reagent.core :as r]))
 
 #_(set! *warn-on-infer* true)
 
@@ -81,10 +81,10 @@
     [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
                  :on-click #(.stopPropagation %)
                  :classes {:paper "pwd-dlg-root"}}
-     [mui-dialog-title "Search"]
+     [mui-dialog-title (tr-dlg-title "search")]
      [mui-dialog-content
       [mui-stack
-       [m/text-field {:label "Search term"
+       [m/text-field {:label (tr-l "searchTerm")
                       :value term
                       :id "search_fld" ;; needs to be a unique id to use .getElementById and to call focus
                       ;; Using :ref callback fn returns #object[HTMLDivElement [object HTMLDivElement]]

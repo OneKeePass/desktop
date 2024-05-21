@@ -21,7 +21,10 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "resources": ["../resources/public/icons", "../resources/public/locales"],
+      "resources": [
+        "../resources/public/icons",
+        "../resources/public/translations"
+      ],
       "externalBin": [],
       "copyright": "",
       "category": "Productivity",
@@ -55,7 +58,7 @@
         "exit": true
       },
       "path": {
-        "all":true
+        "all": true
       },
       "dialog": {
         "all": true
@@ -64,7 +67,7 @@
         "all": true
       },
       "shell": {
-        "all": true 
+        "all": true
       }
     },
     "windows": [

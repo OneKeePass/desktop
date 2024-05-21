@@ -4,17 +4,13 @@
             [camel-snake-kebab.extras :as cske]
             [cljs.core.async :refer [go]]
             [cljs.core.async.interop :refer-macros [<p!]]
-            [onekeepass.frontend.background :as bg]
-            [onekeepass.frontend.events.common :as cmn-events :refer [check-error]]))
+            [onekeepass.frontend.events.translation :as tr-events]))
 
 (set! *warn-on-infer* true)
 
 (def ^:private i18n-obj ^js/i18nObj i18n)
 
-;; TODO: Remove this ?
-;; Need a flag to show that all tranlations json file data are loaded 
-;; and available to use
-(defonce ^:private translations-loaded-and-init-done (atom false))
+
 
 ;; It appears that start page lstr calls are made before translations data are loaded because of async call nature
 ;; The "getStarted" key is called only once. Other keys are called second time and gets the translation data
@@ -26,6 +22,8 @@
 
 (def i18n-instance (atom nil))
 
+;; See interpolation options here
+;;https://www.i18next.com/translation-function/interpolation
 (defn lstr
   "Gets the translation text for the given key and applying the interpolation if passed
   Arg interpolation-args is a map that provides value for any variable names used in text
@@ -35,10 +33,10 @@
          ;; will not have any inner map
          args (when-not (empty? interpolation-args)
                 (->> interpolation-args (cske/transform-keys csk/->camelCaseString) clj->js))]
-     
+
      (if (not (nil? @i18n-instance))
-         (.t ^js/i18nObj @i18n-instance txt-key args)
-         (get trans-defaults txt-key txt-key))))
+       (.t ^js/i18nObj @i18n-instance txt-key args)
+       (get trans-defaults txt-key txt-key))))
   ([txt-key]
    (lstr txt-key nil)))
 
@@ -54,8 +52,10 @@
 
 (defn lstr-dlg-title
   "Adds prefix 'dialog.titles' to the key before getting the translation"
-  [txt-key interpolation-args]
-  (-> (str "dialog.titles." (convert  txt-key)) (lstr interpolation-args)))
+  ([txt-key interpolation-args]
+   (-> (str "dialog.titles." (convert  txt-key)) (lstr interpolation-args)))
+  ([txt-key]
+   (lstr-dlg-title txt-key nil)))
 
 (defn lstr-l-cv
   "Adds 'labels' prefix to the key and gets the traslated text. 
@@ -65,69 +65,84 @@
   [txt-key]
   (-> (str "labels." (convert txt-key)) lstr))
 
-(defonce ^:private translations-data (atom {}))
+(defn lstr-l
+  "Adds prefix 'labels' to the key before getting the translation
+ The arg 'txt-key' can be a quoted symbol or a string
+  "
+  ([txt-key interpolation-args]
+   (-> (str "labels." txt-key) (lstr interpolation-args)))
+  ([txt-key]
+   (lstr-l txt-key nil)))
 
-(defonce ^:private current-locale-language (atom nil))
+(defn lstr-ml
+  "Adds 'menuLabels' prefix to the key and gets the translated text."
+  [txt-key]
+  (-> (str "menuLabels." (convert txt-key)) lstr))
+
+(defn lstr-sm
+  "Adds prefix 'snackbarMessages' to the key before getting the translation
+  The arg 'txt-key' are expected to be a symbol as passed in events call ':common/message-snackbar-open' 
+   "
+  ([txt-key interpolation-args]
+     ;; If string value is used, that means such text is 
+     ;; already translated or in some cases yet to be translated    
+   (if (symbol? txt-key)
+     (lstr (str "snackbarMessages." txt-key) interpolation-args)
+     txt-key))
+  ([txt-key]
+   (lstr-sm txt-key nil)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (declare ^:private  setup-i18n-with-backend)
 
 (declare ^:private create-back-end)
 
-(defn- translations-loaded
-  "Handles response on successful loading of all tranalations json files found in app resource dir
-   Resource root dir: _up_/resources/public/translations
-  The arg language determines the default language to use in i18n option
-  valid values are one of :use-current-locale-language or 'en', 'fr', 'ea'....
-  "
-  [language api-response]
+(defn parse-json [str-value]
+  (try
+    (.parse js/JSON str-value)
+    (catch js/Error err
+      (js/console.log (ex-cause err))
+      #js {})))
+
+(defn- translations-loaded-callback [ok-response]
+  ;; ok-response may be nil on error. Then no translation will be available  
+  ;; (println "ok-response is " ok-response)
+
   ;; api-response's ok value found in :result is not transformed to clj 
   ;; That means the serialized data from 'TranslationResource' struct is not tranformed
   ;; See the use of :strs and snake_case
-  (let [{:strs [current_locale_language prefered_language translations] :as res} (check-error api-response)
-        ;;_ (println "language current_locale_language prefered_language are " language current_locale_language prefered_language)
+  (let [{:strs [_current_locale_language prefered_language translations]} ok-response
         ;; translations is a map where key is the language id and value is a json string and 
-        ;; the json string needs to be parsed 
-        ;; TODO: use a try block to parse and handle error if any
-        parsed-translations (reduce (fn [m [k v]] (assoc m k (.parse js/JSON v)))  {} translations)
-        lng (condp = language
-              :use-prefered-language
-              prefered_language
+        ;; the json string needs to be parsed. After parsing the string in 'v', the type 
+        ;; of the parsed value is a js object - #object[Object]
+        parsed-translations (reduce (fn [m [k v]] (assoc m k (parse-json v)))  {} translations)]
+    ;; (println "res is  " res)
+    #_(println "current_locale_language prefered_language are " current_locale_language prefered_language)
 
-              :use-current-locale-language
-              current_locale_language
+    ;; Type of 'parsed-translations' is  cljs.core/PersistentArrayMap
+    #_(println "Type of 'parsed-translations' is " (type parsed-translations))
 
-              (if (nil? language) "en" language))
-        ;;lng (if (= language :use-current-locale-language) current_locale language)
-        ]
-    ;;(println "language(arg) current_locale_language prefered_language lng " language current_locale_language prefered_language lng )
-    (when-not (empty? res)
-      (reset! current-locale-language current_locale_language)
-      (reset! translations-data parsed-translations)
-      (setup-i18n-with-backend lng (create-back-end parsed-translations))
-      #_(setup-i18n-with-backend (-> lng (str/split #"-") first)
-                                 (create-back-end parsed-translations)))))
+    ;; Type of translations for en is  #object[Object]
+    #_(println "Type of value for en key in 'parsed-translations' is " (type (:en parsed-translations)))
+
+    (setup-i18n-with-backend prefered_language (create-back-end parsed-translations))))
 
 (defn load-language-translation
   "Needs to be called on app loading in the very begining to load locale language and 'en' 
    tranalations json files found in app resource dir"
-  []
-  (bg/load-language-translations [] (partial translations-loaded :use-prefered-language)))
+  ([]
+   (tr-events/load-language-translation [] translations-loaded-callback))
 
-(defn load-locale-translation
-  "Needs to be called on app loading in the very begining to load locale language and 'en' 
-   tranalations json files found in app resource dir"
-  []
-  (bg/load-language-translations [] (partial translations-loaded :use-current-locale-language)))
+  ([language-ids]
+   ;; language-ids is a vec of two charater language ids
+   ;; e.g ["en" "fr"]
+   (tr-events/load-language-translation language-ids translations-loaded-callback)))
 
-(defn- load-translations
-  "The arg is used as the default language in i18n's option
-   The arg language-ids is vec of languages to load. 
-   Typically it will be having two languages. One is the the 'language' and another
-   is the 'fallbackLng'
-   e.g language language-ids - 'fr' ['fr' 'en'] 
-  "
-  [language language-ids]
-  (bg/load-language-translations language-ids (partial translations-loaded language)))
+#_(defn reload-language-translation
+    "Called after language selection is changed"
+    []
+    (tr-events/reload-language-data [] translations-loaded-callback))
 
 (defn- create-i18n-init
   "The init call on an instance of 'i18n' returns a promise and we need to r
@@ -136,14 +151,14 @@
   (go
     (try
       (let [_f (<p! (.init instance (clj->js options)))]
-        (reset! translations-loaded-and-init-done true)
         (reset! i18n-instance instance)
         (js/console.log  "i18n init is done successfully")
-        ;; Need to dispatch on successful loading of data
-        (cmn-events/load-language-translation-completed))
+        ;; Need to dispatch on successful loading of data 
+        (tr-events/load-language-data-complete))
       ;; Error should not happen as we have already loaded a valid translations data before calling init 
       ;; Still what to do if there is any error in initializing 'i18n'? 
       (catch js/Error err
+        (tr-events/load-language-data-complete)
         (js/console.log (ex-cause err))))))
 
 ;;https://www.i18next.com/misc/creating-own-plugins#backend
@@ -169,13 +184,16 @@
   (let [m  {:lng language
             :fallbackLng "en"
             :compatibilityJSON "v4"
-            :debug true}
+            :debug false}
         ^js/i18nObj instance (.createInstance i18n-obj)]
     (.use instance (clj->js back-end))
     (create-i18n-init instance m)))
 
 (comment
-  cljs꞉onekeepass.frontend.translation꞉> 
+  (in-ns 'onekeepass.frontend.translation)  
+
+  ;; Need to import macros to use like
+  (require '[onekeepass.frontend.translation :refer [tr-l tr-ml tr-dlg-title]])
   (Object.keys i18n)
   #js["observers" "options" "services"
       "logger" "modules" "constructor" "init"
