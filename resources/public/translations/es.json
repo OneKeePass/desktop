@@ -31,7 +31,8 @@
         "getStarted": "Empezar",
         "entryManagement": "Gestión de entradas",
         "openDatabase": "Base de datos abierta",
-        "newEntrType": "Nuevo tipo de entrada personalizada",
+        "newEntry":"Nueva entrada",
+        "newEntryType": "Nuevo tipo de entrada personalizada",
         "recent": "Recientes",
         "start": "Inicio",
         "security": "Seguridad",
@@ -90,6 +91,7 @@
         "group": "Grupo",
         "groups": "Grupos",
         "hideAdditionalProtection": "Ocultar protección adicional",
+        "icons": "Iconos",
         "info": "Información",
         "invulnerable": "Invulnerable",
         "kdf": "Función de derivación de claves",
@@ -198,7 +200,7 @@
         "login": "Inicio de sesión",
         "wirelessRouter": "Router inalámbrico"
     },
-    "entryFields": {
+    "entryFieldNames": {
         "accountHolder": "Titular de la cuenta",
         "accountNumber": "Número de cuenta",
         "accountType": "Tipo de cuenta",
@@ -233,7 +235,7 @@
         "userName": "Nombre de usuario",
         "zipCode": "Código postal"
     },
-    "entrySections": {
+    "entrySectionNames": {
         "accountDetails": "Detalles de la cuenta",
         "additionalDetails": "Más información",
         "additionalOneTimePasswords": "Contraseñas únicas adicionales",

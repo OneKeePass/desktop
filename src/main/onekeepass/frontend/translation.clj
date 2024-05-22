@@ -81,13 +81,13 @@
   "Uses values found in the symbols passed as keys and adds the prefix before calling lstr"
   [& keys]
   `(let [v# (to-vals ~@keys)] 
-     (onekeepass.frontend.translation/lstr (str/join "." (conj v# "entryFields")))))
+     (onekeepass.frontend.translation/lstr (str/join "." (conj v# "entryFieldNames")))))
 
 (defmacro tr-entry-section-name-cv
   "Uses values found in the symbols or string values passed as keys and adds the prefix before calling lstr"
   [& keys]
   `(let [v# (to-vals ~@keys)]
-     (onekeepass.frontend.translation/lstr (str/join "." (conj v# "entrySections")))))
+     (onekeepass.frontend.translation/lstr (str/join "." (conj v# "entrySectionNames")))))
 
 (comment
 

@@ -4,7 +4,8 @@
                                                                   selection-autocomplete
                                                                   tags-field]]
             [onekeepass.frontend.constants :as const :refer [ADDITIONAL_ONE_TIME_PASSWORDS
-                                                             ONE_TIME_PASSWORD_TYPE]]
+                                                             ONE_TIME_PASSWORD_TYPE
+                                                             STANDARD_ENTRY_TYPES]]
             [onekeepass.frontend.db-icons :as db-icons :refer [entry-icon
                                                                entry-type-icon]]
             [onekeepass.frontend.entry-form.common :as ef-cmn :refer [ENTRY_DATETIME_FORMAT
@@ -34,7 +35,7 @@
             [onekeepass.frontend.events.entry-form-ex :as form-events]
             [onekeepass.frontend.events.move-group-entry :as move-events]
             [onekeepass.frontend.group-tree-content :as gt-content]
-            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom 
+            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                               mui-alert
                                                               mui-avatar
                                                               mui-box
@@ -59,8 +60,10 @@
                                                               mui-tooltip
                                                               mui-typography
                                                               theme-color]]
-            [onekeepass.frontend.translation :as t :refer-macros [tr-bl tr-l tr-h tr-t  
-                                                                  tr-entry-section-name-cv ]]
+            [onekeepass.frontend.translation :as t :refer-macros [tr-bl tr-l tr-h tr-t
+                                                                  tr-entry-field-name-cv
+                                                                  tr-entry-section-name-cv
+                                                                  tr-entry-type-title-cv]]
             [onekeepass.frontend.utils :as u :refer [contains-val?
                                                      to-file-size-str]]
             [reagent.core :as r]))
@@ -114,7 +117,6 @@
                           :on-change #(form-events/expiry-duration-selection-on-change (-> % .-target  .-value)) ;;ee/expiry-selection-change-factory
                           :variant "standard" :fullWidth true
                           ;;:style {:padding-right "16px"}
-                          
                           }
           [mui-menu-item {:value "no-expiry"} (tr-l "noExpiry")]
           [mui-menu-item {:value "three-months"} (tr-l "3Months")]
@@ -308,17 +310,18 @@
       [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
        [mui-stack {:direction "row" :spacing 1}
         [mui-stack {:direction "row" :sx {:width "88%" :justify-content "center"}}
-         [text-field {:key "Title"
+         [text-field {:key (tr-entry-field-name-cv "Title")
                       :value (:title fields)
                       :edit true
                       :required true
-                      :helper-text "Title of this entry"
+                      :helper-text (tr-h "entryTitle")
                       :error-text (:title errors)
                       :on-change-handler #(form-events/entry-form-data-update-field-value
                                            :title (-> % .-target  .-value))}]]
 
         [mui-stack {:direction "row" :sx {:width "12%" :justify-content "center" :align-items "center"}}
-         [mui-typography {:sx {:padding-left "5px"} :align "center" :paragraph false :variant "subtitle1"} "Icon"]
+         [mui-typography {:sx {:padding-left "5px"} :align "center" :paragraph false :variant "subtitle1"}
+          (tr-l "icons")]
          [mui-icon-button {:edge "end" :color "primary" :sx {;;:margin-top "16px"
                                                              ;;:margin-right "-8px"
                                                              }
@@ -584,6 +587,11 @@
 
        [delete-permanent-dialog pd-dlg-data entry-uuid]])))
 
+(defn translated-entry-type-name [name]
+  (if (contains-val?  STANDARD_ENTRY_TYPES name)
+    (tr-entry-type-title-cv name)
+    name))
+
 (defn entry-type-group-selection
   "Used in entry new form. Prvides from-1 type component for
    entry type and group selection for an entry"
@@ -608,8 +616,9 @@
                           :variant "standard" :fullWidth true}
          ;; select fields options
          (doall
-          (for [{:keys [name uuid]} @entry-type-headers]
-            ^{:key uuid} [mui-menu-item {:value uuid} name]))]]
+          (for [{:keys [name uuid]} @entry-type-headers] 
+            ^{:key uuid} [mui-menu-item {:value uuid}
+                          (translated-entry-type-name name)]))]]
        [mui-stack {:direction "row"
                    :sx {:width "10%"
                         :align-items "center"
@@ -633,7 +642,8 @@
 (defn entry-content-new []
   ;;(println "entry-content-new called")
   (let [title @(form-events/entry-form-data-fields :title)
-        form-title (if (str/blank? title) "New Entry" (str "New Entry" "-" title))]
+        form-title-tr (tr-t "newEntry")
+        form-title (if (str/blank? title) form-title-tr (str form-title-tr "-" title))]
     [:div {:class "gbox"
            :style {:margin 0
                    :width "100%"}}
@@ -679,7 +689,7 @@
                        :justify-content "center"}}
        [mui-typography  {:variant "h6"}
         (if (not (nil? text-to-show))
-          text-to-show 
+          text-to-show
           (tr-h noEntrySelected))]]]
      [:div {:class "gfooter"}]]))
 
@@ -807,7 +817,7 @@
      [mui-typography {:align "center"
                       :paragraph false
                       :variant "h6"}
-      (tr-t newEntrType)]]]
+      (tr-t "newEntryType")]]]
    [:div {:class "gcontent" :style {:overflow-y "scroll"
                                     :background (theme-color @custom-theme-atom :entry-content-bg)}}
     [entry-type-center-content]]
@@ -859,10 +869,10 @@
         [mui-stack {:sx {:align-items "flex-end"}}
          [:div.buttons1
           [mui-button {:variant "contained" :color "secondary"
-                       :on-click form-events/show-delete-confirm-dialog} 
+                       :on-click form-events/show-delete-confirm-dialog}
            (tr-bl delete)]
           [mui-button {:variant "contained" :color "secondary"
-                       :on-click form-events/show-restore-confirm-dialog} 
+                       :on-click form-events/show-restore-confirm-dialog}
            (tr-bl restore)]]]]])))
 
 (defn history-entry-row-item
@@ -908,7 +918,7 @@
      [mui-stack {:sx {:height "40px"
                       :justify-content "center"
                       :align-items "center"}}
-      [mui-typography {:align "center" :paragraph false :variant "subtitle2"} 
+      [mui-typography {:align "center" :paragraph false :variant "subtitle2"}
        (tr-l previousVersions)]]
 
      [entry-items]
@@ -918,21 +928,19 @@
 
      [mui-stack {:sx {:min-height "46px"
                       :align-items "center"
-                      :background (theme-color @custom-theme-atom :header-footer) #_m/color-grey-200
-                      
-                      }}
+                      :background (theme-color @custom-theme-atom :header-footer) #_m/color-grey-200}}
       [:div {:style {:margin-top 10 :margin-bottom 10 :margin-right 5 :margin-left 5}}
        [mui-button {:variant "outlined"
                     :color "inherit"
-                    :on-click form-events/show-delete-all-confirm-dialog} 
+                    :on-click form-events/show-delete-all-confirm-dialog}
         (tr-bl deleteAll)]]]]))
 
 (defn entry-history-content-main []
-  (let [entry-uuid  @(form-events/loaded-history-entry-uuid)] 
+  (let [entry-uuid  @(form-events/loaded-history-entry-uuid)]
     [mui-stack {:direction "row"
                 :divider (r/as-element [mui-divider {:orientation "vertical" :flexItem true}])
                 :sx {:height "100%" :overflow-y "scroll"}}
-     [mui-stack {:direction "row" :sx {:width "45%"}} 
+     [mui-stack {:direction "row" :sx {:width "45%"}}
       [mui-stack {:direction "row"
                   :divider (r/as-element [mui-divider {:orientation "vertical" :flexItem true}])
                   :sx {:width "100%"}}
@@ -942,14 +950,14 @@
                         :justify-content "center"
                         :align-items "center"}}
         [mui-box
-         [mui-typography (tr-l foundHistoryEntries )]
+         [mui-typography (tr-l foundHistoryEntries)]
          [mui-stack
           [mui-link {:sx {:text-align "center"
                           :color "primary.main"}
                      :underline "always"
                      :variant "subtitle1"
                      :onClick #(form-events/history-content-close entry-uuid)}
-          (tr-l backToEntry)]]]]
+           (tr-l backToEntry)]]]]
        [mui-stack {:direction "row" :sx {:width "50%" :overflow-y "scroll"}}
         [history-list-content]]]]
      [mui-stack {:direction "row"

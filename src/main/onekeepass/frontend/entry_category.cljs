@@ -236,7 +236,7 @@
 (defn general-category-icon [name]
   [(get general-category-icons name mui-icon-access-time)])
 
-(defn traslate-category-item-title
+(defn translate-category-item-title
   [title categories-kind custom-entry-type?]
   (cond
     ;; It appears 'category-item' is called with nil title initially
@@ -282,7 +282,7 @@
 
           row-selected? @(ec-events/is-selected-category category-detail-m)
           custom-entry-type?  (if-not type-category? false @(cmn-events/is-custom-entry-type entry-type-uuid))
-          display-name (traslate-category-item-title display-name categories-kind custom-entry-type?)]
+          display-name (translate-category-item-title display-name categories-kind custom-entry-type?)]
 
       [mui-list-item-button {:sx {"&.MuiListItemButton-root" {:padding-right "1px"}}
                              :on-click #(ec-events/load-category-entry-items

@@ -118,10 +118,8 @@ pub(crate) async fn load_kdbx(
 ) -> Result<kp_service::KdbxLoaded> {
   // key_file_name.as_deref() converts Option<String> to Option<&str> - https://stackoverflow.com/questions/31233938/converting-from-optionstring-to-optionstr
 
-  info!("Going to call kp_service::load_kdbx");
   let r = kp_service::load_kdbx(db_file_name, password, key_file_name.as_deref());
-  info!("kp_service::load_kdbx returned {}", r.is_ok());
-
+  
   if let Err(kp_service::error::Error::DbFileIoError(m, ioe)) = &r {
     // Remove from the recent list only if the file opening failed because of the file is not found in the passed file path
     if let ("Database file opening failed", ErrorKind::NotFound) = (m.as_str(), ioe.kind()) {
@@ -141,8 +139,6 @@ pub(crate) async fn load_kdbx(
     .unwrap()
     .add_recent_file(db_file_name);
 
-  
-  info!("Returning call kp_service::load_kdbx");
   Ok(r?)
 }
 

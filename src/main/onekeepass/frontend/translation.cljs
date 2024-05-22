@@ -92,6 +92,11 @@
   ([txt-key]
    (lstr-sm txt-key nil)))
 
+(defn lstr-field-name
+  "Adds 'entryFieldNames' prefix to the key and gets the translated text of standard entry fields"
+  [txt-key]
+  (lstr (str "entryFieldNames." (convert txt-key))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (declare ^:private  setup-i18n-with-backend)

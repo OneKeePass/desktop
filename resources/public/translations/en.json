@@ -31,7 +31,8 @@
         "getStarted": "Get Started",
         "entryManagement": "Entry Management",
         "openDatabase": "Open Database",
-        "newEntrType": "New Custom Entry Type",
+        "newEntry":"New Entry",
+        "newEntryType": "New Custom Entry Type",
         "recent": "Recent",
         "start": "Start",
         "security": "Security",
@@ -90,6 +91,7 @@
         "group": "Group",
         "groups": "Groups",
         "hideAdditionalProtection": "Hide additional protection",
+        "icons": "Icons",
         "info": "Info",
         "invulnerable": "Invulnerable",
         "kdf": "Key Derivation Function",
@@ -198,7 +200,7 @@
         "login": "Login",
         "wirelessRouter": "Wireless Router"
     },
-    "entryFields": {
+    "entryFieldNames": {
         "accountHolder": "Account Holder",
         "accountNumber": "Account number",
         "accountType": "Account type",
@@ -233,7 +235,7 @@
         "userName": "UserName",
         "zipCode": "Zip Code"
     },
-    "entrySections": {
+    "entrySectionNames": {
         "accountDetails": "Account Details",
         "additionalDetails": "Additional Details",
         "additionalOneTimePasswords": "Additional One-Time Passwords",
