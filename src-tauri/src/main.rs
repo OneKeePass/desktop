@@ -50,8 +50,8 @@ fn main() {
   // This loaded tranalation data is passed to menus creation call (builder.menu(..)) and there they are used
   // in preparing the system menu names in the current prefered language. 
   // If user changes the prefered language the app needs to be restarted. This is because
-  // the system menus's ttitles can not be changed without restarting though all sub menus's titles 
-  // can be changed dynamically 
+  // the system menus's titles can not be changed without restarting though all sub menus's titles 
+  // can be changed dynamically. 
 
   let menu_translation =
     utils::load_system_menu_translations(&lng, &context.config(), &context.package_info());

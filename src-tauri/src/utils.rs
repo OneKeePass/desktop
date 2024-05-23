@@ -79,7 +79,7 @@ impl AppState {
     //sets the preference struct value inside the MutexGuard by dereferencing
     *store_pref = pref;
   }
-  
+
 
   pub fn update_preference(&self, preference_data: PreferenceData) {
     let mut store_pref = self.preference.lock().unwrap();
@@ -367,6 +367,7 @@ pub struct TranslationResource {
   translations: HashMap<String, String>,
 }
 
+// "../resources/public/translations" should be included in "resources" key in  /desktop/src-tauri/tauri.conf.json
 const TRANSLATION_RESOURCE_DIR: &str = "../resources/public/translations";
 
 // Loads language translation strings for the passed language ids
@@ -398,7 +399,7 @@ pub fn load_language_translations<R: Runtime>(
   };
 
   //IMPORTANT:
-  // "../resources/public/locales" should be included in "resources" key in  /desktop/src-tauri/tauri.conf.json
+  // "../resources/public/translations" should be included in "resources" key in  /desktop/src-tauri/tauri.conf.json
   // Note: ../ in path will add _up_
 
   let path = resolve_path(
