@@ -1,21 +1,24 @@
 (ns onekeepass.frontend.events.common
   "All common events that are used across many pages"
-  (:require
-   [re-frame.core :refer [reg-event-db
-                          reg-event-fx
-                          reg-fx
-                          reg-sub
-                          dispatch
-                          dispatch-sync
-                          subscribe]]
-   [clojure.string :as str]
-   [cljs.core.async :refer [go-loop timeout <!]]
-   [onekeepass.frontend.constants :as const :refer [ADD_TAG_PREFIX DB_CHANGED]]
-   [onekeepass.frontend.utils :refer [contains-val? str->int utc-to-local-datetime-str]]
-   [onekeepass.frontend.background :as bg]))
+  (:require [cljs.core.async :refer [<! go-loop timeout]]
+            [clojure.string :as str]
+            [onekeepass.frontend.background :as bg]
+            [onekeepass.frontend.constants :as const :refer [ADD_TAG_PREFIX
+                                                             DB_CHANGED]]
+            [onekeepass.frontend.events.common-supports :as cmn-supports]
+            [onekeepass.frontend.translation :refer-macros [tr-dlg-title tr-dlg-text ] :refer [lstr-sm]]
+            [onekeepass.frontend.utils :refer [contains-val? str->int
+                                               utc-to-local-datetime-str]]
+            [re-frame.core :refer [dispatch dispatch-sync reg-event-db
+                                   reg-event-fx reg-fx reg-sub subscribe]]))
 
-(declare check-error)
-(declare on-error)
+;; ns onekeepass.frontend.events.common-supports introduced 
+;; to avoid dependency issue to use transalation fns
+;; Re exporting these fns
+(def check-error cmn-supports/check-error)
+
+(def on-error cmn-supports/on-error)
+
 (declare active-db-key)
 (declare assoc-in-key-db)
 
@@ -58,13 +61,33 @@
 
 (declare set-session-timeout)
 
+#_(defn load-language-translation-completed []
+  (dispatch [:load-language-translation-complete]))
+
 (defn new-db-full-file-name [app-db db-name]
   (let [document-dir (-> app-db :standard-dirs :document-dir)
         path-sep (:path-sep app-db)]
     (str document-dir path-sep "OneKeePass" path-sep db-name ".kdbx")))
 
+(defn clear-recent-files []
+  (bg/clear-recent-files (fn [api-response]
+                           (when-not (on-error api-response)
+                             (dispatch [:clear-recent-files-done])))))
+
 (defn recent-files []
   (subscribe [:recent-files]))
+
+(defn app-preference-loading-completed []
+  (subscribe [:app-preference-loading-completed]))
+
+(defn language-translation-loading-completed []
+  (subscribe [:language-translation-loading-completed]))
+
+(defn app-theme []
+  (subscribe [:app-theme]))
+
+(defn app-theme-light? []
+  (subscribe [:app-theme-light]))
 
 (defn biometric-type-available []
   (subscribe [:biometric-type-available]))
@@ -109,7 +132,8 @@
             (assoc :biometric-type-available biometric-type-available)
             (assoc :os-name os-name)
             (assoc :os-version os-version)
-            (assoc :arch arch))}))
+            (assoc :arch arch)
+            (assoc-in [:background-loading-statuses :app-preference] true))}))
 
 (reg-event-db
  :common/load-app-preference
@@ -123,13 +147,54 @@
 (reg-event-fx
  :load-app-preference-complete
  (fn [{:keys [db]} [_event-id preference]]
+   ;; A temp side effect call. Need to move to a reg-fx call
+   (set-session-timeout (:session-timeout preference))
    {:db (assoc db :app-preference preference)}))
+
+;; Called after loading the language translation texts
+(reg-event-fx
+ :common/load-language-translation-complete
+ (fn [{:keys [db]} [_event-id]]
+   {:db (assoc-in db [:background-loading-statuses :load-language-translation] true)}))
+
+(reg-event-db
+ :common/reset-load-language-translation-status
+ (fn [db [_event-id]]
+   (assoc-in db [:background-loading-statuses :load-language-translation] false)))
+
+(reg-event-fx
+ :clear-recent-files-done
+ (fn [{:keys [db]} [_event-id]] 
+   {:db (assoc-in db [:app-preference :recent-files] [])}))
 
 (reg-sub
  :recent-files
  :<- [:app-preference]
  (fn [pref _query-vec]
    (:recent-files pref)))
+
+(reg-sub
+ :app-theme
+ :<- [:app-preference]
+ (fn [pref _query-vec]
+   (:theme pref)))
+
+(reg-sub
+ :app-theme-light
+ :<- [:app-preference]
+ (fn [pref _query-vec]
+   ;; valid values (:theme pref) => light or dark
+   (= "light" (:theme pref))))
+
+(reg-sub
+ :app-preference-loading-completed
+ (fn [db _query-vec]
+   (get-in db [:background-loading-statuses :app-preference] false)))
+
+(reg-sub
+ :language-translation-loading-completed
+ (fn [db _query-vec]
+   (get-in db [:background-loading-statuses :load-language-translation] false)))
 
 (reg-sub
  :app-preference
@@ -221,45 +286,21 @@
         kdb (get app-db kdbx-db-key)]
     (assoc app-db kdbx-db-key (assoc-in kdb ks v))))
 
+#_(defn get-in-key-db
+    "Gets the value for the key lists from an active kdbx content"
+    [app-db ks]
+  ;; First we get the kdbx content map and then supplied keys 'ks' used to get the actual value
+    (get-in app-db (into [(active-db-key app-db)] ks)))
+
 (defn get-in-key-db
   "Gets the value for the key lists from an active kdbx content"
-  [app-db ks]
-  ;; First we get the kdbx content map and then supplied keys 'ks' used to get the actual value
-  (get-in app-db (into [(active-db-key app-db)] ks)))
+  ([app-db ks]
+     ;; First we get the kdbx content map and then supplied keys 'ks' used to get the actual value
+   (get-in app-db (into [(active-db-key app-db)] ks)))
 
-(defn on-error
-  "A common error handler for the background API call.
-  logs the error and returns true in case of error or false
-  "
-  ([{:keys [error]} error-fn]
-   (if-not (nil? error)
-     (do
-       (if  (nil? error-fn)
-         #_(println "API returned error: " error)
-         ;; Should we use a generic error dialog instead of snackbar ?
-         (dispatch [:common/message-snackbar-error-open error])
-         (error-fn error))
-       true)
-     false))
-  ([api-response]
-   (on-error api-response nil)))
+  ([app-db ks default]
+   (get-in app-db (into [(active-db-key app-db)] ks) default)))
 
-(defn check-error
-  "Receives a map with keys result and error or either one.
-   Returns the value of result in case there is no error. If there is 
-   an error a nil value is returned and calls the supplied error fn or default error fn
-  "
-  ([{:keys [result error]} error-fn]
-   (if-not (nil? error)
-     (do
-       (if (nil? error-fn)
-         #_(println "API returned error: " error)
-         (dispatch [:common/message-snackbar-error-open error])
-         (error-fn error))
-       nil)
-     result))
-  ([api-response]
-   (check-error api-response nil)))
 
 (defn save-as
   "Called when user wants to save a modified db to another name"
@@ -272,6 +313,12 @@
    to show in the entry category bottom panel"
   [app-db]
   (-> app-db :app-preference :default-entry-category-groupings))
+
+
+(defn app-preference
+  "Gets the current loaded app preference"
+  [app-db]
+  (-> app-db :app-preference))
 
 ;; Called after creating a new database or after opening an existing database
 (reg-event-fx
@@ -289,7 +336,7 @@
                      (-> db :app-preference :default-entry-category-groupings)]]
          [:dispatch [:common/load-entry-type-headers]]
          [:dispatch [:common/message-snackbar-open
-                     (str "Opened database " (:db-key kdbx-loaded))]]]}))
+                     (lstr-sm 'dbOpened {:dbFileName (:db-key kdbx-loaded)})]]]}))
 
 ;; A common refresh all forms after an entry form changes - delete, put back , delete permanent
 (reg-event-fx
@@ -403,16 +450,22 @@
          next-active-db-key (if (empty? dbs) nil (:db-key (last dbs)))]
      {:db (-> db
               (assoc :opened-db-list dbs)
-              (assoc :current-db-file-name next-active-db-key) 
+              (assoc :current-db-file-name next-active-db-key)
               (dissoc db-key))
       :fx [[:dispatch [:common/message-snackbar-open
-                       (str "Closed database " db-key)]]
+                       (lstr-sm 'dbClosed {:dbFileName db-key})]]
            [:dispatch [:common/load-app-preference]]]})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; DB Lock/Unlock ;;;;;;;;;;;;;;;;;;;;;
 
-(defn locked? []
-  (subscribe [:common/current-db-locked]))
+#_(defn locked? []
+    (subscribe [:common/current-db-locked]))
+
+(defn locked?
+  ([]
+   (subscribe [:common/current-db-locked]))
+  ([app-db]
+   (boolean (get-in-key-db app-db [:locked]))))
 
 (defn unlock-current-db
   "Unlocks the database using biometric option if available"
@@ -477,9 +530,8 @@
    ;; Need to check error code for specific value ''
    ;; if we have unsaved data, need to give user options for the next actions
    (if (and (= error DB_CHANGED) (get-in-key-db db [:db-modification :save-pending]))
-     {:fx [[:dispatch [:common/error-info-box-show {:title "Database changed"
-                                                    :message (str "The database content of the file has changed since the last opening."
-                                                                  " Please save to see options availble to resolve this")}]]]}
+     {:fx [[:dispatch [:common/error-info-box-show {:title (tr-dlg-title databaseChanged)
+                                                    :message (str (tr-dlg-text "databaseChangedTxt1") "." " " (tr-dlg-text "databaseChangedTxt2"))}]]]}
      {:fx [[:dispatch [:reload-database]]]})))
 
 (reg-event-fx
@@ -599,8 +651,8 @@
    (let [{:keys [standard custom]} (get-in-key-db app-db [:entry-type-headers])]
      (vec (concat standard custom)))))
 
-(defn is-custom-entry-type [entry-type-uuiid]
-  (subscribe [:is-custom-entry-type-uuid entry-type-uuiid]))
+(defn is-custom-entry-type [entry-type-uuid]
+  (subscribe [:is-custom-entry-type-uuid entry-type-uuid]))
 
 ;; Needs to be called during initial loading and also whenever new custom type
 ;; is added.

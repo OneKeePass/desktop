@@ -449,6 +449,15 @@
 (defn new-blank-group [mark-as-category dispatch-fn]
   (invoke-api "new_blank_group" {:mark-as-category mark-as-category} dispatch-fn))
 
+(defn load-language-translations
+  "Loads the language tranalations
+   The arg language-ids is a vec of languages to load
+   It is an empty vec to load current locale language 
+   and fallback language 'en'
+  "
+  [language-ids dispatch-fn]
+  (invoke-api "load_language_translations" {:language_ids language-ids} dispatch-fn :convert-response false))
+
 (defn load-custom-svg-icons
   [dispatch-fn]
   (invoke-api "load_custom_svg_icons" {} dispatch-fn :convert-response false))
@@ -461,6 +470,15 @@
 
 (defn system-info-with-preference [dispatch-fn]
   (invoke-api "system_info_with_preference" {} dispatch-fn))
+
+(defn update-preference [preference-data dispatch-fn]
+  (let [args (clj->js {:preferenceData (->> preference-data (cske/transform-keys csk/->snake_case))})]
+    ;; We transform args to statisfy the requirements of arg name to tauri command should be in cameCase
+    ;; and field names of preference-data should be snake_case
+    (invoke-api "update_preference" args dispatch-fn :convert-response false)))
+
+(defn clear-recent-files [dispatch-fn]
+(invoke-api "clear_recent_files" {} dispatch-fn))
 
 (defn- handle-argon2-renaming
   "A custom transform fuction to make sure Argon2 is converted to :Argon2 not converted to :argon-2 so that 
@@ -492,9 +510,14 @@
   "The args menu-id and action should match MenuActionRequest and action should match enum 'MenuAction'"
   [menu-id action dispatch-fn]
   ;; We need to form api-args as expected tauri backend API
-  ;; The api 'menu_action_requested' expects one arument 'request' of type MenuActionRequest
+  ;; The api 'menu_action_requested' expects one argument 'request' of type MenuActionRequest
   (let [api-args (clj->js {:request {:menu_id menu-id :menu_action action}})]
     (invoke-api "menu_action_requested" api-args dispatch-fn :convert-request false)))
+
+;;menu_titles_change_requested
+(defn menu-titles-change-requested [menu-titles dispatch-fn]
+  (let [api-args (clj->js {:request {:menu_titles menu-titles}})]
+    (invoke-api "menu_titles_change_requested" api-args dispatch-fn :convert-request false)))
 
 (defn is-file-exists [file-name dispatch-fn]
   (invoke-api "is_path_exists" {:in-path file-name} dispatch-fn))

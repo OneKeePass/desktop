@@ -10,7 +10,8 @@ jobs:
       matrix:
         include:
           - build: macos
-            os: macos-latest
+            # macos-latest is not used to ensure x86_64 works on old mac
+            os: macos-12
             arch: x86_64
             target: x86_64-apple-darwin
           - build: macos

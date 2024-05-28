@@ -2,6 +2,7 @@
   (:require
    [re-frame.core :refer [reg-event-db reg-event-fx reg-fx reg-sub dispatch subscribe]]
    [clojure.string :as str]
+   [onekeepass.frontend.translation :refer-macros [tr-m] ]
    [onekeepass.frontend.events.common :as cmn-events :refer [check-error]]
    [onekeepass.frontend.background :as bg]))
 
@@ -12,35 +13,38 @@
 (defn password-options-update [kw value]
   (dispatch [:password-options-update kw value]))
 
-(defn generator-password-copied 
+(defn generator-password-copied
   "Generated password is copied to the password field or to clipboard"
-  [] 
+  []
   (dispatch [:generator-password-copied]))
 
 (defn generator-dialog-data []
   (subscribe [:generator-dialog-data]))
 
 ;;;;
-(def generator-dialog-init-data {:dialog-show false
-                                 :password-visible false
-                                 :text-copied false
-                                 :callback-on-copy-fn nil
-                                 :password-options {;; All fields from struct PasswordGenerationOptions
-                                                    :length 8
-                                                    :numbers true
-                                                    :lowercase-letters true
-                                                    :uppercase-letters true
-                                                    :symbols true
-                                                    :spaces false
-                                                    :exclude-similar-characters true
-                                                    :strict true}
+(def generator-dialog-init-data
+  {:dialog-show false
+   :password-visible false
+   :text-copied false
+   :callback-on-copy-fn nil
+   :password-options {;; All fields from struct PasswordGenerationOptions
+                      :length 8
+                      :numbers true
+                      :lowercase-letters true
+                      :uppercase-letters true
+                      :symbols true
+                      :spaces false
+                      :exclude-similar-characters true
+                      :strict true}
                                  ;;;
-                                 :password-result {:password nil
-                                                   :analyzed-password nil
-                                                   :is-common false
-                                                   :score {:name nil
-                                                           :raw-value nil
-                                                           :score-text nil}}})
+   :password-result {:password nil
+                     :analyzed-password nil
+                     :is-common false
+                      ;; value of :score is a map from enum PasswordScore
+                      ;; note the use of #[serde(tag = "name")] in PasswordScore
+                     :score {:name nil
+                             :raw-value nil
+                             :score-text nil}}})
 
 (defn- init-dialog-data [app-db]
   (assoc-in app-db [:generator :dialog-data] generator-dialog-init-data))
@@ -69,10 +73,10 @@
    (let [db (-> db
                 (to-password-options-data field-name-kw value)
                 (to-generator-dialog-data :text-copied false))
-         {:keys [length] :as po} (get-in db [:generator :dialog-data :password-options])] 
+         {:keys [length] :as po} (get-in db [:generator :dialog-data :password-options])]
      (if (empty? (str/trim (str length)))
        {:db db
-        :fx [[:dispatch [:common/message-snackbar-error-open "A valid length number is required and it should be 8 or above"]]]}
+        :fx [[:dispatch [:common/message-snackbar-error-open (tr-m passwordGenerator above8)]]]}
        {:db db
         :fx [[:dispatch [:common/message-snackbar-error-close]]
              [:bg-analyzed-password po]]}))))
@@ -86,12 +90,25 @@
      {:db db
       :fx [[:bg-analyzed-password po]]})))
 
+(defn- handle-error 
+  "Receives the error part of the api response"
+  [error-text]
+  (let [txt (condp = error-text
+              "You need to enable at least one kind of characters."
+              (tr-m passwordGenerator oneKindCharaterRequired)
+
+              "The length of passwords cannot be 0."
+              (tr-m passwordGenerator length0)
+
+              error-text)]
+    (dispatch [:common/message-snackbar-error-open txt])))
+
 (reg-fx
  :bg-analyzed-password
  (fn [password-options]
    (bg/analyzed-password password-options
                          (fn [api-response]
-                           (when-let [result (check-error api-response)]
+                           (when-let [result (check-error api-response handle-error)]
                              (dispatch [:password-generation-complete result]))))))
 
 (reg-event-db

@@ -1,21 +1,29 @@
 (ns onekeepass.frontend.entry-form-ex
   (:require [clojure.string :as str]
-            [onekeepass.frontend.common-components :as cc :refer [alert-dialog-factory
-                                                                  enter-key-pressed-factory
-                                                                  list-items-factory
+            [onekeepass.frontend.common-components :as cc :refer [list-items-factory
                                                                   selection-autocomplete
                                                                   tags-field]]
             [onekeepass.frontend.constants :as const :refer [ADDITIONAL_ONE_TIME_PASSWORDS
-                                                             ONE_TIME_PASSWORD_TYPE]]
+                                                             ONE_TIME_PASSWORD_TYPE
+                                                             STANDARD_ENTRY_TYPES]]
             [onekeepass.frontend.db-icons :as db-icons :refer [entry-icon
                                                                entry-type-icon]]
-            [onekeepass.frontend.entry-form.common :as ef-cmn :refer [background-color1
-                                                                      content-sx
-                                                                      ENTRY_DATETIME_FORMAT
-                                                                      popper-box-sx
-                                                                      popper-button-sx]]
-            [onekeepass.frontend.entry-form.dialogs :as dlg :refer [delete-totp-confirm-dialog
-                                                                    set-up-totp-dialog]]
+            [onekeepass.frontend.entry-form.common :as ef-cmn :refer [ENTRY_DATETIME_FORMAT
+                                                                      theme-content-sx]]
+            [onekeepass.frontend.entry-form.dialogs :as dlg :refer [add-modify-section-field-dialog
+                                                                    add-modify-section-popper
+                                                                    attachment-delete-confirm-dialog
+                                                                    custom-field-delete-confirm
+                                                                    custom-section-delete-confirm
+                                                                    delete-all-confirm-dialog
+                                                                    delete-confirm-dialog
+                                                                    delete-permanent-dialog
+                                                                    delete-totp-confirm-dialog
+                                                                    icons-dialog
+                                                                    icons-dialog-flag
+                                                                    restore-confirm-dialog
+                                                                    set-up-totp-dialog
+                                                                    show-icons-dialog]]
             [onekeepass.frontend.entry-form.fields :refer [datetime-field
                                                            otp-field
                                                            simple-selection-field
@@ -27,21 +35,13 @@
             [onekeepass.frontend.events.entry-form-ex :as form-events]
             [onekeepass.frontend.events.move-group-entry :as move-events]
             [onekeepass.frontend.group-tree-content :as gt-content]
-            [onekeepass.frontend.mui-components :as m :refer [color-primary-main
+            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                               mui-alert
-                                                              mui-alert-title
                                                               mui-avatar
                                                               mui-box
                                                               mui-button
                                                               mui-button
-                                                              mui-checkbox
-                                                              mui-dialog
-                                                              mui-dialog-actions
-                                                              mui-dialog-content
-                                                              mui-dialog-title
                                                               mui-divider
-                                                              mui-form-control-label
-                                                              mui-grid
                                                               mui-icon-add-circle-outline-outlined
                                                               mui-icon-article-outlined
                                                               mui-icon-button
@@ -55,11 +55,15 @@
                                                               mui-list-item-text
                                                               mui-list-item-text
                                                               mui-menu-item
-                                                              mui-popper
                                                               mui-stack
                                                               mui-text-field
                                                               mui-tooltip
-                                                              mui-typography]]
+                                                              mui-typography
+                                                              theme-color]]
+            [onekeepass.frontend.translation :as t :refer-macros [tr-bl tr-l tr-h tr-t
+                                                                  tr-entry-field-name-cv
+                                                                  tr-entry-section-name-cv
+                                                                  tr-entry-type-title-cv]]
             [onekeepass.frontend.utils :as u :refer [contains-val?
                                                      to-file-size-str]]
             [reagent.core :as r]))
@@ -85,12 +89,13 @@
 
 ;;;;;;;;;;;;;;;;;;;;;; Menu ;;;;;;;;;;;;;;;;
 ;; Re-exported for use in entry-list
+#_{:clj-kondo/ignore [:redefined-var]}
 (def form-menu menus/form-menu)
 
 ;;;;;;;;;;;;;;;  
 
 (defn box-caption [text]
-  [mui-typography {:sx {"&.MuiTypography-root" {:color color-primary-main}}
+  [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :section-header)}}
                    :variant  "button"} text])
 
 (defn expiry-content []
@@ -100,24 +105,27 @@
         ;; chrono::NaiveDateTime is serialized in this format   
         expiry-dt @(form-events/entry-form-data-fields :expiry-time)]
     (when edit
-      [mui-box {:sx content-sx}
+      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
        [mui-stack {:direction "row" :sx {:align-items "flex-end"}}
         [mui-stack {:direction "row" :sx {:width "30%"}}
-         [mui-text-field {:classes {:root "entry-cnt-field"}
+         [mui-text-field {:sx {:padding-right "16px" :margin-top cc/entry-cnt-field-margin-top}
+                          ;;:classes {:root "entry-cnt-field"}
                           :select true
-                          :label "Expiry Duration"
+                          :label (tr-l expiryDuration)
                           :value  expiry-duration-selection
                        ;;;;TODO Need to work
                           :on-change #(form-events/expiry-duration-selection-on-change (-> % .-target  .-value)) ;;ee/expiry-selection-change-factory
                           :variant "standard" :fullWidth true
-                          :style {:padding-right "16px"}}
-          [mui-menu-item {:value "no-expiry"} "No Expiry"]
-          [mui-menu-item {:value "three-months"} "3 Months"]
-          [mui-menu-item {:value "six-months"} "6 Months"]
-          [mui-menu-item {:value "one-year"} "1 Year"]
-          [mui-menu-item {:value "custom-date"} "Custom Date"]]]
+                          ;;:style {:padding-right "16px"}
+                          }
+          [mui-menu-item {:value "no-expiry"} (tr-l "noExpiry")]
+          [mui-menu-item {:value "three-months"} (tr-l "3Months")]
+          [mui-menu-item {:value "six-months"} (tr-l "6Months")]
+          [mui-menu-item {:value "one-year"} (tr-l "1Year")]
+          [mui-menu-item {:value "custom-date"} (tr-l "customDate")]]]
         (when-not (= expiry-duration-selection "no-expiry")
           [mui-stack {:direction "row" :sx {:width "40%"}}
+           ;; label traslation is done in fields.cljs for this field
            [datetime-field {:key "Expiry Date"
                             :value (u/to-UTC expiry-dt) #_(u/to-local-datetime-str expiry-dt) ;; datetime str UTC to Local 
                             :on-change-handler (form-events/expiry-date-on-change-factory)}]])]]
@@ -134,202 +142,24 @@
         creation-time @(form-events/entry-form-data-fields :creation-time)
         last-modification-time @(form-events/entry-form-data-fields :last-modification-time)]
     (when-not edit
-      [mui-box {:sx content-sx}
+      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
 
        [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
-        [mui-typography "Uuid:"]
+        [mui-typography (str (tr-l "uuid") ":")]
         [mui-typography @(form-events/entry-form-data-fields :uuid)]]
 
        [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
-        [mui-typography "Created:"]
+        [mui-typography (str (tr-l "created") ":")]
         [mui-typography (u/to-local-datetime-str creation-time ENTRY_DATETIME_FORMAT)]]
 
        [mui-stack {:direction "row" :sx {:justify-content "space-between"}}
-        [mui-typography "Last Modified:"]
+        [mui-typography (str (tr-l "lastModified") ":")]
         [mui-typography (u/to-local-datetime-str last-modification-time ENTRY_DATETIME_FORMAT)]]
 
        (when-not (= expiry-duration-selection "no-expiry")
          [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-top "10px"}}
-          [mui-typography "Expires:"]
+          [mui-typography (str (tr-l "expires") ":")]
           [mui-typography (u/to-local-datetime-str expiry-dt ENTRY_DATETIME_FORMAT)]])])))
-
-(defn add-modify-section-popper [{:keys [dialog-show
-                                         popper-anchor-el
-                                         mode
-                                         section-name
-                                         error-fields] :as dialog-data}]
-
-  [mui-popper {:anchorEl popper-anchor-el
-               :id "section"
-               :open dialog-show
-                ;; need to use z-index as background elements from left panel may be visible when a part of popper is shown
-                ;; overlapps that panel  
-               :sx {:z-index 2 :min-width "400px"}}
-   #_[mui-click-away-listener #_{:onClickAway (fn [e] (println "Clicked outside box" (.-currentTarget e)))}]
-
-   [mui-box {:sx popper-box-sx}
-    [mui-stack [mui-typography (if (= mode :add) "New section name" "Modify section name")]]
-    [mui-stack [mui-dialog-content {:dividers true}
-                [m/text-field {:label "Section Name"
-                               :value section-name
-                               :error (boolean (seq error-fields))
-                               :helperText (get error-fields :section-name)
-                               :on-key-press (enter-key-pressed-factory
-                                              #(form-events/section-name-add-modify dialog-data))
-                               :InputProps {}
-                               :on-change (on-change-factory form-events/section-name-dialog-update :section-name)
-                               :variant "standard" :fullWidth true}]]]
-    [mui-stack  {:sx {:justify-content "end"} :direction "row"}
-     [mui-button {:variant "text"
-                  :sx popper-button-sx
-                  :on-click  #(form-events/section-name-dialog-update :dialog-show false)}
-      "Cancel"]
-     [mui-button {:variant "text"
-                  :sx  popper-button-sx
-                  :on-click #(form-events/section-name-add-modify dialog-data)}
-      "Ok"]]]])
-
-#_(defn add-modify-section-field-popper
-    [{:keys [dialog-show
-             popper-anchor-el
-             field-name
-             protected
-             required
-             _data-type
-             mode
-             error-fields]
-      :as m}]
-    #_[mui-click-away-listener #_{:onClickAway #(form-events/section-field-dialog-update :dialog-show false)}]
-    (let [ok-fn (fn [_e]
-                  (if (= mode :add)
-                    (form-events/section-field-add
-                     (select-keys m [:field-name :protected :required :section-name :data-type]))
-                    (form-events/section-field-modify
-                     (select-keys m [:field-name :current-field-name :data-type :protected :required :section-name]))))]
-      [mui-popper {:anchorEl popper-anchor-el
-                   :id "field"
-                   :open dialog-show
-                   :sx {:z-index 2 :min-width "400px"}}
-       [mui-box {:sx popper-box-sx}
-        [mui-stack [mui-typography (if (= mode :add) "Add field" "Modify field")]]
-        [mui-stack
-         [mui-dialog-content {:dividers true}
-          [mui-stack
-           [m/text-field {:label "Field Name"
-                     ;; If we set ':value key', the dialog refreshes when on change fires for each key press in this input
-                     ;; Not sure why. Using different name like 'field-name' works fine
-                          :value field-name
-                          :error (boolean (seq error-fields))
-                          :helperText (get error-fields field-name)
-                          :on-key-press (enter-key-pressed-factory ok-fn)
-
-                        ;; Needs some tweaking as the input remains focus till the error is cleared
-                          :inputRef (fn [comp-ref]
-                                      (when (and (boolean (seq error-fields)) (not (nil? comp-ref)))
-                                        (when-let [comp-id (some-> comp-ref .-props .-id)]
-                                          (.focus (.getElementById js/document comp-id)))))
-                          :InputProps {}
-                          :on-change (on-change-factory form-events/section-field-dialog-update :field-name)
-                          :variant "standard" :fullWidth true}]
-
-           [mui-stack {:direction "row"}
-            [mui-form-control-label
-             {:control (r/as-element
-                        [mui-checkbox {:checked protected
-                                       :on-change (on-change-factory form-events/section-field-dialog-update :protected)}])
-              :label "Protected"}]
-            [mui-form-control-label
-             {:control (r/as-element
-                        [mui-checkbox {:checked required
-                                       :on-change (on-check-factory form-events/section-field-dialog-update :required)}])
-              :label "Required1"}]]]]]
-        [mui-stack  {:sx {:justify-content "end"} :direction "row"}   ;;{:sx {:align-items "end"}}
-         [mui-button {:variant "text"
-                      :sx popper-button-sx
-                      :on-click  (fn [_e]
-                                   (form-events/section-field-dialog-update :dialog-show false))} "Cancel"]
-         [mui-button {:sx popper-button-sx
-                      :variant "text"
-                      :on-click ok-fn}
-          "Ok"]]]]))
-
-(defn add-modify-section-field-dialog
-  [{:keys [dialog-show
-           section-name
-           field-name
-           protected
-           _data-type
-           mode
-           add-more
-           error-fields]
-    :as m}]
-  (let [ok-fn (fn [_e]
-                (if (= mode :add)
-                  (form-events/section-field-add
-                   (select-keys m [:field-name :protected :required :section-name :data-type]))
-                  (form-events/section-field-modify
-                   (select-keys m [:field-name :current-field-name :data-type :protected :required :section-name]))))]
-    [mui-dialog {:open dialog-show :on-click #(.stopPropagation ^js/Event %)
-                 ;; This will set the Paper width in all child components 
-                 :sx {"& .MuiPaper-root" {:width "60%"}} ;; equivalent to :classes {:paper "pwd-dlg-root"}
-                 }
-     [mui-dialog-title [mui-stack [mui-typography
-                                   (if (= mode :add)
-                                     (str "Add field in " section-name)
-                                     (str "Modify field in " section-name))]]]
-     [mui-dialog-content {:dividers true}
-      [mui-stack
-       [m/text-field {:label "Field Name"
-                     ;; If we set ':value key', the dialog refreshes when on change fires for each key press in this input
-                     ;; Not sure why. Using different name like 'field-name' works fine
-                      :value field-name
-                      :error (boolean (seq error-fields))
-                      :helperText (get error-fields field-name)
-                      :on-key-press (enter-key-pressed-factory ok-fn)
-
-                        ;; Needs some tweaking as the input remains focus till the error is cleared
-                      :inputRef (fn [comp-ref]
-                                  (when (and (boolean (seq error-fields)) (not (nil? comp-ref)))
-                                    (when-let [comp-id (some-> comp-ref .-props .-id)]
-                                      (.focus (.getElementById js/document comp-id)))))
-                      :InputProps {}
-                      :on-change (on-change-factory form-events/section-field-dialog-update :field-name)
-                      :variant "standard" :fullWidth true}]
-       [mui-stack {:direction "row"}
-        [mui-form-control-label
-         {:control (r/as-element
-                    [mui-checkbox {:checked protected
-                                   :on-change (on-change-factory form-events/section-field-dialog-update :protected)}])
-          :label "Protected"}]
-        #_[mui-form-control-label
-           {:control (r/as-element
-                      [mui-checkbox {:checked required
-                                     :on-change (on-check-factory form-events/section-field-dialog-update :required)}])
-            :label "Required"}]]
-
-       (when add-more [mui-stack
-                       [mui-alert {:severity "success" :sx {"&.MuiAlert-root" {:width "100%"}}} ;; need to override the paper width 60%
-                        [mui-alert-title "Success"] "Custom field added. You can add more field or cancel to close"]])]]
-     [mui-dialog-actions
-      [mui-stack  {:sx {:justify-content "end"} :direction "row" :spacing 1}   ;;{:sx {:align-items "end"}}
-       [mui-button {:on-click  (fn [_e]
-                                 (form-events/section-field-dialog-update :dialog-show false))} "Cancel"]
-       [mui-button {:on-click ok-fn}
-        "Ok"]]]]))
-
-(defn custom-field-delete-confirm [dialog-data]
-  [(alert-dialog-factory "Delete Field"
-                         "Are you sure you want to delete this field permanently?"
-                         [{:label "Yes" :on-click #(form-events/field-delete-confirm true)}
-                          {:label "No" :on-click  #(form-events/field-delete-confirm false)}])
-   dialog-data])
-
-(defn custom-section-delete-confirm [dialog-data]
-  [(alert-dialog-factory "Delete Field"
-                         "Are you sure you want to delete this section and all its fields permanently?"
-                         [{:label "Yes" :on-click #(form-events/section-delete-confirm true)}
-                          {:label "No" :on-click  #(form-events/section-delete-confirm false)}])
-   dialog-data])
 
 (defn section-field-add-icon-button [section-name]
   (if (not= section-name ADDITIONAL_ONE_TIME_PASSWORDS)
@@ -346,13 +176,14 @@
 (defn section-header [section-name]
   (let [edit @(form-events/form-edit-mode)
         standard-sections @(form-events/entry-form-data-fields :standard-section-names)
+        standard-section? (contains-val? standard-sections section-name)
         comp-ref (atom nil)]
     [mui-stack {:direction "row"
                 :ref (fn [e]
                          ;;(println "ref is called " e)
                        (reset! comp-ref e))}
      [mui-stack {:direction "row" :sx {:width "85%"}}
-      [box-caption section-name]]
+      [box-caption  (if standard-section? (tr-entry-section-name-cv section-name) section-name)]]
      (when edit
        [mui-stack {:direction "row" :sx {:width "15%" :justify-content "center"}}
         ;; Allow section name change only if the section name is not the standard one
@@ -375,13 +206,17 @@
                              :on-click #(form-events/open-section-field-dialog section-name @comp-ref)}
             [mui-icon-add-circle-outline-outlined]]]])]))
 
+;; Note translations for field names (labels) are done in 'text-field' defined in fields.cljs
 (defn section-content [edit section-name section-data group-uuid]
   (let [errors @(form-events/entry-form-field :error-fields)]
     ;; Show a section in edit mode irrespective of its contents; In non edit mode a section is shown only 
     ;; if it has some fields with non blank value. 
     (when (or edit (boolean (seq (filter (fn [kv] (not (str/blank? (:value kv)))) section-data))))  ;;(seq section-data)
       (let [refs (atom {})]
-        [mui-box {:sx content-sx}
+        [mui-box {:sx (theme-content-sx @m/custom-theme-atom)
+                  ;;:sx content-sx
+                  ;;:style {:background @m/entry-content-bg-color}
+                  }
          [section-header section-name]
          (doall
           (for [{:keys [key value
@@ -466,55 +301,27 @@
       (for [section-name section-names]
         ^{:key section-name} [section-content edit section-name (get section-fields section-name) group-uuid]))]))
 
-(def icons-dialog-flag (r/atom false))
-
-(defn close-icons-dialog []
-  (reset! icons-dialog-flag false))
-
-(defn show-icons-dialog []
-  (reset! icons-dialog-flag true))
-
-(defn icons-dialog
-  ([dialog-open? call-on-icon-selection]
-   (fn [dialog-open? call-on-icon-selection]
-     [:div [mui-dialog {:open (if (nil? dialog-open?) false dialog-open?)
-                        :on-click #(.stopPropagation ^js/Event %) ;;prevents on click for any parent components to avoid closing dialog by external clicking
-                        :classes {:paper "group-form-flg-root"}}
-            [mui-dialog-title "Icons"]
-            [mui-dialog-content {:dividers true}
-             [mui-grid {:container true :xs true :spacing 0}
-              (for [[idx svg-icon] db-icons/all-icons]
-                ^{:key idx} [:div {:style {:margin "4px"} ;;:border "1px solid blue"
-                                   :on-click #(do
-                                                (call-on-icon-selection idx)
-                                                #_(form-events/entry-form-data-update-field-value :icon-id idx)
-                                                (close-icons-dialog))} [mui-tooltip {:title "Icon"} svg-icon]])]]
-            [mui-dialog-actions
-             [mui-button {:variant "contained" :color "secondary"
-                          :on-click close-icons-dialog} "Close"]]]]))
-  ([dialog-open?]
-   [icons-dialog dialog-open? (fn [idx] (form-events/entry-form-data-update-field-value :icon-id idx))]))
-
 (defn title-with-icon-field  []
   ;;(println "title-with-icon-field called ")
   (let [fields @(form-events/entry-form-data-fields [:title :icon-id])
         edit @(form-events/form-edit-mode)
         errors @(form-events/entry-form-field :error-fields)]
     (when edit
-      [mui-box {:sx content-sx}
+      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
        [mui-stack {:direction "row" :spacing 1}
         [mui-stack {:direction "row" :sx {:width "88%" :justify-content "center"}}
-         [text-field {:key "Title"
+         [text-field {:key (tr-entry-field-name-cv "Title")
                       :value (:title fields)
                       :edit true
                       :required true
-                      :helper-text "Title of this entry"
+                      :helper-text (tr-h "entryTitle")
                       :error-text (:title errors)
                       :on-change-handler #(form-events/entry-form-data-update-field-value
                                            :title (-> % .-target  .-value))}]]
 
         [mui-stack {:direction "row" :sx {:width "12%" :justify-content "center" :align-items "center"}}
-         [mui-typography {:sx {:padding-left "5px"} :align "center" :paragraph false :variant "subtitle1"} "Icon"]
+         [mui-typography {:sx {:padding-left "5px"} :align "center" :paragraph false :variant "subtitle1"}
+          (tr-l "icons")]
          [mui-icon-button {:edge "end" :color "primary" :sx {;;:margin-top "16px"
                                                              ;;:margin-right "-8px"
                                                              }
@@ -529,18 +336,18 @@
         edit @(form-events/form-edit-mode)]
     ;;(println "tags-selection called tags:" tags " all-tags:" all-tags)
     (when (or edit (boolean (seq tags)))
-      [mui-box {:sx content-sx}
+      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
        [mui-stack {:direction "row"}]
        [tags-field all-tags tags form-events/on-tags-selection edit]
        (when edit
-         [mui-typography {:variant "caption"} "Select a tag or start entering a new tag and add"])])))
+         [mui-typography {:variant "caption"} (tr-h "selectTag")])])))
 
 (defn notes-content []
   (let [edit @(form-events/form-edit-mode)
         notes @(form-events/entry-form-data-fields :notes)]
     (when (or edit (not (str/blank? notes)))
-      [mui-box {:sx content-sx}
-       [mui-stack {:direction "row"} [box-caption "Notes"]]
+      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
+       [mui-stack {:direction "row"} [box-caption (tr-entry-section-name-cv "Notes")]]
        [mui-stack
         [text-area-field {:key "Notes"
                           :value notes
@@ -548,21 +355,14 @@
                           :on-change-handler (on-change-factory form-events/entry-form-data-update-field-value :notes)
                           #_#(form-events/entry-form-data-update-field-value :notes (-> % .-target  .-value))}]]])))
 
-(defn attachment-delete-confirm-dialog [dialog-data]
-  [(alert-dialog-factory "Delete attachment"
-                         "Are you sure you want to delete this attachment?"
-                         [{:label "Yes" :on-click #(form-events/attachment-delete-dialog-ok)}
-                          {:label "No" :on-click  #(form-events/attachment-delete-dialog-close)}])
-   dialog-data])
-
 (defn attachments-content []
   (let [edit @(form-events/form-edit-mode)
         attachments @(form-events/attachments)]
     (when (or edit (boolean (seq attachments)))
-      [mui-box {:sx content-sx}
+      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
        [mui-stack {:direction "row"}
         [mui-stack {:direction "row" :sx {:margin-bottom "10px" :width "90%"}}
-         [box-caption "Attachments"]]
+         [box-caption (tr-entry-section-name-cv "Attachments")]]
         (when edit
           [mui-stack {:direction "row"
                       :sx {:width "10%"
@@ -648,7 +448,7 @@
                        #_(fn [^js/Event _e]
                            (reset! anchor-el @comp-ref))}
              [mui-typography {:variant "h6" :sx {:font-size "1.1em"}}
-              "Add Section"]]]]]
+              (tr-l "addSection")]]]]]
          [add-modify-section-popper @(form-events/section-name-dialog-data)]
          #_[add-section-popper anchor-el]]))))
 
@@ -664,13 +464,6 @@
      [uuid-times-content]
      [expiry-content]]))
 
-(defn delete-permanent-dialog [dialog-data entry-uuid]
-  [(alert-dialog-factory "Entry Delete Permanent"
-                         "Are you sure you want to delete this entry permanently?"
-                         [{:label "Yes" :on-click #(move-events/delete-permanent-group-entry-ok :entry entry-uuid)}
-                          {:label "No" :on-click #(move-events/delete-permanent-group-entry-dialog-show :entry false)}])
-   dialog-data])
-
 (defn entry-content []
   (fn []
     (let [title @(form-events/entry-form-data-fields :title)
@@ -685,7 +478,7 @@
              :style {:margin 0
                      :width "100%"}}
 
-       [:div {:class "gheader" :style {:background background-color1}}
+       [:div {:class "gheader" :style {:background  (theme-color @custom-theme-atom :bg-default)}}
         (when-not edit
           [mui-stack {:direction "row"}
            [mui-stack {:direction "row"  :sx {:width "95%" :justify-content "center"}}
@@ -701,13 +494,14 @@
              [form-menu entry-uuid]]]])]
 
        [:div {:class "gcontent" :style {:overflow-y "scroll"
-                                        :background background-color1}}
+                                        :background (theme-color @custom-theme-atom :bg-default)}}
         [center-content]
         #_[custom-field-dialogs]]
 
        [:div {:class "gfooter" :style {:margin-top 2
                                        :min-height "46px" ;; needed to align this footer with entry list 
-                                       :background m/color-grey-200
+                                       :background (theme-color @custom-theme-atom :header-footer)
+                                       ;;:background m/color-grey-200
                                        ;;:background "var(--mui-color-grey-200)"
                                        }}
 
@@ -731,20 +525,20 @@
             [:<>
              [mui-button {:variant "contained"
                           :color "secondary"
-                          :on-click form-events/entry-update-cancel-on-click} "Cancel"]
+                          :on-click form-events/entry-update-cancel-on-click} (tr-bl cancel)]
              [mui-button {:variant "contained"
                           :color "secondary"
                           :disabled  (not @(form-events/modified))
-                          :on-click form-events/ok-edit-on-click} "Apply"]]
+                          :on-click form-events/ok-edit-on-click} (tr-bl apply)]]
 
             :else
             [:<>
              [mui-button {:variant "contained"
                           :color "secondary"
-                          :on-click form-events/close-on-click} "Close"]
+                          :on-click form-events/close-on-click} (tr-bl close)]
              [mui-button {:variant "contained"
                           :color "secondary"
-                          :on-click form-events/edit-mode-menu-clicked} "Edit"]])
+                          :on-click form-events/edit-mode-menu-clicked} (tr-bl "edit")]])
 
           #_(when (or deleted-cat? recycle-bin? group-in-recycle-bin?)
               [:<>
@@ -793,6 +587,11 @@
 
        [delete-permanent-dialog pd-dlg-data entry-uuid]])))
 
+(defn translated-entry-type-name [name]
+  (if (contains-val?  STANDARD_ENTRY_TYPES name)
+    (tr-entry-type-title-cv name)
+    name))
+
 (defn entry-type-group-selection
   "Used in entry new form. Prvides from-1 type component for
    entry type and group selection for an entry"
@@ -803,23 +602,23 @@
         entry-type-uuid @(form-events/entry-form-data-fields :entry-type-uuid)
         field-error-text (:group-selection @(form-events/entry-form-field :error-fields))]
     ;;(println "entry-type-uuid is " entry-type-uuid)
-    [mui-box {:sx content-sx}
+    [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
      [mui-stack {:spacing 1}
       [mui-stack {:direction "row" :sx {:width "100%"}}
        [mui-stack {:direction "row" :sx {:width "90%"}}
         [mui-text-field  {:id  "select"
                           :select true
                           :required true
-                          :label "Entry Type"
+                          :label (tr-l entryType)
                           :value entry-type-uuid ;;field-type
-                          :helper-text "An entry's type determines available fields"
-                          ;;:InputProps {:classes {:focused "dialog-field-edit-focused"}}
+                          :helper-text (tr-h entryTypeFields)
                           :on-change (on-change-factory2 form-events/entry-type-uuid-on-change) #_de/custom-field-type-edit-on-change
                           :variant "standard" :fullWidth true}
          ;; select fields options
          (doall
-          (for [{:keys [name uuid]} @entry-type-headers]
-            ^{:key uuid} [mui-menu-item {:value uuid} name]))]]
+          (for [{:keys [name uuid]} @entry-type-headers] 
+            ^{:key uuid} [mui-menu-item {:value uuid}
+                          (translated-entry-type-name name)]))]]
        [mui-stack {:direction "row"
                    :sx {:width "10%"
                         :align-items "center"
@@ -831,38 +630,39 @@
           [mui-icon-add-circle-outline-outlined]]]]]
 
 
-      [selection-autocomplete {:label "Group/Category"
+      [selection-autocomplete {:label (tr-l groupOrCategory)
                                :options @groups-listing
                                :current-value @group-selected
                                :on-change form-events/on-group-selection
                                :required true
-                               :helper-text "An entry's group/category"
+                               :helper-text (tr-h groupOrCategory)
                                :error (not (nil? field-error-text))
                                :error-text field-error-text}]]]))
 
 (defn entry-content-new []
   ;;(println "entry-content-new called")
   (let [title @(form-events/entry-form-data-fields :title)
-        form-title (if (str/blank? title) "New Entry" (str "New Entry" "-" title))]
+        form-title-tr (tr-t "newEntry")
+        form-title (if (str/blank? title) form-title-tr (str form-title-tr "-" title))]
     [:div {:class "gbox"
            :style {:margin 0
                    :width "100%"}}
 
-     [:div {:class "gheader" :style {:background background-color1}}
+     [:div {:class "gheader" :style {:background (theme-color @custom-theme-atom :entry-content-bg)}}
       [mui-stack {:direction "row"  :sx {:width "100%" :justify-content "center"}}
        [mui-typography {:align "center"
                         :paragraph false
                         :variant "h6"}
         form-title]]]
      [:div {:class "gcontent" :style {:overflow-y "scroll"
-                                      :background background-color1}}
+                                      :background (theme-color @custom-theme-atom :entry-content-bg)}}
       [entry-type-group-selection]
       [center-content]
       #_[custom-field-dialogs]]
 
      [:div {:class "gfooter" :style {:margin-top 2
                                      :min-height "46px" ;; needed to align this footer with entry list 
-                                     :background "var(--mui-color-grey-200)"}}
+                                     :background (theme-color @custom-theme-atom :header-footer)}}
 
       [mui-stack {:sx {:align-items "flex-end"}}
        [:div.buttons1
@@ -890,7 +690,7 @@
        [mui-typography  {:variant "h6"}
         (if (not (nil? text-to-show))
           text-to-show
-          "No entry content is selected. Select or create a new one")]]]
+          (tr-h noEntrySelected))]]]
      [:div {:class "gfooter"}]]))
 
 (declare history-entry-content)
@@ -921,7 +721,7 @@
 
 (defn entry-type-section-content [edit section-name section-data]
   (let [errors @(form-events/entry-form-field :error-fields)]
-    [mui-box {:sx content-sx}
+    [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
      [section-header section-name]
      (doall
       (for [{:keys [key
@@ -974,14 +774,14 @@
   (let [{:keys [entry-type-name entry-type-icon-name]} @(form-events/entry-form-data-fields
                                                          [:entry-type-name :entry-type-icon-name])
         errors @(form-events/entry-form-field :error-fields)]
-    [mui-box {:sx content-sx}
+    [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
      [mui-stack {:direction "row" :spacing 1}
       [mui-stack {:direction "row" :sx {:width "90%" :justify-content "center"}}
-       [text-field {:key "Entry Type"
+       [text-field {:key (tr-l entryType)
                     :value entry-type-name
                     :edit true
                     :required true
-                    :helper-text "Entry type name"
+                    :helper-text (tr-l entryTypeName)
                     :error-text (:entry-type-name errors)
                     :on-change-handler (on-change-factory
                                         form-events/entry-form-data-update-field-value
@@ -1012,55 +812,31 @@
          :style {:margin 0
                  :width "100%"}}
 
-   [:div {:class "gheader" :style {:background background-color1}}
+   [:div {:class "gheader" :style {:background (theme-color @custom-theme-atom :entry-content-bg)}}
     [mui-stack {:direction "row"  :sx {:width "100%" :justify-content "center"}}
      [mui-typography {:align "center"
                       :paragraph false
                       :variant "h6"}
-      "New Custom Entry Type"]]]
+      (tr-t "newEntryType")]]]
    [:div {:class "gcontent" :style {:overflow-y "scroll"
-                                    :background background-color1}}
+                                    :background (theme-color @custom-theme-atom :entry-content-bg)}}
     [entry-type-center-content]]
 
    [:div {:class "gfooter" :style {:margin-top 2
                                    :min-height "46px" ;; needed to align this footer with entry list 
-                                   :background "var(--mui-color-grey-200)"}}
+                                   :background (theme-color @custom-theme-atom :header-footer)}}
 
     [mui-stack {:sx {:align-items "flex-end"}}
      [:div.buttons1
       [mui-button {:variant "contained" :color "secondary"
-                   :on-click form-events/cancel-new-custom-entry-type} "Cancel"]
+                   :on-click form-events/cancel-new-custom-entry-type} (tr-bl cancel)]
       [mui-button {:variant "contained" :color "secondary"
-                   :on-click form-events/create-custom-entry-type} "Create"]]]]
+                   :on-click form-events/create-custom-entry-type} (tr-bl create)]]]]
 
    #_[cc/message-sanckbar]
    #_[cc/message-sanckbar-alert (merge @(ce/message-snackbar-data) {:severity "info"})]])
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Entry History ;;;;;;;;;;;;;;;;;;;;;;
-
-(defn restore-confirm-dialog [dialog-show]
-  [(alert-dialog-factory
-    "Do you want to replace the current entry?"
-    "The existing entry will be replaced with this histrory entry"
-    [{:label "Yes" :on-click form-events/restore-entry-from-history}
-     {:label "No" :on-click form-events/close-restore-confirm-dialog}])
-   {:dialog-show dialog-show}])
-
-(defn delete-confirm-dialog [dialog-show entry-uuid index]
-  [(alert-dialog-factory
-    "Do you want to delete the selected history entry?"
-    "This version of history will be deleted permanently"
-    [{:label "Yes" :on-click #(form-events/delete-history-entry-by-index entry-uuid index)}
-     {:label "No" :on-click form-events/close-delete-confirm-dialog}])
-   {:dialog-show dialog-show}])
-
-(defn delete-all-confirm-dialog [dialog-show entry-uuid]
-  [(alert-dialog-factory
-    "Do you want to delete all history entries?"
-    "All history entries for this entry will be deleted permanently"
-    [{:label "Yes" :on-click #(form-events/delete-all-history-entries entry-uuid)}
-     {:label "No" :on-click form-events/close-delete-all-confirm-dialog}])
-   {:dialog-show dialog-show}])
 
 (defn history-entry-content []
   (fn []
@@ -1070,7 +846,7 @@
              :style {:margin 0
                      :width "100%"}}
 
-       [:div {:class "gheader" :style {:background background-color1}}
+       [:div {:class "gheader" :style {:background (theme-color @custom-theme-atom :entry-content-bg)}}
         (when-not edit
           [mui-stack {:direction "row"}
            [mui-stack {:direction "row"  :sx {:width "95%" :justify-content "center"}}
@@ -1078,7 +854,7 @@
             [mui-typography {:align "center" :paragraph false :variant "h6"} title]]])]
 
        [:div {:class "gcontent" :style {:overflow-y "scroll"
-                                        :background background-color1}}
+                                        :background (theme-color @custom-theme-atom :entry-content-bg)}}
         [center-content]
         [restore-confirm-dialog @(form-events/restore-flag)]
         [delete-confirm-dialog
@@ -1088,14 +864,16 @@
 
        [:div {:class "gfooter" :style {:margin-top 2
                                        :min-height "46px" ;; needed to align this footer with entry list 
-                                       :background "var(--mui-color-grey-200)"}}
+                                       :background (theme-color @custom-theme-atom :header-footer)}}
 
         [mui-stack {:sx {:align-items "flex-end"}}
          [:div.buttons1
           [mui-button {:variant "contained" :color "secondary"
-                       :on-click form-events/show-delete-confirm-dialog} "Delete"]
+                       :on-click form-events/show-delete-confirm-dialog}
+           (tr-bl delete)]
           [mui-button {:variant "contained" :color "secondary"
-                       :on-click form-events/show-restore-confirm-dialog} "Restore"]]]]])))
+                       :on-click form-events/show-restore-confirm-dialog}
+           (tr-bl restore)]]]]])))
 
 (defn history-entry-row-item
   "Renders a list item. 
@@ -1140,7 +918,8 @@
      [mui-stack {:sx {:height "40px"
                       :justify-content "center"
                       :align-items "center"}}
-      [mui-typography {:align "center" :paragraph false :variant "subtitle2"} "Previous Versions"]]
+      [mui-typography {:align "center" :paragraph false :variant "subtitle2"}
+       (tr-l previousVersions)]]
 
      [entry-items]
      [delete-all-confirm-dialog
@@ -1149,20 +928,19 @@
 
      [mui-stack {:sx {:min-height "46px"
                       :align-items "center"
-                      :background m/color-grey-200}}
+                      :background (theme-color @custom-theme-atom :header-footer) #_m/color-grey-200}}
       [:div {:style {:margin-top 10 :margin-bottom 10 :margin-right 5 :margin-left 5}}
        [mui-button {:variant "outlined"
                     :color "inherit"
-                    :on-click form-events/show-delete-all-confirm-dialog} "Delete All"]]]]))
+                    :on-click form-events/show-delete-all-confirm-dialog}
+        (tr-bl deleteAll)]]]]))
 
 (defn entry-history-content-main []
   (let [entry-uuid  @(form-events/loaded-history-entry-uuid)]
-    ;;(println "entry-uuid is " entry-uuid)
     [mui-stack {:direction "row"
                 :divider (r/as-element [mui-divider {:orientation "vertical" :flexItem true}])
                 :sx {:height "100%" :overflow-y "scroll"}}
      [mui-stack {:direction "row" :sx {:width "45%"}}
-      #_"Some details come here"
       [mui-stack {:direction "row"
                   :divider (r/as-element [mui-divider {:orientation "vertical" :flexItem true}])
                   :sx {:width "100%"}}
@@ -1172,22 +950,86 @@
                         :justify-content "center"
                         :align-items "center"}}
         [mui-box
-         [mui-typography "Found History Entries"]
+         [mui-typography (tr-l foundHistoryEntries)]
          [mui-stack
           [mui-link {:sx {:text-align "center"
                           :color "primary.main"}
                      :underline "always"
                      :variant "subtitle1"
                      :onClick #(form-events/history-content-close entry-uuid)}
-           "Back to Entry"]]]]
+           (tr-l backToEntry)]]]]
        [mui-stack {:direction "row" :sx {:width "50%" :overflow-y "scroll"}}
         [history-list-content]]]]
      [mui-stack {:direction "row"
                  :sx {:width "55%"}}
       [entry-content-core]]]))
 
-
 ;;;;;;;;;;;;;;;;;;;
+
+#_(defn add-modify-section-field-popper
+    [{:keys [dialog-show
+             popper-anchor-el
+             field-name
+             protected
+             required
+             _data-type
+             mode
+             error-fields]
+      :as m}]
+    #_[mui-click-away-listener #_{:onClickAway #(form-events/section-field-dialog-update :dialog-show false)}]
+    (let [ok-fn (fn [_e]
+                  (if (= mode :add)
+                    (form-events/section-field-add
+                     (select-keys m [:field-name :protected :required :section-name :data-type]))
+                    (form-events/section-field-modify
+                     (select-keys m [:field-name :current-field-name :data-type :protected :required :section-name]))))]
+      [mui-popper {:anchorEl popper-anchor-el
+                   :id "field"
+                   :open dialog-show
+                   :sx {:z-index 2 :min-width "400px"}}
+       [mui-box {:sx popper-box-sx}
+        [mui-stack [mui-typography (if (= mode :add) "Add field" "Modify field")]]
+        [mui-stack
+         [mui-dialog-content {:dividers true}
+          [mui-stack
+           [m/text-field {:label "Field Name"
+                     ;; If we set ':value key', the dialog refreshes when on change fires for each key press in this input
+                     ;; Not sure why. Using different name like 'field-name' works fine
+                          :value field-name
+                          :error (boolean (seq error-fields))
+                          :helperText (get error-fields field-name)
+                          :on-key-press (enter-key-pressed-factory ok-fn)
+
+                        ;; Needs some tweaking as the input remains focus till the error is cleared
+                          :inputRef (fn [comp-ref]
+                                      (when (and (boolean (seq error-fields)) (not (nil? comp-ref)))
+                                        (when-let [comp-id (some-> comp-ref .-props .-id)]
+                                          (.focus (.getElementById js/document comp-id)))))
+                          :InputProps {}
+                          :on-change (on-change-factory form-events/section-field-dialog-update :field-name)
+                          :variant "standard" :fullWidth true}]
+
+           [mui-stack {:direction "row"}
+            [mui-form-control-label
+             {:control (r/as-element
+                        [mui-checkbox {:checked protected
+                                       :on-change (on-change-factory form-events/section-field-dialog-update :protected)}])
+              :label "Protected"}]
+            [mui-form-control-label
+             {:control (r/as-element
+                        [mui-checkbox {:checked required
+                                       :on-change (on-check-factory form-events/section-field-dialog-update :required)}])
+              :label "Required1"}]]]]]
+        [mui-stack  {:sx {:justify-content "end"} :direction "row"}   ;;{:sx {:align-items "end"}}
+         [mui-button {:variant "text"
+                      :sx popper-button-sx
+                      :on-click  (fn [_e]
+                                   (form-events/section-field-dialog-update :dialog-show false))} "Cancel"]
+         [mui-button {:sx popper-button-sx
+                      :variant "text"
+                      :on-click ok-fn}
+          "Ok"]]]]))
+
 #_(defn custom-field-dialog [{:keys [dialog-show
                                      field-name
                                      field-value

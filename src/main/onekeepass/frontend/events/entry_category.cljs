@@ -7,7 +7,7 @@
                      GROUPING_LABEL_CATEGORIES GROUPING_LABEL_GROUPS]]
             [onekeepass.frontend.events.common
              :as cmn-events
-             :refer [active-db-key
+             :refer [active-db-key 
                      assoc-in-key-db
                      check-error
                      get-in-key-db]]
@@ -88,12 +88,21 @@
 (defn deleted-entries-category []
   (subscribe [:deleted-entries-category]))
 
-
 (defn is-selected-category [cat-detail-m]
   (subscribe [:is-selected-category cat-detail-m]))
 
 (defn root-group-uuid []
   (subscribe [:group-tree-content/root-group-uuid]))
+
+(defn to-entry-groupings-kind-kw
+  "Converts the string value of grouping label to an appropriate keyword"
+  [start-view-to-show]
+  (cond
+    (= start-view-to-show GROUPING_LABEL_TYPES) :type
+    (= start-view-to-show GROUPING_LABEL_CATEGORIES) :category
+    (= start-view-to-show GROUPING_LABEL_GROUPS) :group
+    (= start-view-to-show GROUPING_LABEL_TAGS) :tag
+    :else :type))
 
 (defn is-current-detail-general?
   "Checks whether the passed arg 'category-detail' map is from :general-categories 
@@ -158,12 +167,7 @@
  :entry-category/category-data-load-start
  (fn [{:keys [_db]} [_event-id start-view-to-show]]
    ;; start-view-to-show is a string
-   (let [start-view-to-show (cond
-                              (= start-view-to-show GROUPING_LABEL_TYPES) :type
-                              (= start-view-to-show GROUPING_LABEL_CATEGORIES) :category
-                              (= start-view-to-show GROUPING_LABEL_GROUPS) :group
-                              (= start-view-to-show GROUPING_LABEL_TAGS) :tag
-                              :else :type)]
+   (let [start-view-to-show (to-entry-groupings-kind-kw start-view-to-show)]
      ;; valid value is one of :category or :group or :type or :tag
      {:fx [[:dispatch [:load-combined-category-data start-view-to-show]]]})))
 

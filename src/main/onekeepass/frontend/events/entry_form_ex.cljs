@@ -1,5 +1,7 @@
 (ns onekeepass.frontend.events.entry-form-ex
-  (:require [clojure.string :as str]
+  (:require ;; Need to be called here so that events are registered
+ ;; Should it be moved to core.cljs ?
+            [clojure.string :as str]
             [onekeepass.frontend.background :as bg] ;; Need to be called here so that events are registered
             [onekeepass.frontend.constants :as const :refer [PASSWORD]]
             [onekeepass.frontend.events.common :as cmn-events :refer [active-db-key
@@ -12,11 +14,9 @@
                                                                   entry-form-key
                                                                   extract-form-otp-fields
                                                                   is-field-exist
-                                                                  merge-section-key-value]]
-            ;; Need to be called here so that events are registered
-            ;; Should it be moved to core.cljs ?
-            #_{:clj-kondo/ignore [:unused-namespace]}
+                                                                  merge-section-key-value]] ;; Need to be called here so that events are registered
             [onekeepass.frontend.events.entry-form-otp :as ef-otp-events]
+            [onekeepass.frontend.translation :refer [lstr-sm]]
             [onekeepass.frontend.utils :as u :refer [contains-val?]]
             [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-fx
                                    reg-sub subscribe]]))
@@ -513,7 +513,7 @@
 (reg-event-fx
  :entry-update-complete-ex
  (fn [{:keys [_db]} [_event-id]]
-   {:fx [[:dispatch [:common/message-snackbar-open "Entry is updated"]]
+   {:fx [[:dispatch [:common/message-snackbar-open (lstr-sm 'entryUpdated)]]
          ;; We need not call any explicit resetting of Edit mode to false, as the call 
          ;; to :entry-list/entry-updated -> :entry-form/find-entry-by-id will put the form in read only mode
          #_[:dispatch [:entry-form-edit-ex false]]
@@ -1369,7 +1369,7 @@
          ;; Furthur refreshing view event are delegated to entry-category/entry-inserted 
          ;; which in turn calls entry-list/entry-inserted, group-tree-content/entry-inserted
          [:dispatch [:entry-category/entry-inserted entry-uuid group-uuid entry-type-uuid entry-type-name]]
-         [:dispatch [:common/message-snackbar-open "New entry is created"]]]}))
+         [:dispatch [:common/message-snackbar-open (lstr-sm 'entryCreated)]]]}))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  Entry History  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

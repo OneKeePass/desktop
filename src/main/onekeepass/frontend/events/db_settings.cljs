@@ -3,7 +3,8 @@
   (:require
    [re-frame.core :refer [reg-event-db reg-event-fx reg-fx reg-sub dispatch subscribe]]
    [clojure.string :as str]
-   [onekeepass.frontend.utils :as utils :refer [str->int contains-val?]]
+   [onekeepass.frontend.translation  :refer-macros [tr-m]]
+   [onekeepass.frontend.utils :as utils :refer [str->int contains-val?]] 
    [onekeepass.frontend.events.common :as cmn-events :refer [on-error
                                                              check-error
                                                              assoc-in-key-db
@@ -14,6 +15,10 @@
 
 
 (def panels [:general-info :credentials-info  :security-info])
+
+(defn app-settings-dialog-read-start []
+  (dispatch [:app-settings/read-start])
+  (dispatch [:db-settings-dialog-show false]))
 
 (defn open-key-file-explorer-on-click []
   (cmn-events/open-file-explorer-on-click :db-settings-key-file-name-selected))
@@ -65,13 +70,13 @@
         ;; [iterations memory parallelism] (mapv str->int [iterations memory parallelism])
 
         errors (if (or (nil? iterations) (or (< iterations 5) (> iterations 100)))
-                 {:iterations "Valid values should be in the range 5 - 100"} {})
+                 {:iterations (tr-m databaseSettings iterations)} {})
         errors (merge errors
                       (if (or (nil? memory) (or (< memory 1) (> memory 1000)))
-                        {:memory "Valid values should be in the range 1 - 1000"} {}))
+                        {:memory (tr-m databaseSettings memory)} {}))
         errors (merge errors
                       (if (or (nil? parallelism) (or (< parallelism 1) (> parallelism 100)))
-                        {:parallelism "Valid values should be in the range 1 - 100"} {}))]
+                        {:parallelism (tr-m databaseSettings parallelism)} {}))]
 
     errors))
 
@@ -84,18 +89,17 @@
 
     (cond
       (and (field-not-empty? password) (not visible) (not= password cp))
-      {:password-confirm "Password and Confirm password are not matching"}
+      {:password-confirm (tr-m databaseSettings passwordConfirm)}
 
       (and (not key-file-used) (not password-used))
-      {:no-credential-set
-       "Database needs to be protected using a master key formed with a password or a key file or both"})))
+      {:no-credential-set (tr-m databaseSettings noCredentialSet)})))
 
 (defn- validate-required-fields
   [db panel]
   (cond
     (= panel :general-info)
     (when (str/blank? (get-in-key-db db [:db-settings :data :meta :database-name]))
-      {:database-name "A valid database name is required"})
+      {:database-name (tr-m databaseSettings databaseName)})
 
     (= panel :credentials-info)
     (validate-credential-fields db)

@@ -6,11 +6,11 @@
 mod auto_type;
 mod biometric;
 mod commands;
+mod constants;
 mod key_secure;
 mod menu;
 mod preference;
 mod utils;
-mod constants;
 
 use constants::event_action_names::*;
 use constants::event_names::*;
@@ -21,7 +21,7 @@ use tauri::Manager;
 pub type Result<T> = std::result::Result<T, String>;
 
 #[derive(Clone, serde::Serialize)]
-/// Payload to send to the UI layer
+// Payload to send to the UI layer
 struct WindowEventPayload {
   action: String,
   focused: Option<bool>,
@@ -37,6 +37,28 @@ impl WindowEventPayload {
 }
 
 fn main() {
+  // Need to create 'context' here before building the app so that we can load language translation files
+  // for the current prefered language from the resource dir in order to prepare Menus
+  let context = tauri::generate_context!();
+
+  // TODO: Reuse this preference file content in Preference::read_toml 
+  let pref_str = utils::read_preference_file();
+  let lng = utils::read_language_selection(&pref_str);
+
+  //println!("lng to use is {}", &lng);
+
+  // This loaded tranalation data is passed to menus creation call (builder.menu(..)) and there they are used
+  // in preparing the system menu names in the current prefered language. 
+  // If user changes the prefered language the app needs to be restarted. This is because
+  // the system menus's titles can not be changed without restarting though all sub menus's titles 
+  // can be changed dynamically. 
+
+  let menu_translation =
+    utils::load_system_menu_translations(&lng, &context.config(), &context.package_info());
+
+  // let rc_dir = tauri::api::path::resource_dir(context.package_info(),&tauri::Env::default());
+  // println!("== Resource dir from context is {:?}",&rc_dir);
+
   // on_window_event - Registers a window event handler for all windows
   // Instead of using this, we register window events in App.run closure
   // See below
@@ -52,21 +74,19 @@ fn main() {
     //   }
     //   _ => {}
     // })
-    .menu(menu::get_app_menu())
+    .menu(menu::get_app_menu(menu_translation))
     .on_menu_event(|menu_event| {
       menu::handle_menu_events(&menu_event);
     })
     .invoke_handler(tauri::generate_handler![
-      commands::init_timers,
-      commands::start_polling_entry_otp_fields,
-      commands::stop_polling_entry_otp_fields,
-      commands::stop_polling_all_entries_otp_fields,
       // dev test calll
       // commands::test_call,
+
       // Sorted alphabetically
       commands::active_window_to_auto_type,
       commands::analyzed_password,
       commands::authenticate_with_biometric,
+      commands::clear_recent_files,
       commands::close_kdbx,
       commands::collect_entry_group_tags,
       commands::combined_category_details,
@@ -92,13 +112,16 @@ fn main() {
       commands::insert_entry_from_form_data,
       commands::insert_group,
       commands::insert_or_update_custom_entry_type,
+      commands::init_timers,
       commands::is_path_exists,
       commands::kdbx_context_statuses,
       commands::load_custom_svg_icons,
+      commands::load_language_translations,
       commands::load_kdbx,
       commands::lock_kdbx,
       commands::mark_group_as_category,
       commands::menu_action_requested,
+      commands::menu_titles_change_requested,
       commands::move_entry,
       commands::move_entry_to_recycle_bin,
       commands::move_group,
@@ -125,6 +148,9 @@ fn main() {
       // commands::send_sequence_to_winow_sync,
       commands::send_sequence_to_winow_async,
       commands::standard_paths,
+      commands::start_polling_entry_otp_fields,
+      commands::stop_polling_entry_otp_fields,
+      commands::stop_polling_all_entries_otp_fields,
       commands::supported_biometric_type,
       commands::svg_file,
       commands::system_info_with_preference,
@@ -133,8 +159,9 @@ fn main() {
       commands::update_entry_from_form_data,
       commands::update_group,
       commands::upload_entry_attachment,
+      commands:: update_preference,
     ])
-    .build(tauri::generate_context!())
+    .build(context)
     .expect("error while building tauri application");
 
   // App is built
@@ -152,10 +179,8 @@ fn main() {
           let window = app_handle.get_window(&label).unwrap();
           let mut wr = WindowEventPayload::new(WINDOW_FOCUS_CHANGED);
           wr.focused = Some(focused);
-          let _r = window.emit(
-            MAIN_WINDOW_EVENT, wr,
-          );
-        },
+          let _r = window.emit(MAIN_WINDOW_EVENT, wr);
+        }
         tauri::WindowEvent::CloseRequested { api, .. } => {
           info!(
             "Window event is CloseRequested and will not be closed for window {}",
@@ -166,9 +191,7 @@ fn main() {
           // The Window CloseRequested event is in turn sent to the UI layer
           // so that user can be informed for any saved changes before quiting
           // See onekeepass.frontend.events.tauri-events/handle-main-window-event
-          let _r = window.emit(
-            MAIN_WINDOW_EVENT, WindowEventPayload::new(CLOSE_REQUESTED),
-          );
+          let _r = window.emit(MAIN_WINDOW_EVENT, WindowEventPayload::new(CLOSE_REQUESTED));
           // "Main Window close requested"
           // use the exposed close api, and prevent the event loop to close
           // The window will be closed when UI side finally send the "Quit" event

@@ -12,7 +12,7 @@ use std::fs::read_to_string;
 use std::path::Path;
 use uuid::Uuid;
 
-use crate::menu::{self, MenuActionRequest};
+use crate::menu::{self, MenuActionRequest, MenuTitleChangeRequest};
 use crate::utils::SystemInfoWithPreference;
 use crate::{auto_type, biometric, OTP_TOKEN_UPDATE_EVENT};
 use crate::{preference, utils};
@@ -119,7 +119,7 @@ pub(crate) async fn load_kdbx(
   // key_file_name.as_deref() converts Option<String> to Option<&str> - https://stackoverflow.com/questions/31233938/converting-from-optionstring-to-optionstr
 
   let r = kp_service::load_kdbx(db_file_name, password, key_file_name.as_deref());
-
+  
   if let Err(kp_service::error::Error::DbFileIoError(m, ioe)) = &r {
     // Remove from the recent list only if the file opening failed because of the file is not found in the passed file path
     if let ("Database file opening failed", ErrorKind::NotFound) = (m.as_str(), ioe.kind()) {
@@ -138,6 +138,7 @@ pub(crate) async fn load_kdbx(
     .lock()
     .unwrap()
     .add_recent_file(db_file_name);
+
   Ok(r?)
 }
 
@@ -148,6 +149,15 @@ pub(crate) async fn menu_action_requested<R: Runtime>(
   request: MenuActionRequest,
 ) -> Result<()> {
   menu::menu_action_requested(request, app);
+  Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn menu_titles_change_requested<R: Runtime>(
+  app: tauri::AppHandle<R>,
+  request:MenuTitleChangeRequest ,
+) -> Result<()> {
+  menu::menu_titles_change_requested(request, app);
   Ok(())
 }
 
@@ -205,6 +215,22 @@ pub(crate) async fn system_info_with_preference(
   app_state: State<'_, utils::AppState>,
 ) -> Result<SystemInfoWithPreference> {
   Ok(SystemInfoWithPreference::init(app_state.inner()))
+}
+
+#[tauri::command]
+pub(crate) async fn update_preference(
+  app_state: State<'_, utils::AppState>,
+  preference_data:preference::PreferenceData
+) -> Result<()> {
+  Ok(app_state.update_preference(preference_data))
+}
+
+//clear_recent_files
+#[tauri::command]
+pub(crate) async fn clear_recent_files(
+  app_state: State<'_, utils::AppState>
+) -> Result<()> {
+  Ok(app_state.clear_recent_files())
 }
 
 #[tauri::command]
@@ -660,6 +686,13 @@ pub(crate) async fn export_main_content_as_xml(db_key: &str, xml_file_name: &str
 pub(crate) async fn export_as_xml(db_key: &str, xml_file_name: &str) -> Result<()> {
   // This will refresh struct before xml export
   Ok(kp_service::export_as_xml(db_key, xml_file_name)?)
+}
+
+#[tauri::command]
+pub async fn load_language_translations<R: Runtime>(
+  app: tauri::AppHandle<R>, language_ids: Vec<String>,
+) -> Result<utils::TranslationResource> {
+  Ok(utils::load_language_translations(app,language_ids)?)
 }
 
 #[tauri::command]

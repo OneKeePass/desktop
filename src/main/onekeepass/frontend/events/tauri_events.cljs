@@ -74,6 +74,9 @@
 
       (= menu-id const/MENU_ID_SEARCH)
       (dispatch [:search/dialog-show])
+      
+      (= menu-id const/APP_SETTINGS)
+      (dispatch [:app-settings/read-start])
 
       :else
       (dispatch [:common/message-box-show "Work In Progress" (str "Menu action for " menu-id " will be implemented soon")]))))
@@ -131,8 +134,10 @@
 
 (defn enable-app-menu [menu-id enable? & {:as menu-args}]
   ;;(println "Going to call for menu-id " menu-id enable? menu-args)
-
+  
   ;; Stores any menu specific args and that is used when menu is selected in the menu bar
+  ;; See as an example how the third arg (a map) is passed in entry-list/fn-entry-list-content
+  ;; For now only this is used wrt const/MENU_ID_NEW_ENTRY
   (swap! all-menu-args assoc menu-id menu-args)
 
   (bg/menu-action-requested menu-id

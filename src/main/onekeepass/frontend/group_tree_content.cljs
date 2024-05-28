@@ -1,13 +1,20 @@
 (ns onekeepass.frontend.group-tree-content
   (:require
    [reagent.core :as r]
+   [onekeepass.frontend.translation  :refer-macros [tr-l 
+                                                    tr-t 
+                                                    tr-ml 
+                                                    tr-h
+                                                    tr-bl 
+                                                    tr-dlg-title 
+                                                    tr-dlg-text]]
    [onekeepass.frontend.db-icons :refer [group-icon]]
    [onekeepass.frontend.group-form :as gf]
    [onekeepass.frontend.common-components :refer [selection-autocomplete
                                                   alert-dialog-factory
                                                   dialog-factory
                                                   confirm-text-dialog
-                                                  menu-action]]
+                                                  menu-action]] 
    [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.events.group-tree-content :as gt-events]
    [onekeepass.frontend.events.group-form :as gf-events]
@@ -38,12 +45,12 @@
 (defn empty-recycle-bin-confirm-dialog [dialog-data]
   ;; we can use either 'alert-dialog-factory' or confirm-text-dialog for this
   [confirm-text-dialog
-   "Empty recycle bin?"
-   "Are you sure you want to empty the recycle bin permanently?"
-   [{:label "Yes" :on-click (fn []
+   (tr-dlg-title emptyRecycleBin)
+   (tr-dlg-text emptyRecycleBin) 
+   [{:label (tr-bl yes) :on-click (fn []
                               (move-events/empty-trash)
                               (reset! empty-recycle-bin-confirm-dialog-data {:dialog-show false}))}
-    {:label "No" :on-click (fn []
+    {:label (tr-bl no) :on-click (fn []
                              (reset! empty-recycle-bin-confirm-dialog-data {:dialog-show false}))}]
    dialog-data])
 
@@ -51,10 +58,11 @@
 
 
 (defn- delete-group-permanent-dialog [dialog-data group-uuid]
-  [(alert-dialog-factory "Group Delete Permanent"
-                         "Are you sure you want to delete this group and children permanently?"
-                         [{:label "Yes" :on-click #(move-events/delete-permanent-group-entry-ok :group group-uuid)}
-                          {:label "No" :on-click #(move-events/delete-permanent-group-entry-dialog-show :group false)}])
+  [(alert-dialog-factory 
+    (tr-dlg-title groupDeletePermanent)
+    (tr-dlg-text groupDeletePermanent) 
+    [{:label (tr-bl yes)  :on-click #(move-events/delete-permanent-group-entry-ok :group group-uuid)}
+     {:label (tr-bl no) :on-click #(move-events/delete-permanent-group-entry-dialog-show :group false)}])
    dialog-data])
 
 (defn move-dialog-content
@@ -62,15 +70,15 @@
   [{{:keys [status group-selection-info api-error-text field-error]} :dialog-data
     :keys [groups-listing on-change]}]
   [mui-stack
-   [mui-typography "Select a group"]
+   [mui-typography (tr-t selectAGroup)]
    [mui-box
-    [selection-autocomplete {:label "Group"
+    [selection-autocomplete {:label (tr-l "group")
                              :options groups-listing
                              :current-value group-selection-info
                              :on-change on-change
                              :required true
                              :error field-error
-                             :error-text (when field-error "Please select a valid group")}]]
+                             :error-text (when field-error (tr-h selectAValidGroup))}]]
    (when api-error-text
      [mui-alert {:severity "error" :style {:width "100%"} :sx {:mt 1}} api-error-text])
    (when (and (nil? api-error-text) (= status :in-progress))
@@ -86,8 +94,8 @@
              title
              move-dialog-content
              ;; Actions
-             [{:label "Cancel" :on-click-factory cancel-on-click-factory}
-              {:label "Ok" :on-click-factory ok-on-click-factory}])]
+             [{:label  (tr-bl cancel)  :on-click-factory cancel-on-click-factory}
+              {:label  (tr-bl ok)  :on-click-factory ok-on-click-factory}])]
     ;; Returns a Form 2 reagent component
     (fn [data]
       [dlg data])))
@@ -100,18 +108,18 @@
 
      [mui-menu-item {:divider true
                      :on-click  (menu-action anchor-el gt-events/initiate-new-blank-group-form g-uuid)}
-      "Add Group"]
+      (tr-ml addGroup)]
 
      [mui-menu-item {:divider false
                      :on-click (menu-action anchor-el gf-events/find-group-by-id g-uuid :edit)}
-      "Edit"]
+      (tr-ml edit)]
      [mui-menu-item {:divider true
                      :on-click (menu-action anchor-el gf-events/find-group-by-id g-uuid :info)}
-      "Info"]
+      (tr-ml info)]
      [mui-menu-item {:divider false
                      :disabled @(gt-events/root-group-selected?)
                      :on-click (menu-action anchor-el gt-events/group-delete-start g-uuid)}
-      "Delete"]]))
+      (tr-ml delete)]]))
 
 (defn tree-item-recycle-sub-group-menu-items []
   (fn [anchor-el _g-uuid]
@@ -120,10 +128,10 @@
                :on-close #(reset! anchor-el nil)}
      [mui-menu-item {:divider false
                      :on-click (menu-action anchor-el move-events/move-group-entry-dialog-show :group true)}
-      "Put Back"]
+      (tr-ml putBack)]
      [mui-menu-item {:divider false
                      :on-click (menu-action anchor-el move-events/delete-permanent-group-entry-dialog-show :group true)}
-      "Delete Permanent"]]))
+      (tr-ml deletePermanent)]]))
 
 (defn tree-item-recycle-sub-group-menu []
   (let [anchor-el (r/atom nil)]
@@ -134,8 +142,7 @@
                                      (reset! anchor-el (-> ^js/Event e .-currentTarget))
                                      ;; prevents tree collapsing
                                      (.stopPropagation ^js/Event e))
-                         :style {:color "#000000"
-                                 :padding 0
+                         :style {:padding 0
                                  :margin-left 15}} [mui-icon-more-vert]]
        [tree-item-recycle-sub-group-menu-items anchor-el g-uuid]])))
 
@@ -155,8 +162,7 @@
                        :on-click (fn [e]
                                    (reset! anchor-el (-> ^js/Event e .-currentTarget))
                                    (.stopPropagation ^js/Event e))
-                       :style {:color "#000000"
-                               :padding 0
+                       :style {:padding 0
                                :margin-left 15}} [mui-icon-more-vert]]
      [tree-item-recycle-bin-menu-items anchor-el]]))
 
@@ -192,8 +198,7 @@
                                        (reset! anchor-el (-> ^js/Event e .-currentTarget))
                                        ;;prevent tree collapsing
                                        (.stopPropagation ^js/Event e))
-                           :style {:color "#000000"
-                                   :padding 0
+                           :style {:padding 0
                                    :margin-left 15}} [mui-icon-more-vert]]
          (cond
            (and @group-in-recycle-bin? (not @recycle-bin?))
@@ -287,7 +292,7 @@
 
        [move-dialog
         {:dialog-data @(move-events/move-group-entry-dialog-data :group)
-         :title "Put back"
+         :title (tr-dlg-title putBack)
          :groups-listing @groups-listing
          :selected-group-uuid selected-group-uuid
          :on-change (move-events/move-group-entry-group-selected-factory :group)

@@ -5,8 +5,8 @@
   (:require
    [reagent.core :as r]
    [reagent.impl.template :as rtpl]
-   [goog.object :as gobj] 
-   
+   [goog.object :as gobj]
+
    ;; All node package modules (npm)
    [react]
    ["@mui/material" :as mui]
@@ -19,7 +19,7 @@
    ["@mui/material/Autocomplete" :as mui-ac]
 
    ["@date-io/date-fns" :as DateAdapter]
-   
+
    ;; This is for local node package to compile and install the local package
    ;; See src-js/README.md for details. For now we are not using
    #_["onekeepass-local" :as okp-local]
@@ -77,78 +77,249 @@
    This is used to change the default option filter behavior."
   (.-createFilterOptions ^js/Mui.Autocomplete mui-ac))
 
-(def create-theme mui-mat-styles/createTheme)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  OneKeePass Custom Theme  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def ^:private create-theme mui-mat-styles/createTheme)
 
 (def color-grey (.-grey  ^js/Mui.Colors mui-colors))
 
+;; We can change the theme type to 'light' or 'dark' by reseting this atom
+(defonce theme-mode (r/atom "light"))
+
+(defn is-light-theme? [^js/Mui.Theme theme]
+  (= "light" (-> theme .-palette .-mode)))
+
+;; IMPORTANT: 
+;; We should not use something like  
+;; '(def bg-color (theme-color @custom-them-atom :entry-content-box-border))'
+;; The 'custom-them-atom' might have not been created yet
+;; The 'create-custom-theme' is only called when the app start page is mounted and 
+;; then only we can use 'custom-them-atom'. Using inside component's is fine
+(defonce custom-theme-atom (r/atom {}))
+
+(defn prepare-theme-colors [^js/Mui.Theme theme]
+  (let [mode (-> theme .-palette .-mode)
+        light? (= mode "light")
+        pm  (->  theme .-palette .-primary .-main)
+        bg (->  theme .-palette .-background .-default)
+        dc1 (if light? "rgba(0, 0, 0, 0.12)" (gobj/get (.-blueGrey  ^js/Mui.Colors mui-colors) 500))
+        c1 (if light? (gobj/get color-grey 200) (-> theme .-palette .-text .-disabled))]
+    {:color1 c1
+     :divider-color1 dc1
+     :db-settings-icons pm
+     :header-footer c1
+     :primary-main pm
+     :background-default bg
+     :popper-box-bg (if light? "whitesmoke" bg)
+     :section-header pm
+     :text-primary (->  theme .-palette .-text .-primary)}))
+
+(defn theme-color [^js/Mui.Theme theme color-kw]
+  (cond
+
+    (= color-kw :bg-default)
+    (->  theme .-palette .-background .-default)
+
+    (= color-kw :section-header)
+    (-> theme .-customColors .-sectionHeader)
+    
+    (= color-kw :category-item)
+    (->  theme .-palette .-secondary .-dark)
+
+    (= color-kw :color1)
+    (-> theme .-customColors .-color1)
+
+    (= color-kw :divider-color1)
+    (-> theme .-customColors .-dividerColor1)
+
+    (= color-kw :db-settings-icons)
+    (-> theme .-customColors .-dbSettingsIcons)
+    
+    (= color-kw :entry-category-icons)
+    (-> theme .-customColors .-dbSettingsIcons)
+
+    (= color-kw :header-footer)
+    (-> theme .-headerFooter .-color)
+
+    (= color-kw :popper-box-bg)
+    (-> theme .-popperBox .-bg)
+
+    (= color-kw :entry-content-bg)
+    (-> theme .-entryContent .-bg)
+
+    (= color-kw :entry-content-box-border)
+    (-> theme .-entryContent .-boxBorderColor)
+    
+    (= color-kw :primary-main)
+    (->  theme .-palette .-primary .-main)
+    
+    (= color-kw :info-main)
+    (->  theme .-palette .-info .-main)
+
+    :else
+    (->  theme .-palette .-primary .-main)))
+
+
+(declare set-colors)
+
 ;; Theme customization based on the following
 ;; https://mui.com/customization/theme-components/
-;; https://mui.com/customization/default-theme/
-;; We need to refresh manually the client when any changes done for the theme while using figwheel dev mode
-(def custom-theme
-  "Material UI v5 theme customization"
-  (create-theme
-   (clj->js {;; We can add custom properties in theme like status->danger 
-             ;; Such custom theme values can be accessed and used in 'sx' as shown here 
-             ;; {:sx {:bgcolor (fn [theme] (-> theme .-status .-danger))}
-             :status {:danger "#e53e3e"}
 
-             ;; Just by changing main color of primary and secondary all other colors are
-             ;; automatically calculated and set in the theme by mui system
-             ;; See the following for selecting suitable color combinations
-             ;; https://mui.com/material-ui/customization/color/#picking-colors 
-             ;; https://material.io/inline-tools/color/
-             ;; https://bareynol.github.io/mui-theme-creator/ may be used to see some color combinations
-             ;; Default primary #1976d2, secondary #9c27b0 (https://mui.com/material-ui/customization/palette/)
-             :palette {:type "light"
-                       :primary {:main  "#1976d2" #_"#6d4c41"}
-                       :secondary {:main "#9c27b0" #_"#ffa000"}}
-             :components
-             {:MuiInput
-              {:styleOverrides
-               {:root {:border (str "1px solid" (gobj/get color-grey 500))
-                       :outline "1px solid transparent"
-                       ;;Also custom css "entry-cnt-text-field-edit-focused" from custom.css works 
-                       ;;when passed throgh "classes"       
-                       "&.Mui-focused" {:border "1px solid var(--color-primary-main)"
-                                        :outline "1px solid var(--color-primary-main)"}}
-                ;;This is not working
-                ;; ".MuiInput-root.Mui-focused" {:border "1px solid var(--color-primary-main)"
-                ;;                  :outline "1px solid var(--color-primary-main)"}
-                }
-               :defaultProps
-               {:disableUnderline true}}
-              :MuiButton
-              {:defaultProps
-               {:variant "contained"
-                :color "secondary"
-                :disableElevation true
-                :disableRipple false
-                :size "small"}}
-              :MuiLink {:defaultProps {:color "inherit" :underline  "hover" :href "#"}}
-              :MuiSvgIcon {:defaultProps {:fontSize "small"}}
-              :MuiInputLabel {:defaultProps {:shrink true}}
-              :MuiTooltip {:defaultProps {:arrow true}}}})))
+;; Just by changing main color of primary and secondary all other colors are
+ ;; automatically calculated and set in the theme by mui system
+;; See the following for selecting suitable color combinations
+;; https://mui.com/material-ui/customization/color/#picking-colors 
+;; https://material.io/inline-tools/color/
+;; https://bareynol.github.io/mui-theme-creator/ may be used to see some color combinations
+;; Default primary #1976d2, secondary #9c27b0 (https://mui.com/material-ui/customization/palette/) 
 
-;; We can change the theme type to 'light' or 'dark' by reseting this atom
-(defonce custom-theme-atom (r/atom custom-theme))
 
-(def color-primary-main (-> ^js/Mui.Theme @custom-theme-atom .-palette .-primary .-main))
+;; https://mui.com/customization/default-theme/ 
+;; Here we can all props of the theme object are shown for MUI's organization branding theme
+;; From this link: 
+;; If you want to learn more about how the theme is assembled, 
+;; take a look at material-ui/style/createTheme.js, and the related imports which createTheme uses.
+(defn create-custom-theme [mode]
 
-;; This set color-primary-dark as rgb(17, 82, 147). But using this did not work
-#_(def color-primary-dark (-> ^js/Mui.Theme @custom-theme-atom .-palette .-primary .-dark))
+  (let [p-main (if (= mode "light") "#1976d2" "#90caf9")
+        s-main (if (= mode "light") "#9c27b0" "#ce93d8")
+        ;; Need to use creating the theme in two steps and 
+        ;; First one is to use the palette colors and that theme can be used in second 
+        ;; See page :https://mui.com/material-ui/customization/palette/#generate-tokens-using-augmentcolor-utility
+        
+        theme-data1 (clj->js  {:palette {:mode mode
+                                         :primary {:main  p-main}
+                                         :secondary {:main s-main}}})
+        ;; Theme 1 just the pallete color setting so that we can use in the following data
+        theme1 ^js/Mui.Theme (create-theme theme-data1)
 
-(def color-primary-dark  "#115293") ;; rgb(17, 82, 147) to hex value works
+        ;; txt-primary (->  theme1 .-palette .-text .-primary)
+        ;; hf-color (if (= mode "light") (gobj/get color-grey 200) (-> theme1 .-palette .-text .-disabled))
+        ;; color1 (if (= mode "light") (gobj/get color-grey 200) (-> theme1 .-palette .-text .-disabled)) ;;rgb(241, 241, 241)
+        
+        light? (= mode "light")
 
-(def color-secondary-main (-> ^js/Mui.Theme @custom-theme-atom .-palette .-secondary .-main))
+        {:keys [color1
+                divider-color1
+                db-settings-icons
+                primary-main
+                background-default
+                popper-box-bg
+                header-footer
+                section-header
+                text-primary]} (prepare-theme-colors theme1)
+        
+        ;;IMPORTANT: All theme properties name should be in camelCase
+        theme-data (clj->js {;; We can add custom properties in theme like status->danger 
+                            ;; Such custom theme values can be accessed and used in 'sx' as shown here 
+                            ;; {:sx {:bgcolor (fn [theme] (-> theme .-status .-danger))}
+                             
+                             :status {:danger "#e53e3e"}
 
-(def color-grey-200 (gobj/get color-grey 200)) ;; replacement for var (--mui-color-grey-200)
+                             :headerFooter {:color header-footer}
 
-#_(def color-primary-dark (-> ^js/Mui.Theme @custom-theme-atom .-palette .-primary .-dark))
+                             :customColors {:color1 color1
+                                            ;;property name in camelCase is expected
+                                            :dbSettingsIcons db-settings-icons
+                                            :dividerColor1 divider-color1
+                                            :sectionHeader section-header}
 
-#_(def color-secondary-dark (-> ^js/Mui.Theme @custom-theme-atom .-palette .-secondary .-dark))
+                             :popperBox {:bg popper-box-bg}
 
-;;;;;;;;;;;;;;;;;;;;;;;;;
+                             :entryContent {:bg background-default
+                                            :boxBorderColor (if light? text-primary  "rgba(255, 255, 255, 0.75)")}
+
+                             :components
+                             {:MuiInput
+                              {:styleOverrides
+                               {:root {:border (str "1px solid" (gobj/get color-grey 500))
+                                       :outline "1px solid transparent"
+                                       "&.Mui-focused" {:border "1px solid"
+                                                        :border-color primary-main
+                                                        :outline "1px solid"
+                                                        :outline-color primary-main}}}
+                               :defaultProps
+                               {:disableUnderline true}}
+
+                              :MuiDialogTitle
+                              {:styleOverrides
+                               {:root {:color primary-main}}}
+
+                              :MuiTypography
+                              {:styleOverrides
+                               {:root {:color text-primary}}}
+
+                              :MuiButton
+                              {:defaultProps
+                               {:variant "contained"
+                                :color "secondary"
+                                :disableElevation true
+                                :disableRipple false
+                                :size "small"}}
+                              :MuiLink {:defaultProps {:color "inherit" :underline "hover" :href "#"}} ;;
+                              :MuiSvgIcon
+                              {:styleOverrides
+                               {
+                                ;;:root {:color text-primary}
+                                }
+                               :defaultProps {:fontSize "small"}}
+                              :MuiInputLabel {:defaultProps {:shrink true}}
+                              :MuiTooltip {:defaultProps {:arrow true}}}})
+
+        ;; Thme2 which use theme1 created earlier in 'theme-data'  
+        theme (create-theme theme1 theme-data)]
+    (reset! custom-theme-atom theme)
+    #_(set-colors theme)
+    theme))
+
+
+#_(def primary-main-color (r/atom nil))
+#_(def primary-dark-color (r/atom nil))
+#_(def secondary-main-color (r/atom nil))
+#_(def background-default-color (r/atom nil))
+
+#_(def entry-content-bg-color (r/atom nil))
+#_(def entry-content-box-border-color (r/atom nil))
+#_(def entry-category-icons-color (r/atom nil))
+
+#_(def start-page-divider-color (r/atom nil))
+#_(def db-settings-icons-color (r/atom nil))
+#_(def section-name-color (r/atom nil))
+#_(def entry-list-header-footer-color (r/atom nil))
+
+
+;;rgba(255, 255, 255, 0.3)
+#_(defn set-colors [^js/Mui.Theme theme]
+  (let [mode (->  theme .-palette .-mode)
+        ;; primary-main (->  theme .-palette .-primary .-main)
+        ;; bg-default  (->  theme .-palette .-background .-default)
+        ;; txt-primary (->  theme .-palette .-text .-primary)
+        ;;el-color (if (= mode "light") (gobj/get color-grey 200) (-> theme .-palette .-text .-disabled))
+        ;;bx-color (if (= mode "light") txt-primary "rgba(255, 255, 255, 0.75)")
+        ]
+    #_(reset! primary-main-color primary-main)
+    #_(reset! primary-dark-color (->  theme .-palette .-primary .-dark))
+    #_(reset! secondary-main-color (->  theme .-palette .-secondary .-dark))
+    #_(reset! background-default-color bg-default)
+
+    #_(reset! start-page-divider-color (gobj/get (.-blueGrey  ^js/Mui.Colors mui-colors) 500) #_(-> theme .-palette .-text .-primary))
+
+    #_(reset! entry-list-header-footer-color el-color #_(-> theme .-palette .-text .-disabled) #_(gobj/get (.-blueGrey  ^js/Mui.Colors mui-colors) 800))
+
+    #_(reset! entry-content-box-border-color bx-color)
+    #_(reset! entry-content-bg-color bg-default)
+    #_(reset! entry-category-icons-color primary-main)
+    #_(reset! db-settings-icons-color primary-main)
+    #_(reset! section-name-color primary-main)))
+
+#_(defn theme-primary-main-color [^js/Mui.Theme theme]
+  (->  theme .-palette .-primary .-main))
+
+
+#_(def color-grey-200 (gobj/get color-grey 200)) ;; replacement for var (--mui-color-grey-200)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def mui-theme-provider
   "A reagent component for ThemeProvider"
@@ -322,7 +493,7 @@
 ;; use wrapper input element created by Reagent instead of
 ;; letting Material-UI to create input element directly using React.
 ;; Create-element + convert-props-value is the same as what adapt-react-class does.
-(defn text-field [props & children]
+(defn text-field [props & children] 
   (let [props (-> props
                   (assoc-in [:InputProps :inputComponent] (cond
                                                             (and (:multiline props) (:rows props) (not (:maxRows props)))
@@ -354,8 +525,8 @@
 ;; See the use of ["onekeepass-local" :as okp-local] in the package use above. For now we are not using
 
 #_(def example-comp
-  "A reagent component formed from react componet AutoSizer"
-  (reagent.core/adapt-react-class (.-CustomizedBadges ^js/CustomizedBadges okp-local)))
+    "A reagent component formed from react componet AutoSizer"
+    (reagent.core/adapt-react-class (.-CustomizedBadges ^js/CustomizedBadges okp-local)))
 
 (comment
   ;; An example using reactify-component
@@ -366,5 +537,4 @@
                         (assoc :ref (:inputRef props))
                         (dissoc :inputRef))])))
   ;;To see all vars defined in this namespace
-  (clojure.repl/dir onekeepass.frontend.mui-components)
-  )
+  (clojure.repl/dir onekeepass.frontend.mui-components))

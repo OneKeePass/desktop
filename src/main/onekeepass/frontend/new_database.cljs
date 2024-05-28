@@ -2,6 +2,7 @@
   (:require
    [reagent.core :as r]
    [onekeepass.frontend.events.new-database :as nd-events]
+   [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-t tr-h tr-m]]
    [onekeepass.frontend.mui-components :as m :refer [mui-menu-item
                                                      mui-alert
                                                      mui-divider
@@ -27,20 +28,20 @@
   [{:keys [database-name database-description error-fields]}]
   ;; error-fields is a map
   [mui-stack
-   [mui-typography "Basic Database Information"]
+   [mui-typography (tr-t basicDatabaseInformation)]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
     [mui-box {:sx {:width "80%"}}
-     [m/text-field {:label "Name"
+     [m/text-field {:label (tr-l name)
                     :value database-name
                     :required true
                     :error (contains? error-fields :database-name)
-                    :helperText (get error-fields :database-name "Display name for your database")
+                    :helperText (get error-fields :database-name (tr-h dbDisplayName) )
                     :autoFocus true
                     :on-change (nd-events/field-update-factory :database-name)
                     :variant "standard" :fullWidth true}]]
 
     [mui-box {:sx {:width "80%"}}
-     [m/text-field {:label "Description"
+     [m/text-field {:label (tr-l description)
                     :value database-description
                     :on-change (nd-events/field-update-factory :database-description)
                     :variant "standard" :fullWidth true}]]]])
@@ -69,14 +70,14 @@
                                  error-fields]}]
 
   [mui-stack {:spacing 2}
-   [mui-typography "Database Credentials"]
+   [mui-typography (tr-t "databaseCredentials")]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
     [mui-box {:sx {:width "80%"}}
-     [m/text-field {:label "Password"
+     [m/text-field {:label (tr-l "password")
                     :value password
                     ;;:required true
                     :error (contains? error-fields :password)
-                    :helperText (get error-fields :password "Password for your database")
+                    :helperText (get error-fields :password (tr-h passwordForYourDb))
                     :autoFocus true
                     :on-change (nd-events/field-update-factory :password)
                     :variant "standard" :fullWidth true
@@ -93,7 +94,7 @@
 
     (when (not password-visible)
       [mui-box {:sx {:width "80%"}}
-       [m/text-field {:label "Confirm Password"
+       [m/text-field {:label (tr-l confirmPassword)
                       :value password-confirm
                       ;;:required true
                       :error (contains? error-fields :password-confirm)
@@ -108,7 +109,7 @@
                 :color "primary"
                 :onClick (fn []
                            (nd-events/database-field-update :show-additional-protection (not show-additional-protection)))}
-      (if-not show-additional-protection  "Add additional protection(optional)" "Hide additional protection")]]
+      (if-not show-additional-protection (tr-l addAdditionalProtection) (tr-l hideAdditionalProtection))]]
 
     (when show-additional-protection
       [mui-stack {:sx {:width "80%" :border ".001px solid"}}
@@ -123,29 +124,29 @@
 
           [mui-button  {:sx {:m 1}
                         :variant "text"
-                        :on-click #(nd-events/database-field-update :key-file-name nil)} "Remove"]]
+                        :on-click #(nd-events/database-field-update :key-file-name nil)} (tr-l remove)]]
 
          [mui-stack
           [mui-button  {:sx {:m 1}
                         :variant "text"
-                        :on-click nd-events/open-key-file-explorer-on-click} "Browse"]
+                        :on-click nd-events/open-key-file-explorer-on-click} (tr-l "browse")]
 
-          [mui-typography {:variant "caption"}
-           "You can pick any random file that does not change. A hash of the file's content is used as an additional passsord."]
+          [mui-typography {:variant "caption"} 
+           (tr-m newDbPage txt1)]
 
           [mui-button  {:sx {:m 1}
                         :variant "text"
-                        :on-click #(nd-events/save-as-key-file-explorer-on-click database-name)} "Generate"]
+                        :on-click #(nd-events/save-as-key-file-explorer-on-click database-name)} (tr-l "generate")]
 
           [mui-typography {:variant "caption"}
-           "Alternatively, OneKeePass can generate a key file with a random key to use as an additional key"]])])]])
+           (tr-m newDbPage txt2)]])])]])
 
 (defn- file-info [{:keys [database-file-name db-file-file-exists database-name]}]
   [mui-stack {:spacing 2}
-   [mui-typography "Save As"]
+   [mui-typography (tr-l saveAs)]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
     [mui-box {:sx {:width "80%"}}
-     [m/text-field {:label "File Name"
+     [m/text-field {:label (tr-l "fileName")
                     :value database-file-name
                     :required true
                     :autoFocus true
@@ -158,14 +159,14 @@
                                                                [mui-icon-folder-outlined]]])}}]
 
      (when db-file-file-exists
-       [mui-alert {:severity "warning" :sx {:mt 1}} "** Database file already exists and will be replaced with this new one **"])]]])
+       [mui-alert {:severity "warning" :sx {:mt 1}} (tr-m newDbPage txt4)])]]]) ;;"** Database file already exists and will be replaced with this new one **"
 
 (def algorithms [{:name "AES 256" :value "Aes256"} {:name "ChaCha20 256" :value "ChaCha20"}])
 
 (defn- security-info [{:keys [cipher-id error-fields]
                        {{:keys [iterations memory parallelism]} :Argon2} :kdf}]
   [mui-stack {:spacing 2}
-   [mui-typography "Security"]
+   [mui-typography (tr-l security)]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}} ;;:alignItems "center"
     [mui-stack {:direction "row" :sx {:width "100%"}}
      [mui-stack {:sx {:width "50%" :ml 3}}
@@ -182,7 +183,7 @@
 
     [mui-stack {:direction "row" :sx {:width "100%"}}
      [mui-stack {:sx {:width "50%" :ml 3}}
-      [m/text-field {:label "Key Derivation Function"
+      [m/text-field {:label (tr-l kdf)
                      :value :Argon-2d
                      :required true
                      :select true
@@ -193,7 +194,7 @@
 
     [mui-stack {:direction "row" :sx {:width "100%"}}
      [mui-stack {:sx {:width "33.33%" :ml 3}}
-      [m/text-field {:label "Transform Rounds"
+      [m/text-field {:label (tr-l "transformRounds")
                      :value iterations
                      :type "number"
                      :error (contains? error-fields :iterations)
@@ -202,7 +203,7 @@
                      :variant "standard" :fullWidth true}]]
 
      [mui-stack {:sx {:width "33.33%" :ml 3}}
-      [m/text-field {:label "Memory Usage"
+      [m/text-field {:label (tr-l "memoryUsage")
                      :value memory
                      :type "number"
                      :error (contains? error-fields :memory)
@@ -210,7 +211,7 @@
                      :on-change (nd-events/field-update-factory [:kdf :Argon2 :memory])
                      :variant "standard" :fullWidth true}]]
      [mui-stack {:sx {:width "33.33%" :ml 3}}
-      [m/text-field {:label "Parallelism"
+      [m/text-field {:label (tr-l "parallelism")
                      :value parallelism
                      :type "number"
                      :error (contains? error-fields :parallelism)
@@ -229,7 +230,7 @@
                  :on-click #(.stopPropagation ^js/Event %)
                  :classes {:paper "pwd-dlg-root"}}
 
-     [mui-dialog-title "New Database"]
+     [mui-dialog-title (tr-l newDatabase)]
      [mui-dialog-content {:dividers true}
       (cond
         (= panel :basic-info)
@@ -242,7 +243,7 @@
         [file-info m]
 
         in-progress?
-        [mui-stack "Database creation is in progress"]
+        [mui-stack (tr-m newDbPage txt3)]
 
         (= panel :security-info)
         [security-info m])
@@ -255,16 +256,16 @@
      [mui-dialog-actions
       [mui-button  {:sx {:mr 1}
                     :disabled in-progress?
-                    :on-click nd-events/cancel-on-click :tabIndex 4} "Cancel"]
+                    :on-click nd-events/cancel-on-click :tabIndex 4} (tr-l "cancel")]
       (when (not (= panel :basic-info))
         [mui-button {:disabled in-progress?
-                     :on-click nd-events/previous-on-click} "Previous"])
+                     :on-click nd-events/previous-on-click} (tr-l "previous")])
       (when (not (= panel :security-info))
         [mui-button {:disabled in-progress?
-                     :on-click nd-events/next-on-click :tabIndex 2} "Next"])
+                     :on-click nd-events/next-on-click :tabIndex 2} (tr-l "next")])
       (when (= panel :security-info)
         [mui-button {:disabled in-progress?
-                     :on-click nd-events/done-on-click} "Done"])]]))
+                     :on-click nd-events/done-on-click} (tr-l "done")])]]))
 
 (defn new-database-dialog-main []
   (let [m @(nd-events/dialog-data)]

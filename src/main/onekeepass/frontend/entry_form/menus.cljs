@@ -15,6 +15,7 @@
                                                      mui-list-item-text
                                                      mui-menu
                                                      mui-menu-item]]
+   [onekeepass.frontend.translation  :refer-macros [tr-ml]]
    [onekeepass.frontend.events.tauri-events :as tauri-events]
    [onekeepass.frontend.events.common :as ce]
    [onekeepass.frontend.events.entry-form-ex :as form-events]
@@ -31,12 +32,12 @@
    [mui-menu-item {:divider false
                    :sx {:padding-left "1px"}
                    :on-click (menu-action anchor-el form-events/perform-auto-type-start entry-uuid)}
-    [mui-list-item-text {:inset true} "Perform auto type"]]
+    [mui-list-item-text {:inset true} (tr-ml performAutoType)]]
 
    [mui-menu-item {:divider true
                    :sx {:padding-left "1px"}
                    :on-click (menu-action anchor-el form-events/entry-auto-type-edit)}
-    [mui-list-item-text {:inset true} "Edit auto type"]]])
+    [mui-list-item-text {:inset true} (tr-ml editAutoType)]]])
 
 (defn entry-form-top-menu-items []
   (fn [anchor-el entry-uuid favorites? os-name]
@@ -46,23 +47,23 @@
      [mui-menu-item {:sx {:padding-left "1px"}
                      :divider false
                      :on-click (menu-action anchor-el form-events/edit-mode-menu-clicked)}
-      [mui-list-item-text {:inset true} "Edit"]]
+      [mui-list-item-text {:inset true} (tr-ml edit)]]
 
      (if favorites?
        [mui-menu-item {:sx {:padding-left "1px"}
                        :divider false
                        :on-click (menu-action anchor-el form-events/favorite-menu-checked false)}
-        [mui-list-item-icon [mui-icon-check]] "Favorites"]
+        [mui-list-item-icon [mui-icon-check]] (tr-ml favorites)]
        [mui-menu-item {:divider false
                        :sx {:padding-left "1px"}
                        :on-click (menu-action anchor-el form-events/favorite-menu-checked true)}
-        [mui-list-item-text {:inset true} "Favorites"]])
+        [mui-list-item-text {:inset true} (tr-ml favorites)]])
 
 
      [mui-menu-item {:divider true
                      :sx {:padding-left "1px"}
                      :on-click (menu-action anchor-el form-events/entry-delete-start entry-uuid)}
-      [mui-list-item-text {:inset true} "Delete"]]
+      [mui-list-item-text {:inset true} (tr-ml delete)]]
 
      ;; Auto type related menu options are avilable only for macos
      (when (= os-name const/MACOS)
@@ -74,7 +75,7 @@
                      :sx {:padding-left "1px"}
                      :on-click (menu-action anchor-el form-events/load-history-entries-summary entry-uuid)
                      :disabled (not @(form-events/history-available))}
-      [mui-list-item-text {:inset true} "History"]]]))
+      [mui-list-item-text {:inset true} (tr-ml history)]]]))
 
 (defn entry-form-top-menu [entry-uuid]
   (let [anchor-el (r/atom nil)
@@ -83,7 +84,7 @@
     [:div
      [mui-icon-button {:edge "start"
                        :on-click (fn [^js/Event e] (reset! anchor-el (-> e .-currentTarget)))
-                       :style {:color "#000000"}} [mui-icon-more-vert]]
+                       :style {}} [mui-icon-more-vert]]
      [entry-form-top-menu-items anchor-el entry-uuid favorites? os-name]
      [cc/info-dialog "Entry Delete" "Deleting entry is in progress"
       form-events/entry-delete-info-dialog-close
@@ -112,6 +113,11 @@
   [entry-uuid]
   [:f> form-menu-internal entry-uuid])
 
+
+;;;;;;;;;;;;;  
+;; Folllowing are may be used as menu options in a section header when we want to 
+;; add a regular field or otp field 
+
 (defn add-additional-field-menu-items  []
   (fn [anchor-el section-name]
     [mui-menu {:anchorEl @anchor-el
@@ -120,12 +126,12 @@
      [mui-menu-item {:sx {:padding-left "1px"}
                      :divider false
                      :on-click (menu-action anchor-el  #(form-events/open-section-field-dialog section-name nil))}
-      [mui-list-item-text {:inset true} "Add field"]]
+      [mui-list-item-text {:inset true} (tr-ml addField)]]
 
      [mui-menu-item {:sx {:padding-left "1px"}
                      :divider false
                      :on-click (menu-action anchor-el #(dlg-events/otp-settings-dialog-show section-name false))}
-      [mui-list-item-text {:inset true} "Set up TOPT"]]]))
+      [mui-list-item-text {:inset true} (tr-ml setUpTOPT)]]]))
 
 (defn add-additional-field-menu [section-name]
   (let [anchor-el (r/atom nil)]

@@ -12,6 +12,11 @@
 (def PASSPORT_TYPE_NAME "Passport")
 (def BANK_ACCOUNT_TYPE_NAME "Bank Account")
 
+(def STANDARD_ENTRY_TYPES [LOGIN_TYPE_NAME
+                           CREDIT_DEBIT_CARD_TYPE_NAME
+                           WIRELESS_ROUTER_TYPE_NAME
+                           BANK_ACCOUNT_TYPE_NAME])
+
 (def ADDITIONAL_ONE_TIME_PASSWORDS "Additional One-Time Passwords")
 ;;
 (def CATEGORY_ALL_ENTRIES "AllEntries")
@@ -28,6 +33,10 @@
 (def ASCENDING "Ascending")
 (def DESCENDING "Descending")
 
+(def THEME_LIGHT "light")
+
+
+(def APP_SETTINGS "AppSettings")
 (def MENU_ID_QUIT "Quit")
 (def MENU_ID_SEARCH "Search")
 (def MENU_ID_NEW_DATABASE "NewDatabase")

@@ -1,42 +1,42 @@
 (ns  onekeepass.frontend.core  ;;ns ^:figwheel-always onekeepass.frontend.core 
-  (:require
-   [reagent.dom :as rdom]
-   ;;Events 
-   [onekeepass.frontend.events.tauri-events :as tauri-events]
-   [onekeepass.frontend.events.common :as cmn-events]
-   
-   ;;App UI components   
-   [onekeepass.frontend.common-components :as cc]
-   [onekeepass.frontend.entry-form-ex :as eform-ex]
-   [onekeepass.frontend.entry-list :as el]
-   [onekeepass.frontend.entry-category :as ec]
-   [onekeepass.frontend.start-page :as sp]
-   [onekeepass.frontend.tool-bar :as tool-bar]
-
-   [onekeepass.frontend.mui-components :as m :refer [split-pane
-                                                     custom-theme-atom
-                                                     mui-icon-fingerprint
-                                                     mui-stack
-                                                     mui-box
-                                                     mui-tabs
-                                                     mui-tab
-                                                     mui-typography
-                                                     mui-button
-                                                     mui-icon-button
-                                                     mui-css-baseline
-                                                     mui-styled-engine-provider
-                                                     mui-theme-provider]]
-   [onekeepass.frontend.constants :as const]))
+  (:require [onekeepass.frontend.common-components :as cc]
+            [onekeepass.frontend.constants :as const :refer [THEME_LIGHT]]
+            [onekeepass.frontend.entry-category :as ec]
+            [onekeepass.frontend.entry-form-ex :as eform-ex]
+            [onekeepass.frontend.entry-list :as el]
+            [onekeepass.frontend.events.common :as cmn-events] 
+            [onekeepass.frontend.events.tauri-events :as tauri-events]
+            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
+                                                              mui-box
+                                                              mui-button
+                                                              mui-css-baseline
+                                                              mui-icon-button
+                                                              mui-icon-fingerprint
+                                                              mui-stack
+                                                              mui-styled-engine-provider
+                                                              mui-tab mui-tabs
+                                                              mui-theme-provider
+                                                              mui-typography
+                                                              split-pane
+                                                              theme-color]]
+            [onekeepass.frontend.start-page :as sp]
+            [onekeepass.frontend.tool-bar :as tool-bar]
+            [onekeepass.frontend.translation :as t :refer-macros [tr-t tr-bl]]
+            [reagent.dom :as rdom]))
 
 ;;(set! *warn-on-infer* true)
 
-(defn right-content []
+(defn right-content
+  "Component that has entry list and any selected entry content"
+  []
   [split-pane {:split "vertical"
                  ;;:size "200" 
                :minSize "200"
                :maxSize "275"
                :primary "first"
-               :style {:position "relative"}} ;;:background "var(--light)"
+               :resizerClassName  (if (= @(cmn-events/app-theme) THEME_LIGHT) 
+                                    "Resizer1 vertical" "Resizer2 vertical")
+               :style {:position "relative"}}
    ;; Pane1
    [el/entry-list-content]
    ;; Pane2
@@ -51,8 +51,25 @@
                :maxSize "260"
                :primary "first"
                :style {:position "relative"}
+               :pane1Style {:background (theme-color @custom-theme-atom :bg-default)}
+               :resizerClassName (if (= @(cmn-events/app-theme) THEME_LIGHT) 
+                                   "Resizer1 vertical" "Resizer2 vertical")
+
+              ;; Another way of styling split pane's resizer. But did not work as expected
+              ;; Leaving it here commenting out for future use if possible
+              ;;  :resizerStyle {:background "darkslategrey" 
+              ;;                 :width "11px"
+              ;;                 :margin "0 -5px"
+              ;;                 :border-left "5px solid rgba(255, 255, 255, 0)"
+              ;;                 :border-right "5px solid rgba(255, 255, 255, 0)" 
+              ;;                 :hover {:border-left "5px solid rgba(0, 0, 0, 0.5)"
+              ;;                         :border-right "5px solid rgba(0, 0, 0, 0.5)"
+              ;;                         ;;:background "yellow"
+              ;;                         }
+              ;;                 }
+
                ;;:pane2Style {:max-width "25%"}
-               :pane1Style {:background "rgba(241, 241, 241, 0.33)"}}
+               }
    ;; Pane1
    [ec/entry-category-content]
    ;; Pane2
@@ -60,13 +77,12 @@
 
 (defn locked-content []
   (let [biometric-type @(cmn-events/biometric-type-available)]
-    ;;(println "biometric-type is " biometric-type)
     [mui-stack {:sx {:height "100%"
                      :align-items "center"
                      :justify-content "center"}}
      [mui-box
       [mui-stack {:sx {:align-items "center"}}
-       [mui-typography {:variant "h4"} "Database locked"]]
+       [mui-typography {:variant "h4"} (tr-t databaseLocked)]]
 
       [mui-stack {:sx {:mt 2}}
        [mui-typography {:variant "h6"}
@@ -85,7 +101,7 @@
        [mui-button {:variant "outlined"
                     :color "inherit"
                     :on-click #(cmn-events/unlock-current-db biometric-type)}
-        "Quick unlock"]]]]))
+        (tr-bl quickUnlock)]]]]))
 
 (defn group-entry-content-tabs
   "Presents tabs for all opened dbs.The actual content of a selected 
@@ -102,31 +118,11 @@
       (for [{:keys [db-key database-name]} db-list]
         ^{:key db-key}  [mui-tab {:label database-name :value db-key}]))]]])
 
-;; A functional component that uses effect 
+;; A functional component that can use effect 
 (defn main-content []
   (fn []
     (let [content-to-show @(cmn-events/content-to-show)
-          db-list @(cmn-events/opened-db-list)
-
-          ;; TODO: 
-          ;; Need to explore to use idle-timer to lock a database on onIdle timeout
-          ;; For now the simple demo one to print works 
-          ;; it (m/use-idle-timer (clj->js {:timeout (* 60 1000) ;; 60 sec
-          ;;                                :onIdle (fn [] (println "Idle fired..."))
-          ;;                                :onActive (fn [e] (println "Event is called " e))}) [])
-
-          ;; We will not using idle-timer as tracking across multiple db opened is not feasible or may need complex solution
-          ;; Instead a simple custom session timeout feature is implemented. See in common.cljs for the implementation
-          ]
-      ;; (println "idletimer is " it)
-      ;;(println "getRemainingTime is " (.getRemainingTime it))
-
-      ;; An example use of react useEffect. This is called one time only
-      ;; Need to pass [] as second argument
-      ;; (m/react-use-effect (fn [] 
-      ;;                       (println " called effect in main")
-      ;;                       (fn [] (println "clean up from effect.."))
-      ;;                       ) [])
+          db-list @(cmn-events/opened-db-list)]
 
       [mui-stack {:sx {:height "100%"}
                   ;; Tracks the user activity so that session timeout can be initiated if no activity is seen beyond a limit 
@@ -137,7 +133,9 @@
 
        ;; A Gap between tab header and content
        [:div {:style {:height "2px"
-                      :border-bottom "1px solid rgb(241, 241, 241)"
+                      :border-bottom-width "1px"
+                      :border-bottom-style "solid"
+                      :border-bottom-color (theme-color @custom-theme-atom :color1)
                       :margin-bottom "2px"}}]
        (cond
          (= content-to-show :group-entry)
@@ -163,11 +161,9 @@
    [cc/message-sanckbar-alert]])
 
 (defn root-content
-  "A functional component"
+  "A functional component which is the root of all the app components"
   []
   (fn []
-    #_(m/react-use-effect (fn [] (println " called effect")) [])
-
     (if @(cmn-events/show-start-page)
       [:<>
        [sp/welcome-content]
@@ -177,7 +173,8 @@
         [header-bar]
         [common-snackbars]]
 
-       [:div {:class "cust_row content" :style {:height "80%"}} ;;height "80%" added for WebKit
+       [:div {:class "cust_row content"
+              :style {:height "80%"}} ;;height "80%" added for WebKit
         [:f> main-content]]
 
        ;;At this time, no use case for the footer
@@ -186,24 +183,36 @@
           ;;need to make tag p's margin 0px if we use tag p. Include {:style {:margin 0}}
           [:p "footer (fixed height)"]]])))
 
+
+(defn main-app-with-theme
+  "Main component that uses custom theme"
+  []
+  (fn [theme-mode] 
+    (let [theme (m/create-custom-theme theme-mode)]
+      [mui-styled-engine-provider {:injectFirst true}
+       [mui-theme-provider {:theme theme}
+        [mui-css-baseline
+         [:f> root-content]]]])))
+
 (defn main-app []
-  ;; Not sure to use :<> or not. Both with or without are working
-  [:<>
-   ;; Styled using Plain CSS and StylesProvider is used to control the CSS injection order
-   ;; See 'Style Library Interoperability' in https://material-ui.com/guides/interoperability/
-   [mui-styled-engine-provider {:injectFirst true}
-    [mui-theme-provider {:theme @custom-theme-atom} ;;Showing custom theme 
-     [mui-css-baseline
-      [:f> root-content]]]]])
+  
+  (if (and
+       @(cmn-events/language-translation-loading-completed)
+         @(cmn-events/app-preference-loading-completed)) 
+      [:f> main-app-with-theme @(cmn-events/app-theme)]
+      [:div "Please wait......"]))
 
 (defn ^:export init
   "Render the created components to the element that has an id 'app' in index.html"
   []
+  ;; Some initializations need to be done before app window loads
+  (t/load-language-translation)
   (cmn-events/sync-initialize)
   (tauri-events/register-tauri-events)
   (cmn-events/init-session-timeout-tick)
-  (rdom/render [main-app]
-               (.getElementById  ^js/Window js/document "app")))
+
+  (rdom/render
+   [main-app] (.getElementById  ^js/Window js/document "app")))
 
 ;;Renders on load
 (init)

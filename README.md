@@ -13,6 +13,11 @@ All created database files are encrypted using the best and most secure encrypti
   <br>
 </h1>
 
+<h1 align="center">
+  <img src="./screenshots/entrycategory-type-allentries-okp-dark-mode.jpg" alt=""  />
+  <br>
+</h1>
+
 
 ## Features
 - Simple and Modern UI
@@ -26,15 +31,15 @@ All created database files are encrypted using the best and most secure encrypti
 - Any number of databases can be created and used
 - Optional additional security by using a key file with or without a master password
 - Time based One-Time Passwords (TOTP) can added and used
+- Supports Light/Dark Theme
+- Multi-language support 
 - Fully offline 
 
 ## Todo
-- [ ] Multi-language support
-- [ ] Light/Dark Theme support
+
 - [ ] Merge changed entries
 - [ ] Browser extension and integration
 - [ ] Synchronize the database between the devices 
-
 
 
 ## Installation and Quick start

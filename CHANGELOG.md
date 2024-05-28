@@ -1,3 +1,8 @@
+### 0.13.0
+- Supports both light and dark color themes/modes now. 
+- Added support for multiple languages. Though this version only has Spanish translations, the translations for other languages will be added in later releases
+- Added new application level settings panel to change color theme and language preferences
+
 ### 0.12.0
 - Time-based One-time Password (TOTP) can be added to an Entry
 - You can use custom settings while adding a TOTP

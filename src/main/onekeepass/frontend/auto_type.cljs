@@ -1,25 +1,29 @@
 (ns onekeepass.frontend.auto-type
-  (:require
-   [reagent.core :as r]
-   [clojure.string :as str]
-   [onekeepass.frontend.utils :refer [contains-val?]]
-   [onekeepass.frontend.events.auto-type :as at-events :refer [get-sequence is-custom-sequence]]
-   [onekeepass.frontend.mui-components :as m :refer [color-primary-dark
-                                                     mui-alert
-                                                     mui-typography
-                                                     mui-dialog
-                                                     mui-dialog-title
-                                                     mui-dialog-actions
-                                                     mui-dialog-content
-                                                     mui-divider
-                                                     mui-stack
-                                                     mui-button]]))
+  (:require [clojure.string :as str]
+            [onekeepass.frontend.events.auto-type :as at-events :refer [get-sequence
+                                                                        is-custom-sequence]]
+            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
+                                                              mui-alert
+                                                              mui-button
+                                                              mui-dialog
+                                                              mui-dialog-actions
+                                                              mui-dialog-content
+                                                              mui-dialog-title
+                                                              mui-divider
+                                                              mui-stack
+                                                              mui-typography
+                                                              theme-color]]
+            [onekeepass.frontend.utils :refer [contains-val?]]))
 
 
-(def sx1 {"&.MuiTypography-root" {:color color-primary-dark}})
 
-(def typography-porps1 {:sx {"&.MuiTypography-root" {:color color-primary-dark}
+#_(def typography-porps1 {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}
                              :variant "heading6"}})
+
+(defn theme-typography-sx [theme]
+  {:sx {"&.MuiTypography-root" {:color (theme-color theme :primary-main)}
+        :variant "heading6"}}
+  )
 
 (defn perform-auto-type-dialog [{:keys [dialog-show window-info auto-type] :as _dialog-data}]
   [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
@@ -30,17 +34,17 @@
    [mui-dialog-content {:sx {:padding-left "24px"}}
     [mui-stack
      [mui-stack
-      [mui-stack [mui-typography typography-porps1 "Window Title"]]
+      [mui-stack [mui-typography (theme-typography-sx @custom-theme-atom) "Window Title"]]
       [mui-typography {:variant "body2"} (:title window-info)]]
      [mui-stack {:sx {:margin-bottom 1}}]
      [mui-stack
-      [mui-stack [mui-typography typography-porps1  "App name"]]
+      [mui-stack [mui-typography (theme-typography-sx @custom-theme-atom)  "App name"]]
       [mui-typography {:variant "body2"} (:owner window-info)]]
      [mui-stack {:sx {:margin-bottom 2}}]
      [mui-divider]
      [mui-stack {:sx {:width "95%"}}
       [mui-stack
-       [mui-stack [mui-typography typography-porps1
+       [mui-stack [mui-typography (theme-typography-sx @custom-theme-atom)
                    (if (is-custom-sequence (get-sequence auto-type)) "Key Sequence"  "Default Sequence")]]
        [mui-typography {:variant "body2"} (get-sequence auto-type)]]]]]
    [mui-dialog-actions
@@ -92,7 +96,7 @@
     [mui-divider]
 
     [mui-stack
-     [mui-typography typography-porps1 "Supported Auto-Type Actions:"]
+     [mui-typography (theme-typography-sx @custom-theme-atom) "Supported Auto-Type Actions:"]
      [mui-stack
       [mui-typography "{TAB}, {ENTER},{SPACE} or {TAB 3}..,{DELAY X} {DELAY=X}"]]]
 
@@ -100,7 +104,7 @@
     [mui-divider]
 
     [mui-stack
-     [mui-typography typography-porps1 "Entry Form Fields:"]
+     [mui-typography (theme-typography-sx @custom-theme-atom) "Entry Form Fields:"]
      [mui-stack
       [mui-typography (supported-form-fields entry-form-fields)]]]
 
@@ -112,28 +116,3 @@
      [mui-button {:variant "contained" :color "secondary"
                   :disabled (not @(at-events/auto-type-modified))
                   :on-click at-events/auto-type-edit-dialog-ok} "Ok"]]]])
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#_[m/text-field {:label "Key Sequences"
-                 :value (:default-sequence auto-type)
-                     ;;:autoFocus true
-                 :on-change #()
-                 :variant "standard"
-                 :fullWidth true
-                 :classes {:root "entry-cnt-field"}
-                 :InputProps {:classes {:root "entry-cnt-text-field-read"
-                                        :focused "entry-cnt-text-field-read"}}
-                 :inputProps  {:readOnly true}}]

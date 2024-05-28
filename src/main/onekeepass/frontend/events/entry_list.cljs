@@ -129,7 +129,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Called to clear previously loaded entry sumary items (list) data
+;; Called to clear previously loaded entry summary items (list) data
 ;; Also clears out the category source
 (reg-event-fx
  :entry-list/clear-entry-items
