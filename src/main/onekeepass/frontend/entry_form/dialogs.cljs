@@ -5,7 +5,8 @@
             [onekeepass.frontend.db-icons :as db-icons]
             [onekeepass.frontend.entry-form.common :as ef-cmn :refer [popper-button-sx
                                                                       theme-popper-box-sx]]
-            [onekeepass.frontend.events.common :as ce :refer [on-change-factory]]
+            [onekeepass.frontend.events.common :as ce :refer [on-change-factory
+                                                              on-check-factory]]
             [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
             [onekeepass.frontend.events.entry-form-ex :as form-events]
             [onekeepass.frontend.events.move-group-entry :as move-events]
@@ -222,7 +223,7 @@
          {:control (r/as-element
                     [mui-checkbox
                      {:checked protected
-                      :on-change (on-change-factory form-events/section-field-dialog-update :protected)}])
+                      :on-change (on-check-factory form-events/section-field-dialog-update :protected)}])
           :label (tr-l protected)}]
         #_[mui-form-control-label
            {:control (r/as-element
