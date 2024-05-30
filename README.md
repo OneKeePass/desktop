@@ -58,10 +58,15 @@ OneKeePass is developed primarily using the ClojureScript and Rust programming l
 
 To build your own binary, please follow the instructions [here](./docs/BUILD.md)
 
- 
 ## How to Contribute
+
+### Translations
+
+If you want to contribute translation of texts used in this application in your language of choice, please see [OneKeePass Translations](https://github.com/OneKeePass/onekeepass-translations)
+
+### Code
 The CONTRIBUTING document and other guidelines for code contributions are not yet ready. Till that time, please feel free to::
 - [Report bugs, suggest new features](https://github.com/OneKeePass/desktop/issues)
-
+ 
 ## License
 This project is licensed under the GPLv3.
