@@ -1,7 +1,8 @@
 (ns onekeepass.frontend.entry-form.dialogs
-  (:require [onekeepass.frontend.common-components
+  (:require [clojure.string :as str]
+            [onekeepass.frontend.common-components
              :refer [alert-dialog-factory confirm-text-dialog
-                     enter-key-pressed-factory]]
+                     enter-key-pressed-factory selection-autocomplete]]
             [onekeepass.frontend.db-icons :as db-icons]
             [onekeepass.frontend.entry-form.common :as ef-cmn :refer [popper-button-sx
                                                                       theme-popper-box-sx]]
@@ -15,9 +16,10 @@
                      mui-button mui-button mui-checkbox mui-dialog
                      mui-dialog-actions mui-dialog-content mui-dialog-title
                      mui-form-control-label mui-grid mui-link mui-menu-item
-                     mui-popper mui-stack mui-tooltip mui-typography]]
+                     mui-popper mui-stack mui-text-field mui-tooltip
+                     mui-typography]]
             [onekeepass.frontend.translation :as t
-             :refer [lstr-dlg-title]
+             :refer [lstr-dlg-title tr-m]
              :refer-macros [tr-l tr-dlg-title tr-dlg-text tr-h tr-bl]]
             [reagent.core :as r]))
 
@@ -275,7 +277,7 @@
 (defn delete-permanent-dialog [dialog-data entry-uuid]
   [(alert-dialog-factory
     (tr-dlg-title entryDeletePermanent)
-    (tr-dlg-text entryDeletePermanent) 
+    (tr-dlg-text entryDeletePermanent)
     [{:label (tr-bl yes) :on-click #(move-events/delete-permanent-group-entry-ok :entry entry-uuid)}
      {:label (tr-bl no) :on-click #(move-events/delete-permanent-group-entry-dialog-show :entry false)}])
    dialog-data])
@@ -314,7 +316,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Entry History ;;;;;;;;;;;;;;;;;;;;;;
 
-(defn restore-confirm-dialog 
+(defn restore-confirm-dialog
   "Called to confirm before restoring an entry from history"
   [dialog-show]
   [(alert-dialog-factory
@@ -324,7 +326,7 @@
      {:label (tr-bl no) :on-click form-events/close-restore-confirm-dialog}])
    {:dialog-show dialog-show}])
 
-(defn delete-confirm-dialog 
+(defn delete-confirm-dialog
   "Called to cofirm a history entry"
   [dialog-show entry-uuid index]
   [(alert-dialog-factory
@@ -334,7 +336,7 @@
      {:label (tr-bl no) :on-click form-events/close-delete-confirm-dialog}])
    {:dialog-show dialog-show}])
 
-(defn delete-all-confirm-dialog 
+(defn delete-all-confirm-dialog
   "Called to confirm whether to delete all the history entries of an entry or not"
   [dialog-show entry-uuid]
   [(alert-dialog-factory
@@ -343,3 +345,74 @@
     [{:label (tr-bl yes) :on-click #(form-events/delete-all-history-entries entry-uuid)}
      {:label (tr-bl no) :on-click form-events/close-delete-all-confirm-dialog}])
    {:dialog-show dialog-show}])
+
+
+;;;;;;;;;;;;;;;;;;;;;;; Clone Entry Options ;;;;;;;;;;;;;;;;;;;;;;
+
+(defn clone-entry-options-dialog [{:keys [dialog-show
+                                          new-title
+                                          parent-group-uuid
+                                          keep-histories
+                                          _error-fields]}]
+  [mui-dialog {:open dialog-show :on-click #(.stopPropagation ^js/Event %)
+                  ;; This will set the Paper width in all child components 
+                  ;; and is equivalent to :classes {:paper "pwd-dlg-root"}
+               :sx {"& .MuiPaper-root" {:width "80%"}}}
+
+   [mui-dialog-title (tr-dlg-title "cloneEntry")]
+
+   (let [groups-listing (form-events/groups-listing)
+         group-selected (dlg-events/selected-group-info parent-group-uuid)
+         ;;group-selection-field-error-text (:group-selection error-fields)
+         title-error-text (when (str/blank? new-title) (tr-m entryForm cloneEntryTitleName))]
+     [mui-dialog-content {:dividers true}
+      [mui-stack {:sx {:width "80%"}}
+       [mui-stack {:direction "row" :sx {:width "100%" :margin-bottom "10px"}}
+        [mui-text-field
+         {:label (tr-l "newTitle")
+          :value new-title
+          :sx  {}
+          :error  (not (nil? title-error-text))
+          :helperText (if-not (nil? title-error-text) title-error-text nil #_(tr-h "entryTitle"))
+          :on-change (fn [^js/Event e]
+                       (dlg-events/clone-entry-options-dialog-update
+                        :new-title
+                        (-> e .-target  .-value)))
+          :InputProps {}
+          :variant "standard"
+          :fullWidth true}]]
+
+       [mui-stack
+        [selection-autocomplete
+         {:label (tr-l groupOrCategory)
+          :options @groups-listing
+          :current-value @group-selected
+          :on-change (fn [_e group-info]
+                       ;; 'group-info' - a javacript object
+                       (let [{:keys [uuid]} (js->clj group-info :keywordize-keys true)]
+                         (dlg-events/clone-entry-options-dialog-update :parent-group-uuid uuid)))
+          :required true
+          :helper-text nil #_(tr-h groupOrCategory)
+
+          ;;:error (not (nil? group-selection-field-error-text))
+          ;;:error-text group-selection-field-error-text
+          }]]
+
+       [mui-stack {:sx {:width "50%"}}
+        [mui-form-control-label
+         {:control (r/as-element
+                    [mui-checkbox
+                     {:checked keep-histories
+                      :on-change (fn [^js/Event e]
+                                   (dlg-events/clone-entry-options-dialog-update
+                                    :keep-histories
+                                    (-> e .-target  .-checked)))}])
+          :label (tr-l "keepHistories")}]]]])
+
+   [mui-dialog-actions
+    [mui-button
+     {:on-click #(dlg-events/clone-entry-options-dialog-close)}
+     (tr-bl cancel)]
+    [mui-button
+     {:on-click #(dlg-events/clone-entry-options-dialog-ok)}
+     (tr-bl ok)]]])

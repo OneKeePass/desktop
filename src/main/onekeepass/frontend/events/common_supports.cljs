@@ -19,9 +19,13 @@
     (reset! tr-service tr-fns-m))
 
 (defn check-error
-  "Receives a map with keys result and error or either one.
-   Returns the value of result in case there is no error. If there is 
-   an error a nil value is returned and calls the supplied error fn or default error fn
+  "Receives a map with keys :result and :error or either one.
+   If the map has a valid value in :result, then value in :error is nil
+   If the map has some error value in :error, then value in :result is nil
+   
+   Returns the value of result in case there is no error. 
+   If there is an error, a nil value is returned and calls the supplied 
+   error fn or default error fn
   "
   ([{:keys [result error]} error-fn]
    (if-not (nil? error)
@@ -35,8 +39,9 @@
    (check-error api-response nil)))
 
 (defn on-error
-  "A common error handler for the background API call.
-  logs the error and returns true in case of error or false
+  "Receives a map with keys :result and :error or either one.
+   Returns true in case of error and calls an 'error-fn' with the error 
+   Returns false when error is nil
   "
   ([{:keys [error]} error-fn]
    (if-not (nil? error)

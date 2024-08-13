@@ -48,22 +48,26 @@
                      :divider false
                      :on-click (menu-action anchor-el form-events/edit-mode-menu-clicked)}
       [mui-list-item-text {:inset true} (tr-ml edit)]]
-
-     (if favorites?
-       [mui-menu-item {:sx {:padding-left "1px"}
-                       :divider false
-                       :on-click (menu-action anchor-el form-events/favorite-menu-checked false)}
-        [mui-list-item-icon [mui-icon-check]] (tr-ml favorites)]
-       [mui-menu-item {:divider false
-                       :sx {:padding-left "1px"}
-                       :on-click (menu-action anchor-el form-events/favorite-menu-checked true)}
-        [mui-list-item-text {:inset true} (tr-ml favorites)]])
-
-
+     
+     [mui-menu-item {:sx {:padding-left "1px"}
+                     :divider false
+                     :on-click (menu-action anchor-el dlg-events/clone-entry-options-dialog-show entry-uuid)}
+      [mui-list-item-text {:inset true} "Clone"]]
+     
      [mui-menu-item {:divider true
                      :sx {:padding-left "1px"}
                      :on-click (menu-action anchor-el form-events/entry-delete-start entry-uuid)}
       [mui-list-item-text {:inset true} (tr-ml delete)]]
+     
+     (if favorites?
+       [mui-menu-item {:sx {:padding-left "1px"}
+                       :divider true
+                       :on-click (menu-action anchor-el form-events/favorite-menu-checked false)}
+        [mui-list-item-icon [mui-icon-check]] (tr-ml favorites)]
+       [mui-menu-item {:divider true
+                       :sx {:padding-left "1px"}
+                       :on-click (menu-action anchor-el form-events/favorite-menu-checked true)}
+        [mui-list-item-text {:inset true} (tr-ml favorites)]])
 
      ;; Auto type related menu options are avilable only for macos
      (when (= os-name const/MACOS)
@@ -112,7 +116,6 @@
   This is used in the entry-form and entry-list panels"
   [entry-uuid]
   [:f> form-menu-internal entry-uuid])
-
 
 ;;;;;;;;;;;;;  
 ;; Folllowing are may be used as menu options in a section header when we want to 

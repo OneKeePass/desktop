@@ -119,7 +119,7 @@ pub(crate) async fn load_kdbx(
   // key_file_name.as_deref() converts Option<String> to Option<&str> - https://stackoverflow.com/questions/31233938/converting-from-optionstring-to-optionstr
 
   let r = kp_service::load_kdbx(db_file_name, password, key_file_name.as_deref());
-  
+
   if let Err(kp_service::error::Error::DbFileIoError(m, ioe)) = &r {
     // Remove from the recent list only if the file opening failed because of the file is not found in the passed file path
     if let ("Database file opening failed", ErrorKind::NotFound) = (m.as_str(), ioe.kind()) {
@@ -155,7 +155,7 @@ pub(crate) async fn menu_action_requested<R: Runtime>(
 #[tauri::command]
 pub(crate) async fn menu_titles_change_requested<R: Runtime>(
   app: tauri::AppHandle<R>,
-  request:MenuTitleChangeRequest ,
+  request: MenuTitleChangeRequest,
 ) -> Result<()> {
   menu::menu_titles_change_requested(request, app);
   Ok(())
@@ -220,16 +220,14 @@ pub(crate) async fn system_info_with_preference(
 #[tauri::command]
 pub(crate) async fn update_preference(
   app_state: State<'_, utils::AppState>,
-  preference_data:preference::PreferenceData
+  preference_data: preference::PreferenceData,
 ) -> Result<()> {
   Ok(app_state.update_preference(preference_data))
 }
 
 //clear_recent_files
 #[tauri::command]
-pub(crate) async fn clear_recent_files(
-  app_state: State<'_, utils::AppState>
-) -> Result<()> {
+pub(crate) async fn clear_recent_files(app_state: State<'_, utils::AppState>) -> Result<()> {
   Ok(app_state.clear_recent_files())
 }
 
@@ -412,6 +410,19 @@ pub(crate) async fn new_entry_form_data(
 }
 
 #[tauri::command]
+pub(crate) async fn clone_entry(
+  db_key: &str,
+  entry_uuid: Uuid,
+  entry_clone_option: kp_service::EntryCloneOption,
+) -> Result<Uuid> {
+  Ok(kp_service::clone_entry(
+    db_key,
+    &entry_uuid,
+    &entry_clone_option,
+  )?)
+}
+
+#[tauri::command]
 pub(crate) async fn entry_type_headers(db_key: &str) -> Result<kp_service::EntryTypeHeaders> {
   Ok(kp_service::entry_type_headers(db_key)?)
 }
@@ -484,6 +495,19 @@ pub(crate) async fn new_blank_group(mark_as_category: bool) -> kp_service::Group
 #[tauri::command]
 pub(crate) async fn insert_group(db_key: String, group: kp_service::Group) -> Result<()> {
   Ok(kp_service::insert_group(&db_key, group)?)
+}
+
+#[tauri::command]
+pub(crate) async fn sort_sub_groups(
+  db_key: String,
+  group_uuid: Uuid,
+  criteria: kp_service::GroupSortCriteria,
+) -> Result<()> {
+  Ok(kp_service::sort_sub_groups(
+    &db_key,
+    &group_uuid,
+    &criteria,
+  )?)
 }
 
 #[tauri::command]
@@ -690,9 +714,10 @@ pub(crate) async fn export_as_xml(db_key: &str, xml_file_name: &str) -> Result<(
 
 #[tauri::command]
 pub async fn load_language_translations<R: Runtime>(
-  app: tauri::AppHandle<R>, language_ids: Vec<String>,
+  app: tauri::AppHandle<R>,
+  language_ids: Vec<String>,
 ) -> Result<utils::TranslationResource> {
-  Ok(utils::load_language_translations(app,language_ids)?)
+  Ok(utils::load_language_translations(app, language_ids)?)
 }
 
 #[tauri::command]

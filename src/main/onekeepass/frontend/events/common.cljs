@@ -898,9 +898,11 @@
 
 ;;;;;;;;;;;; Db Modification tracking ;;;;;;
 
+;; These are the api calls implemented in tauri commands.rs
 (def ^:private all-modiying-api-calls
   ["update_entry"
    "insert_entry"
+   "clone_entry"
    ;; Need to be removed after back end api 'update_entry' is refactored to use EntryFormData struct
    "update_entry_from_form_data"
    "insert_entry_from_form_data"
@@ -914,6 +916,7 @@
 
    "update_group"
    "insert_group"
+   "sort_sub_groups"
    "move_group"
    "mark_group_as_category"
    "move_group_to_recycle_bin"

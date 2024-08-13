@@ -1,13 +1,17 @@
 (ns onekeepass.frontend.events.entry-form-dialogs
+  (:require-macros [onekeepass.frontend.okp-macros :refer [as-map]])
   (:require [clojure.string :as str]
             [onekeepass.frontend.background :as bg]
             [onekeepass.frontend.constants :refer [ONE_TIME_PASSWORD_TYPE OTP
                                                    OTP_URL_PREFIX]]
-            [onekeepass.frontend.events.common :as cmn-events :refer [assoc-in-key-db
+            [onekeepass.frontend.events.common :as cmn-events :refer [active-db-key
+                                                                      assoc-in-key-db
                                                                       check-error
                                                                       get-in-key-db]]
             [onekeepass.frontend.events.entry-form-common :refer [add-section-field
+                                                                  entry-form-key
                                                                   is-field-exist]]
+            [onekeepass.frontend.translation :refer [lstr-sm]]
             [onekeepass.frontend.utils :as u :refer [str->int]]
             [re-frame.core :refer [dispatch reg-event-fx reg-fx reg-sub
                                    subscribe]]))
@@ -130,7 +134,6 @@
           errors (validate-fields data)]
       (assoc-in-key-db db [:otp-settings-dialog :error-fields] errors)))
 
-
 (defn- to-otp-settings-data [db & {:as kws}]
   (let [data (get-in-key-db db [:otp-settings-dialog])
         data (merge data kws)]
@@ -176,7 +179,6 @@
    {:db (-> db
             (assoc-in-key-db [:otp-settings-dialog  :show-custom-settings] true))}))
 
-
 (reg-event-fx
  :otp-settings-dialog-ok
  (fn [{:keys [db]} [_event-id]]
@@ -220,11 +222,114 @@
      {:db  (-> db (assoc-in-key-db [:otp-settings-dialog :dialog-show] false))
       :fx [[:dispatch [:entry-form/otp-url-formed section-name field-name otp-url]]]})))
 
-
 (reg-sub
  :otp-settings-dialog-data
  (fn [db [_event-id]]
    (get-in-key-db db [:otp-settings-dialog])))
+
+;;;;;;;;;;;;;;;;;;;;;;;; Clone entry options dialog ;;;;;;;;;;;;;;;
+
+(defn clone-entry-options-dialog-show [entry-uuid]
+  (dispatch [:clone-entry-options-dialog-show entry-uuid]))
+
+(defn clone-entry-options-dialog-update [kw value]
+  (dispatch [:clone-entry-options-dialog-update kw value]))
+
+(defn clone-entry-options-dialog-ok []
+  (dispatch [:clone-entry-options-dialog-ok]))
+
+(defn clone-entry-options-dialog-close []
+  (dispatch [:clone-entry-options-dialog-close]))
+
+(defn selected-group-info [group-uuid]
+  (subscribe [:group-tree-content/group-summary-info-by-id group-uuid]))
+
+(defn clone-entry-options-dialog-data []
+  (subscribe [:clone-entry-options-dialog-data]))
+
+(def ^:private clone-entry-options-dialog-init-data {:dialog-show false
+                                                     :error-fields {}
+                                                     :api-error-text nil
+                                                     :new-title nil
+                                                     :parent-group-uuid nil
+                                                     :entry-uuid nil
+                                                     :keep-histories false})
+
+(defn- init-clone-entry-options-dialog-data [db]
+  (assoc-in-key-db db [:clone-entry-options-dialog] clone-entry-options-dialog-init-data))
+
+(defn- to-clone-entry-options-data [db & {:as kws}]
+  (let [data (get-in-key-db db [:clone-entry-options-dialog])
+        data (merge data kws)]
+    (assoc-in-key-db db [:clone-entry-options-dialog] data)))
+
+(reg-event-fx
+ :clone-entry-options-dialog-show
+ (fn [{:keys [db]} [_event-id entry-uuid]]
+   (let [{:keys [uuid group-uuid title]} (get-in-key-db db [entry-form-key :data])
+         new-title (if (= uuid entry-uuid) (str title " Copy") nil)]
+     {:db (-> db
+              init-clone-entry-options-dialog-data
+              (assoc-in-key-db [:clone-entry-options-dialog :dialog-show] true)
+              (assoc-in-key-db [:clone-entry-options-dialog :new-title] new-title)
+              (assoc-in-key-db [:clone-entry-options-dialog :parent-group-uuid] group-uuid)
+              (assoc-in-key-db [:clone-entry-options-dialog :entry-uuid] entry-uuid))})))
+
+(reg-event-fx
+ :clone-entry-options-dialog-update
+ (fn [{:keys [db]} [_event-id m-kw-key m-value]]
+   {:db (-> db (to-clone-entry-options-data m-kw-key m-value))}))
+
+(reg-event-fx
+ :clone-entry-options-dialog-ok
+ (fn [{:keys [db]} [_event-id]]
+   (let [db-key (active-db-key db)
+         {:keys [entry-uuid new-title parent-group-uuid keep-histories]}
+         (get-in-key-db db [:clone-entry-options-dialog])]
+     {:fx [[:bg-clone-entry [db-key
+                             entry-uuid
+                             (as-map [new-title parent-group-uuid keep-histories])]]]})))
+
+(reg-fx
+ :bg-clone-entry
+ (fn [[db-key entry-uuid entry-clone-option]]
+   (bg/clone-entry db-key
+                   entry-uuid
+                   entry-clone-option
+                   (fn [api-response]
+                     (when-let  [cloned-entry-uuid (check-error api-response)]
+                       (dispatch [:entry-clone-complte cloned-entry-uuid]))))))
+
+(reg-event-fx
+ :entry-clone-complte
+ (fn [{:keys [_db]} [_event-id cloned-entry-uuid]]
+   {:fx [;; This refresh calls uses the original entry-uuid
+         [:dispatch [:common/refresh-forms]]
+
+         ;; Following two events selects the cloned entry in entry list and loads the entry form with 
+         ;; the cloned entry data
+         [:dispatch [:entry-list/update-selected-entry-id cloned-entry-uuid]]
+         [:dispatch [:entry-form-ex/find-entry-by-id cloned-entry-uuid]]
+
+         [:dispatch [:clone-entry-options-dialog-close]]
+         [:dispatch [:common/message-snackbar-open (lstr-sm 'entryCloned) ]]]}))
+
+(reg-event-fx
+ :clone-entry-options-dialog-close
+ (fn [{:keys [db]} [_event-id]]
+   {:db (-> db
+            init-clone-entry-options-dialog-data)}))
+
+(reg-sub
+ :clone-entry-options-dialog-data
+ (fn [db [_event-id]]
+   (get-in-key-db db [:clone-entry-options-dialog])))
+
+#_(reg-sub
+   :clone-entry-parent-group-info
+   (fn [[_query-id group-uuid]]
+     (subscribe [:group-tree-content/group-summary-info-by-id group-uuid]))
+   (fn [group-info]))
 
 
 (comment
