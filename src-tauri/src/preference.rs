@@ -63,14 +63,15 @@ pub struct Preference {
 impl Default for Preference {
   fn default() -> Self {
     Self {
-      // Same as in tauri.conf.json and will be reset to the latest version from tauri.conf.json
-      // in read_toml
-      version: "0.13.0".into(),
+      // Same as in tauri.conf.json. This is for doc purpose only as 
+      // this will be reset to the latest version from tauri.conf.json 
+      // after parsing the toml pref file in read_toml and pref file is updated accordingly
+      version: "0.14.0".into(),
       session_timeout: (15 as u8),
       clipboard_timeout: (30 as u16),
       theme: LIGHT.into(),
       language: utils::current_locale_language(),
-      default_entry_category_groupings: "Types".into(),
+      default_entry_category_groupings: "Groups".into(),
       recent_files: vec![],
       backup: BackupPreference::default(),
     }
