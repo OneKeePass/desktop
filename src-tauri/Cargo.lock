@@ -2251,6 +2251,7 @@ checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
 [[package]]
 name = "onekeepass-core"
 version = "0.15.0"
+source = "git+https://github.com/OneKeePass/onekeepass-core.git?tag=v0.15.0#e2563327c783d3ea66e4a6b5c5f26acfc249574f"
 dependencies = [
  "aes 0.7.5",
  "aes-gcm",
