@@ -66,7 +66,7 @@
                                 ArrowDropUpOutlined
                                 ArrowDropDownOutlined
                                 KeyboardArrowDownOutlined
-                                KeyboardArrowUpOutlined 
+                                KeyboardArrowUpOutlined
                                 ArrowUpwardOutlined
                                 ArrowDownwardOutlined
                                 NavigateNextOutlined
@@ -118,11 +118,18 @@
                                 ArticleOutlined
                                 PreviewOutlined
                                 LocalizationProvider
-                                
-                                
-                                
-                                
-                                
+
+                                ;; Dialogs related
+                                clone-entry-options-dialog
+                                data 
+                                on-ok
+                                show
+                                show-with-state 
+                                state-m
+
+                                ;; Translations related
+                                entryForm 
+                                cloneEntryTitleName
                                 discard
                                 confirmDiscard
                                 yesOverwrite
@@ -232,10 +239,10 @@
                                 close
                                 otpDelete
                                 otpSetup
-                                yes 
-                                no 
+                                yes
+                                no
                                 ok
-                                title 
+                                title
                                 modifiedTime
                                 createdTime
                                 addEntry
@@ -250,7 +257,7 @@
                                 transformRounds
                                 remove
                                 keyFileName
-                                
+
                                 basicDatabaseInformation
                                 dbDisplayName
                                 description
@@ -272,9 +279,7 @@
                                 txt2
                                 txt3
                                 txt4
-                                txt5
-                                
-                                ]}
+                                txt5]}
 
   :unresolved-var {:exclude [onekeepass.frontend.mui-components 
                              onekeepass.frontend.background/go

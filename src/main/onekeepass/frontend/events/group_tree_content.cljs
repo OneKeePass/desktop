@@ -17,6 +17,22 @@
 (defn initiate-new-blank-group-form [parent-group-uuid]
   (dispatch [:group-form/create-blank-group parent-group-uuid]))
 
+(defn node-on-select
+  "Called when a tree item is selected with value found ':nodeId' attribute of mui-tree-item.
+  The value of ':nodeId' is the group uuid of the group selected
+  "
+  [_e group-id]
+  (dispatch [:group-selected group-id])
+  ;;Reset other panels 
+  (dispatch [:entry-form-ex/show-welcome])
+  (dispatch [:entry-category/clear-selected-category-info])
+
+  ;;Loads entry list items to show for this group
+  (dispatch [:entry-list/load-entry-items {:group group-id}]))
+
+(defn on-node-toggle [_e node-ids]
+  (dispatch [:mark-expanded-nodes node-ids]))
+
 (defn groups-tree-data
   "Gets the group tree data"
   []
@@ -36,27 +52,12 @@
 (defn root-group-selected? []
   (subscribe [:group-tree-content/root-group-selected]))
 
-#_(defn root-group-uuid []
-    (subscribe [:group-tree-content/root-group-uuid]))
+(defn root-group-uuid []
+  (subscribe [:group-tree-content/root-group-uuid]))
 
 (defn groups-listing []
   (subscribe [:group-tree-content/groups-listing]))
 
-(defn node-on-select
-  "Called when a tree item is selected with value found ':nodeId' attribute of mui-tree-item.
-  The value of ':nodeId' is the group uuid of the group selected
-  "
-  [_e group-id]
-  (dispatch [:group-selected group-id])
-  ;;Reset other panels 
-  (dispatch [:entry-form-ex/show-welcome])
-  (dispatch [:entry-category/clear-selected-category-info])
-
-  ;;Loads entry list items to show for this group
-  (dispatch [:entry-list/load-entry-items {:group group-id}]))
-
-(defn on-node-toggle [_e node-ids]
-  (dispatch [:mark-expanded-nodes node-ids]))
 
 (defn expanded-nodes []
   (subscribe [:expanded-nodes]))
@@ -212,8 +213,21 @@
  (fn [data [_query-id group-uuid]]
    (let [recycled-groups  (get data "deleted_group_uuids")
          recycle-bin-group (get data "recycle_bin_uuid")]
-     (or (= recycle-bin-group group-uuid) 
+     (or (= recycle-bin-group group-uuid)
          (contains-val?  recycled-groups group-uuid)))))
+
+
+;; Gets the group-info map (keys [name uuid icon-id]) for a given group-uuid
+;; Used in entry clone dialog
+(reg-sub
+ :group-tree-content/group-summary-info-by-id
+ :<- [:groups-tree-data-updated]
+ (fn [data [_query-id group-uuid]]
+   (let [g (-> data (get "groups") (get group-uuid))]
+     (when-not (nil? g)
+       {:name (get g "name")
+        :uuid (get g "uuid")
+        :icon-id 0}))))
 
 ;; Forms a group info map for any selected group in group tree view or a group category 
 ;; in category view
@@ -285,6 +299,34 @@
    {:db (-> db (assoc-in-key-db  [:group-delete :status] :completed))
     :fx [[:dispatch [:common/message-snackbar-open "Group is deleted"]]
          [:dispatch [:common/refresh-forms-2]]]}))
+
+;;;;;;;;;;;;;;;;;;;;;  Group sort ;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn sort-groups [parent-group-uuid ascend?]
+  (dispatch [:sort-groups-start parent-group-uuid ascend?]))
+
+;; Called to sort all sub groups found under the parent-group-uuid
+(reg-event-fx
+ :sort-groups-start
+ (fn [{:keys [db]} [_event-id parent-group-uuid ascend?]]
+   {:fx [[:bg-sort-subgroups
+          [(active-db-key db)
+           parent-group-uuid
+           ;; "AtoZ" or "ZtoA" deserialized as enum member of GroupSortCriteria
+           (if ascend? "AtoZ" "ZtoA")]]]}))
+
+(reg-fx
+ :bg-sort-subgroups
+ (fn [[db-key parent-group-uuid direction]]
+   (bg/sort-sub-groups db-key parent-group-uuid direction (fn [api-reponse]
+                                                            (when-not (on-error api-reponse)
+                                                              (dispatch [:sort-groups-completed]))))))
+;; Need to load the group tree data to reflect sorted groups
+(reg-event-fx
+ :sort-groups-completed
+ (fn [{:keys [_db]} [_event-id]]
+   {:fx [[:dispatch [:group-tree-content/load-groups]]
+         [:dispatch [:common/message-snackbar-open "Groups sorted"]]]}))
 
 ;;;;;;;;;;;;;;;;;; Group Delete End ;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;; Group Put back  ;;;;;;;;;;;;;;;;;;;;

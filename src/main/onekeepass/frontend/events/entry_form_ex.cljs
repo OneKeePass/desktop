@@ -1648,7 +1648,7 @@
 (reg-fx
  :bg-move-entry-to-recycle-bin
  (fn [[db-key entry-id]]
-   (bg/move-entry-to-recycle_bin  db-key entry-id on-entry-delete)))
+   (bg/move-entry-to-recycle_bin db-key entry-id on-entry-delete)))
 
 (reg-event-db
  :entry-delete-error

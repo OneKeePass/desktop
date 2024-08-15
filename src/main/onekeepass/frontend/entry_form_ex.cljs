@@ -15,6 +15,7 @@
                                                                     attachment-delete-confirm-dialog
                                                                     custom-field-delete-confirm
                                                                     custom-section-delete-confirm
+                                                                    clone-entry-options-dialog
                                                                     delete-all-confirm-dialog
                                                                     delete-confirm-dialog
                                                                     delete-permanent-dialog
@@ -573,6 +574,7 @@
        [delete-totp-confirm-dialog @ef-cmn/delete-totp-confirm-dialog-data]
        [custom-field-delete-confirm @(form-events/field-delete-dialog-data)]
        [custom-section-delete-confirm @(form-events/section-delete-dialog-data)]
+       [clone-entry-options-dialog @(dlg-events/clone-entry-options-dialog-data)]
 
        [gt-content/move-dialog
         {:dialog-data @(move-events/move-group-entry-dialog-data :entry)

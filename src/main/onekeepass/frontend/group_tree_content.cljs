@@ -1,12 +1,12 @@
 (ns onekeepass.frontend.group-tree-content
   (:require
    [reagent.core :as r]
-   [onekeepass.frontend.translation  :refer-macros [tr-l 
-                                                    tr-t 
-                                                    tr-ml 
+   [onekeepass.frontend.translation  :refer-macros [tr-l
+                                                    tr-t
+                                                    tr-ml
                                                     tr-h
-                                                    tr-bl 
-                                                    tr-dlg-title 
+                                                    tr-bl
+                                                    tr-dlg-title
                                                     tr-dlg-text]]
    [onekeepass.frontend.db-icons :refer [group-icon]]
    [onekeepass.frontend.group-form :as gf]
@@ -14,7 +14,7 @@
                                                   alert-dialog-factory
                                                   dialog-factory
                                                   confirm-text-dialog
-                                                  menu-action]] 
+                                                  menu-action]]
    [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.events.group-tree-content :as gt-events]
    [onekeepass.frontend.events.group-form :as gf-events]
@@ -46,21 +46,21 @@
   ;; we can use either 'alert-dialog-factory' or confirm-text-dialog for this
   [confirm-text-dialog
    (tr-dlg-title emptyRecycleBin)
-   (tr-dlg-text emptyRecycleBin) 
+   (tr-dlg-text emptyRecycleBin)
    [{:label (tr-bl yes) :on-click (fn []
-                              (move-events/empty-trash)
-                              (reset! empty-recycle-bin-confirm-dialog-data {:dialog-show false}))}
+                                    (move-events/empty-trash)
+                                    (reset! empty-recycle-bin-confirm-dialog-data {:dialog-show false}))}
     {:label (tr-bl no) :on-click (fn []
-                             (reset! empty-recycle-bin-confirm-dialog-data {:dialog-show false}))}]
+                                   (reset! empty-recycle-bin-confirm-dialog-data {:dialog-show false}))}]
    dialog-data])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (defn- delete-group-permanent-dialog [dialog-data group-uuid]
-  [(alert-dialog-factory 
+  [(alert-dialog-factory
     (tr-dlg-title groupDeletePermanent)
-    (tr-dlg-text groupDeletePermanent) 
+    (tr-dlg-text groupDeletePermanent)
     [{:label (tr-bl yes)  :on-click #(move-events/delete-permanent-group-entry-ok :group group-uuid)}
      {:label (tr-bl no) :on-click #(move-events/delete-permanent-group-entry-dialog-show :group false)}])
    dialog-data])
@@ -116,6 +116,15 @@
      [mui-menu-item {:divider true
                      :on-click (menu-action anchor-el gf-events/find-group-by-id g-uuid :info)}
       (tr-ml info)]
+
+     [mui-menu-item {:divider false
+                     :on-click (menu-action anchor-el gt-events/sort-groups g-uuid true)}
+      (tr-ml "sortAtoZ")]
+
+     [mui-menu-item {:divider true
+                     :on-click (menu-action anchor-el gt-events/sort-groups g-uuid false)}
+      (tr-ml "sortZtoA")]
+
      [mui-menu-item {:divider false
                      :disabled @(gt-events/root-group-selected?)
                      :on-click (menu-action anchor-el gt-events/group-delete-start g-uuid)}
@@ -267,6 +276,7 @@
 (defn group-tree-view []
   (let [gd @(gt-events/groups-tree-data)
         selected-group-uuid @(gt-events/selected-group)
+        root-id @(gt-events/root-group-uuid)
         expanded @(gt-events/expanded-nodes)
         groups-listing (gt-events/groups-listing)]
     (if (nil? gd)
@@ -278,7 +288,7 @@
         :defaultExpandIcon (r/as-element [mui-icon-arrow-right])
         :onNodeSelect gt-events/node-on-select
         :onNodeToggle gt-events/on-node-toggle
-        :expanded (if (nil? expanded) [] expanded)
+        :expanded (if (nil? expanded) [root-id] expanded)
         ;; This ensures to clear any previous selection that when some other entry category item is selected
         :selected selected-group-uuid}
        ;; Form the children tree items 

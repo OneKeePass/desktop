@@ -94,6 +94,7 @@
         "icons": "Icons",
         "info": "Info",
         "invulnerable": "Invulnerable",
+        "keepHistories":"Keep Histories",
         "kdf": "Key Derivation Function",
         "keyFileName": "Key File Name",
         "language": "Language",
@@ -106,6 +107,7 @@
         "modifySectionName": "Modify section name",
         "name": "Name",
         "newDatabase": "New Database",
+        "newTitle":"New Title",
         "noExpiry": "No Expiry",
         "next": "Next",
         "newsectionName": "New section name",
@@ -145,6 +147,7 @@
     "dialog": {
         "titles": {
             "applicationSettings": "Application Settings",
+            "cloneEntry":"Clone entry",
             "confirmDiscard": "Confirm Discard",
             "confirmOverwrite": "Confirm Overwrite",
             "conflictOnSave": "Content conflicts detected",
@@ -284,6 +287,7 @@
         "addField": "Add field",
         "addCategory": "Add category",
         "addGroup": "Add Group",
+        "clone":"Clone",
         "createdTime": "Created Time",
         "delete": "Delete",
         "deletePermanent": "Delete Permanent",
@@ -297,6 +301,8 @@
         "performAutoType": "Perform auto type",
         "putBack": "Put back",
         "setUpTOPT": "Set up TOPT",
+        "sortAtoZ": "Sort A-Z",
+        "sortZtoA": "Sort Z-A",
         "title": "Title"
     },
     "messages": {
@@ -311,6 +317,11 @@
             "noCredentialSet": "Database needs to be protected using a master key formed with a password or a key file or both",
             "parallelism": "Valid values should be in the range 1 - 100",
             "passwordConfirm": "Password and Confirm password are not matching"
+        },
+        "entryForm": {
+            "groupSelection": "Please select a group",
+            "cloneEntryTitleName": "Please enter a valid title",
+            "titleName": "Please enter a title for this form"
         },
         "newDbPage": {
             "txt1": "You can pick any random file that does not change. A hash of the file's content is used as an additional passsord.",
@@ -331,6 +342,7 @@
     "snackbarMessages":{
         "dbBackupCompleted":"Database backup saving is completed",
         "dbClosed":"Closed database {{- dbFileName}}",
+        "entryCloned":"Entry is cloned",
         "entryCreated":"New entry is created",
         "entryUpdated":"Entry is updated",
         "dbOpened":"Opened database {{- dbFileName}}"

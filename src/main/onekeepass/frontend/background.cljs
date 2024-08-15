@@ -35,7 +35,7 @@
      The call back function 'distach-fn' should accept a map (keys are  :result, :error) as input arg  
 
     IMPORTANT: If the returned value is a string instead of a map or any other type 
-    and we want the string as {:result \"some string value\"}, then we need to pass  :convert-response false
+    and we want the string as {:result \"some string value\"}, then we need to pass :convert-response false
   "
   [name api-args dispatch-fn &
    {:keys [convert-request convert-response convert-response-fn]
@@ -47,7 +47,7 @@
             ;; When convert-request is true, the api args are converted to 'camelCaseString' as expected by tauri command fns 
             ;; so that args can be deserialized to tauri types
             ;; When convert-request is true and api-args is a js object, (cske/transform-keys csk/->camelCaseString) 
-            ;; does not make any changes as expeted to be in a proper deserilaizable format
+            ;; does not make any changes as expected to be in a proper deserilaizable format
             args (if convert-request
                    ;; changes all keys to camelCase (e.g db-key -> dbKey)
                    ;; Tauri expects all API arguments names passed in JS api to be in camelCase which 
@@ -79,7 +79,7 @@
         (dispatch [:common/db-api-call-completed name]))
       (catch js/Error err
         (do
-          ;;Call the dispatch-fn with any error returned by the back end API
+          ;;Call the dispatch-fn with any error returned by the backend API
           (dispatch-fn {:error (ex-cause err)})
           (js/console.log (ex-cause err)))))))
 
@@ -281,10 +281,12 @@
 (defn new-entry-form-data [db-key entry-type-uuid dispatch-fn]
   (invoke-api "new_entry_form_data"
               {:db-key db-key
-               :entry-type-uuid entry-type-uuid :parent-group-uuid nil} dispatch-fn
+               :entry-type-uuid entry-type-uuid
+               :parent-group-uuid nil}
+              dispatch-fn
               :convert-response-fn transform-response-entry-keys))
 
-(defn- transform-resquest-entry-form-data
+(defn- transform-request-entry-form-data
   "All keys in the incoming entry map from UI will be transformed
   using custom key transformer
    "
@@ -305,7 +307,7 @@
   (invoke-api "update_entry_from_form_data"
               (clj->js
                {:dbKey db-key
-                :formData (transform-resquest-entry-form-data entry-form-data)})
+                :formData (transform-request-entry-form-data entry-form-data)})
               dispatch-fn :convert-request false))
 
 (defn insert-entry
@@ -314,8 +316,26 @@
   (invoke-api "insert_entry_from_form_data"
               (clj->js
                {:dbKey db-key
-                :formData (transform-resquest-entry-form-data entry-form-data)})
+                :formData (transform-request-entry-form-data entry-form-data)})
               dispatch-fn :convert-request false))
+
+(defn clone-entry
+  "Clones a selected entry
+   The arg 'entry-clone-option' is a map corresponding to the struct 'EntryCloneOption'
+   "
+  [db-key entry-uuid entry-clone-option dispatch-fn]
+  ;; All args for tauri api are in cameCase. 
+  ;; But keys in 'entry-clone-option' map (passed as value in :entryCloneOption)
+  ;; are to be in snake_case
+  (invoke-api "clone_entry" (clj->js
+                             {:dbKey db-key
+                              :entryUuid entry-uuid
+                              :entryCloneOption (->> entry-clone-option (cske/transform-keys csk/->snake_case))})
+              dispatch-fn
+              :convert-request false
+              ;; clone_entry api call returns clone entry's uuid string 
+              ;; and the usual conversion should not be used on this uuid string
+              :convert-response false))
 
 (defn get-group-by-id
   "Gets an group details for a give given db-key and the group uuid. "
@@ -334,6 +354,15 @@
   (let [args (clj->js {:dbKey db-key
                        :group (->> group (cske/transform-keys csk/->snake_case))})]
     (invoke-api "insert_group" args dispatch-fn :convert-request false)))
+
+(defn sort-sub-groups
+  "Sorts recursively the sub groups of a selected group
+   The arg criteria should be deserializable to the enum 'GroupSortCriteria'
+   For now valid value is one of 'AtoZ' 'ZtoA'
+   The 'dispatch-fn' will be called with {:result nil} if no error
+   "
+  [db-key group-uuid criteria dispatch-fn]
+  (invoke-api "sort_sub_groups" {:db-key db-key :group-uuid group-uuid :criteria criteria} dispatch-fn))
 
 (defn move-entry-to-recycle_bin [db-key entry-uuid dispatch-fn]
   (invoke-api "move_entry_to_recycle_bin" {:db-key db-key :entry-uuid entry-uuid} dispatch-fn))
@@ -478,7 +507,7 @@
     (invoke-api "update_preference" args dispatch-fn :convert-response false)))
 
 (defn clear-recent-files [dispatch-fn]
-(invoke-api "clear_recent_files" {} dispatch-fn))
+  (invoke-api "clear_recent_files" {} dispatch-fn))
 
 (defn- handle-argon2-renaming
   "A custom transform fuction to make sure Argon2 is converted to :Argon2 not converted to :argon-2 so that 
@@ -543,7 +572,7 @@
   [db-key entry-type-form-data dispatch-fn]
   (invoke-api "insert_or_update_custom_entry_type"
               (clj->js {:dbKey db-key
-                        :entryTypeFormData (transform-resquest-entry-form-data entry-type-form-data)})
+                        :entryTypeFormData (transform-request-entry-form-data entry-type-form-data)})
               dispatch-fn
               :convert-request false :convert-response false))
 

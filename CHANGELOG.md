@@ -1,3 +1,9 @@
+### 0.14.0
+- Added cloning an entry
+- Groups can be sorted based on its name
+- Upgraded backend tauri and frontend mui packages to the latest versions
+#### Fixed
+-  Case insensitive search #29 - - Thanks [adrian-e](https://github.com/adrian-e)
 ### 0.13.0
 - Supports both light and dark color themes/modes now. 
 - Added support for multiple languages. Though this version only has Spanish translations, the translations for other languages will be added in later releases
@@ -11,7 +17,7 @@
 
 ### 0.11.0
 - Entry form fields are now optional except the title. An entry can be created without entering any values in the fields
-- Upgraded backend tauri and frotend mui packages to the latest versions
+- Upgraded backend tauri and frontend mui packages to the latest versions
 - Fixed a bug in xml parsing module  
 
 ### 0.10.0
