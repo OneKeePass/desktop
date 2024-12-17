@@ -43,7 +43,7 @@ pub fn get_app_menu(system_menu_translation: SystemMenuTranslation) -> Menu {
   let quit = CustomMenuItem::new(
     QUIT,
     system_menu_translation.sub_menu(QUIT, "Quit OneKeePass"),
-  ).accelerator("CmdOrControl+G");
+  ).accelerator("CmdOrControl+Q");
 
   #[allow(unused_mut)]
   let mut first_menu;
