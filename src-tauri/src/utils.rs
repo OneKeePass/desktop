@@ -221,7 +221,7 @@ pub fn generate_backup_file_name(backup_dir_path: PathBuf, db_file_name: &str) -
     |s| s.to_string_lossy().to_string(),
   );
 
-  let n = kp_service::string_to_simple_hash(&parent_dir).to_string();
+  let n = kp_service::service_util::string_to_simple_hash(&parent_dir).to_string();
 
   // The backup_file_name will be of form "MyPassword_10084644638414928086.kdbx" for
   // the original file name "MyPassword.kdbx" where 10084644638414928086 is a hash of the dir part of full path

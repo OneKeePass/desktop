@@ -12,7 +12,7 @@ pub struct KeyStoreServiceImpl {
 
 #[inline]
 fn formatted_key(db_key: &str) -> SRString {
-  format!("OKP-{}", kp_service::string_to_simple_hash(db_key))
+  format!("OKP-{}", kp_service::service_util::string_to_simple_hash(db_key))
     .as_str()
     .into()
 }

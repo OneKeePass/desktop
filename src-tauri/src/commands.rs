@@ -553,7 +553,7 @@ pub(crate) async fn save_attachment_as_temp_file(
   name: &str,
   data_hash_str: &str,
 ) -> Result<String> {
-  let data_hash = kp_service::parse_attachment_hash(data_hash_str)?;
+  let data_hash = kp_service::service_util::parse_attachment_hash(data_hash_str)?;
   Ok(kp_service::save_attachment_as_temp_file(
     db_key, name, &data_hash,
   )?)
@@ -565,7 +565,7 @@ pub(crate) async fn save_attachment_as(
   full_file_name: &str,
   data_hash_str: &str,
 ) -> Result<()> {
-  let data_hash = kp_service::parse_attachment_hash(data_hash_str)?;
+  let data_hash = kp_service::service_util::parse_attachment_hash(data_hash_str)?;
   Ok(kp_service::save_attachment_as(
     db_key,
     full_file_name,
@@ -585,7 +585,7 @@ pub(crate) async fn save_as_kdbx(
 
   //key_secure::delete_key(db_key);
 
-  // Appends this file name to the most recently opned file list
+  // Appends this file name to the most recently opened file list
   app_state
     .preference
     .lock()
