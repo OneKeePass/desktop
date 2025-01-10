@@ -3,9 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 
 use crate::{
-  constants::{standard_file_names::APP_PREFERENCE_FILE, themes::LIGHT},
-  utils::{self, *},
+  app_paths::app_backup_dir, constants::{standard_file_names::APP_PREFERENCE_FILE, themes::LIGHT}, password_gen_preference::PasswordGeneratorPreference, translation
 };
+
+use crate::app_paths::app_home_dir;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct BackupPreference {
@@ -30,19 +31,21 @@ pub struct PreferenceData {
   pub theme: Option<String>,
   pub language: Option<String>,
 }
+// Old preference used before introduction of fields clipboard_timeout,theme ,language
+// Leaving it here for documentation purpose only
+// #[derive(Serialize, Deserialize)]
+// pub struct Preference1 {
+//   pub version: String,
+//   // In minutes
+//   pub session_timeout: u8,
+//   pub default_entry_category_groupings: String, //Types,Categories,Groups
+//   pub recent_files: Vec<String>,
+//   pub backup: BackupPreference,
+// }
 
-#[derive(Serialize, Deserialize)]
-pub struct Preference1 {
-  pub version: String,
-  // In minutes
-  pub session_timeout: u8,
-  pub default_entry_category_groupings: String, //Types,Categories,Groups
-  pub recent_files: Vec<String>,
-  pub backup: BackupPreference,
-}
-
+// Old preference used in the earlier version v0.14.0 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct Preference {
+pub struct Preference1 {
   pub version: String,
   // In minutes
   pub session_timeout: u8,
@@ -60,20 +63,43 @@ pub struct Preference {
   pub backup: BackupPreference,
 }
 
+// Introducing 'password_gen_preference' in v0.15.0
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct Preference {
+  pub version: String,
+  // In minutes
+  pub session_timeout: u8,
+  // In seconds
+  pub clipboard_timeout: u16,
+  // Determines the theme colors etc
+  pub theme: String,
+  // Should be a two letters language id
+  pub language: String,
+  //Valid values one of Types,Categories,Groups,Tags
+  pub default_entry_category_groupings: String,
+
+  pub recent_files: Vec<String>,
+
+  pub backup: BackupPreference,
+
+  pub password_gen_preference:PasswordGeneratorPreference,
+}
+
 impl Default for Preference {
   fn default() -> Self {
     Self {
-      // Same as in tauri.conf.json. This is for doc purpose only as 
-      // this will be reset to the latest version from tauri.conf.json 
+      // Same as in tauri.conf.json. This is for doc purpose only as
+      // this will be reset to the latest version from tauri.conf.json
       // after parsing the toml pref file in read_toml and pref file is updated accordingly
-      version: "0.14.0".into(),
+      version: "0.15.0".into(),
       session_timeout: (15 as u8),
       clipboard_timeout: (30 as u16),
       theme: LIGHT.into(),
-      language: utils::current_locale_language(),
+      language: translation::current_locale_language(),
       default_entry_category_groupings: "Groups".into(),
       recent_files: vec![],
       backup: BackupPreference::default(),
+      password_gen_preference:PasswordGeneratorPreference::default(),
     }
   }
 }
@@ -142,13 +168,22 @@ impl Preference {
 
   fn read_previous_preference(pref_str: &str) -> Option<Preference> {
     if let Ok(p1) = toml::from_str::<Preference1>(&pref_str) {
-      info!("Found previous version of Preference and using that");
+      
+      // As the logging is not enabled, we will see this logging output
+      // info!("Found previous version of Preference and using that");
+      #[cfg(feature = "onekeepass-dev")]
+      println!("Found previous version of Preference and using that");
+
       let mut p = Preference::default();
       p.session_timeout = p1.session_timeout;
       p.backup = p1.backup;
       p.recent_files = p1.recent_files;
       p.default_entry_category_groupings = p1.default_entry_category_groupings;
       p.version = p1.version;
+      p.language = p1.language;
+      p.theme = p1.theme;
+      p.clipboard_timeout = p1.clipboard_timeout;
+      
       Some(p)
     } else {
       None
@@ -189,7 +224,7 @@ impl Preference {
   }
 
   // Update the preference with any non null values
-  pub fn update(&mut self,preference_data:PreferenceData) {
+  pub fn update(&mut self, preference_data: PreferenceData) {
     let mut updated = false;
     if let Some(v) = preference_data.language {
       self.language = v;
@@ -216,10 +251,9 @@ impl Preference {
       updated = true;
     }
 
-    if updated  {
+    if updated {
       self.write_toml();
     }
-
   }
 
   /// Reads the previously stored preference if any and returns the newly created Preference instance

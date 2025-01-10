@@ -9,6 +9,7 @@ pub mod event_action_names {
   pub const CLOSE_REQUESTED: &str = "CloseRequested";
 }
 
+#[allow(dead_code)]
 pub mod themes {
   pub const LIGHT: &str ="light";
   pub const DARK: &str ="dark";
@@ -16,4 +17,8 @@ pub mod themes {
 
 pub mod standard_file_names {
   pub const APP_PREFERENCE_FILE: &str ="preference.toml";
+}
+
+pub mod standard_dirs {
+  pub const BACKUP_DIR : &str = "";
 }

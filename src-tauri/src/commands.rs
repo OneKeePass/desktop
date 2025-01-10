@@ -12,10 +12,11 @@ use std::fs::read_to_string;
 use std::path::Path;
 use uuid::Uuid;
 
+use crate::app_state::SystemInfoWithPreference;
 use crate::menu::{self, MenuActionRequest, MenuTitleChangeRequest};
-use crate::utils::SystemInfoWithPreference;
+use crate::{app_paths, translation};
+use crate::{app_preference, app_state};
 use crate::{auto_type, biometric, OTP_TOKEN_UPDATE_EVENT};
-use crate::{preference, utils};
 use onekeepass_core::async_service as kp_async_service;
 use onekeepass_core::db_service as kp_service;
 
@@ -37,7 +38,7 @@ pub type Result<T> = std::result::Result<T, String>;
 pub(crate) async fn init_timers<R: Runtime>(
   _app: tauri::AppHandle<R>,
   window: tauri::Window<R>,
-  app_state: State<'_, utils::AppState>,
+  app_state: State<'_, app_state::AppState>,
 ) -> Result<()> {
   // Need to ensure, we call init_entry_channels once only and
   // also spawn fn should be called once
@@ -114,7 +115,7 @@ pub(crate) async fn load_kdbx(
   db_file_name: &str,
   password: Option<&str>,
   key_file_name: Option<&str>,
-  app_state: State<'_, utils::AppState>,
+  app_state: State<'_, app_state::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
   // key_file_name.as_deref() converts Option<String> to Option<&str> - https://stackoverflow.com/questions/31233938/converting-from-optionstring-to-optionstr
 
@@ -190,7 +191,7 @@ pub(crate) async fn standard_paths<R: Runtime>(
     );
   }
 
-  match utils::app_resources_dir(app) {
+  match app_paths::app_resources_dir(app) {
     Ok(r) => {
       info!("Resource dir is {}", r);
       m.insert("resources-dir".into(), Some(r));
@@ -204,30 +205,30 @@ pub(crate) async fn standard_paths<R: Runtime>(
 
 #[tauri::command]
 pub(crate) async fn read_app_preference(
-  app_state: State<'_, utils::AppState>,
-) -> Result<preference::Preference> {
+  app_state: State<'_, app_state::AppState>,
+) -> Result<app_preference::Preference> {
   let g = app_state.preference.lock().unwrap();
   Ok(g.clone())
 }
 
 #[tauri::command]
 pub(crate) async fn system_info_with_preference(
-  app_state: State<'_, utils::AppState>,
+  app_state: State<'_, app_state::AppState>,
 ) -> Result<SystemInfoWithPreference> {
   Ok(SystemInfoWithPreference::init(app_state.inner()))
 }
 
 #[tauri::command]
 pub(crate) async fn update_preference(
-  app_state: State<'_, utils::AppState>,
-  preference_data: preference::PreferenceData,
+  app_state: State<'_, app_state::AppState>,
+  preference_data: app_preference::PreferenceData,
 ) -> Result<()> {
   Ok(app_state.update_preference(preference_data))
 }
 
 //clear_recent_files
 #[tauri::command]
-pub(crate) async fn clear_recent_files(app_state: State<'_, utils::AppState>) -> Result<()> {
+pub(crate) async fn clear_recent_files(app_state: State<'_, app_state::AppState>) -> Result<()> {
   Ok(app_state.clear_recent_files())
 }
 
@@ -253,7 +254,7 @@ pub(crate) async fn generate_key_file(key_file_name: &str) -> Result<()> {
 #[tauri::command]
 pub(crate) async fn create_kdbx(
   new_db: kp_service::NewDatabase,
-  app_state: State<'_, utils::AppState>,
+  app_state: State<'_, app_state::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
   let r = kp_service::create_kdbx(new_db)?;
   // Appends this file name to the most recently opned file list
@@ -577,7 +578,7 @@ pub(crate) async fn save_attachment_as(
 pub(crate) async fn save_as_kdbx(
   db_key: &str,
   db_file_name: &str,
-  app_state: State<'_, utils::AppState>,
+  app_state: State<'_, app_state::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
   //key_secure::copy_key(db_key, db_file_name)?;
 
@@ -598,7 +599,7 @@ pub(crate) async fn save_as_kdbx(
 pub(crate) async fn save_kdbx(
   db_key: &str,
   overwrite: bool,
-  app_state: State<'_, utils::AppState>,
+  app_state: State<'_, app_state::AppState>,
 ) -> Result<kp_service::KdbxSaved> {
   // db_key is the full database file name and backup file name is derived from that
   let backup_file_name = app_state.get_backup_file(db_key);
@@ -617,7 +618,7 @@ pub(crate) async fn save_to_db_file(db_key: &str, full_file_name: &str) -> Resul
 #[tauri::command]
 pub(crate) async fn save_all_modified_dbs(
   db_keys: Vec<String>,
-  app_state: State<'_, utils::AppState>,
+  app_state: State<'_, app_state::AppState>,
 ) -> Result<Vec<kp_service::SaveAllResponse>> {
   // Need to prepare back file paths for all db_keys
   let dbs_with_backups: Vec<(String, Option<String>)> = db_keys
@@ -689,12 +690,19 @@ pub(crate) async fn search_term(db_key: &str, term: &str) -> Result<kp_service::
 pub(crate) async fn analyzed_password(
   password_options: kp_service::PasswordGenerationOptions,
 ) -> Result<kp_service::AnalyzedPassword> {
-  Ok(kp_service::analyzed_password(password_options)?)
+  Ok(password_options.analyzed_password()?)
+}
+
+#[command]
+pub(crate) async fn generate_password_phrase(
+  password_phrase_options: kp_service::PassphraseGenerationOptions,
+) -> Result<kp_service::GeneratedPassPhrase> {
+  Ok(password_phrase_options.generate()?)
 }
 
 #[command]
 pub(crate) async fn score_password(password: &str) -> Result<kp_service::PasswordScore> {
-  Ok(kp_service::score_password(password))
+  Ok(password.into())
 }
 
 #[command]
@@ -716,15 +724,15 @@ pub(crate) async fn export_as_xml(db_key: &str, xml_file_name: &str) -> Result<(
 pub async fn load_language_translations<R: Runtime>(
   app: tauri::AppHandle<R>,
   language_ids: Vec<String>,
-) -> Result<utils::TranslationResource> {
-  Ok(utils::load_language_translations(app, language_ids)?)
+) -> Result<translation::TranslationResource> {
+  Ok(translation::load_language_translations(app, language_ids)?)
 }
 
 #[tauri::command]
 pub async fn load_custom_svg_icons<R: Runtime>(
   app: tauri::AppHandle<R>,
 ) -> Result<HashMap<String, String>> {
-  Ok(utils::load_custom_svg_icons(app))
+  Ok(app_state::load_custom_svg_icons(app))
 }
 
 // TODO: Remove this or need to clean up if required

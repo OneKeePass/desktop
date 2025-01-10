@@ -9,24 +9,24 @@ use serde::{Deserialize, Serialize};
 use log::info;
 use std::collections::HashMap;
 use std::fs;
-use std::io;
-use std::path::{Path, PathBuf};
-use std::result::Result;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use sys_locale::get_locale;
 
 use tauri::{
-  api::path::{document_dir, home_dir, resolve_path, BaseDirectory},
+  api::path::{document_dir, resolve_path, BaseDirectory},
   App, Env, Manager, Runtime,
 };
 
+use crate::{app_paths, file_util};
 use crate::biometric;
 use crate::constants::standard_file_names::APP_PREFERENCE_FILE;
 use crate::key_secure;
-use crate::preference::{Preference, PreferenceData};
+use crate::app_preference::{Preference, PreferenceData};
+use crate::translation::current_locale_language;
 
-use onekeepass_core::db_service as kp_service;
-
+// IMPORTANT: 
+// Need to keep all state fields behind Mutex if we need to mutuate as 
+// we cann't get &mut self of 'AppState'
 pub struct AppState {
   // Here we're using an Arc to share memory among threads,
   // and the data - Preference struct - inside the Arc is protected with a mutex.
@@ -80,7 +80,6 @@ impl AppState {
     *store_pref = pref;
   }
 
-
   pub fn update_preference(&self, preference_data: PreferenceData) {
     let mut store_pref = self.preference.lock().unwrap();
     store_pref.update(preference_data);
@@ -103,7 +102,7 @@ impl AppState {
     let backup_dir_path = if let Some(pa) = &store_pref.backup.dir {
       PathBuf::from(pa)
     } else {
-      app_backup_dir()
+      app_paths::app_backup_dir()
     };
 
     // Ensure that the backup dir exists. If not, there will not any backup written
@@ -117,7 +116,7 @@ impl AppState {
 
     match backup_files.get(db_file_name) {
       Some(s) => Some(s.clone()),
-      None => match generate_backup_file_name(backup_dir_path, db_file_name) {
+      None => match file_util::generate_backup_file_name(backup_dir_path, db_file_name) {
         Some(v) => {
           backup_files.insert(db_file_name.into(), v.clone());
           Some(v)
@@ -172,69 +171,6 @@ impl SystemInfoWithPreference {
   }
 }
 
-// IMPORTANT: unwrap() is used. What is the alternative ?
-pub fn app_home_dir() -> PathBuf {
-  #[cfg(not(feature = "onekeepass-dev"))]
-  let p = home_dir()
-    .unwrap()
-    .join(Path::new(".onekeepass"))
-    .join(Path::new("prod"));
-
-  // To activate this feature during development, we need to use 'cargo tauri dev -f onekeepass-dev'
-  #[cfg(feature = "onekeepass-dev")]
-  let p = home_dir()
-    .unwrap()
-    .join(Path::new(".onekeepass"))
-    .join(Path::new("dev"));
-  p
-}
-
-pub fn app_logs_dir() -> PathBuf {
-  app_home_dir().join("logs")
-}
-
-pub fn app_backup_dir() -> PathBuf {
-  app_home_dir().join("backups")
-}
-
-fn remove_dir_contents<P: AsRef<Path>>(path: P) -> io::Result<()> {
-  for entry in fs::read_dir(path)? {
-    fs::remove_file(entry?.path())?;
-  }
-  Ok(())
-}
-
-// Generates the complete backup file name for an existing database file
-pub fn generate_backup_file_name(backup_dir_path: PathBuf, db_file_name: &str) -> Option<String> {
-  if db_file_name.trim().is_empty() {
-    return None;
-  }
-
-  let db_path = Path::new(db_file_name);
-  let parent_dir = db_path.parent().map_or_else(
-    || "Root".into(),
-    |p| p.as_os_str().to_string_lossy().to_string(),
-  );
-
-  let fname_no_extension = db_path.file_stem().map_or_else(
-    || "DB_FILE_NAME".into(),
-    |s| s.to_string_lossy().to_string(),
-  );
-
-  let n = kp_service::service_util::string_to_simple_hash(&parent_dir).to_string();
-
-  // The backup_file_name will be of form "MyPassword_10084644638414928086.kdbx" for
-  // the original file name "MyPassword.kdbx" where 10084644638414928086 is a hash of the dir part of full path
-  let backup_file_name = vec![fname_no_extension.as_str(), "_", &n, ".kdbx"].join("");
-
-  debug!("backup_file_name is {}", backup_file_name);
-  // Should not use any explicit /  like .join("/") while joing components
-  backup_dir_path
-    .join(backup_file_name)
-    .to_str()
-    .map(|s| s.to_string())
-}
-
 pub fn init_app(app: &App) {
   // An example of using Short Cut Key to use with menus and auto typing
   use tauri::GlobalShortcutManager;
@@ -246,30 +182,14 @@ pub fn init_app(app: &App) {
     });
   ////
 
-  let app_dir = app_home_dir();
-  let log_dir = app_logs_dir();
-  let backups_dir = app_backup_dir();
-
-  if !app_dir.exists() {
-    fs::create_dir_all(&app_dir).unwrap();
-  }
-
-  if !backups_dir.exists() {
-    fs::create_dir_all(&backups_dir).unwrap();
-  }
-
-  if !log_dir.exists() {
-    fs::create_dir_all(&log_dir).unwrap();
-  } else {
-    // Each time we remove any old log file.
-    // TODO: Explore the use file rotation
-    let _r = remove_dir_contents(&log_dir);
-  }
-
+  // Ensure that all app dir paths are created if required and available
+  app_paths::init_app_paths();
+  
   let state = app.state::<AppState>();
+  // loggings still not yet setup
   state.read_preference(app);
 
-  init_log(&log_dir);
+  init_log(&app_paths::app_logs_dir());
   // Now onwards all loggings calls will be effective
 
   key_secure::init_key_main_store();
@@ -277,24 +197,6 @@ pub fn init_app(app: &App) {
   onekeepass_core::async_service::start_runtime();
 
   info!("{}", "Intit app is done");
-}
-
-pub fn app_resources_dir<R: Runtime>(app: tauri::AppHandle<R>) -> Result<String, String> {
-  if let Ok(path) = resolve_path(
-    &app.config(),
-    app.package_info(),
-    &Env::default(),
-    "../resources/public/",
-    Some(BaseDirectory::Resource),
-  ) {
-    path
-      .as_path()
-      .to_str()
-      .map(|s| s.into())
-      .ok_or("Could not resolve resource public dir".into())
-  } else {
-    Err("Could not resolve resource public dir".into())
-  }
 }
 
 // TODO Return Result<HashMap<>>
@@ -342,169 +244,8 @@ pub fn read_language_selection(preference_file_content: &str) -> String {
 }
 
 pub fn read_preference_file() -> String {
-  let pref_file_name = app_home_dir().join(APP_PREFERENCE_FILE);
+  let pref_file_name = app_paths::app_home_dir().join(APP_PREFERENCE_FILE);
   fs::read_to_string(pref_file_name).unwrap_or("".into())
-}
-
-#[inline]
-pub fn current_locale_language() -> String {
-  // "en-US" language+region
-  // We use the language part only to locate translation json files
-  let lng = get_locale().unwrap_or_else(|| String::from("en"));
-
-  // Returns the language id ( two letters)
-  lng
-    .split("-")
-    .map(|s| s.to_string())
-    .next()
-    .unwrap_or_else(|| String::from("en"))
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct TranslationResource {
-  current_locale_language: String,
-  prefered_language: String,
-  translations: HashMap<String, String>,
-}
-
-// "../resources/public/translations" should be included in "resources" key in  /desktop/src-tauri/tauri.conf.json
-const TRANSLATION_RESOURCE_DIR: &str = "../resources/public/translations";
-
-// Loads language translation strings for the passed language ids
-// Typically it should be en and the preferedd or the locale language 
-pub fn load_language_translations<R: Runtime>(
-  app: tauri::AppHandle<R>,
-  language_ids: Vec<String>,
-) -> kp_service::Result<TranslationResource> {
-  let current_locale_lng = current_locale_language(); //get_locale().unwrap_or_else(|| String::from("en")); // "en-US" language+region
-  debug!("current_locale is {}", &current_locale_lng);
-
-  let state = app.state::<AppState>();
-
-  // prefered_language as stored in Preference is either current locale language or
-  // language selected by user in App settings screen
-  let prefered_language = state.prefered_language();
-
-  debug!("prefered_language is {}", &prefered_language);
-
-  let language_ids_to_load = if !language_ids.is_empty() {
-    language_ids
-  } else {
-    if prefered_language != "en" {
-      vec![String::from("en"), prefered_language.clone()]
-    } else {
-      // locale is 'en'
-      vec![String::from("en")]
-    }
-  };
-
-  //IMPORTANT:
-  // "../resources/public/translations" should be included in "resources" key in  /desktop/src-tauri/tauri.conf.json
-  // Note: ../ in path will add _up_
-
-  let path = resolve_path(
-    &app.config(),
-    app.package_info(),
-    &Env::default(),
-    TRANSLATION_RESOURCE_DIR,
-    Some(BaseDirectory::Resource),
-  )
-  .map_err(|e| {
-    kp_service::Error::UnexpectedError(format!(
-      "Resource translations dir locations not found. Error is {} ",
-      e
-    ))
-  })?;
-
-  info!("Translation files root dir for i18n is {:?} ", &path);
-
-  let mut translations: HashMap<String, String> = HashMap::new();
-
-  for lng in language_ids_to_load {
-    
-    let p = path.join(format!("{}.json",&lng));
-    //debug!("Going to load translation file  {:?} ",&p);
-
-    let data = fs::read_to_string(p)
-      .ok()
-      .map_or_else(|| "{}".to_string(), |d| d);
-    //let data = fs::read_to_string(p)?;
-
-    translations.insert(lng, data);
-  }
-
-  Ok(TranslationResource {
-    current_locale_language: current_locale_lng,
-    prefered_language,
-    translations,
-  })
-}
-
-// As this struct has only "system_menus" field, serde json deserialization
-// will parse only that part of data from the file translation.json
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SystemMenuTranslation {
-  system_menus: HashMap<String, HashMap<String, String>>,
-}
-
-impl SystemMenuTranslation {
-  // Gets the translated string for a main menu from "main" map
-  pub fn main_menu(&self, name: &str) -> String {
-    let d = HashMap::default();
-    let s = self.system_menus.get("main").map_or_else(|| &d, |n| n);
-    s.get(name).map_or_else(|| name.into(), |v| v.into())
-  }
-
-  // Gets the translated string for a submenu from the "subMenus" map
-  pub fn sub_menu(&self, menu_id: &str, default_name: &str) -> String {
-    let d = HashMap::default();
-    let s = self.system_menus.get("subMenus").map_or_else(|| &d, |n| n);
-    let sm = s
-      .get(menu_id)
-      .map_or_else(|| default_name.into(), |v| v.into());
-    debug!("Submenu for menu_id {} is {}", menu_id, &sm);
-    sm
-  }
-}
-
-// Called to load the menu string translations before building the app
-pub fn load_system_menu_translations(
-  language: &str,
-  config: &tauri::Config,
-  package_info: &tauri::PackageInfo,
-) -> SystemMenuTranslation {
-  let mut system_menu_tr = SystemMenuTranslation {
-    system_menus: HashMap::default(),
-  };
-
-  let Ok(path) = resolve_path(
-    &config,
-    &package_info,
-    &Env::default(),
-    TRANSLATION_RESOURCE_DIR,
-    Some(BaseDirectory::Resource),
-  ) else {
-    return system_menu_tr;
-  };
-
-  let p = path.join(format!("{}.json",&language));
-
-  //println!("Json file is {:?}", &p);
-
-  let data = fs::read_to_string(p)
-    .ok()
-    .map_or_else(|| "{}".to_string(), |d| d);
-
-  // As SystemMenuTranslation struct has only "system_menus" field, serde json deserialization
-  // will parse only that part of data from the file translation.json
-
-  system_menu_tr =
-    serde_json::from_str::<SystemMenuTranslation>(&data).map_or(system_menu_tr, |v| v);
-
-  //println!("Loaded system menus {:?}", system_menu_tr);
-
-  system_menu_tr
 }
 
 fn init_log(log_dir: &PathBuf) {
@@ -538,11 +279,11 @@ fn init_log(log_dir: &PathBuf) {
 
 #[cfg(test)]
 mod tests {
-  use crate::utils::Preference;
+  use crate::app_state::Preference;
   use std::{collections::HashMap, fs, path::PathBuf};
   use toml::Value;
 
-  use super::generate_backup_file_name;
+  use crate::file_util::generate_backup_file_name;
   #[test]
   fn verify_preference_reading() {
     let pref_file_name = "/Users/jeyasankar/.onekeepass/dev/preference.toml";
