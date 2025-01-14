@@ -58,8 +58,8 @@
                                       on-change-handler
                                       select-field-options]}]
   ;; We are using the mui-text-field directly as select component 
-  ;; Another way also, this type of simple select list can be done using the following. 
-  ;; The examples given in mui.com uses now this method
+  ;; This type of simple select list can also be done using the following components 
+  ;; as given in the examples found mui.com which uses now this method
   ;; [mui-form-control [mui-input-label] [mui-select {} [mui-menu-item]] [mui-form-helper-text]  ]
   [mui-text-field {:id key
                    :sx {:margin-top cc/entry-cnt-field-margin-top}

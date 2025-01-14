@@ -239,6 +239,8 @@
                                      (swap! refs assoc key e))}
                    [mui-stack {:direction "row" :sx {:width (if edit "92%" "100%")}}
                     (cond
+                      ;; select-field-options is vec of strings and gets data from 
+                      ;; field 'select_field_options' in struct KeyValueData 
                       (not (nil? select-field-options))
                       [simple-selection-field (assoc kv
                                                      :edit edit

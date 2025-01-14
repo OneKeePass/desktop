@@ -23,7 +23,8 @@
       ],
       "resources": [
         "../resources/public/icons",
-        "../resources/public/translations"
+        "../resources/public/translations",
+        "../resources/public/wordlists"
       ],
       "externalBin": [],
       "copyright": "",

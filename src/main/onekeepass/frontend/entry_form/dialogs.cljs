@@ -2,12 +2,11 @@
   (:require [clojure.string :as str]
             [onekeepass.frontend.common-components
              :refer [alert-dialog-factory confirm-text-dialog
-                     enter-key-pressed-factory selection-autocomplete]]
+                     enter-key-pressed-factory selection-autocomplete on-change-factory
+                                                                      on-check-factory]]
             [onekeepass.frontend.db-icons :as db-icons]
             [onekeepass.frontend.entry-form.common :as ef-cmn :refer [popper-button-sx
-                                                                      theme-popper-box-sx]]
-            [onekeepass.frontend.events.common :as ce :refer [on-change-factory
-                                                              on-check-factory]]
+                                                                      theme-popper-box-sx]] 
             [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
             [onekeepass.frontend.events.entry-form-ex :as form-events]
             [onekeepass.frontend.events.move-group-entry :as move-events]

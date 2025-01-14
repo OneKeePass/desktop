@@ -6,7 +6,7 @@
             [onekeepass.frontend.constants :as const :refer [ADD_TAG_PREFIX
                                                              DB_CHANGED]]
             [onekeepass.frontend.events.common-supports :as cmn-supports]
-            [onekeepass.frontend.translation :refer-macros [tr-dlg-title tr-dlg-text ] :refer [lstr-sm]]
+            [onekeepass.frontend.translation :refer-macros [tr-dlg-title tr-dlg-text] :refer [lstr-sm]]
             [onekeepass.frontend.utils :refer [contains-val? str->int
                                                utc-to-local-datetime-str]]
             [re-frame.core :refer [dispatch dispatch-sync reg-event-db
@@ -41,6 +41,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;  Common factory ;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; TODO: Move to common-components
 (defn on-change-factory
   "A function factory 
    The arg 'handler-name' is a fn that is called with supplier arg 'field-name-kw' and 
@@ -62,7 +63,7 @@
 (declare set-session-timeout)
 
 #_(defn load-language-translation-completed []
-  (dispatch [:load-language-translation-complete]))
+    (dispatch [:load-language-translation-complete]))
 
 (defn new-db-full-file-name [app-db db-name]
   (let [document-dir (-> app-db :standard-dirs :document-dir)
@@ -94,6 +95,9 @@
 
 (defn os-name []
   (subscribe [:os-name]))
+
+(defn app-preference-phrase-generator-options [app-db]
+  (-> app-db :app-preference :password-gen-preference :phrase-generator-options))
 
 (reg-event-fx
  :init-process
@@ -164,7 +168,7 @@
 
 (reg-event-fx
  :clear-recent-files-done
- (fn [{:keys [db]} [_event-id]] 
+ (fn [{:keys [db]} [_event-id]]
    {:db (assoc-in db [:app-preference :recent-files] [])}))
 
 (reg-sub

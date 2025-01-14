@@ -1,33 +1,30 @@
 (ns onekeepass.frontend.common-components
-  (:require [clojure.string :as str]
-            [onekeepass.frontend.background :as bg]
-            [onekeepass.frontend.constants :refer [ADD_TAG_PREFIX]]
-            [onekeepass.frontend.events.common :as cmn-events]
-            [onekeepass.frontend.mui-components :as m :refer [auto-sizer
-                                                              fixed-size-list
-                                                              is-light-theme?
-                                                              mui-alert
-                                                              mui-autocomplete
-                                                              mui-box
-                                                              mui-button
-                                                              mui-dialog
-                                                              mui-dialog-actions
-                                                              mui-dialog-content
-                                                              mui-dialog-content-text
-                                                              mui-dialog-title
-                                                              mui-icon-button
-                                                              mui-icon-close-outlined
-                                                              mui-icon-file-copy-outlined
-                                                              mui-linear-progress
-                                                              mui-snackbar
-                                                              mui-stack
-                                                              mui-text-field-type
-                                                              mui-tooltip
-                                                              mui-typography
-                                                              react-use-state]]
-            [onekeepass.frontend.translation :refer-macros [tr-bl] :refer [lstr-sm]]
-            [onekeepass.frontend.utils :refer [contains-val?]]
-            [reagent.core :as r]))
+  (:require
+   [clojure.string :as str]
+   [onekeepass.frontend.background :as bg]
+   [onekeepass.frontend.constants :refer [ADD_TAG_PREFIX]]
+   [onekeepass.frontend.events.common :as cmn-events]
+   [onekeepass.frontend.mui-components :as m :refer [auto-sizer
+                                                     fixed-size-list
+                                                     is-light-theme? mui-alert
+                                                     mui-autocomplete mui-box
+                                                     mui-button mui-dialog
+                                                     mui-dialog-actions
+                                                     mui-dialog-content
+                                                     mui-dialog-content-text
+                                                     mui-dialog-title
+                                                     mui-icon-button
+                                                     mui-icon-close-outlined
+                                                     mui-icon-file-copy-outlined
+                                                     mui-linear-progress
+                                                     mui-snackbar mui-stack
+                                                     mui-text-field-type
+                                                     mui-tooltip
+                                                     mui-typography
+                                                     react-use-state]]
+   [onekeepass.frontend.translation :refer-macros [tr-bl] :refer [lstr-sm]]
+   [onekeepass.frontend.utils :refer [contains-val? str->int]]
+   [reagent.core :as r]))
 
 #_(set! *warn-on-infer* true)
 
@@ -42,28 +39,28 @@
 ;; children ? 
 
 #_(defn theme-text-field-read-sx [theme-mode]
-  {"&.MuiInput-root"
-   {:border 0
-    :border-bottom  (if (is-light-theme?)
-                      "1px solid #eeeeee" (str "1px solid " "rgba(255, 255, 255, 0.3)"))
+    {"&.MuiInput-root"
+     {:border 0
+      :border-bottom  (if (is-light-theme?)
+                        "1px solid #eeeeee" (str "1px solid " "rgba(255, 255, 255, 0.3)"))
                                     ;;  :border-bottom-color "#eeeeee"
                                     ;;  :border-bottom-style "solid"
                                     ;;  :border-bottom-width "1px"
-    }
+      }
 
   ;;  "&.Mui-focused"
   ;;  {:border "1px solid var(--color-primary-main)"
   ;;   :border-bottom "1px solid var(--color-primary-main)"}
-   })
+     })
 
 #_(defn theme-text-field-edit-sx [theme-mode]
-  {"&.MuiInput-root"
-   {:border "1px solid grey"
-    :outline "1px solid transparent"}
+    {"&.MuiInput-root"
+     {:border "1px solid grey"
+      :outline "1px solid transparent"}
 
-   "&.Mui-focused"
-   {:border "1px solid var(--color-primary-main)"
-    :outline "1px solid var(--color-primary-main)"}})
+     "&.Mui-focused"
+     {:border "1px solid var(--color-primary-main)"
+      :outline "1px solid var(--color-primary-main)"}})
 
 (defn theme-text-field-sx [edit theme]
   (if edit
@@ -508,6 +505,37 @@
                        :sx (:sx props)
                        :on-click #(bg/write-to-clipboard value)}
       [mui-icon-file-copy-outlined]])))
+
+#_(defn on-change-factory
+    "A function factory 
+   The arg 'handler-name' is a fn that is called with supplier arg 'field-name-kw' and 
+   the event value
+   Returns a function that can be used in a on-change handler of a text field
+  "
+    [handler-name field-name-kw]
+    (fn [^js/Event e]
+      (handler-name field-name-kw (-> e .-target  .-value))))
+
+(defn on-change-factory
+  "A function factory 
+     The arg 'handler-name' is a fn that is called 
+     with supplied arg 'field-name-kw' and the event value
+     Returns a function that can be used in a on-change handler of a text field
+  "
+  ([handler-name field-name-kw int-val] 
+   (fn [^js/Event e]
+     (let [val (-> e .-target  .-value)
+               ;; Need to ensure that length is an int as expected by backend api
+           val (if int-val  (str->int val) val)]
+       (handler-name field-name-kw val))))
+  ([handler-name field-name-kw]
+   (on-change-factory handler-name field-name-kw false)))
+
+(defn on-check-factory
+  "Called in on-change handler of a check field"
+  [handler-name field-name-kw]
+  (fn [e]
+    (handler-name field-name-kw (-> e .-target  .-checked))))
 
 (defn overflow-tool-tip
   "Tooltip is enabled only when the text has ellipsis shown
