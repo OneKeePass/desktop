@@ -1,11 +1,13 @@
 (ns onekeepass.frontend.events.password-generator
   (:require
-   [re-frame.core :refer [reg-event-db reg-event-fx reg-fx reg-sub dispatch subscribe]]
    [clojure.string :as str]
-   [onekeepass.frontend.translation :refer-macros [tr-m]]
-   [onekeepass.frontend.events.common :as cmn-events :refer [check-error]]
    [onekeepass.frontend.background :as bg]
-   [onekeepass.frontend.background-password :as bg-pwd]))
+   [onekeepass.frontend.background-password :as bg-pwd]
+   [onekeepass.frontend.events.common :as cmn-events :refer [check-error
+                                                             on-error]]
+   [onekeepass.frontend.translation :refer-macros [tr-m]]
+   [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-fx reg-sub
+                          subscribe]]))
 
 
 (defn generator-dialog-data-update [kw value]
@@ -22,13 +24,20 @@
 (defn set-active-password-generator-panel [kw-panel-id]
   (dispatch [:set-active-password-generator-panel kw-panel-id]))
 
-(defn pass-phrase-options-update [kw value]
+(defn pass-phrase-options-update
+  "Called to update pass phrase option fields that are not enum fields"
+  [kw value]
   (dispatch [:pass-phrase-options-update kw value]))
+
+(defn pass-phrase-options-select-field-update
+  "Called to update pass phrase option fields that are formed from enums WordListSource and ProbabilityOption "
+  [field-name-kw value]
+  (dispatch [:pass-phrase-options-select-field-update field-name-kw value]))
 
 (defn generator-dialog-data []
   (subscribe [:generator-dialog-data]))
 
-(defn generator-panel-selected []
+#_(defn generator-panel-selected []
   (subscribe [:generator-panel-selected]))
 
 ;;;;
@@ -155,12 +164,12 @@
  (fn [db [_query-id]]
    (get-in db [:generator :dialog-data])))
 
-(reg-sub
+#_(reg-sub
  :generator-password-result
  (fn [db [_query-id]]
    (get-in db [:generator :dialog-data :password-result])))
 
-(reg-sub
+#_(reg-sub
  :generator-panel-selected
  (fn [db [_query-id]]
    (get-in db [:generator :dialog-data :panel-shown])))
@@ -169,28 +178,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;; Pass phrase ;;;;;;;;;;;;;;;;;;;;;;
 (reg-event-fx
  :set-active-password-generator-panel
- (fn [{:keys [db]} [_event-id  kw-panel-id]] 
+ (fn [{:keys [db]} [_event-id  kw-panel-id]]
    (let [po (get-in db [:generator :dialog-data :password-options])
          ppo (get-in db [:generator :dialog-data :phrase-generator-options])]
      {:db (assoc-in db [:generator :dialog-data :panel-shown] kw-panel-id)
       :fx [(if (= kw-panel-id :password)
              [:bg-analyzed-password po] [:bg-generate-password-phrase ppo])]})))
-
-(reg-fx
- :bg-generate-password-phrase
- (fn [pass-phrase-options]
-   (bg-pwd/generate-password-phrase
-    pass-phrase-options
-    (fn [api-response]
-      (when-let [result (check-error api-response #(dispatch [:common/message-snackbar-error-open %]))]
-        (dispatch [:pass-phrase-generation-complete result]))))))
-
-;; map generated-pass-phrase is from struct GeneratedPassPhrase
-(reg-event-fx
- :pass-phrase-generation-complete
- (fn [{:keys [db]} [_event-id {:keys [password] :as generated-pass-phrase}]]
-   ;;(println "generated-pass-phrase is " generated-pass-phrase)
-   {:fx [[:dispatch [:password-generation-complete generated-pass-phrase] ]]}))
 
 (reg-event-fx
  :pass-phrase-options-update
@@ -201,44 +194,65 @@
          {:keys [words] :as po} (get-in db [:generator :dialog-data :phrase-generator-options])]
      (if (empty? (str/trim (str words)))
        {:db db
-        :fx [[:dispatch [:common/message-snackbar-error-open "At least 1 word is required" #_(tr-m passwordGenerator above8)]]]}
+        :fx [[:dispatch [:common/message-snackbar-error-open (tr-m passwordGenerator "atLeastOneWord")]]]}
        {:db db
         :fx [[:dispatch [:common/message-snackbar-error-close]]
              [:bg-generate-password-phrase po]]}))))
 
-#_(reg-event-fx
-   :pass-phrase-generator/start
-   (fn [{:keys [db]} [_event-id callback-on-copy-fn]]
-     (let [phrase-generator-options (cmn-events/app-preference-phrase-generator-options db)
-           db (-> db init-dialog-data
-                  (assoc-in [:generator :dialog-data :callback-on-copy-fn] callback-on-copy-fn))
-           po (get-in db [:generator :dialog-data :password-options])]
-       {:db db
-        :fx [[:bg-analyzed-password po]]})))
 
-#_(def pass-phrase-generator-dialog-init-data
-    {:dialog-show false
-     :password-visible false
-     :text-copied false
-     :callback-on-copy-fn nil
-     :phrase-generator-options {}
-   ;;;
-     :password-result {:password nil
-                       :analyzed-password nil
-                       :is-common false
-                      ;; value of :score is a map from enum PasswordScore
-                      ;; note the use of #[serde(tag = "name")] in PasswordScore
-                       :score {:name nil
-                               :raw-value nil
-                               :score-text nil}}})
+(reg-event-fx
+ :pass-phrase-options-select-field-update
+ (fn [{:keys [db]} [_event-id field-name-kw value]]
+   (let [db (-> db (assoc-in [:generator :dialog-data :phrase-generator-options field-name-kw :type-name] value)
+                (to-generator-dialog-data :text-copied false))
+         ;; For now, we set probability value of 50% as content. That is half the time
+         db (if (or (= field-name-kw :capitalize-first) (= field-name-kw :capitalize-words))
+              (if (= value "Sometimes")
+                (assoc-in db [:generator :dialog-data :phrase-generator-options field-name-kw :content] 0.5)
+                (assoc-in db [:generator :dialog-data :phrase-generator-options field-name-kw :content] nil))
+              db)
+
+         po (get-in db [:generator :dialog-data :phrase-generator-options])]
+
+     {:db db
+      :fx [[:bg-generate-password-phrase po]]})))
+
+(reg-fx
+ :bg-generate-password-phrase
+ (fn [pass-phrase-options]
+   (bg-pwd/generate-password-phrase
+    pass-phrase-options
+    (fn [api-response]
+      (when-let [result (check-error api-response #(dispatch [:common/message-snackbar-error-open %]))]
+        (dispatch [:pass-phrase-generation-complete result]))))))
+
+;; map generated-pass-phrase-m is from struct GeneratedPassPhrase
+(reg-event-fx
+ :pass-phrase-generation-complete
+ (fn [{:keys [db]} [_event-id generated-pass-phrase-m]]
+   ;; We check whether the user changed any pass pgrase generation option and we call 
+   ;; the preference update accordingly
+   (let [pref-data (cmn-events/app-preference-phrase-generator-options db)
+         pp-data (get-in db [:generator :dialog-data :phrase-generator-options])
+         modified (not= pref-data pp-data) #_(and (seq pref-data) (not= pref-data pp-data))]
+
+     {:fx [[:dispatch [:password-generation-complete generated-pass-phrase-m]]
+           (when modified
+             [:bg-update-pass-gen-preference {:pass-phrase-options pp-data}])]})))
 
 
-#_(defn- init-pass-phrase-dialog-data [app-db]
-    (let [phrase-generator-options (cmn-events/app-preference-phrase-generator-options app-db)
-          data (assoc pass-phrase-generator-dialog-init-data  :phrase-generator-options  phrase-generator-options)]
-      (assoc-in app-db [:generator :dialog-data] data)))
-
-
+;; This is similar to the app preference update call in
+;; src/main/onekeepass/frontend/events/app_settings.cljs
+;; Here we are using 'bg/update-preference' to update the PasswordGeneratorPreference only
+(reg-fx
+ :bg-update-pass-gen-preference
+ (fn [preference-data]
+   (bg/update-preference preference-data
+                         (fn [api-reponse]
+                           (when-not (on-error api-reponse)
+                             ;; Reloads the whole app preference 
+                             ;; This ensures the pass phrase option in preference data is the updated one 
+                             (dispatch [:common/load-app-preference]))))))
 
 
 (comment

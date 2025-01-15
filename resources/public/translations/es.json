@@ -31,7 +31,7 @@
         "getStarted": "Empezar",
         "entryManagement": "Gestión de entradas",
         "openDatabase": "Base de datos abierta",
-        "newEntry":"Nueva entrada",
+        "newEntry": "Nueva entrada",
         "newEntryType": "Nuevo tipo de entrada personalizada",
         "recent": "Recientes",
         "start": "Inicio",
@@ -100,7 +100,7 @@
         "lastModified": "Última modificación",
         "lastModificationTime": "Hora de la última modificación",
         "length": "Longitud",
-        "light": "Ligero",
+        "light": "Claro",
         "lowerCaseAZ": "Minúsculas (a-z)",
         "memoryUsage": "Uso de la memoria",
         "modifySectionName": "Modificar el nombre de la sección",
@@ -121,7 +121,7 @@
         "previousVersions": "Versiones anteriores",
         "remove": "Eliminar",
         "saveAs": "Guardar como",
-        "searchTerm":"Término de búsqueda",
+        "searchTerm": "Término de búsqueda",
         "security": "Seguridad",
         "sessionTimeout": "Tiempo de espera de la sesión (en minutos)",
         "setUpOneTimePassword": "Configurar contraseña de un solo uso",
@@ -165,7 +165,7 @@
             "passwordGenerator": "Generador de contraseñas",
             "putBack": "Poner de nuevo",
             "restoreEntry": "Restablecer entrada",
-            "search":"Buscar",
+            "search": "Buscar",
             "sectionField1": "Añadir campo en {{sección Nombre}}",
             "sectionField2": "Modificar campo en {{sección Nombre }}",
             "unsavedChanges": "Cambios no guardados"
@@ -328,13 +328,12 @@
             "above8": "Se requiere un número de longitud válido y debe ser 8 o superior"
         }
     },
-    "snackbarMessages":{
-        "dbBackupCompleted":"Se ha guardado la copia de seguridad de la base de datos",
-        "dbClosed":"Base de datos cerrada {{- dbFileName}}",
-        "entryCreated":"Se crea una nueva entrada",
-        "entryUpdated":"Entrada actualizada",
-        "dbOpened":"Base de datos abierta {{- dbFileName}}"
-       
+    "snackbarMessages": {
+        "dbBackupCompleted": "Se ha guardado la copia de seguridad de la base de datos",
+        "dbClosed": "Base de datos cerrada {{- dbFileName}}",
+        "entryCreated": "Se crea una nueva entrada",
+        "entryUpdated": "Entrada actualizada",
+        "dbOpened": "Base de datos abierta {{- dbFileName}}"
     },
     "systemMenus": {
         "main": {

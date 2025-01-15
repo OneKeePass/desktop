@@ -6,6 +6,7 @@ use crate::{
   app_paths::app_backup_dir, constants::{standard_file_names::APP_PREFERENCE_FILE, themes::LIGHT}, password_gen_preference::PasswordGeneratorPreference, translation
 };
 
+use onekeepass_core::db_service as kp_service;
 use crate::app_paths::app_home_dir;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -30,6 +31,7 @@ pub struct PreferenceData {
   pub default_entry_category_groupings: Option<String>,
   pub theme: Option<String>,
   pub language: Option<String>,
+  pub pass_phrase_options:Option<kp_service::PassphraseGenerationOptions>,
 }
 // Old preference used before introduction of fields clipboard_timeout,theme ,language
 // Leaving it here for documentation purpose only
@@ -225,6 +227,7 @@ impl Preference {
 
   // Update the preference with any non null values
   pub fn update(&mut self, preference_data: PreferenceData) {
+    // TODO: Need to have a 'macro' for this  
     let mut updated = false;
     if let Some(v) = preference_data.language {
       self.language = v;
@@ -248,6 +251,11 @@ impl Preference {
 
     if let Some(v) = preference_data.clipboard_timeout {
       self.clipboard_timeout = v;
+      updated = true;
+    }
+
+    if let Some(v) = preference_data.pass_phrase_options {
+      self.password_gen_preference.update_pass_phrase_options(v);
       updated = true;
     }
 
