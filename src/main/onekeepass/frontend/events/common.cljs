@@ -230,9 +230,16 @@
 
 (defn set-active-db-key
   "Sets the new current active db"
-  [db-key]
-  #_(dispatch [:set-active-db-key db-key])
-  (dispatch [:change-active-db-complete db-key]))
+  [db-key] 
+  (dispatch [:common/change-active-db-complete db-key]))
+
+(defn set-active-db-key-direct 
+  "Called to set the current db to the given db-key and thus making it active
+   It is assumed that the 'db-key' is already available in the opened db list
+   Returns the updated app-db map
+    "
+  [app-db db-key]
+  (assoc app-db :current-db-file-name db-key))
 
 (defn opened-db-list
   "Gets an atom to get all opened db summary list if app-db is not passed"
@@ -449,8 +456,13 @@
 (defn locked?
   ([]
    (subscribe [:common/current-db-locked]))
-  ([app-db]
-   (boolean (get-in-key-db app-db [:locked]))))
+  ;; Following two fns access the app-db directly
+  ([app-db] 
+   ;; Current db key is used
+   (boolean (get-in-key-db app-db [:locked])))
+  ([app-db db-key]
+   ;; Finds out whether the db that has the db-key is locked or not
+   (boolean (get-in app-db [db-key :locked]))))
 
 (defn unlock-current-db
   "Unlocks the database using biometric option if available"
@@ -478,7 +490,7 @@
 ;; Dispatched from a open-db-form event
 (reg-event-fx
  :common/kdbx-database-unlocked
- (fn [{:keys [db]} [_event-id _kdbx-loaded]]
+ (fn [{:keys [db]} [_event-id _kdbx-loaded]] 
    {:db (assoc-in-key-db db [:locked] false)
     :fx [;; TODO: Combine these reset calls with 'common/kdbx-database-loading-complete'
          [:dispatch [:load-all-tags]]
@@ -707,7 +719,7 @@
    {:opened-db-list []}))
 
 (reg-event-fx
- :change-active-db-complete
+ :common/change-active-db-complete
  (fn [{:keys [db]} [_event-id db-key]]
    (let [db (assoc db :current-db-file-name db-key)]
      {:db db})))

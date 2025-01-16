@@ -31,7 +31,7 @@ fn key_names() -> &'static HashSet<&'static str> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum PlaceHolder<'a> {
+enum PlaceHolder<'a> {
   Attribute(&'a str),
   KeyName(&'a str, i32), //include optional repeat field
   Delay(i32),
@@ -49,9 +49,9 @@ fn fenced_name<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, &'a str> {
   )
 }
 
-// Extracts the modifiers if any with the an optional single letter at the end
-// parser verify ensures we have only one charater at the end
-fn modifier_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder> {
+// Extracts the modifiers if any with the an optional single letter at the end.
+// The parser 'verify' ensures that we have only one charater at the end
+fn modifier_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder<'a>> {
   map(
     tuple((
       multispace0,
@@ -64,7 +64,7 @@ fn modifier_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder>
 }
 
 // Extracts the attribute name and verifies that the name is accepted one
-fn standard_field_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder> {
+fn standard_field_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder<'a>> {
   map(
     verify(
       map(
@@ -75,7 +75,7 @@ fn standard_field_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceH
           tag("}"),
           multispace0,
         )),
-        // x is a tuple and map call returns the actual extracted value from third member ( indx 2) of tuple
+        // x is a tuple and map call returns the actual extracted value from third member ( index 2 - take_until output) of tuple
         |x| x.2,
       ),
       // Verifies that the map call returned value
@@ -89,7 +89,7 @@ fn standard_field_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceH
 // Extracts the attribute name and verifies that the name is accepted one
 fn custom_field_parser<'a>(
   entry_fields: &'a HashMap<String, String>,
-) -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder> {
+) -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder<'a>> {
   map(
     verify(
       map(
@@ -102,7 +102,7 @@ fn custom_field_parser<'a>(
           tag("}"),
           multispace0,
         )),
-        // x is a tuple and map call returns the actual extracted value from fifth member ( indx 5) of tuple
+        // x is a tuple and map call returns the actual extracted value from fifth member ( index 5) of tuple
         |x| x.4,
       ),
       // Verifies that the map call returned key value that is found in 'entry_fields'
@@ -125,7 +125,7 @@ fn to_num<'a>(default_val: i32) -> impl FnMut(&'a str) -> IResult<&'a str, i32> 
 
 // Gets any key name with any optional repeat value
 // Repeat a key  x times (e.g., {SPACE 5} inserts five spaces)
-fn key_name_opt_repeat_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder> {
+fn key_name_opt_repeat_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder<'a>> {
   map_parser(
     fenced_name(),
     map(
@@ -156,7 +156,7 @@ fn key_name_opt_repeat_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, P
   )
 }
 
-fn delay_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder> {
+fn delay_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder<'a>> {
   map_parser(
     fenced_name(),
     map(
@@ -181,7 +181,7 @@ fn delay_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder> {
   )
 }
 
-fn key_delay_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder> {
+fn key_delay_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder<'a>> {
   map_parser(
     fenced_name(),
     map(
@@ -209,7 +209,7 @@ fn key_delay_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder
 }
 
 #[derive(Debug)]
-pub struct PlaceHolderParser<'a> {
+struct PlaceHolderParser<'a> {
   input: &'a str,
   entry_fields: &'a HashMap<String, String>,
 }
@@ -290,7 +290,7 @@ impl<'a> From<PlaceHolder<'_>> for ParsedPlaceHolderVal {
 pub fn parse_auto_type_sequence(
   // This is the string that needs to be parsed
   sequence: &str,
-  // This maps the filed names to its values. 
+  // This maps the field names to its values. 
   // The parsed field names will be replaced with the actual value
   entry_fields: &HashMap<String, String>,
 ) -> Result<Vec<ParsedPlaceHolderVal>, String> {

@@ -1,25 +1,23 @@
 (ns onekeepass.frontend.events.entry-form-ex
-  (:require ;; Need to be called here so that events are registered
- ;; Should it be moved to core.cljs ?
-            [clojure.string :as str]
-            [onekeepass.frontend.background :as bg] ;; Need to be called here so that events are registered
-            [onekeepass.frontend.constants :as const :refer [PASSWORD]]
-            [onekeepass.frontend.events.common :as cmn-events :refer [active-db-key
-                                                                      assoc-in-key-db
-                                                                      check-error
-                                                                      fix-tags-selection-prefix
-                                                                      get-in-key-db
-                                                                      on-error]]
-            [onekeepass.frontend.events.entry-form-common :refer [add-section-field
-                                                                  entry-form-key
-                                                                  extract-form-otp-fields
-                                                                  is-field-exist
-                                                                  merge-section-key-value]] ;; Need to be called here so that events are registered
-            [onekeepass.frontend.events.entry-form-otp :as ef-otp-events]
-            [onekeepass.frontend.translation :refer [lstr-sm]]
-            [onekeepass.frontend.utils :as u :refer [contains-val?]]
-            [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-fx
-                                   reg-sub subscribe]]))
+  (:require 
+   [clojure.string :as str]
+   [onekeepass.frontend.background :as bg] 
+   [onekeepass.frontend.constants :as const :refer [PASSWORD]]
+   [onekeepass.frontend.events.common :as cmn-events :refer [active-db-key
+                                                             assoc-in-key-db
+                                                             check-error
+                                                             fix-tags-selection-prefix
+                                                             get-in-key-db
+                                                             on-error]]
+   [onekeepass.frontend.events.entry-form-common :refer [add-section-field
+                                                         entry-form-key
+                                                         extract-form-otp-fields
+                                                         is-field-exist
+                                                         merge-section-key-value]] ;; Need to be called here so that events are registered 
+   [onekeepass.frontend.translation :refer [lstr-sm]]
+   [onekeepass.frontend.utils :as u :refer [contains-val?]]
+   [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-fx
+                          reg-sub subscribe]]))
 
 (def Favorites "Favorites")
 
@@ -75,7 +73,7 @@
   [_e tags]
   (dispatch [:entry-form-tags-selected-ex (fix-tags-selection-prefix tags)]))
 
-(defn section-date-field-on-change-factory
+#_(defn section-date-field-on-change-factory
   "Creates an event handler to handle an event when the date is changed in the date picker"
   [section key]
   (fn [date-val kb]
@@ -196,7 +194,7 @@
   ;;Delegates to a subcriber in group tree event
   (subscribe [:group-tree-content/groups-listing]))
 
-(defn is-entry-parent-group-deleted 
+(defn is-entry-parent-group-deleted
   [group-uuid]
   (subscribe [:group-tree-content/group-in-recycle-bin group-uuid]))
 
@@ -448,18 +446,18 @@
 
 
 #_(reg-event-db
- :cancel-entry-edit-ex
- (fn [db [_event-id]]
-   (let [undo-data (get-in-key-db db [entry-form-key :undo-data])
-         data (get-in-key-db db [entry-form-key :data])]
-     (if (and (seq undo-data) (not= undo-data data))
-       (-> db (assoc-in-key-db [entry-form-key :data] undo-data)
-           (assoc-in-key-db [entry-form-key :undo-data] {})
-           (assoc-in-key-db [entry-form-key :edit] false)
-           (assoc-in-key-db [entry-form-key :error-fields] {}))
-       (-> db (assoc-in-key-db  [entry-form-key :edit] false)
-           (assoc-in-key-db [entry-form-key :undo-data] {})
-           (assoc-in-key-db [entry-form-key :error-fields] {}))))))
+   :cancel-entry-edit-ex
+   (fn [db [_event-id]]
+     (let [undo-data (get-in-key-db db [entry-form-key :undo-data])
+           data (get-in-key-db db [entry-form-key :data])]
+       (if (and (seq undo-data) (not= undo-data data))
+         (-> db (assoc-in-key-db [entry-form-key :data] undo-data)
+             (assoc-in-key-db [entry-form-key :undo-data] {})
+             (assoc-in-key-db [entry-form-key :edit] false)
+             (assoc-in-key-db [entry-form-key :error-fields] {}))
+         (-> db (assoc-in-key-db  [entry-form-key :edit] false)
+             (assoc-in-key-db [entry-form-key :undo-data] {})
+             (assoc-in-key-db [entry-form-key :error-fields] {}))))))
 
 (defn- update-entry [db dispatch-fn]
   (let [form-data (get-in-key-db db [entry-form-key :data])]

@@ -111,8 +111,10 @@
   [db-list]
   [mui-box
    [mui-box
-    [mui-tabs {:value @(cmn-events/active-db-key)
+    [mui-tabs {;; This determines which tab's content shown
+               :value @(cmn-events/active-db-key)
                ;; Sets the active db so that group-entry-content can show selected db data
+               ;; 'val' is from :value prop of 'mui-tab' below
                :on-change (fn [_event val] (cmn-events/set-active-db-key val))}
      (doall
       (for [{:keys [db-key database-name]} db-list]
