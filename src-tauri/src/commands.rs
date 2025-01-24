@@ -13,6 +13,7 @@ use std::path::Path;
 use uuid::Uuid;
 
 use crate::app_state::SystemInfoWithPreference;
+use crate::auto_open::{AutoOpenProperties, AutoOpenPropertiesResolved};
 use crate::menu::{self, MenuActionRequest, MenuTitleChangeRequest};
 use crate::{app_paths, translation};
 use crate::{app_preference, app_state};
@@ -343,6 +344,13 @@ pub(crate) async fn entry_form_current_otps(
 #[command]
 pub(crate) async fn form_otp_url(otp_settings: kp_service::OtpSettings) -> Result<String> {
   Ok(kp_service::form_otp_url(&otp_settings)?)
+}
+
+#[command]
+pub(crate) async fn resolve_auto_open_properties(
+  auto_open_properties: AutoOpenProperties,
+) -> Result<AutoOpenPropertiesResolved> {
+  Ok(auto_open_properties.resolve()?)
 }
 
 #[command]

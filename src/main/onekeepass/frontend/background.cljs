@@ -7,15 +7,15 @@
    [camel-snake-kebab.extras :as cske]
    [camel-snake-kebab.core :as csk]
    [onekeepass.frontend.utils :refer [contains-val?]]
-   
-   [onekeepass.frontend.background-common :as bg-cmn]
+
+   [onekeepass.frontend.background-common :as bg-cmn :refer [to-snake-case]]
    [onekeepass.frontend.background-password :as bg-pwd]
 
    ;; All tauri side corresponding endpoint command apis can be found in 
    ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/endpoints
    ;; The api implementation is in 
    ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/api 
-   
+
    ["@tauri-apps/api/dialog" :refer (open,save)]
    #_["@tauri-apps/api/tauri" :refer (invoke)]
    ["@tauri-apps/api/clipboard" :refer [writeText readText]]
@@ -101,19 +101,32 @@
       ;;TODO Add returning error to dispatch-fn
       (catch js/Error err (js/console.log (ex-cause err))))))
 
+;; https://v1.tauri.app/v1/api/js/shell#open
+(defn- tauri-shell-open
+  "Uses tauri shell open api to open a website or a file using 
+  the system's default app
+  "
+  [path dispatch-fn]
+  (go
+    (try
+      (let [f (<p! (tauri-shell/open path))]
+        (dispatch-fn {:result f}))
+      (catch js/Error err
+        (dispatch-fn {:error (ex-cause err)})
+        (js/console.log (ex-cause err))))))
+
 (defn open-file
   "Opens a file passed as 'file-name' from the local file system with the system's default app
    The arg 'file-name' expected to be the complete path.
    Any error in opening is passed as {:error msg} to the 'dispatch-fn'
   "
   [file-name dispatch-fn]
-  (go
-    (try
-      (let [f (<p! (tauri-shell/open file-name))]
-        (dispatch-fn {:result f}))
-      (catch js/Error err
-        (dispatch-fn {:error (ex-cause err)})
-        (js/console.log (ex-cause err))))))
+  (tauri-shell-open file-name dispatch-fn))
+
+(defn open-url
+  "Url is expected to start with https:// or http://,  otherwise it will result in an error"
+  [url dispatch-fn]
+  (tauri-shell-open url dispatch-fn))
 
 (defn write-to-clipboard
   "Copies given data to the clipboard - equivalent to Cmd + C"
@@ -568,6 +581,11 @@
     (invoke-api api-to-call (clj->js api-args) dispatch-fn
                 :convert-request false)))
 
+;;;;;;;;;;;;;;;  Auto open ;;;;;;;;;;;;;;
+
+(defn resolve-auto-open-properties [auto-open-properties dispatch-fn]
+  (invoke-api "resolve_auto_open_properties" {:autoOpenProperties auto-open-properties} dispatch-fn))
+
 ;;;;;;;;;;;;;;;; OTP related ;;;;;;;;;;;;
 
 ;; deprecate
@@ -635,6 +653,10 @@
 
 
 (comment
+  (def auto-open-properties {:source-db-key "/Users/jeyasankar/Documents/OneKeePass/TestAutoOpenXC.kdbx"
+                             :url-field-value "kdbx://{DB_DIR}/f1/PasswordsUsesKeyFile2.kdbx"
+                             :key-file-path "./f1//mytestkey2.keyx"
+                             :device_if_val nil})
   (-> @re-frame.db/app-db keys)
   (def db-key (:current-db-file-name @re-frame.db/app-db))
   (-> @re-frame.db/app-db (get db-key) keys)

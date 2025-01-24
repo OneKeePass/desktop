@@ -42,7 +42,11 @@
    [mui-tab {:label (lstr-l 'passwordPhrase) :value :pass-phrase}]])
 
 
-;; TODO: Move to 'common-components' and also change in 'src/main/onekeepass/frontend/entry_form/fields.cljs'
+;; When this field has the focus, Shift + Down key will show the menu items and can then be used to move up or down.
+;; Also if we press the first letter (case sensitive ) of any options, then cursor moves to that menu item option
+
+;; TODO: 
+;; Move to 'common-components' and also change in 'src/main/onekeepass/frontend/entry_form/fields.cljs'
 ;; to use this common one
 (defn simple-selection-field [{:keys [id
                                       field-name
@@ -71,11 +75,32 @@
             (let [{:keys [value label]} (if (string? y) {:value y :label y} y)]
               ^{:key y} [m/mui-menu-item {:value value} label])))])
 
+;; Another way of doings 'select' field. Not complete. Leaving it here as an example
+#_(defn simple-selection-field-1
+    [{:keys [id
+             field-name
+             value
+             edit
+             error-text
+             helper-text
+             on-change-handler
+             select-field-options]} & {:as opts}]
+
+    [m/mui-form-control
+     [m/mui-input-label {:id (if (nil? id) field-name id) :variant "standard"}]
+     [m/mui-select {:labelId (str (if (nil? id) field-name id) "-select")
+                    :label field-name
+                    :value value
+                    :on-change on-change-handler}
+      (doall (for [y select-field-options]
+               (let [{:keys [value label]} (if (string? y) {:value y :label y} y)]
+                 ^{:key y} [m/mui-menu-item {:value value} label])))]])
+
 ;; values should match enum WordListSource
 (def all-wl [{:value "EFFLarge" :label "EFF Large List"}
              {:value "EFFShort1" :label "EFF Short List 1"}
              {:value "EFFShort2" :label "EFF Short List 2"}
-             {:value "Google10000UsaEnglishNoSwearsMedium" :label "Google (U.S English,No Swears words)"}
+             {:value "Google10000UsaEnglishNoSwearsMedium" :label "U.S English,No Swears words"}  ;; "Google (U.S English,No Swears words)"
              {:value "FrenchDicewareWordlist" :label "French Word List"}
              {:value "GermanDicewareWordlist" :label "German Word List"}])
 
@@ -126,7 +151,7 @@
      [m/text-field {:label (lstr-l 'separator)
                     :value separator
                     :variant "standard"
-                    :on-change (cc/on-change-factory gen-events/pass-phrase-options-update :separator)}]] 
+                    :on-change (cc/on-change-factory gen-events/pass-phrase-options-update :separator)}]]
     [mui-stack {:direction "row"}
      [mui-stack {:direction "row" :sx {:width "50%"}}
       [simple-selection-field {:field-name (lstr-l "capitalizeWords")

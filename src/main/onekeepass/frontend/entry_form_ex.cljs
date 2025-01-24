@@ -208,7 +208,9 @@
             [mui-icon-add-circle-outline-outlined]]]])]))
 
 ;; Note translations for field names (labels) are done in 'text-field' defined in fields.cljs
-(defn section-content [edit section-name section-data group-uuid]
+(defn section-content
+  "This is called for each section of an entry"
+  [{:keys [edit section-name section-data group-uuid]}]
   (let [errors @(form-events/entry-form-field :error-fields)]
     ;; Show a section in edit mode irrespective of its contents; In non edit mode a section is shown only 
     ;; if it has some fields with non blank value. 
@@ -220,23 +222,23 @@
                   }
          [section-header section-name]
          (doall
-          (for [{:keys [key value
+          (for [{:keys [key
+                        value
                         protected
                         required
                         data-type
                         select-field-options
-                        standard-field
-                        password-score] :as kv} section-data]
-          ;; All fields of this section is shown in edit mode. In case of non edit mode, only the  
-          ;; fields with values are shown
+                        ;; standard-field indicates a predefined field of an entry type or not
+                        standard-field] :as kv} section-data]
+            ;; All fields of this section is shown in edit mode. In case of non edit mode, only the  
+            ;; fields with values are shown 
             (when (or edit (not (str/blank? value))) #_(or edit (or required (not (str/blank? value))))
                   ^{:key key}
                   [mui-stack {:direction "row"
-                              :ref (fn [e]
-                             ;; We keep a ref to the underlying HtmlElememnt - #object[HTMLDivElement [object HTMLDivElement]] 
-                             ;; The ref is kept for each filed's enclosing container 'Stack' component so that we can position the Popper 
-                             ;; Sometimes the value of e is nil as react redraws the node
-                                     (swap! refs assoc key e))}
+                              ;; We keep a ref to the underlying HtmlElememnt - #object[HTMLDivElement [object HTMLDivElement]] 
+                              ;; The ref is kept for each field's enclosing container 'Stack' component so that we can position the Popper.
+                              ;; Sometimes the value of e is nil as react redraws the node
+                              :ref (fn [e] (swap! refs assoc key e))}
                    [mui-stack {:direction "row" :sx {:width (if edit "92%" "100%")}}
                     (cond
                       ;; select-field-options is vec of strings and gets data from 
@@ -257,7 +259,6 @@
                       [text-field (assoc kv
                                          :edit edit
                                          :error-text (get errors key)
-                                         :password-score password-score
                                          :visible @(form-events/visible? key)
                                          :on-change-handler #(form-events/update-section-value-on-change
                                                               section-name key (-> % .-target  .-value)))])]
@@ -280,9 +281,36 @@
          #_[custom-field-delete-confirm @(form-events/field-delete-dialog-data)]
          #_[custom-section-delete-confirm @(form-events/section-delete-dialog-data)]]))))
 
-(defn all-sections-content []
+(defn get-section-data 
+  "Called to set up any entry type specific data in kv
+   Returns an vec of kvd map for a section
+   "
+  [entry-type-uuid section-name section-fields]
+  (let [section-data (get section-fields section-name)] 
+    (if (not= entry-type-uuid const/UUID_OF_ENTRY_TYPE_AUTO_OPEN)
+      section-data
+      (let [adjusted-section-data (mapv (fn [{:keys [key] :as m}]
+                       (cond
+                         (= key const/URL)
+                         ;; for now read-value is not used 
+                         (assoc m :field-name "KDBX file to open" :read-value (:url-field-value m) )
+                         
+                         ;; for now read-value is not used 
+                         (= key const/USERNAME)
+                         (assoc m :field-name "Key file" :read-value (:key-file-path m))
+                         
+                         (= key const/IFDEVICE)
+                         (assoc m :field-name "Device ids to include or exclude")
+
+                         :else
+                         m)) section-data)]
+        adjusted-section-data))))
+
+(defn all-sections-content
+  "Component for all sections of an entry"
+  []
   (let [{:keys [edit showing]
-         {:keys [section-names section-fields uuid group-uuid]} :data}
+         {:keys [entry-type-uuid section-names section-fields uuid group-uuid]} :data}
         @(form-events/entry-form-all)
         deleted? @(form-events/is-entry-parent-group-deleted group-uuid)]
     (m/react-use-effect
@@ -302,7 +330,11 @@
     [mui-stack
      (doall
       (for [section-name section-names]
-        ^{:key section-name} [section-content edit section-name (get section-fields section-name) group-uuid]))]))
+        ^{:key section-name} [section-content {:entry-type-uuid entry-type-uuid
+                                               :edit edit
+                                               :section-name section-name
+                                               :section-data (get-section-data entry-type-uuid section-name section-fields) #_(get section-fields section-name)
+                                               :group-uuid group-uuid}]))]))
 
 (defn title-with-icon-field  []
   ;;(println "title-with-icon-field called ")
@@ -319,15 +351,13 @@
                       :required true
                       :helper-text (tr-h "entryTitle")
                       :error-text (:title errors)
-                      :on-change-handler #(form-events/entry-form-data-update-field-value
-                                           :title (-> % .-target  .-value))}]]
+                      :on-change-handler  (on-change-factory form-events/entry-form-data-update-field-value :title)}]]
 
         [mui-stack {:direction "row" :sx {:width "12%" :justify-content "center" :align-items "center"}}
          [mui-typography {:sx {:padding-left "5px"} :align "center" :paragraph false :variant "subtitle1"}
           (tr-l "icons")]
-         [mui-icon-button {:edge "end" :color "primary" :sx {;;:margin-top "16px"
-                                                             ;;:margin-right "-8px"
-                                                             }
+         [mui-icon-button {:edge "end" :color "primary"
+                           :sx {} #_{:margin-top "16px" :margin-right "-8px"}
                            :on-click  show-icons-dialog}
           [entry-icon (:icon-id fields)]]]
         [icons-dialog @icons-dialog-flag]]])))
@@ -616,11 +646,11 @@
                           :label (tr-l entryType)
                           :value entry-type-uuid ;;field-type
                           :helper-text (tr-h entryTypeFields)
-                          :on-change (on-change-factory2 form-events/entry-type-uuid-on-change) #_de/custom-field-type-edit-on-change
+                          :on-change (on-change-factory2 form-events/entry-type-uuid-on-change)
                           :variant "standard" :fullWidth true}
          ;; select fields options
          (doall
-          (for [{:keys [name uuid]} @entry-type-headers] 
+          (for [{:keys [name uuid]} @entry-type-headers]
             ^{:key uuid} [mui-menu-item {:value uuid}
                           (translated-entry-type-name name)]))]]
        [mui-stack {:direction "row"
@@ -671,7 +701,7 @@
       [mui-stack {:sx {:align-items "flex-end"}}
        [:div.buttons1
         [mui-button {:variant "contained" :color "secondary"
-                     :on-click form-events/new-entry-cancel-on-click #_ee/new-entry-cancel-on-click} "Cancel"]
+                     :on-click form-events/new-entry-cancel-on-click} "Cancel"]
         [mui-button {:variant "contained" :color "secondary"
                      :on-click form-events/ok-new-entry-add} "Ok"]]]]
 
@@ -741,10 +771,11 @@
                      [mui-stack {:direction "row" :sx {:width "8%" :align-items "flex-end"}}
                       [mui-tooltip  {:title "Modify Field" :enterDelay 2500}
                        [mui-icon-button {:edge "end"
-                                         :on-click  #(form-events/open-section-field-modify-dialog {:key key
-                                                                                                    :protected protected
-                                                                                                    :required required
-                                                                                                    :section-name section-name})}
+                                         :on-click  #(form-events/open-section-field-modify-dialog
+                                                      {:key key
+                                                       :protected protected
+                                                       :required required
+                                                       :section-name section-name})}
                         [mui-icon-edit-outlined]]]
                       [mui-tooltip  {:title "Delete Field" :enterDelay 2500}
                        [mui-icon-button {:edge "end"

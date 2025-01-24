@@ -27,6 +27,7 @@ cfg-if = "1.0"
 nom = "7.1.3"
 os_info = "3"
 sys-locale = "0.3.1"
+gethostname = "0.5.0"
 
 #tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
 tokio = { version = "1", features = [ "time" ] }

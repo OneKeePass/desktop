@@ -3,6 +3,7 @@
   windows_subsystem = "windows"
 )]
 
+mod auto_open;
 mod app_paths;
 mod app_preference;
 mod app_state;
@@ -142,6 +143,7 @@ fn main() {
       commands::reload_kdbx,
       commands::remove_entry_permanently,
       commands::remove_group_permanently,
+      commands::resolve_auto_open_properties,
       commands::save_all_modified_dbs,
       commands::save_as_kdbx,
       commands::save_attachment_as_temp_file,

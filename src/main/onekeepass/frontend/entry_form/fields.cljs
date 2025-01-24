@@ -1,7 +1,7 @@
 (ns onekeepass.frontend.entry-form.fields
   (:require [clojure.string :as str]
             [onekeepass.frontend.common-components :as cc :refer [theme-text-field-sx]]
-            [onekeepass.frontend.constants :as const :refer [OTP PASSWORD]]
+            [onekeepass.frontend.constants :as const :refer [OTP PASSWORD URL]]
             [onekeepass.frontend.entry-form.common :as ef-cmn]
             [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
             [onekeepass.frontend.events.entry-form-ex :as form-events]
@@ -29,7 +29,7 @@
                                                                                      tr-entry-field-name-cv]]
             [reagent.core :as r]))
 
-(defn end-icons [key value protected visibile? edit]
+(defn- end-icons [key value protected visibile? edit]
   [:<>
    (when protected
      (if visibile?
@@ -41,6 +41,12 @@
                          :edge "end"
                          :on-click #(form-events/entry-form-field-visibility-toggle key)}
         [mui-icon-visibility-off]]))
+   ;; Open with the url
+   (when (= key URL)
+     [mui-icon-button {:sx {:margin-right "-8px"}
+                       :edge "end"
+                       :on-click #(form-events/entry-form-open-url value)}
+      [m/mui-icon-launch]])
    ;; Password generator 
    (when (and edit protected (= key PASSWORD))
      [mui-icon-button {:sx {:margin-right "-8px"}
@@ -76,13 +82,17 @@
    (doall (for [y select-field-options]
             ^{:key y} [mui-menu-item {:value y} y]))])
 
+;; Added field-name and read-value 
+;; as additional fields to get the label and value
+;; Initially tried with auto open field.
 (defn text-field [{:keys [key
+                          field-name
                           value
+                          read-value
                           protected
                           visible
                           edit
-                          on-change-handler
-                          required
+                          on-change-handler 
                           disabled
                           password-score
                           placeholder
@@ -94,56 +104,70 @@
                         edit false
                         no-end-icons false
                         protected false
-                        disabled false
-                        on-change-handler #(println (str "No on change handler yet registered for " key))
-                        required false}}]
+                        disabled false 
+                        on-change-handler #(println (str "No on change handler yet registered for the key"))}}]
 
   ;;:margin-top "16px" here is equivalent to the one used by "entry-cnt-field"
-  [m/text-field {:sx   (merge {:margin-top "16px"} (cc/password-helper-text-sx (:name password-score)))
-                 :fullWidth true
-                 :label (if standard-field (tr-entry-field-name-cv key) key)
-                 :variant "standard"
-                 ;;:classes {:root "entry-cnt-field"}
-                 :value value
-                 :placeholder placeholder
-                 :error  (not (nil? error-text))
-                 :helperText (cond
-                               (and (nil? error-text) (not (nil? password-score)))
-                               (-> password-score :name lstr-l-cv)
-                               #_(:score-text password-score)
+  (let [label (cond
+                (not (nil? field-name))
+                ;; It is assumed translation is done already
+                field-name
 
-                               (nil? error-text)
-                               helper-text
+                standard-field
+                (tr-entry-field-name-cv key)
 
-                               :else
-                               error-text)
-                 :onChange  on-change-handler
-                 ;;:required required
-                 :required false
-                 :disabled disabled
-                 :InputLabelProps {}
-                 :InputProps {:id key
-                              :sx (theme-text-field-sx edit @custom-theme-atom)
-                              :endAdornment (if no-end-icons nil
-                                                (r/as-element
-                                                 [mui-input-adornment {:position "end"}
-                                                  [end-icons key value protected visible edit]
-                                                  #_(seq icons)]))
-                              :type (if (or (not protected) visible) "text" "password")}
-                         ;;attributes for 'input' tag can be added here
-                         ;;It seems adding these 'InputProps' also works
-                         ;;We need to use 'readOnly' and not 'readonly'
-                 :inputProps  {:readOnly (not edit)
-                               ;;:sx (if edit sx2 sx1)
-                                   ;;:readonly "readonly"
-                               }}])
+                :else
+                ;; It is assumed translation is done already
+                key)
+        val (cond
+              edit
+              value
+
+              (and (not edit) (not (nil? read-value)))
+              read-value
+
+              :else
+              value)]
+    [m/text-field {:sx   (merge {:margin-top "16px"} (cc/password-helper-text-sx (:name password-score)))
+                   :fullWidth true 
+                   :label label
+                   :variant "standard" 
+                   :value val
+                   :placeholder placeholder
+                   :error  (not (nil? error-text))
+                   :helperText (cond
+                                 (and (nil? error-text) (not (nil? password-score)))
+                                 (-> password-score :name lstr-l-cv)
+
+                                 (nil? error-text)
+                                 helper-text
+
+                                 :else
+                                 error-text)
+                   :onChange  on-change-handler 
+                   :required false
+                   :disabled disabled
+                   :InputLabelProps {}
+                   :InputProps {:id key
+                                :sx (theme-text-field-sx edit @custom-theme-atom)
+                                :endAdornment (if no-end-icons nil
+                                                  (r/as-element
+                                                   [mui-input-adornment {:position "end"}
+                                                    [end-icons key value protected visible edit]
+                                                    #_(seq icons)]))
+                                :type (if (or (not protected) visible) "text" "password")}
+                     ;;attributes for 'input' tag can be added here
+                     ;;It seems adding these 'InputProps' also works
+                     ;;We need to use 'readOnly' and not 'readonly'        
+                   :inputProps  {:readOnly (not edit)
+                                   ;;:sx (if edit sx2 sx1) ;;:readonly "readonly"
+                                 }}]))
 
 ;; Both works
 ;;"& .MuiInputBase-input" 
 ;; "& .MuiInput-input"
-(def otp-txt-input-sx 
-  {
-   "& .MuiInputBase-input"  
+(def otp-txt-input-sx
+  {"& .MuiInputBase-input"
    {:color "green"
     :font-size "1.75em"
     :font-weight "300"  ;; To make it bold

@@ -5,15 +5,37 @@
    [cljs.core.async.interop :refer-macros [<p!]]
    [camel-snake-kebab.extras :as cske]
    [camel-snake-kebab.core :as csk]
-   [onekeepass.frontend.utils :refer [contains-val?]]
-
+   
    ;; All tauri side corresponding endpoint command apis can be found in 
    ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/endpoints
    ;; The api implementation is in 
    ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/api 
-   
+
    ["@tauri-apps/api/tauri" :refer (invoke)]))
 
+(defn to-snake-case [cljs-map]
+  (->> cljs-map (cske/transform-keys csk/->snake_case)))
+
+;; Tauri expects all API arguments names passed in JS api to be in camelCase which 
+;; are in turn deserialized as snake_case to match rust argument names used in tauri commands.
+
+(defn as-tauri-args 
+  " 
+  The arg 'api-args' is a map and its keys are converted to be in 'camelCase' as expected by tauri. 
+  These keys of 'api-args' are then converted to command fns args 'snake_case' by tauri deserilaization.
+  However if we pass any map as value in the tauri command fn arg, then we need to make sure keys of that map are in 'snake_case' 
+  
+   Returns a json object as expected by tauri's 'invoke' command
+   "
+  [api-args]
+  (clj->js
+   (reduce (fn [acc [k v]]
+             (assoc 
+              ;; arg map keys are in camelCase
+              acc (csk/->camelCaseString k)
+              (if (map? v) 
+                ;; keys of value map should be in snake_case
+                (to-snake-case v) v))) {} api-args)))
 
 (defn invoke-api
   "Invokes the backend command API calls using the tauri's 'invoke' command.
@@ -38,7 +60,7 @@
             ;; that can deserialized to Rust names and types as expected by the 'command' api
             ;; When convert-request is true, the api args are converted to 'camelCaseString' as expected by tauri command fns 
             ;; so that args can be deserialized to tauri types
-            ;; When convert-request is true and api-args is a js object, (cske/transform-keys csk/->camelCaseString) 
+            ;; When convert-request is false and api-args is a js object, (cske/transform-keys csk/->camelCaseString) 
             ;; does not make any changes as expected to be in a proper deserilaizable format
             args (if convert-request
                    ;; changes all keys to camelCase (e.g db-key -> dbKey)
@@ -48,7 +70,14 @@
                    ;; Note
                    ;; Only the api argument names are expected to be in camelCase. The keys of value passed are not changed to cameCase 
                    ;; and they deserialized by the the corresponding struct serde definition. As result, mostly  convert-request = false
-                   (->> api-args (cske/transform-keys csk/->camelCaseString) clj->js)
+                   
+                   ;; (->> api-args (cske/transform-keys csk/->camelCaseString) clj->js)
+                   
+                   ;; TODO: 
+                   ;; Review all background fns where we are using :convert-request false and 
+                   ;; see whether that is required any more or not as using as-tauri-args in most of the cases
+                   (as-tauri-args api-args)
+                   
                    api-args)
             r (<p! (invoke name args))]
         ;; Call the dispatch-fn with the resolved value 'r'
@@ -74,3 +103,6 @@
           ;;Call the dispatch-fn with any error returned by the backend API
           (dispatch-fn {:error (ex-cause err)})
           (js/console.log (ex-cause err)))))))
+
+
+

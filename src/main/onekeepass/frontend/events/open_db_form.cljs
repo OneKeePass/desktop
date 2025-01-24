@@ -165,9 +165,11 @@
 (reg-event-fx
  :open-db-file-loading-done
  (fn [{:keys [db]} [_event-id kdbx-loaded]]
-   {:db (-> db init-open-db-vals) ;; will hide dialog
-    :fx [[:dispatch [:common/kdbx-database-opened kdbx-loaded]]]}))
-
+   ;; will hide dialog
+   {:db (-> db init-open-db-vals) 
+    ;; Need to hide any progress msg dialog if shown
+    :fx [[:dispatch [:common/progress-message-box-hide]]
+         [:dispatch [:common/kdbx-database-opened kdbx-loaded]]]}))
 
 (defn- on-file-loading [api-response]
   (let [error-fn (fn [err] (dispatch [:open-db-error err]))]
@@ -194,8 +196,7 @@
 
 (reg-fx
   :bg-unlock-kdbx-file
- (fn [[db-key pwd key-file-name dispatch-fn]]
-   (println "bg-unlock-kdbx-file is called")
+ (fn [[db-key pwd key-file-name dispatch-fn]] 
    (bg/unlock-kdbx db-key pwd key-file-name dispatch-fn)))
 
 (reg-event-fx
@@ -253,10 +254,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;  auto db open ;;;;;;;;;;;;;;;;;;;
 
-
-(defn open-db-with-auto-open-credentials [db-file-full-path pwd key-file-name]
-  (dispatch [:open-db-with-auto-open-credentials db-file-full-path pwd key-file-name]))
-
 (defn- handle-auto-open-response [api-response] 
   (when-let [kdbx-loaded (check-error api-response)]
     (dispatch [:open-db-file-loading-done kdbx-loaded])))
@@ -265,24 +262,31 @@
   (when-let [kdbx-loaded (check-error
                           api-response
                           #(dispatch [:open-db-error %]))]
+    (dispatch [:common/progress-message-box-hide])
     (dispatch [:auto-open-unlock-db-file-loading-done kdbx-loaded])))
 
 (reg-event-fx
- :open-db-with-auto-open-credentials
+ :open-db/auto-open-with-credentials
  (fn [{:keys [db]} [_event-id db-file-full-path pwd key-file-name]]
    (let [db-list (cmn-events/opened-db-list db)
          already_opened (cmn-events/is-in-opend-db-list db-file-full-path db-list)
-         db-locked (cmn-events/locked? db db-file-full-path)]
-     #_(println " opened locked " opened locked)
+         db-locked (cmn-events/locked? db db-file-full-path)] 
      (cond
        db-locked
-       {:fx [[:bg-unlock-kdbx-file [db-file-full-path pwd key-file-name handle-auto-open-unlock-response]]]}
+       {:fx [[:dispatch [:common/progress-message-box-show
+                         "Unlocking database"
+                         "Please wait..."]]
+             [:bg-unlock-kdbx-file [db-file-full-path pwd key-file-name handle-auto-open-unlock-response]]]}
 
+       ;; Just make that tab active
        already_opened
        {:fx [[:dispatch [:common/change-active-db-complete db-file-full-path]]]}
 
        :else
-       {:fx [[:bg-load-kdbx-file [db-file-full-path pwd key-file-name handle-auto-open-response]]]}))))
+       {:fx [[:dispatch [:common/progress-message-box-show
+                         "Opening database"
+                         "Please wait..."]]
+             [:bg-load-kdbx-file [db-file-full-path pwd key-file-name handle-auto-open-response]]]}))))
 
 (reg-event-fx
  :auto-open-unlock-db-file-loading-done
