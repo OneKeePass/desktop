@@ -218,9 +218,10 @@
   using custom key transformer
    "
   [entry]
-  (let [keys_exclude (->  entry (get "section_fields") keys vec)
+  (let [keys-exclude (->  entry (get "section_fields") keys vec)
+        keys-exclude (into keys-exclude (->  entry (get "parsed_fields") keys vec))
         t-fn (fn [k]
-               (if (contains-val? keys_exclude k)
+               (if (contains-val? keys-exclude k)
                  k
                  (csk/->kebab-case-keyword k)))]
     (cske/transform-keys t-fn entry)))

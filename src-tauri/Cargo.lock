@@ -3101,6 +3101,7 @@ dependencies = [
  "hmac",
  "lazy_static",
  "log",
+ "nom",
  "once_cell",
  "passwords",
  "quick-xml 0.30.0",
