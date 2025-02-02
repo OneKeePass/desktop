@@ -11,6 +11,17 @@
 
 (def Favorites "Favorites")
 
+(defn place-holder-resolved-value
+  "Gets the any place holder resolved value for a given field name
+   We can pass a 'default-value' value to use if 'parsed-fields' returns nil for this field
+   "
+  ([parsed-fields field-name default-value]
+   #_(println "place-holder-resolved-value is called")
+   (let [v (get parsed-fields (-> field-name name str/upper-case))]
+     (if-not (nil? v) v default-value)))
+  ([parsed-fields field-name ]
+   (get parsed-fields (-> field-name name str/upper-case))))
+
 (defn get-form-data 
   "Gets the current form data of a currently opened db from the app-db"
   [app-db]

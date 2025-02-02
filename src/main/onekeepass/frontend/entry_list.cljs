@@ -100,19 +100,23 @@
 ;; A functional component to use react useEffect
 (defn fn-entry-list-content
   []
-  (let [;; See common-components for :div-style use
-        entries (el-events/get-selected-entry-items)
+  (let [entries (el-events/get-selected-entry-items)
+        
+        ;; See common-components for :div-style use
+        item-index @(el-events/selected-entry-item-index) 
         entry-items (list-items-factory entries
-                                        row-item :div-style {:min-width 225})
+                                        row-item :div-style {:min-width 225} 
+                                        :scroll-to-item-index item-index)
         recycle-bin? (gt-events/recycle-group-selected?)
         deleted-cat? (el-events/deleted-category-showing)
         group-in-recycle-bin? (gt-events/selected-group-in-recycle-bin?)
+        
         group-info @(el-events/initial-group-selection-info)
         entry-type-uuid @(el-events/selected-entry-type)
         disable-action (or @recycle-bin? @group-in-recycle-bin? @deleted-cat?)
 
         {:keys [key-name direction]} @(el-events/entry-list-sort-creteria)
-        entries-found? (> (count @entries) 1) #_(boolean (seq @entries))
+        entries-found? (> (count @entries) 1)
 
         entry-type-uuid (if (nil? entry-type-uuid)
                           UUID_OF_ENTRY_TYPE_LOGIN

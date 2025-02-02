@@ -1,35 +1,75 @@
 (ns onekeepass.frontend.entry-form.fields
-  (:require [clojure.string :as str]
-            [onekeepass.frontend.common-components :as cc :refer [theme-text-field-sx]]
-            [onekeepass.frontend.constants :as const :refer [OTP PASSWORD URL]]
-            [onekeepass.frontend.entry-form.common :as ef-cmn]
-            [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
-            [onekeepass.frontend.events.entry-form-ex :as form-events]
-            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
-                                                              mui-box
-                                                              mui-circular-progress
-                                                              mui-date-time-picker
-                                                              mui-icon-autorenew
-                                                              mui-icon-button
-                                                              mui-icon-button
-                                                              mui-icon-delete-outline
-                                                              mui-icon-visibility
-                                                              mui-icon-visibility-off
-                                                              mui-input-adornment
-                                                              mui-link
-                                                              mui-localization-provider
-                                                              mui-menu-item
-                                                              mui-stack
-                                                              mui-text-field
-                                                              mui-tooltip
-                                                              mui-typography]]
-            [onekeepass.frontend.translation :as t :refer [lstr-l-cv] :refer-macros [tr-h
-                                                                                     tr-l
-                                                                                     tr-l-cv
-                                                                                     tr-entry-field-name-cv]]
-            [reagent.core :as r]))
+  (:require
+   [clojure.string :as str]
+   [onekeepass.frontend.common-components :as cc :refer [theme-text-field-sx]]
+   [onekeepass.frontend.constants :as const :refer [OTP PASSWORD URL]]
+   [onekeepass.frontend.entry-form.common :as ef-cmn]
+   [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
+   [onekeepass.frontend.events.entry-form-ex :as form-events]
+   [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom mui-box
+                                                     mui-circular-progress
+                                                     mui-date-time-picker
+                                                     mui-icon-autorenew
+                                                     mui-icon-button
+                                                     mui-icon-button
+                                                     mui-icon-delete-outline
+                                                     mui-icon-visibility
+                                                     mui-icon-visibility-off
+                                                     mui-input-adornment
+                                                     mui-link
+                                                     mui-localization-provider
+                                                     mui-menu-item mui-stack
+                                                     mui-text-field
+                                                     mui-tooltip
+                                                     mui-typography]]
+   #_[onekeepass.frontend.okp-macros :refer [as-map]]
+   [onekeepass.frontend.translation :as t :refer [lstr-l-cv] :refer-macros [tr-h
+                                                                            tr-l
+                                                                            tr-l-cv
+                                                                            tr-entry-field-name-cv]]
+   [reagent.core :as r]))
 
-(defn- end-icons [key value protected visibile? edit]
+(defn- to-value [{:keys [value read-value edit]}]
+  (cond
+    edit
+    value
+
+    (and (not edit) (not (nil? read-value)))
+    read-value
+
+    :else
+    value))
+
+(defn- end-icons-1 [{:keys [key protected visibile edit] :as kv}]
+  (let [val (to-value kv)]
+    [:<>
+     (when protected
+       (if visibile
+         [mui-icon-button {:sx {:margin-right "-8px"}
+                           :edge "end"
+                           :on-click #(form-events/entry-form-field-visibility-toggle key)}
+          [mui-icon-visibility]]
+         [mui-icon-button {:sx {:margin-right "-8px"}
+                           :edge "end"
+                           :on-click #(form-events/entry-form-field-visibility-toggle key)}
+          [mui-icon-visibility-off]]))
+       ;; Open with the url
+     (when (= key URL)
+       [mui-icon-button {:sx {:margin-right "-8px"}
+                         :edge "end"
+                         :on-click #(form-events/entry-form-open-url val)}
+        [m/mui-icon-launch]])
+       ;; Password generator 
+     (when (and edit protected (= key PASSWORD))
+       [mui-icon-button {:sx {:margin-right "-8px"}
+                         :edge "end"
+                         :on-click form-events/password-generator-show}
+        [mui-icon-autorenew]])
+       ;; Copy 
+     [(cc/copy-icon-factory) val {:sx {:mr "-1px"}}]]))
+
+
+#_(defn- end-icons [key value protected visibile? edit]
   [:<>
    (when protected
      (if visibile?
@@ -92,7 +132,7 @@
                           protected
                           visible
                           edit
-                          on-change-handler 
+                          on-change-handler
                           disabled
                           password-score
                           placeholder
@@ -104,8 +144,9 @@
                         edit false
                         no-end-icons false
                         protected false
-                        disabled false 
-                        on-change-handler #(println (str "No on change handler yet registered for the key"))}}]
+                        disabled false
+                        on-change-handler #(println (str "No on change handler yet registered for the key"))}
+                   :as kv}]
 
   ;;:margin-top "16px" here is equivalent to the one used by "entry-cnt-field"
   (let [label (cond
@@ -119,19 +160,19 @@
                 :else
                 ;; It is assumed translation is done already
                 key)
-        val (cond
-              edit
-              value
+        val  (to-value kv) #_(cond
+                               edit
+                               value
 
-              (and (not edit) (not (nil? read-value)))
-              read-value
+                               (and (not edit) (not (nil? read-value)))
+                               read-value
 
-              :else
-              value)]
+                               :else
+                               value)]
     [m/text-field {:sx   (merge {:margin-top "16px"} (cc/password-helper-text-sx (:name password-score)))
-                   :fullWidth true 
+                   :fullWidth true
                    :label label
-                   :variant "standard" 
+                   :variant "standard"
                    :value val
                    :placeholder placeholder
                    :error  (not (nil? error-text))
@@ -144,7 +185,7 @@
 
                                  :else
                                  error-text)
-                   :onChange  on-change-handler 
+                   :onChange  on-change-handler
                    :required false
                    :disabled disabled
                    :InputLabelProps {}
@@ -153,7 +194,7 @@
                                 :endAdornment (if no-end-icons nil
                                                   (r/as-element
                                                    [mui-input-adornment {:position "end"}
-                                                    [end-icons key value protected visible edit]
+                                                    [end-icons-1 kv]
                                                     #_(seq icons)]))
                                 :type (if (or (not protected) visible) "text" "password")}
                      ;;attributes for 'input' tag can be added here
@@ -205,13 +246,14 @@
 
 (defn otp-read-field
   "This is called only during read time and edit flag is false"
-  [_kv]
+  [_m]
   (fn [{:keys [key
                visible
                error-text
                no-end-icons]
         :or {visible true
-             no-end-icons false}}]
+             no-end-icons false}
+        :as kv}]
 
     (let [;; ensure that edit is always false
           edit false
@@ -237,7 +279,11 @@
                                      :endAdornment (if (or (not valid-token-found) no-end-icons) nil
                                                        (r/as-element
                                                         [mui-input-adornment {:position "end"}
-                                                         [end-icons key token false visible edit]]))
+                                                         #_[end-icons key token false visible edit]
+                                                         [end-icons-1 (assoc kv 
+                                                                             :value token
+                                                                             :read-value nil
+                                                                             :protected false)]]))
                                      :type "text"}
 
                         :inputProps  {:readOnly true}}]

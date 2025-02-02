@@ -9,32 +9,29 @@
                                                              on-error]]
    [onekeepass.frontend.events.entry-form-common :refer [extract-form-field-names-values
                                                          form-data-kv-data
-                                                         get-form-data]] 
+                                                         get-form-data
+                                                         place-holder-resolved-value]]
    [re-frame.core :refer [dispatch reg-event-fx reg-fx]]))
 
 
 (defn entry-form-open-url [url-value]
   (dispatch [:entry-form-open-url url-value]))
 
-(reg-fx
- :bg-open-url
- (fn [[path]]
-   (bg/open-url path
-                (fn [api-response]
-                  (on-error api-response)))))
-
 (reg-event-fx
  :entry-form-open-url
- (fn [{:keys [_db]} [_event-id url-value]]
+ (fn [{:keys [_db]} [_event-id url-value]] 
    (cond
      (str/starts-with? url-value "kdbx:")
      {:fx [[:dispatch [:entry-form-auto-open-resolve-properties]]]}
 
      (or (str/starts-with? url-value "https://") (str/starts-with? url-value "http://"))
-     {:fx [[:bg-open-url [url-value]]]}
+     {:fx [[:common/bg-open-url [url-value]]]}
+
+     (str/starts-with? url-value "file://")
+     {:fx [[:common/bg-open-file [url-value]]]}
 
      :else
-     {})))
+     {:fx [[:common/bg-open-url [(str "https://" url-value)]]]})))
 
 (def all-auto-open-kvd-keys [URL USERNAME IFDEVICE])
 
@@ -47,14 +44,17 @@
 ;; 
 (reg-event-fx
  :entry-form-auto-open-resolve-properties
- (fn [{:keys [db]} [_event-id]]
+ (fn [{:keys [db]} [_event-id]] 
    (let [{:keys [entry-type-uuid] :as form-data} (get-form-data db)]
      ;; Should entry-type-uuid check is required ?
-     (if (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_AUTO_OPEN)
+     (if (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_AUTO_OPEN) 
        (let [field-m (extract-form-field-names-values form-data)
+             parsed-fields (:parsed-fields form-data) 
+             url (place-holder-resolved-value parsed-fields URL (get field-m URL)) 
+             key-file-path (place-holder-resolved-value parsed-fields USERNAME (get field-m USERNAME)) 
              auto-props {:source-db-key (active-db-key db)
-                         :url-field-value (get field-m URL)
-                         :key-file-path (get field-m USERNAME)
+                         :url-field-value url
+                         :key-file-path key-file-path
                          :device_if_val (get field-m const/IFDEVICE)}]
          {:fx [[:bg-resolve-auto-open-properties [auto-props (partial auto-open-properties-dispatch-fn all-auto-open-kvd-keys)]]]})
        {}))))
@@ -69,8 +69,11 @@
  (fn [{:keys [db]} [_event-id _ao-keys {:keys [url-field-value key-file-path can-open]}]]
    (if (not can-open)
      {:fx [[:dispatch [:common/error-info-box-show {:title "Database auto open" :error-text "The device is excluded in opening this database url"}]]]}
-     (let [{:keys [value]} (form-data-kv-data (get-form-data db) PASSWORD)]
-       {:fx [[:dispatch [:open-db/auto-open-with-credentials url-field-value value key-file-path]]]}))))
+     (let [form-data (get-form-data db)
+           parsed-fields (:parsed-fields form-data)
+           {:keys [value]} (form-data-kv-data form-data PASSWORD)
+           password (place-holder-resolved-value parsed-fields PASSWORD value)]
+       {:fx [[:dispatch [:open-db/auto-open-with-credentials url-field-value password key-file-path]]]}))))
 
 (reg-event-fx
  :entry-form-auto-open-properties-resolve-error

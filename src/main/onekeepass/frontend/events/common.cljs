@@ -1046,6 +1046,21 @@
       ;; and session timeout happens during that time
       :fx [[:dispatch [:db-settings/notify-screen-locked]]]})))
 
+;;;;;;;;;;  Tauri shell open common calls ;;;;;;;;;;;
+(reg-fx
+ :common/bg-open-url
+ (fn [[path]]
+   (bg/open-url path
+                (fn [api-response]
+                  (on-error api-response)))))
+
+(reg-fx
+ :common/bg-open-file
+ (fn [[path]]
+   (bg/open-file path
+                (fn [api-response]
+                  (on-error api-response)))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;  Common Dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; TODO: 

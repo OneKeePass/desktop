@@ -9,13 +9,16 @@
                                                              fix-tags-selection-prefix
                                                              get-in-key-db
                                                              on-error]]
-   [onekeepass.frontend.events.entry-form-common :refer [add-section-field
+   ;; Do not remove. Required to register otp evets
+   [onekeepass.frontend.events.entry-form-otp] 
+   [onekeepass.frontend.events.entry-form-common :as ef-events-cmn :refer [add-section-field
                                                          entry-form-key
                                                          extract-form-field-names-values
                                                          extract-form-otp-fields
                                                          get-form-data
-                                                         is-field-exist
-                                                         merge-section-key-value]] ;; Need to be called here so that events are registered 
+                                                         is-field-exist 
+                                                         merge-section-key-value]] 
+   ;; Need to be called here so that events are registered 
    [onekeepass.frontend.events.entry-form-auto-open :as ao-events]
    [onekeepass.frontend.translation :refer [lstr-sm]]
    [onekeepass.frontend.utils :as u :refer [contains-val?]]
@@ -25,6 +28,8 @@
 (def Favorites "Favorites")
 
 (def entry-form-open-url ao-events/entry-form-open-url)
+
+(def place-holder-resolved-value ef-events-cmn/place-holder-resolved-value)
 
 ;;;;;;;;;;;;;;;;;;;;;;   Support functions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1677,11 +1682,15 @@
 (defn auto-type-perform-dialog-data []
   (subscribe [:auto-type/perform-dialog]))
 
+;; auto-type is map from struct AutoType of EntryFormData as wells as Entry (for tag AutoType)
+;; Sometime we use 'auto-type-m' for 'auto-type'
 (reg-event-fx
  :entry-perform-auto-type
  (fn [{:keys [db]} [_event-id]]
    (let [{:keys [uuid auto-type]} (get-form-data db)]
+     ;; Backend call to get the active to which we will be sending the sequence
      {:fx [[:auto-type/bg-active-window-to-auto-type [uuid auto-type]]]})))
+
 (reg-event-fx
  :entry-auto-type-edit
  (fn [{:keys [db]} [_event-id]]

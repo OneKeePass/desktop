@@ -8,7 +8,7 @@
    [camel-snake-kebab.core :as csk]
    [onekeepass.frontend.utils :refer [contains-val?]]
 
-   [onekeepass.frontend.background-common :as bg-cmn :refer [to-snake-case]]
+   [onekeepass.frontend.background-common :as bg-cmn ]
    [onekeepass.frontend.background-password :as bg-pwd]
 
    ;; All tauri side corresponding endpoint command apis can be found in 
@@ -201,14 +201,30 @@
   `allEntries`, `favourites`, `deleted`,   
   `{:group \"valid uuid\"}`, 
   `{:entry-type-uuid \"9e644c27-d00b-4aca-8355-5078c5a4fb44\"}`
-  `{:tag \"Bank\"}`,   
+  `{:tag \"Bank\"}`,  
+
+  Returns a vec of maps (struct EntrySummary)
   "
-  [db-key entry-category dispatch-fn]
-  (invoke-api "entry_summary_data"
-              {:db-key db-key :entry-category
-               (if (map? entry-category)
-                 entry-category
-                 (csk/->camelCaseString entry-category))} dispatch-fn :convert-response true))
+  [db-key entry-category dispatch-fn] 
+  ;; We need to do a custom conversion of request because of the use of #[serde(rename_all = "camelCase")] 
+  ;; for the enum 'EntryCategory'. This was done during very early time and needs the following fix 
+  ;; fix mentioned in TODO
+  ;; TODO: 
+  ;; We need to fix this and change it to use serde attribute tag and content
+  ;; Changes to be done for both Desktop and Mobile same time if we change this in enum EntryCategory
+  (let [args (clj->js {:dbKey db-key
+                       :entryCategory
+                       (if (map? entry-category)
+                         (cske/transform-keys csk/->camelCaseString entry-category)
+                         (csk/->camelCaseString entry-category))})]
+    ;; We must pass :convert-request false as we have done all conversions of args
+    (invoke-api "entry_summary_data" args dispatch-fn :convert-request false :convert-response true))
+  ;; Leaving the old one before the introduction of 'as-tauri-args'
+  #_(invoke-api "entry_summary_data"
+                {:db-key db-key :entry-category
+                 (if (map? entry-category)
+                   entry-category
+                   (csk/->camelCaseString entry-category))} dispatch-fn :convert-response true))
 
 (defn history-entries-summary [db-key entry-uuid dispatch-fn]
   (invoke-api "history_entries_summary" {:db-key db-key :entry-uuid entry-uuid} dispatch-fn))
@@ -292,13 +308,9 @@
   [db-key entry-uuid entry-clone-option dispatch-fn]
   ;; All args for tauri api are in cameCase. 
   ;; But keys in 'entry-clone-option' map (passed as value in :entryCloneOption)
-  ;; are to be in snake_case
-  (invoke-api "clone_entry" (clj->js
-                             {:dbKey db-key
-                              :entryUuid entry-uuid
-                              :entryCloneOption (->> entry-clone-option (cske/transform-keys csk/->snake_case))})
+  ;; are to be in snake_case - see the use of 'as-tauri-args' to take care of this
+  (invoke-api "clone_entry" {:db-key db-key :entry-uuid entry-uuid :entry-clone-option entry-clone-option}
               dispatch-fn
-              :convert-request false
               ;; clone_entry api call returns clone entry's uuid string 
               ;; and the usual conversion should not be used on this uuid string
               :convert-response false))
@@ -312,9 +324,10 @@
   "Called to update the group data in the backend storage"
   [db-key group dispatch-fn]
   ;;(println "Going to update group..." group)
-  (let [args (clj->js {:dbKey db-key
-                       :group (->> group (cske/transform-keys csk/->snake_case))})]
-    (invoke-api "update_group" args dispatch-fn :convert-request false)))
+  (invoke-api "update_group" {:db-key db-key :group group} dispatch-fn)
+  #_(let [args (clj->js {:dbKey db-key
+                         :group (->> group (cske/transform-keys csk/->snake_case))})]
+      (invoke-api "update_group" args dispatch-fn :convert-request false)))
 
 (defn insert-group [db-key group dispatch-fn]
   (let [args (clj->js {:dbKey db-key
@@ -467,9 +480,11 @@
   (invoke-api "system_info_with_preference" {} dispatch-fn))
 
 (defn update-preference [preference-data dispatch-fn]
-  (let [args (clj->js {:preferenceData (->> preference-data (cske/transform-keys csk/->snake_case))})]
+  (invoke-api "update_preference" {:preference-data  preference-data} dispatch-fn :convert-response false)
+  #_(let [args (clj->js {:preferenceData (->> preference-data (cske/transform-keys csk/->snake_case))})]
     ;; We transform args to statisfy the requirements of arg name to tauri command should be in cameCase
     ;; and field names of preference-data should be snake_case
+    (println "update-preference is called " preference-data)
     (invoke-api "update_preference" args dispatch-fn :convert-response false)))
 
 (defn clear-recent-files [dispatch-fn]
@@ -562,7 +577,9 @@
   (invoke-api "platform_window_titles" {} dispatch-fn))
 
 (defn active-window-to-auto-type
-  "Gets the top most window to which auto type sequence will be sent"
+  "Gets the top most window to which auto type sequence will be sent.
+   Returns a map (struct WindowInfo) in response
+   "
   [dispatch-fn]
   (invoke-api "active_window_to_auto_type" {} dispatch-fn))
 

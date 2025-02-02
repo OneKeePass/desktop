@@ -4,7 +4,8 @@
             [onekeepass.frontend.db-icons :refer [entry-icon]]
             [onekeepass.frontend.events.common :as cmn-events]
             [onekeepass.frontend.events.search :as sch-event]
-            [onekeepass.frontend.mui-components :as m :refer [mui-alert
+            [onekeepass.frontend.mui-components :as m :refer [mui-typography
+                                                              mui-alert
                                                               mui-avatar
                                                               mui-button
                                                               mui-dialog
@@ -20,8 +21,9 @@
                                                               mui-list-item-secondary-action
                                                               mui-list-item-text
                                                               mui-stack
-                                                              mui-tooltip]] 
-            [onekeepass.frontend.translation :refer [tr-dlg-title tr-l]]
+                                                              mui-tooltip
+                                                              get-theme-color]]
+            [onekeepass.frontend.translation :refer [tr-dlg-title tr-l tr-h]]
             [reagent.core :as r]))
 
 #_(set! *warn-on-infer* true)
@@ -36,7 +38,7 @@
           item (nth @items (:index props))
           selected-id (sch-event/selected-entry-id)]
       ;; Need to use mui-list-item-button instead of mui-list-item so that focus to the list works
-      ;; while using tab. The other places the tab navigation works when mui-list-item is used
+      ;; while using 'Tab' key. The other places the tab navigation works when mui-list-item is used
       ;; As per API doc mui-list-item autoFocus prop is deprecated and recommended to use mui-list-item-button
       [mui-list-item-button {:style (:style props)
                              :divider true
@@ -56,16 +58,16 @@
         ;; e.g :primary (r/as-element [:span (str "Primary:" (:title  item))])
         {:primary (:title  item)  :secondary (:secondary-title item)}]
 
-       (when (= @selected-id (:uuid item)) 
+       (when (= @selected-id (:uuid item))
          [mui-list-item-secondary-action
-          [mui-tooltip {:title "Show Details"  :enterDelay 2000}
+          [mui-tooltip {:title "Show Details" :enterDelay 2000}
            [mui-icon-button {:edge "end"
                              :on-click (fn []
                                          (sch-event/show-selected-entry-item (:uuid item)))}
             [mui-icon-more-vert]]]])])))
 
-(defn search-result-list-content []
-  (let [result-items (list-items-factory (sch-event/search-result-entry-items) row-item :list-style {})]
+(defn search-result-list-content [matched-entries]
+  (let [result-items (list-items-factory matched-entries #_(sch-event/search-result-entry-items) row-item :list-style {})]
     [result-items]))
 
 (defn- focus [^js/InputRef comp-ref]
@@ -77,7 +79,9 @@
     (println "inputRef called back with invalid ref or nil ref")))
 
 (defn search-dialog [{:keys [dialog-show term not-matched error-text result]} _db-key]
-  (let [input-comp-ref (atom nil)]
+  (let [input-comp-ref (atom nil)
+        matched-entries (:entry-items result)
+        matched-count (count matched-entries)]
     [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
                  :on-click #(.stopPropagation %)
                  :classes {:paper "pwd-dlg-root"}}
@@ -92,28 +96,34 @@
                       :inputRef (fn [e]
                                   (reset! input-comp-ref e))
                       :autoFocus (when (str/blank? term) true)
-                    ;;:on-key-press (enter-key-pressed-factory #(sch-event/search-on-click db-key term))
+                      ;;:on-key-press (enter-key-pressed-factory #(sch-event/search-on-click db-key term))
                       :on-change sch-event/search-term-update ;; a fn that needs to accept an event object
-                      :variant "standard" 
+                      :variant "standard"
                       :fullWidth true
                       :InputProps {:endAdornment (r/as-element
                                                   [mui-input-adornment {:position "end"}
-                                                   [mui-icon-button 
+                                                   [mui-icon-button
                                                     {:edge false
                                                      :on-click (fn []
                                                                  (focus @input-comp-ref)
                                                                  (sch-event/search-term-clear))}
                                                     [mui-icon-clear-outlined]]])}}]
-       (when (seq (:entry-items result))
-         [mui-stack {:sx {:mt 2 :height "250px" :overflow-y "scroll"}}
-          [search-result-list-content]])
+       (when (seq matched-entries)
+         [mui-stack {:sx {:mt 2 :height "250px"
+                          :background-color (get-theme-color :header-footer)}}
+          [search-result-list-content matched-entries]])
 
        (cond
          (not (nil? error-text))
          [mui-alert {:severity "error" :sx {:mt 1}} error-text]
 
+         (> matched-count 0)
+         [mui-stack {:direction "row" :justify-content "space-between" :sx {:margin-top 1 :margin-bottom 1}}
+          [mui-typography (str (tr-h "noOfEntriesFound") " : "  matched-count)  #_(str "Matched entry count: " matched-count)]
+          [mui-typography (tr-h "doubleClickOnEntry")]]
+
          (and not-matched (not (str/blank? term)))
-         [mui-alert {:severity "warning" :sx {:mt 1}} "No matching is found"])]]
+         [mui-alert {:severity "warning" :sx {:mt 1}} (tr-h "noMatchingEntryFound")])]]
 
 
      [mui-dialog-actions

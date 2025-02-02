@@ -253,7 +253,8 @@
                                                      :new-title nil
                                                      :parent-group-uuid nil
                                                      :entry-uuid nil
-                                                     :keep-histories false})
+                                                     :keep-histories false
+                                                     :link-by-reference false})
 
 (defn- init-clone-entry-options-dialog-data [db]
   (assoc-in-key-db db [:clone-entry-options-dialog] clone-entry-options-dialog-init-data))
@@ -284,11 +285,11 @@
  :clone-entry-options-dialog-ok
  (fn [{:keys [db]} [_event-id]]
    (let [db-key (active-db-key db)
-         {:keys [entry-uuid new-title parent-group-uuid keep-histories]}
+         {:keys [entry-uuid new-title parent-group-uuid keep-histories link-by-reference]}
          (get-in-key-db db [:clone-entry-options-dialog])]
      {:fx [[:bg-clone-entry [db-key
                              entry-uuid
-                             (as-map [new-title parent-group-uuid keep-histories])]]]})))
+                             (as-map [new-title parent-group-uuid keep-histories link-by-reference])]]]})))
 
 (reg-fx
  :bg-clone-entry
@@ -312,7 +313,7 @@
          [:dispatch [:entry-form-ex/find-entry-by-id cloned-entry-uuid]]
 
          [:dispatch [:clone-entry-options-dialog-close]]
-         [:dispatch [:common/message-snackbar-open (lstr-sm 'entryCloned) ]]]}))
+         [:dispatch [:common/message-snackbar-open (lstr-sm 'entryCloned)]]]}))
 
 (reg-event-fx
  :clone-entry-options-dialog-close

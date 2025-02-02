@@ -39,6 +39,7 @@
 
 (def react-use-state (.-useState ^js/React react))
 (def react-use-effect (.-useEffect ^js/React react))
+#_(def react-use-ref (.-useRef ^js/React react))
 
 #_(def use-idle-timer (.-useIdleTimer ^js/ReactIdleTimer react-idle-timer))
 
@@ -159,6 +160,8 @@
     :else
     (->  theme .-palette .-primary .-main)))
 
+(defn get-theme-color [color-kw]
+  (theme-color @custom-theme-atom color-kw))
 
 (declare set-colors)
 

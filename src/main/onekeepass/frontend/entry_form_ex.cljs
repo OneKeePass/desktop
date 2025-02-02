@@ -35,7 +35,7 @@
    [onekeepass.frontend.entry-form.menus :as menus]
    [onekeepass.frontend.events.common :as ce]
    [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
-   [onekeepass.frontend.events.entry-form-ex :as form-events]
+   [onekeepass.frontend.events.entry-form-ex :as form-events :refer [place-holder-resolved-value]]
    [onekeepass.frontend.events.move-group-entry :as move-events]
    [onekeepass.frontend.group-tree-content :as gt-content]
    [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
@@ -58,10 +58,10 @@
                                                      mui-tooltip
                                                      mui-typography
                                                      theme-color]]
-   [onekeepass.frontend.translation :as t :refer-macros [tr-bl tr-l tr-h tr-t
-                                                         tr-entry-field-name-cv
-                                                         tr-entry-section-name-cv
-                                                         tr-entry-type-title-cv]]
+   [onekeepass.frontend.translation :as t :refer [lstr-field-name] :refer-macros [tr-bl tr-l tr-h tr-t
+                                                                                  tr-entry-field-name-cv
+                                                                                  tr-entry-section-name-cv
+                                                                                  tr-entry-type-title-cv]]
    [onekeepass.frontend.utils :as u :refer [contains-val? to-file-size-str]]
    [reagent.core :as r]))
 
@@ -74,7 +74,7 @@
       (handler-name field-name-kw (-> e .-target  .-value))
       (handler-name field-name-kw (-> e .-target  .-checked)))))
 
-(defn on-check-factory [handler-name field-name-kw]
+#_(defn on-check-factory [handler-name field-name-kw]
   (fn [e]
     (handler-name field-name-kw (-> e .-target  .-checked))))
 
@@ -83,13 +83,6 @@
   (fn [^js/Event e]
     ;;(println "e is " (-> e .-target .-value))
     (handler-name  (-> e .-target  .-value))))
-
-(defn read-value-from-parsed
-  ([field-name parsed-fields default-value]
-   (let [v (get parsed-fields (-> field-name name str/upper-case))]
-     (if-not (nil? v) v default-value)))
-  ([field-name parsed-fields]
-   (get parsed-fields (-> field-name name str/upper-case))))
 
 ;;;;;;;;;;;;;;;;;;;;;; Menu ;;;;;;;;;;;;;;;;
 ;; Re-exported for use in entry-list
@@ -292,28 +285,34 @@
   (let [section-data (get section-fields section-name)]
     (if (not= entry-type-uuid const/UUID_OF_ENTRY_TYPE_AUTO_OPEN)
 
-      (let [adjusted-section-data (mapv (fn [{:keys [key] :as m}]
-                                          (assoc m :read-value (read-value-from-parsed key parsed-fields)))
-                                        section-data)]
+      (let [adjusted-section-data (mapv 
+                                   (fn [{:keys [key] :as m}]
+                                     (assoc m :read-value (place-holder-resolved-value parsed-fields key)))
+                                   section-data)]
         adjusted-section-data)
-      (let [adjusted-section-data (mapv (fn [{:keys [key] :as m}]
-                                          (cond
-                                            (= key URL)
+      (let [adjusted-section-data (mapv 
+                                   (fn [{:keys [key] :as m}]
+                                          ;; Note the use of lstr-field-name vs tr-entry-field-name-cv
+                                          ;; lstr-field-name is fn and tr-entry-field-name-cv is a macro 
+                                     (cond
+                                       (= key URL)
                                             ;; for now read-value is not used 
                                             ;;:read-value (:url-field-value m)
-                                            (assoc m :field-name "KDBX file to open")
-                                            
-                                            (= key USERNAME)
-                                            (assoc m :field-name "Key file" :read-value (read-value-from-parsed key parsed-fields)) ;; :read-value (:key-file-path m)
+                                       (assoc m :field-name (tr-entry-field-name-cv "autoOpenKdbxFileOpen"))
 
-                                            (= key PASSWORD)
-                                            (assoc m  :read-value (read-value-from-parsed key parsed-fields))
+                                       (= key USERNAME)
+                                       (assoc m :field-name (lstr-field-name 'autoOpenKeyFile)
+                                              :read-value (place-holder-resolved-value parsed-fields key)) ;; :read-value (:key-file-path m)
+                                       
+                                       (= key PASSWORD)
+                                       (assoc m  :read-value (place-holder-resolved-value parsed-fields key))
 
-                                            (= key IFDEVICE)
-                                            (assoc m :field-name "Device ids to include or exclude")
+                                       (= key IFDEVICE)
+                                       (assoc m :field-name (tr-entry-field-name-cv "autoOpenIfDevice"))
 
-                                            :else
-                                            m)) section-data)]
+                                       :else
+                                       m)) 
+                                   section-data)]
         adjusted-section-data))))
 
 (defn all-sections-content
@@ -328,7 +327,7 @@
      (fn []
        #_(println "init - uuid showing edit deleted? : \n" uuid showing edit deleted?)
        (when (and (= showing :selected) (not edit) (not deleted?))
-        ;; (println "Will fire entry-form-otp-start-polling")
+         #_(println "Will fire entry-form-otp-start-polling")
          (form-events/entry-form-otp-start-polling))
 
        (fn []
@@ -513,7 +512,7 @@
   (fn []
     (let [title @(form-events/entry-form-data-fields :title)
           parsed-fields @(form-events/entry-form-data-fields :parsed-fields)
-          title (read-value-from-parsed :title parsed-fields title)
+          title (place-holder-resolved-value parsed-fields :title  title)
 
           icon-id @(form-events/entry-form-data-fields :icon-id)
           entry-uuid  @(form-events/entry-form-data-fields :uuid)

@@ -24,7 +24,8 @@
                                                      react-use-state]]
    [onekeepass.frontend.translation :refer-macros [tr-bl] :refer [lstr-sm]]
    [onekeepass.frontend.utils :refer [contains-val? str->int]]
-   [reagent.core :as r]))
+   [reagent.core :as r]
+   [reagent.ratom]))
 
 #_(set! *warn-on-infer* true)
 
@@ -248,8 +249,9 @@
   This 'row-item-fn' is the returned value of the function of 'render-row-factory'
   The various options are passed in the map 'options'
   "
-  [items row-item-fn  {:keys [item-size list-style div-style]
+  [items row-item-fn  {:keys [item-size scroll-to-item-index list-style div-style]
                        :or {item-size 60
+                            scroll-to-item-index 0
                             div-style {}
                             list-style {:max-width 275}}}]
   ;; This component makes use of 'fixed-size-list' and 'auto-sizer' (Function-as-child Components)
@@ -265,21 +267,28 @@
     ;; Need to set this so that splitpane's left side has some min width when content is small 
     [:div {:style (merge {:min-width 200 :height "100%" :width "275"} div-style)}
      ;;AutoSizer needs to be a child of div for its to work within a flex container  
-     (when  (not-empty @items)
-       [auto-sizer {}
-        ;; auto-sizer child should be a function 
-        (fn [dims]
-          (let [dims (js->clj dims :keywordize-keys true)]
-            ;; (println "dims are " dims)
-            (r/as-element
-             [:div {:style {:min-width 200 :height (:height dims)}}
-              [fixed-size-list {:style list-style ;;{:max-width 275} ;; Need to set this so that splitpane's left side  does not expand
-                                :height (:height dims)
-                                :width (:width dims)
-                                  ;; this is the size of the row component returned by render-row fn
-                                :itemSize item-size
-                                :itemCount (count @items)
-                                :overscanCount 1} row-item-fn]])))])]))
+     (let [list-items (if (instance? reagent.ratom/Reaction items) @items items)]
+       (when  (not-empty list-items) #_(not-empty @items)
+              [auto-sizer {}
+               ;; auto-sizer child should be a function 
+               (fn [dims]
+                 (let [dims (js->clj dims :keywordize-keys true)]
+                   ;; (println "dims are " dims)
+                   (r/as-element
+                    [:div {:style {:min-width 200 :height (:height dims)}}
+                     [fixed-size-list {:style list-style ;;{:max-width 275} ;; Need to set this so that splitpane's left side  does not expand
+                                       :height (:height dims)
+                                       :width (:width dims)
+                                       ;; this is the size of the row component returned by render-row fn
+                                       :itemSize item-size
+                                       :overflow-y "scroll"
+                                       ;; Need to get ref to access methods scrollToItem or scrollTo
+                                       ;; See https://react-window.vercel.app/#/api/FixedSizeList
+                                       ;; See https://react-window.vercel.app/#/examples/list/scroll-to-item
+                                       :ref (fn [^js/Ref e]
+                                              (some-> e (.scrollToItem scroll-to-item-index)))
+                                       :itemCount (count list-items)
+                                       :overscanCount 1} row-item-fn]])))]))]))
 
 (defn list-items-factory
   "Returns a function that can be used as a child in fixed-size-list.
@@ -522,7 +531,7 @@
      with supplied arg 'field-name-kw' and the event value
      Returns a function that can be used in a on-change handler of a text field
   "
-  ([handler-name field-name-kw int-val] 
+  ([handler-name field-name-kw int-val]
    (fn [^js/Event e]
      (let [val (-> e .-target  .-value)
                ;; Need to ensure that length is an int as expected by backend api
@@ -532,7 +541,10 @@
    (on-change-factory handler-name field-name-kw false)))
 
 (defn on-check-factory
-  "Called in on-change handler of a check field"
+  "Called in on-change handler of a check field.
+   Returns a fn that accepts check event 
+   and this fn in turn calls the 'handler-name' fn with 'field-name-kw' and value
+   "
   [handler-name field-name-kw]
   (fn [e]
     (handler-name field-name-kw (-> e .-target  .-checked))))
@@ -596,3 +608,11 @@
     (reset! anchor-el nil)
     (apply action action-args)
     (.stopPropagation ^js/Event e)))
+
+
+#_(fn [e] (println "ref is called ..." (when-not (nil? e)
+                                         (js/Object.getOwnPropertyNames e)
+                                         (println "  ref acess " (-> e (.scrollToItem 1))
+                                                  #_(-> e  .-state .-instance js/Object.entries #_js/Object.getOwnPropertyNames)
+                                                  #_(-> e  js/Object.entries)
+                                                  #_(js/Object.entries (.-_outerRef e))))))

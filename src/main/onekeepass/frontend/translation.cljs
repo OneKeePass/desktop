@@ -10,8 +10,6 @@
 
 (def ^:private i18n-obj ^js/i18nObj i18n)
 
-
-
 ;; It appears that start page lstr calls are made before translations data are loaded because of async call nature
 ;; The "getStarted" key is called only once. Other keys are called second time and gets the translation data
 ;; Not sure why this is happening
@@ -21,6 +19,8 @@
 (def trans-defaults {"titles.getStarted" "Get Started"})
 
 (def i18n-instance (atom nil))
+
+;; https://www.i18next.com/translation-function/plurals#singular-plural
 
 ;; See interpolation options here
 ;;https://www.i18next.com/translation-function/interpolation
@@ -133,12 +133,16 @@
 
     (setup-i18n-with-backend prefered_language (create-back-end parsed-translations))))
 
+;; This loads the translation files for the selected language ( done in Settings screen)
+;; We need to have the corresponding translation json files in the dir resources/public/translations
+;; See load_language_translations fn of src-tauri/src/translation.rs
+
 (defn load-language-translation
-  "Needs to be called on app loading in the very begining to load locale language and 'en' 
+  "Needs to be called on app loading in the very begining to load locale language (or prefered_language) and 'en' 
    tranalations json files found in app resource dir"
   ([]
    (tr-events/load-language-translation [] translations-loaded-callback))
-
+  ;; Not used at this time
   ([language-ids]
    ;; language-ids is a vec of two charater language ids
    ;; e.g ["en" "fr"]

@@ -1,13 +1,15 @@
-use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::fs;
 
 use crate::{
-  app_paths::app_backup_dir, constants::{standard_file_names::APP_PREFERENCE_FILE, themes::LIGHT}, password_gen_preference::PasswordGeneratorPreference, translation
+  app_paths::app_backup_dir,
+  constants::{standard_file_names::APP_PREFERENCE_FILE, themes::LIGHT},
+  password_gen_preference::PasswordGeneratorPreference,
+  translation,
 };
 
-use onekeepass_core::db_service as kp_service;
 use crate::app_paths::app_home_dir;
+use onekeepass_core::db_service as kp_service;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct BackupPreference {
@@ -31,7 +33,7 @@ pub struct PreferenceData {
   pub default_entry_category_groupings: Option<String>,
   pub theme: Option<String>,
   pub language: Option<String>,
-  pub pass_phrase_options:Option<kp_service::PassphraseGenerationOptions>,
+  pub pass_phrase_options: Option<kp_service::PassphraseGenerationOptions>,
 }
 // Old preference used before introduction of fields clipboard_timeout,theme ,language
 // Leaving it here for documentation purpose only
@@ -45,7 +47,7 @@ pub struct PreferenceData {
 //   pub backup: BackupPreference,
 // }
 
-// Old preference used in the earlier version v0.14.0 
+// Old preference used in the earlier version v0.14.0
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Preference1 {
   pub version: String,
@@ -84,7 +86,7 @@ pub struct Preference {
 
   pub backup: BackupPreference,
 
-  pub password_gen_preference:PasswordGeneratorPreference,
+  pub password_gen_preference: PasswordGeneratorPreference,
 }
 
 impl Default for Preference {
@@ -101,7 +103,7 @@ impl Default for Preference {
       default_entry_category_groupings: "Groups".into(),
       recent_files: vec![],
       backup: BackupPreference::default(),
-      password_gen_preference:PasswordGeneratorPreference::default(),
+      password_gen_preference: PasswordGeneratorPreference::default(),
     }
   }
 }
@@ -170,7 +172,6 @@ impl Preference {
 
   fn read_previous_preference(pref_str: &str) -> Option<Preference> {
     if let Ok(p1) = toml::from_str::<Preference1>(&pref_str) {
-      
       // As the logging is not enabled, we will see this logging output
       // info!("Found previous version of Preference and using that");
       #[cfg(feature = "onekeepass-dev")]
@@ -185,7 +186,7 @@ impl Preference {
       p.language = p1.language;
       p.theme = p1.theme;
       p.clipboard_timeout = p1.clipboard_timeout;
-      
+
       Some(p)
     } else {
       None
@@ -220,14 +221,17 @@ impl Preference {
     let toml_str_result = toml::to_string(self);
     if let Ok(toml_str) = toml_str_result {
       if let Err(err) = fs::write(pref_file_name, toml_str.as_bytes()) {
-        error!("Prefernce write failed and error is {}", err.to_string());
+        log::error!("Prefernce write failed and error is {}", err.to_string());
       }
     }
   }
 
   // Update the preference with any non null values
   pub fn update(&mut self, preference_data: PreferenceData) {
-    // TODO: Need to have a 'macro' for this  
+    // debug!("Preference update is called {:?}",&preference_data);
+    // debug!("Preference before {:?}",&self);
+
+    // TODO: Need to have a 'macro' for this
     let mut updated = false;
     if let Some(v) = preference_data.language {
       self.language = v;
@@ -258,7 +262,7 @@ impl Preference {
       self.password_gen_preference.update_pass_phrase_options(v);
       updated = true;
     }
-
+    // debug!("Preference after updated {}, {:?}",updated,&self);
     if updated {
       self.write_toml();
     }
@@ -283,7 +287,7 @@ impl Preference {
     let pref_file_name = app_home_dir().join("preference.json");
     if let Ok(json_str) = json_str_result {
       if let Err(err) = fs::write(pref_file_name, json_str.as_bytes()) {
-        error!("Prefernce write failed and error is {}", err.to_string());
+        log::error!("Prefernce write failed and error is {}", err.to_string());
       }
     }
   }
