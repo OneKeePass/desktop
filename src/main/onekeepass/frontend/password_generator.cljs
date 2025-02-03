@@ -9,8 +9,7 @@
             mui-icon-visibility mui-icon-visibility-off mui-input
             mui-input-adornment mui-slider mui-stack mui-tab mui-tabs
             mui-text-field mui-typography]]
-   [onekeepass.frontend.translation :refer-macros [tr-l tr-h tr-bl tr-dlg-title] :refer [lstr-l
-                                                                                         lstr-l-cv]]
+   [onekeepass.frontend.translation :refer-macros [tr-l tr-h tr-bl] :refer [lstr-l lstr-l-cv]]
    [reagent.core :as r]))
 
 (defn- end-icons [visibile?]

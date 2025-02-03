@@ -119,7 +119,7 @@
 
          (> matched-count 0)
          [mui-stack {:direction "row" :justify-content "space-between" :sx {:margin-top 1 :margin-bottom 1}}
-          [mui-typography (str (tr-h "noOfEntriesFound") " : "  matched-count)  #_(str "Matched entry count: " matched-count)]
+          [mui-typography (str (tr-h "noOfEntriesFound") " : "  matched-count)]
           [mui-typography (tr-h "doubleClickOnEntry")]]
 
          (and not-matched (not (str/blank? term)))

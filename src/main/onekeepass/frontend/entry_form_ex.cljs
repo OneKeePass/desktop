@@ -75,8 +75,8 @@
       (handler-name field-name-kw (-> e .-target  .-checked)))))
 
 #_(defn on-check-factory [handler-name field-name-kw]
-  (fn [e]
-    (handler-name field-name-kw (-> e .-target  .-checked))))
+    (fn [e]
+      (handler-name field-name-kw (-> e .-target  .-checked))))
 
 (defn on-change-factory2
   [handler-name]
@@ -137,7 +137,10 @@
         expiry-duration-selection @(form-events/entry-form-field :expiry-duration-selection)
         expiry-dt @(form-events/entry-form-data-fields :expiry-time)
         creation-time @(form-events/entry-form-data-fields :creation-time)
-        last-modification-time @(form-events/entry-form-data-fields :last-modification-time)]
+        last-modification-time @(form-events/entry-form-data-fields :last-modification-time)
+        parent-group-uuid @(form-events/entry-form-data-fields :group-uuid)
+        {:keys [name]} @(dlg-events/selected-group-info parent-group-uuid)
+        ]
     (when-not edit
       [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
 
@@ -149,9 +152,13 @@
         [mui-typography (str (tr-l "created") ":")]
         [mui-typography (u/to-local-datetime-str creation-time ENTRY_DATETIME_FORMAT)]]
 
-       [mui-stack {:direction "row" :sx {:justify-content "space-between"}}
+       [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
         [mui-typography (str (tr-l "lastModified") ":")]
         [mui-typography (u/to-local-datetime-str last-modification-time ENTRY_DATETIME_FORMAT)]]
+       
+       [mui-stack {:direction "row" :sx {:justify-content "space-between"}}
+        [mui-typography (str (tr-l "group") ":")]
+        [mui-typography name]]
 
        (when-not (= expiry-duration-selection "no-expiry")
          [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-top "10px"}}
@@ -282,38 +289,39 @@
    Returns an vec of kvd map for a section
    "
   [entry-type-uuid section-name section-fields parsed-fields]
-  (let [section-data (get section-fields section-name)]
-    (if (not= entry-type-uuid const/UUID_OF_ENTRY_TYPE_AUTO_OPEN)
+  (let [section-data (get section-fields section-name)
 
-      (let [adjusted-section-data (mapv 
-                                   (fn [{:keys [key] :as m}]
-                                     (assoc m :read-value (place-holder-resolved-value parsed-fields key)))
-                                   section-data)]
-        adjusted-section-data)
-      (let [adjusted-section-data (mapv 
-                                   (fn [{:keys [key] :as m}]
-                                          ;; Note the use of lstr-field-name vs tr-entry-field-name-cv
-                                          ;; lstr-field-name is fn and tr-entry-field-name-cv is a macro 
-                                     (cond
-                                       (= key URL)
-                                            ;; for now read-value is not used 
-                                            ;;:read-value (:url-field-value m)
-                                       (assoc m :field-name (tr-entry-field-name-cv "autoOpenKdbxFileOpen"))
+        adjusted-section-data (mapv
+                               (fn [{:keys [key] :as m}]
+                                 (assoc m :read-value (place-holder-resolved-value parsed-fields key)))
+                               section-data)
 
-                                       (= key USERNAME)
-                                       (assoc m :field-name (lstr-field-name 'autoOpenKeyFile)
-                                              :read-value (place-holder-resolved-value parsed-fields key)) ;; :read-value (:key-file-path m)
-                                       
-                                       (= key PASSWORD)
-                                       (assoc m  :read-value (place-holder-resolved-value parsed-fields key))
+        adjusted-section-data  (if (not= entry-type-uuid const/UUID_OF_ENTRY_TYPE_AUTO_OPEN) 
+                                 adjusted-section-data
+                                 (mapv
+                                  (fn [{:keys [key] :as m}]
+                                    ;; Note the use of lstr-field-name vs tr-entry-field-name-cv
+                                    ;; lstr-field-name is fn and tr-entry-field-name-cv is a macro 
+                                    (cond
+                                      (= key URL)
+                                      ;; for now read-value is not used 
+                                      ;;:read-value (:url-field-value m)
+                                      (assoc m :field-name (tr-entry-field-name-cv "autoOpenKdbxFileOpen"))
 
-                                       (= key IFDEVICE)
-                                       (assoc m :field-name (tr-entry-field-name-cv "autoOpenIfDevice"))
+                                      (= key USERNAME)
+                                      (assoc m :field-name (lstr-field-name 'autoOpenKeyFile)
+                                             :read-value (place-holder-resolved-value parsed-fields key)) ;; :read-value (:key-file-path m)
 
-                                       :else
-                                       m)) 
-                                   section-data)]
-        adjusted-section-data))))
+                                      (= key PASSWORD)
+                                      (assoc m  :read-value (place-holder-resolved-value parsed-fields key))
+
+                                      (= key IFDEVICE)
+                                      (assoc m :field-name (tr-entry-field-name-cv "autoOpenIfDevice"))
+
+                                      :else
+                                      m))
+                                  adjusted-section-data))]
+    adjusted-section-data))
 
 (defn all-sections-content
   "Component for all sections of an entry"
@@ -1014,6 +1022,43 @@
       [entry-content-core]]]))
 
 ;;;;;;;;;;;;;;;;;;;
+
+#_(defn get-section-data
+    "Called to set up any entry type specific data in kv
+     Returns an vec of kvd map for a section
+     "
+    [entry-type-uuid section-name section-fields parsed-fields]
+    (let [section-data (get section-fields section-name)]
+      (if (not= entry-type-uuid const/UUID_OF_ENTRY_TYPE_AUTO_OPEN)
+        (let [adjusted-section-data (mapv
+                                     (fn [{:keys [key] :as m}]
+                                       (assoc m :read-value (place-holder-resolved-value parsed-fields key)))
+                                     section-data)]
+          adjusted-section-data)
+        (let [adjusted-section-data (mapv
+                                     (fn [{:keys [key] :as m}]
+                                            ;; Note the use of lstr-field-name vs tr-entry-field-name-cv
+                                            ;; lstr-field-name is fn and tr-entry-field-name-cv is a macro 
+                                       (cond
+                                         (= key URL)
+                                              ;; for now read-value is not used 
+                                              ;;:read-value (:url-field-value m)
+                                         (assoc m :field-name (tr-entry-field-name-cv "autoOpenKdbxFileOpen"))
+
+                                         (= key USERNAME)
+                                         (assoc m :field-name (lstr-field-name 'autoOpenKeyFile)
+                                                :read-value (place-holder-resolved-value parsed-fields key)) ;; :read-value (:key-file-path m)
+
+                                         (= key PASSWORD)
+                                         (assoc m  :read-value (place-holder-resolved-value parsed-fields key))
+
+                                         (= key IFDEVICE)
+                                         (assoc m :field-name (tr-entry-field-name-cv "autoOpenIfDevice"))
+
+                                         :else
+                                         (assoc m :read-value (place-holder-resolved-value parsed-fields key))))
+                                     section-data)]
+          adjusted-section-data))))
 
 #_(defn add-modify-section-field-popper
     [{:keys [dialog-show
