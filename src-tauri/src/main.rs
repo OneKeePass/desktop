@@ -15,8 +15,9 @@ mod file_util;
 mod key_secure;
 mod menu;
 mod translation;
+mod pass_phrase;
 mod password_gen_preference;
-mod callback_service_provider;
+// mod callback_service_provider;
 
 use constants::event_action_names::*;
 use constants::event_names::*;

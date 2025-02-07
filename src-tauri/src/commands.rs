@@ -15,7 +15,7 @@ use uuid::Uuid;
 use crate::app_state::SystemInfoWithPreference;
 use crate::auto_open::{AutoOpenProperties, AutoOpenPropertiesResolved};
 use crate::menu::{self, MenuActionRequest, MenuTitleChangeRequest};
-use crate::{app_paths, translation};
+use crate::{app_paths, pass_phrase, translation};
 use crate::{app_preference, app_state};
 use crate::{auto_type, biometric, OTP_TOKEN_UPDATE_EVENT};
 use onekeepass_core::async_service as kp_async_service;
@@ -703,9 +703,12 @@ pub(crate) async fn analyzed_password(
 
 #[command]
 pub(crate) async fn generate_password_phrase(
+  app: tauri::AppHandle,
   password_phrase_options: kp_service::PassphraseGenerationOptions,
 ) -> Result<kp_service::GeneratedPassPhrase> {
-  Ok(password_phrase_options.generate()?)
+  let loader = pass_phrase::WordListLoaderImpl::new(app);
+  // loader impl may be called to load word list file from resource in generate fn
+  Ok(password_phrase_options.generate(&loader)?)
 }
 
 #[command]

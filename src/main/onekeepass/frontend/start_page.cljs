@@ -24,30 +24,31 @@
 (set! *warn-on-infer* true)
 
 (defn main-content []
-  (let [recent-files-list @(cmn-events/recent-files)]
+  (let [recent-files-list @(cmn-events/recent-files)
+        app-version @(cmn-events/app-version)]
     [mui-container {:sx {:height "100%"
                            ;;:bgcolor "text.disabled" 
                          :bgcolor "background.default"
                          :color "primary.main"}} ;;:mt 10
      [mui-stack {:direction "row" :gap 2 :alignItems "center"
-                 :divider (r/as-element [mui-divider 
+                 :divider (r/as-element [mui-divider
                                          {:sx {:border-color (theme-color @custom-theme-atom :divider-color1)}
                                           :orientation "vertical" :flexItem true}])
                  :sx {:height "100%"}}
-      
+
       ;; Left side
       [mui-box {:sx {:display "flex" :width "50%" :height "100%" :flexDirection "column"}}
-       [mui-typography {:variant "h6"} 
+       [mui-typography {:variant "h6"}
         (tr-t start)]
        [mui-stack {:direction "row" :gap 2 :alignItems "center"}
         [mui-icon-button  {:edge "start" :color "inherit" :sx {:ml 0}
                            :onClick nd-events/new-database-dialog-show}
 
          [cust-icons/database-cog-outline]]
-        
+
         [mui-link  {:variant "subtitle1"
-                    :onClick nd-events/new-database-dialog-show} 
-         (tr-l newDatabase)] 
+                    :onClick nd-events/new-database-dialog-show}
+         (tr-l newDatabase)]
         [nd-form/new-database-dialog-main]]
 
        [mui-stack {:direction "row" :gap 2 :alignItems "center"}
@@ -60,7 +61,7 @@
         [od-form/open-db-dialog-main]]
 
        [mui-typography {:sx {:mt 4} :variant "h6"} (tr-t recent)]
-       
+
        [mui-stack {:mt 1}
         (doall
          (for [lnk recent-files-list]
@@ -87,11 +88,14 @@
        #_[mui-stack [m/example-comp]]
 
        [mui-stack {:direction "row" :align-self "center"} ;;:sx {:mt "25%"}
-        [mui-typography {:variant "h4" :sx {:color "text.primary"}} "OneKeePass"]]]]]))
+        [mui-typography {:variant "h4" :sx {:color "text.primary"}} "OneKeePass"]]
+
+       [mui-stack {:direction "row" :align-self "center"} ;;:sx {:mt "25%"}
+        [mui-typography {:variant "h7" :sx {:color "text.primary"}} app-version #_(str "Version " app-version)]]]]]))
 
 (defn welcome-content []
   [:div {:class "box" :style {:overflow "hidden" ;; hidden used so to avoid showing scrollbar 
-                              :background-color (theme-color @custom-theme-atom :bg-default)}} 
+                              :background-color (theme-color @custom-theme-atom :bg-default)}}
    [:div {:class "cust_row header" :style {:text-align "center"}}
     ;; Another way of getting color from theme (fn [^js/Mui.Theme theme] (-> theme .-status .-danger))
     [mui-stack {:direction "row" :justify-content "center"  :sx {:bgcolor "secondary.main"}}

@@ -18,7 +18,7 @@ use tauri::{
 };
 
 use crate::app_preference::{Preference, PreferenceData};
-use crate::{biometric, callback_service_provider};
+use crate::biometric;
 use crate::constants::standard_file_names::APP_PREFERENCE_FILE;
 use crate::key_secure;
 use crate::translation::current_locale_language;
@@ -56,7 +56,7 @@ pub fn init_app(app: &App) {
 
   key_secure::init_key_main_store();
 
-  callback_service_provider::init_callback_service_provider(app.app_handle().clone());
+  // callback_service_provider::init_callback_service_provider(app.app_handle().clone());
 
   onekeepass_core::async_service::start_runtime();
 

@@ -37,12 +37,18 @@
              :on-change (fn [_event val]
                           ;; val is of string type and need to be coverted as keyword
                           (gen-events/set-active-password-generator-panel (keyword val)))}
-   [mui-tab {:label (lstr-l 'password) :value :password}]
-   [mui-tab {:label (lstr-l 'passwordPhrase) :value :pass-phrase}]])
+   
+   ;; Saw default font-size used 0.875em when button label is uppercase
+   [mui-tab {:sx {:text-transform "capitalize" :font-size "0.900em"} :label (lstr-l 'password) :value :password}]
+   [mui-tab {:sx {:text-transform "capitalize" :font-size "0.900em"} :label (lstr-l 'passwordPhrase) :value :pass-phrase}]])
 
 
 ;; When this field has the focus, Shift + Down key will show the menu items and can then be used to move up or down.
 ;; Also if we press the first letter (case sensitive ) of any options, then cursor moves to that menu item option
+
+;; Saw this warning: MUI: You have provided an out-of-range value `2024` for the select component.
+;; See https://lightrun.com/solutions/mui-material-ui-suppress-the-material-ui-select-component-out-of-range-error/
+;; May need to fix if any issue comes up
 
 ;; TODO: 
 ;; Move to 'common-components' and also change in 'src/main/onekeepass/frontend/entry_form/fields.cljs'
@@ -99,14 +105,16 @@
 (def all-wl [{:value "EFFLarge" :label "EFF Large List"}
              {:value "EFFShort1" :label "EFF Short List 1"}
              {:value "EFFShort2" :label "EFF Short List 2"}
-             {:value "Google10000UsaEnglishNoSwearsMedium" :label "U.S English,No Swears words"}  ;; "Google (U.S English,No Swears words)"
+             {:value "Google10000UsaEnglishNoSwearsMedium" :label "U.S English, No Swears words"}  ;; "Google (U.S English,No Swears words)"
              {:value "FrenchDicewareWordlist" :label "French Word List"}
              {:value "GermanDicewareWordlist" :label "German Word List"}])
 
 ;; values should match enum ProbabilityOption
-(def capitalize-word-choices [{:value "Always" :label (lstr-l 'always)}
-                              {:value "Never" :label (lstr-l 'never)}
-                              {:value "Sometimes" :label (lstr-l 'sometimes)}])
+(defn capitalize-word-choices []
+  [{:value "Always" :label (lstr-l 'always)}
+   {:value "Never" :label (lstr-l 'never)}
+   {:value "Sometimes" :label (lstr-l 'sometimes)}]
+  )
 
 ;; values should match enum ProbabilityOption
 (def capitalize-first-choices capitalize-word-choices)
@@ -157,14 +165,14 @@
                                :value (:type-name capitalize-words)
                                :edit true
                                :on-change-handler (cc/on-change-factory gen-events/pass-phrase-options-select-field-update :capitalize-words)
-                               :select-field-options capitalize-word-choices}]]
+                               :select-field-options (capitalize-word-choices)}]]
      [mui-stack {:width 8}]
      [mui-stack {:direction "row" :sx {:width "50%"}}
       [simple-selection-field {:field-name (lstr-l 'capitalizeFirstLetter)
                                :value (:type-name capitalize-first)
                                :edit true
                                :on-change-handler (cc/on-change-factory gen-events/pass-phrase-options-select-field-update :capitalize-first)
-                               :select-field-options capitalize-first-choices}]]]
+                               :select-field-options (capitalize-first-choices)}]]]
 
     [mui-stack {:direction "row" :sx {:width "100%" :margin-top "10px"}}
      [mui-text-field

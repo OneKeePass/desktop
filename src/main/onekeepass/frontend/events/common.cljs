@@ -71,6 +71,9 @@
 (defn app-theme-light? []
   (subscribe [:app-theme-light]))
 
+(defn app-version []
+  (subscribe [:app-version]))
+
 (defn biometric-type-available []
   (subscribe [:biometric-type-available]))
 
@@ -170,6 +173,12 @@
  (fn [pref _query-vec]
    ;; valid values (:theme pref) => light or dark
    (= "light" (:theme pref))))
+
+(reg-sub
+ :app-version
+ :<- [:app-preference]
+ (fn [pref _query-vec]
+   (:version pref)))
 
 (reg-sub
  :app-preference-loading-completed

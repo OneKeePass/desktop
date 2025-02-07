@@ -46,6 +46,7 @@
    :password-visible true
    :text-copied false
    :callback-on-copy-fn nil
+   ;; :password or :pass-phrase
    :panel-shown :password
    ;; All fields from struct PasswordGenerationOptions
    :password-options {:length 8
@@ -56,7 +57,7 @@
                       :spaces false
                       :exclude-similar-characters true
                       :strict true}
-   ;; All fields from struct PassphraseGenerationOptions
+   ;; All fields from struct PassphraseGenerationOptions and intialized from app-preference
    :phrase-generator-options {}
     ;; some fields from struct 'AnalyzedPassword'  form the map in :password-result                             
    :password-result {:password nil
