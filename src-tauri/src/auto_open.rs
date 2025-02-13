@@ -40,12 +40,12 @@ impl AutoOpenProperties {
         "Invalid db_key {}. The db file is not found",
         &self.source_db_key
       );
-      return Err(Error::UnexpectedError(er));
+      return Err(Error::AutoOpenError(er));
     }
 
     // We should be able to find the parent dir from the auto open master db's path
     let Some(parent_dir_path) = db_dir_path.parent() else {
-      return Err(Error::UnexpectedError("Parent dir is not found".into()));
+      return Err(Error::AutoOpenError("Parent dir is not found".into()));
     };
 
     // The child database path is parsed only if it is not an empty string
@@ -106,10 +106,10 @@ impl AutoOpenProperties {
 
 fn resolved_path(parent_dir_path: &Path, in_path: &String) -> Result<String> {
   let (remaining, parsed) = parse_field_value(in_path)
-    .map_err(|e| error::Error::UnexpectedError(format!("Parsing failed with error {}", e)))?;
+    .map_err(|e| error::Error::AutoOpenError(format!("Parsing failed with error {}", e)))?;
 
   if !remaining.is_empty() {
-    return Err(Error::UnexpectedError("Url parsing is not complete".into()));
+    return Err(Error::AutoOpenError("Url parsing is not complete".into()));
   }
 
   let final_path = if parsed.full_path_part.starts_with("file://") {
@@ -117,13 +117,13 @@ fn resolved_path(parent_dir_path: &Path, in_path: &String) -> Result<String> {
   } else {
     let p = parent_dir_path.join(&parsed.full_path_part);
     // If the canonicalize path is not found, then this will return an error
-    p.canonicalize().map_err(|e| Error::UnexpectedError(format!("Error: Path {:?} : {}", &p,e)))?.to_string_lossy().to_string()
+    p.canonicalize().map_err(|e| Error::AutoOpenError(format!("Error: Path {:?} : {}", &p,e)))?.to_string_lossy().to_string()
   };
 
   // let mut p = parent_dir_path.join(&parsed.full_path_part);
 
   // // If the canonicalize path is not found, then this will return an error
-  // p = p.canonicalize().map_err(|e| Error::UnexpectedError(format!("Error: Path {:?} : {}", &p,e)))?;
+  // p = p.canonicalize().map_err(|e| Error::AutoOpenError(format!("Error: Path {:?} : {}", &p,e)))?;
 
   Ok(final_path)
 }

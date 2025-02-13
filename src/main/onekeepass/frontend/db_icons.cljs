@@ -782,7 +782,7 @@
    const/BANK_ACCOUNT_TYPE_NAME mui-icon-account-balance-outlined
    const/WIRELESS_ROUTER_TYPE_NAME mui-icon-wifi-outlined
    const/PASSPORT_TYPE_NAME mui-icon-flight-takeoff-outlined
-   const/AUTO_DB_OPEN mui-icon-launch})
+   const/AUTO_DB_OPEN_TYPE_NAME mui-icon-launch})
 
 (defn entry-type-icon
   "Resturns an as form-1 reagent component for the given name"

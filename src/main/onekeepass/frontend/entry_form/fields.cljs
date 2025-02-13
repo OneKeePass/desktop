@@ -40,7 +40,7 @@
     :else
     value))
 
-(defn- end-icons-1 [{:keys [key protected visibile edit] :as kv}]
+(defn- end-icons [{:keys [key protected visibile edit] :as kv}]
   (let [val (to-value kv)]
     [:<>
      (when protected
@@ -67,34 +67,6 @@
         [mui-icon-autorenew]])
        ;; Copy 
      [(cc/copy-icon-factory) val {:sx {:mr "-1px"}}]]))
-
-
-#_(defn- end-icons [key value protected visibile? edit]
-  [:<>
-   (when protected
-     (if visibile?
-       [mui-icon-button {:sx {:margin-right "-8px"}
-                         :edge "end"
-                         :on-click #(form-events/entry-form-field-visibility-toggle key)}
-        [mui-icon-visibility]]
-       [mui-icon-button {:sx {:margin-right "-8px"}
-                         :edge "end"
-                         :on-click #(form-events/entry-form-field-visibility-toggle key)}
-        [mui-icon-visibility-off]]))
-   ;; Open with the url
-   (when (= key URL)
-     [mui-icon-button {:sx {:margin-right "-8px"}
-                       :edge "end"
-                       :on-click #(form-events/entry-form-open-url value)}
-      [m/mui-icon-launch]])
-   ;; Password generator 
-   (when (and edit protected (= key PASSWORD))
-     [mui-icon-button {:sx {:margin-right "-8px"}
-                       :edge "end"
-                       :on-click form-events/password-generator-show}
-      [mui-icon-autorenew]])
-   ;; Copy 
-   [(cc/copy-icon-factory) value {:sx {:mr "-1px"}}]])
 
 (defn simple-selection-field [{:keys [key
                                       value
@@ -194,7 +166,7 @@
                                 :endAdornment (if no-end-icons nil
                                                   (r/as-element
                                                    [mui-input-adornment {:position "end"}
-                                                    [end-icons-1 kv]
+                                                    [end-icons kv]
                                                     #_(seq icons)]))
                                 :type (if (or (not protected) visible) "text" "password")}
                      ;;attributes for 'input' tag can be added here
@@ -278,9 +250,8 @@
                                      :sx (theme-text-field-sx edit @custom-theme-atom)
                                      :endAdornment (if (or (not valid-token-found) no-end-icons) nil
                                                        (r/as-element
-                                                        [mui-input-adornment {:position "end"}
-                                                         #_[end-icons key token false visible edit]
-                                                         [end-icons-1 (assoc kv 
+                                                        [mui-input-adornment {:position "end"} 
+                                                         [end-icons (assoc kv 
                                                                              :value token
                                                                              :read-value nil
                                                                              :protected false)]]))

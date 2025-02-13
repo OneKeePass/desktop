@@ -1733,7 +1733,7 @@
 
   ;; All entry form data keys
   (-> (get @re-frame.db/app-db db-key) :entry-form-data :data keys)
-  ;; => :tags :icon-id :binary-key-values :section-fields :title :expiry-time :history-count
+  ;; => :tags :icon-id :parsed-fields :binary-key-values :section-fields :title :expiry-time :history-count
   ;;    :expires :standard-section-names :last-modification-time :entry-type-name :auto-type
   ;;    :notes :section-names :entry-type-icon-name :last-access-time :uuid :entry-type-uuid :group-uuid :creation-time
   )
