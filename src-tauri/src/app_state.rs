@@ -124,7 +124,7 @@ impl AppState {
     *resource_dir_path = resource_path;
   }
 
-  pub(crate) fn resource_dir_path(&self,) -> Option<PathBuf> {
+  pub(crate) fn resource_dir_path(&self) -> Option<PathBuf> {
     let resource_dir_path = self.resource_dir_path.lock().unwrap();
     resource_dir_path.clone()
   }
@@ -143,6 +143,11 @@ impl AppState {
     let store_pref = self.preference.lock().unwrap();
     //store_pref.language.clone() will also works
     (*store_pref.language).to_string()
+  }
+
+  pub(crate) fn default_entry_category_groupings(&self) -> String {
+    let store_pref = self.preference.lock().unwrap();
+    store_pref.default_entry_category_groupings.clone()
   }
 
   /// Reads the preference from file system and store in state

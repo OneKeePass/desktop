@@ -226,6 +226,20 @@
                                            ;;:database-name (:database-name meta)
                                            }))))
 
+(defn update-db-opened
+  "Updates the db list and current active db key when a new kdbx database is loaded
+  The args are the re-frame 'app-db' and KdbxLoaded struct returned by backend API.
+  Returns the updated app-db
+  "
+  [app-db {:keys [db-key database-name file-name key-file-name]}] ;;kdbx-loaded
+  (let [app-db  (if (nil? (:opened-db-list app-db)) (assoc app-db :opened-db-list []) app-db)]
+    (-> app-db
+        (update-in [:opened-db-list] conj {:db-key db-key
+                                           :database-name database-name
+                                           :file-name file-name
+                                           :key-file-name key-file-name
+                                           :user-action-time (js/Date.now)}))))
+
 (defn active-db-key
   ;; To be called only in react components as it used 'subscribe' (i.e in React context)
   ([]
@@ -239,10 +253,10 @@
 
 (defn set-active-db-key
   "Sets the new current active db"
-  [db-key] 
+  [db-key]
   (dispatch [:common/change-active-db-complete db-key]))
 
-(defn set-active-db-key-direct 
+(defn set-active-db-key-direct
   "Called to set the current db to the given db-key and thus making it active
    It is assumed that the 'db-key' is already available in the opened db list
    Returns the updated app-db map
@@ -287,6 +301,18 @@
         kdb (get app-db kdbx-db-key)]
     (assoc app-db kdbx-db-key (assoc-in kdb ks v))))
 
+(defn assoc-in-with-db-key
+  "Called to associate the value in 'v' to the keys 'ks' location 
+  in the db for the selected db key and then updates the main db 
+  with this new key db
+  Returns the main db 
+  "
+  [app-db db-key ks v]
+  ;;Get db with db_key and update that map with v in ks
+  ;;Then update the main db
+  (let [kdb (get app-db db-key)]
+    (assoc app-db db-key (assoc-in kdb ks v))))
+
 #_(defn get-in-key-db
     "Gets the value for the key lists from an active kdbx content"
     [app-db ks]
@@ -296,12 +322,20 @@
 (defn get-in-key-db
   "Gets the value for the key lists from an active kdbx content"
   ([app-db ks]
-     ;; First we get the kdbx content map and then supplied keys 'ks' used to get the actual value
+   ;; First we get the kdbx content map and then supplied keys 'ks' used to get the actual value
+   ;; ks may be single kw or vec of keywords
    (get-in app-db (into [(active-db-key app-db)] ks)))
-
   ([app-db ks default]
    (get-in app-db (into [(active-db-key app-db)] ks) default)))
 
+(defn get-in-with-db-key
+  "Gets the value for the key lists from an active kdbx content"
+  ([app-db db-key ks]
+   ;; ks may be single kw or vec of keywords
+   (get-in app-db (into [db-key] ks)))
+
+  ([app-db db-key ks default]
+   (get-in app-db (into [db-key] ks) default)))
 
 (defn save-as
   "Called when user wants to save a modified db to another name"
@@ -330,14 +364,16 @@
 
 (reg-event-fx
  :common/kdbx-database-loading-complete
- (fn [{:keys [db]} [_event-id kdbx-loaded]]
+ (fn [{:keys [db]} [_event-id {:keys [db-key] :as _kdbx-loaded}]]
    {:fx [[:dispatch [:load-all-tags]]
          [:dispatch [:group-tree-content/load-groups]]
          [:dispatch [:entry-category/category-data-load-start
                      (-> db :app-preference :default-entry-category-groupings)]]
          [:dispatch [:common/load-entry-type-headers]]
          [:dispatch [:common/message-snackbar-open
-                     (lstr-sm 'dbOpened {:dbFileName (:db-key kdbx-loaded)})]]]}))
+                     (lstr-sm 'dbOpened {:dbFileName db-key})]]
+         ;; This db may have AutoOpen group
+         [:dispatch [:auto-open/verify-and-load db-key]]]}))
 
 ;; A common refresh all forms after an entry form changes - delete, put back , delete permanent
 (reg-event-fx
@@ -466,7 +502,7 @@
   ([]
    (subscribe [:common/current-db-locked]))
   ;; Following two fns access the app-db directly
-  ([app-db] 
+  ([app-db]
    ;; Current db key is used
    (boolean (get-in-key-db app-db [:locked])))
   ([app-db db-key]
@@ -499,7 +535,7 @@
 ;; Dispatched from a open-db-form event
 (reg-event-fx
  :common/kdbx-database-unlocked
- (fn [{:keys [db]} [_event-id _kdbx-loaded]] 
+ (fn [{:keys [db]} [_event-id _kdbx-loaded]]
    {:db (assoc-in-key-db db [:locked] false)
     :fx [;; TODO: Combine these reset calls with 'common/kdbx-database-loading-complete'
          [:dispatch [:load-all-tags]]
@@ -1067,8 +1103,8 @@
  :common/bg-open-file
  (fn [[path]]
    (bg/open-file path
-                (fn [api-response]
-                  (on-error api-response)))))
+                 (fn [api-response]
+                   (on-error api-response)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;  Common Dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

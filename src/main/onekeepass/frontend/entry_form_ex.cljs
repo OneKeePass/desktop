@@ -1023,43 +1023,6 @@
 
 ;;;;;;;;;;;;;;;;;;;
 
-#_(defn get-section-data
-    "Called to set up any entry type specific data in kv
-     Returns an vec of kvd map for a section
-     "
-    [entry-type-uuid section-name section-fields parsed-fields]
-    (let [section-data (get section-fields section-name)]
-      (if (not= entry-type-uuid const/UUID_OF_ENTRY_TYPE_AUTO_OPEN)
-        (let [adjusted-section-data (mapv
-                                     (fn [{:keys [key] :as m}]
-                                       (assoc m :read-value (place-holder-resolved-value parsed-fields key)))
-                                     section-data)]
-          adjusted-section-data)
-        (let [adjusted-section-data (mapv
-                                     (fn [{:keys [key] :as m}]
-                                            ;; Note the use of lstr-field-name vs tr-entry-field-name-cv
-                                            ;; lstr-field-name is fn and tr-entry-field-name-cv is a macro 
-                                       (cond
-                                         (= key URL)
-                                              ;; for now read-value is not used 
-                                              ;;:read-value (:url-field-value m)
-                                         (assoc m :field-name (tr-entry-field-name-cv "autoOpenKdbxFileOpen"))
-
-                                         (= key USERNAME)
-                                         (assoc m :field-name (lstr-field-name 'autoOpenKeyFile)
-                                                :read-value (place-holder-resolved-value parsed-fields key)) ;; :read-value (:key-file-path m)
-
-                                         (= key PASSWORD)
-                                         (assoc m  :read-value (place-holder-resolved-value parsed-fields key))
-
-                                         (= key IFDEVICE)
-                                         (assoc m :field-name (tr-entry-field-name-cv "autoOpenIfDevice"))
-
-                                         :else
-                                         (assoc m :read-value (place-holder-resolved-value parsed-fields key))))
-                                     section-data)]
-          adjusted-section-data))))
-
 #_(defn add-modify-section-field-popper
     [{:keys [dialog-show
              popper-anchor-el

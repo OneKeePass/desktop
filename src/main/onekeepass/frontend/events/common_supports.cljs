@@ -31,8 +31,12 @@
    (if-not (nil? error)
      (do
        (if (nil? error-fn)
-         (dispatch [:common/message-snackbar-error-open error])
-         (error-fn error))
+         (do
+           (dispatch [:common/message-snackbar-error-open error])
+           (dispatch [:common/progress-message-box-hide]))
+         (do
+           (error-fn error)
+           (dispatch [:common/progress-message-box-hide])))
        nil)
      result))
   ([api-response]

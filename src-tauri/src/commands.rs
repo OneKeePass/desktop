@@ -13,7 +13,7 @@ use std::path::Path;
 use uuid::Uuid;
 
 use crate::app_state::SystemInfoWithPreference;
-use crate::auto_open::{AutoOpenProperties, AutoOpenPropertiesResolved};
+use crate::auto_open::{self, AutoOpenProperties, AutoOpenPropertiesResolved};
 use crate::menu::{self, MenuActionRequest, MenuTitleChangeRequest};
 use crate::{app_paths, pass_phrase, translation};
 use crate::{app_preference, app_state};
@@ -354,6 +354,22 @@ pub(crate) async fn resolve_auto_open_properties(
 }
 
 #[command]
+pub(crate) async fn open_all_auto_open_dbs(
+  db_key: &str,
+  app_state: State<'_, app_state::AppState>,
+) -> Result<auto_open::AutoOpenDbsInfo> {
+  Ok(auto_open::open_all_auto_open_dbs(db_key, app_state)?)
+}
+
+
+#[command]
+pub(crate) async fn auto_open_group_uuid(
+  db_key: &str,
+) -> Result<Option<Uuid>> {
+  Ok(kp_service::auto_open_group_uuid(db_key,)?)
+}
+
+#[command]
 pub(crate) async fn history_entry_by_index(
   db_key: &str,
   entry_uuid: Uuid,
@@ -526,7 +542,7 @@ pub(crate) async fn combined_category_details(
 ) -> Result<kp_service::EntryCategories> {
   Ok(kp_service::combined_category_details(
     &db_key,
-    grouping_kind,
+    &grouping_kind,
   )?)
 }
 

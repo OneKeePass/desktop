@@ -42,13 +42,18 @@
 
 (defn- convert
   "Converts the case of the key string to the camelCase key as used in translation.json 
+   The arg 'txt-key' is a string or a symbol
   IMPORTANT: 
    camel-snake-kebab.core/->camelCase expects a non nil value;Otherwise an error 
    will be thrown resulting UI not showing!
   "
-  [txt-key]
+  [txt-key] 
+  ;; (str nil) => "" 
+  ;; This ensures that non nil value is given to ->camelCase
   (csk/->camelCase
-   (if (string? txt-key) txt-key "")))
+   (str txt-key))
+  #_(csk/->camelCase
+     (if (string? txt-key) txt-key "")))
 
 (defn lstr-dlg-title
   "Adds prefix 'dialog.titles' to the key before getting the translation"

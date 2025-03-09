@@ -8,17 +8,17 @@ use std::path::Path;
 
 #[derive(Default, Debug, Deserialize)]
 pub(crate) struct AutoOpenProperties {
-  source_db_key: String,
-  url_field_value: Option<String>,
-  key_file_path: Option<String>,
-  device_if_val: Option<String>,
+  pub(crate) source_db_key: String,
+  pub(crate) url_field_value: Option<String>,
+  pub(crate) key_file_path: Option<String>,
+  pub(crate) device_if_val: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize)]
 pub(crate) struct AutoOpenPropertiesResolved {
-  url_field_value: Option<String>,
-  key_file_path: Option<String>,
-  can_open: bool,
+  pub(crate) url_field_value: Option<String>,
+  pub(crate) key_file_path: Option<String>,
+  pub(crate) can_open: bool,
 }
 
 impl AutoOpenProperties {
@@ -117,7 +117,10 @@ fn resolved_path(parent_dir_path: &Path, in_path: &String) -> Result<String> {
   } else {
     let p = parent_dir_path.join(&parsed.full_path_part);
     // If the canonicalize path is not found, then this will return an error
-    p.canonicalize().map_err(|e| Error::AutoOpenError(format!("Error: Path {:?} : {}", &p,e)))?.to_string_lossy().to_string()
+    p.canonicalize()
+      .map_err(|e| Error::AutoOpenError(format!("Error: Path {:?} : {}", &p, e)))?
+      .to_string_lossy()
+      .to_string()
   };
 
   // let mut p = parent_dir_path.join(&parsed.full_path_part);
@@ -222,7 +225,6 @@ mod tests {
     let resolved = input.resolve().unwrap();
 
     println!("resolved is {:?}", resolved);
-
   }
 }
 

@@ -80,16 +80,19 @@
                    
                    api-args)
             r (<p! (invoke name args))]
-        ;; Call the dispatch-fn with the resolved value 'r'
-        ;;(println "r is " r)
+        ;; (println "r is " r)
+        ;; Call the dispatch-fn with the resolved value 'r' which is a json obj (before any js->clj call)
+        ;; represented as #js {..} 
+        ;; As compared to mobile cljs, here 'r' is typically serialized string from stuct Result
         (dispatch-fn {:result (cond
 
                                 (not (nil? convert-response-fn))
                                 (-> r js->clj convert-response-fn) ;; custom transformer of response
-
+                                
                                 (and convert-response (string? r))
                                 (csk/->kebab-case-keyword r)
-
+                                
+                                ;; Recursively the keys are transformed as kw
                                 convert-response
                                 (->> r js->clj (cske/transform-keys csk/->kebab-case-keyword))
 
@@ -98,7 +101,12 @@
                                 (js->clj r))})
         ;; Just to track db modifications if any
         (dispatch [:common/db-api-call-completed name]))
-      (catch js/Error err
+      
+      ;; Promise returns error,when tauri calls return Err(..) and then this catch clause is called
+      ;; This is different from the way done in mobile cljs
+      ;; In mobile cljs r is a map {:ok somevalue, :error nil} or {:ok nil, :error someError}
+      ;; Also promise reject in mobile app results in {:ok nil, :error rejectError}
+      (catch js/Error err 
         (do
           ;;Call the dispatch-fn with any error returned by the backend API
           (dispatch-fn {:error (ex-cause err)})

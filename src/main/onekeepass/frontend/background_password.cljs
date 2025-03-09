@@ -4,7 +4,6 @@
    [camel-snake-kebab.core :as csk]
    [onekeepass.frontend.background-common :as bg-cmn :refer [invoke-api]]))
 
-
 (defn analyzed-password
   "Generates a password with the given options and returns the 
   generated password with its analysis"

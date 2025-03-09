@@ -54,7 +54,7 @@
                            :on-click #(form-events/entry-form-field-visibility-toggle key)}
           [mui-icon-visibility-off]]))
        ;; Open with the url
-     (when (= key URL)
+     (when (and (not edit) (= key URL))
        [mui-icon-button {:sx {:margin-right "-8px"}
                          :edge "end"
                          :on-click #(form-events/entry-form-open-url val)}
@@ -132,15 +132,7 @@
                 :else
                 ;; It is assumed translation is done already
                 key)
-        val  (to-value kv) #_(cond
-                               edit
-                               value
-
-                               (and (not edit) (not (nil? read-value)))
-                               read-value
-
-                               :else
-                               value)]
+        val  (to-value kv)]
     [m/text-field {:sx   (merge {:margin-top "16px"} (cc/password-helper-text-sx (:name password-score)))
                    :fullWidth true
                    :label label

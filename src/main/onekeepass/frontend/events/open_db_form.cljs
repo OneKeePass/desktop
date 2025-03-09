@@ -1,6 +1,5 @@
 (ns onekeepass.frontend.events.open-db-form
-  (:require
-   [clojure.string :as str]
+  (:require 
    [re-frame.core :refer [reg-event-db reg-event-fx reg-fx reg-sub dispatch subscribe]]
    [onekeepass.frontend.events.common :as cmn-events :refer [check-error
                                                              active-db-key
@@ -143,7 +142,12 @@
  (fn [db [_event-id]]
    (init-open-db-vals db)))
 
-(declare on-file-loading)
+(declare unlock-response-handler)
+
+(defn- on-file-loading [api-response]
+  (let [error-fn (fn [err] (dispatch [:open-db-error err]))]
+    (when-let [kdbx-loaded (check-error api-response error-fn)]
+      (dispatch [:open-db-file-loading-done kdbx-loaded]))))
 
 (reg-event-fx
  :open-db-login-credential-entered
@@ -153,32 +157,34 @@
               (assoc-in [:open-db :error-fields] {})
               (assoc-in [:open-db :status] :in-progress))
       :fx [(if unlock-request
-             [ :bg-unlock-kdbx-file [(active-db-key db) pwd key-file-name]]
-             [ :bg-load-kdbx-file [file-name pwd key-file-name on-file-loading]])]})))
+             [:bg-unlock-kdbx-file [(active-db-key db) pwd key-file-name unlock-response-handler]]
+             [:bg-load-kdbx-file [file-name pwd key-file-name on-file-loading]])]})))
 
-(reg-event-db
+#_(reg-event-db
+   :open-db-error
+   (fn [db [_event-id error]]
+     (-> db (assoc-in [:open-db :error-text] error)
+         (assoc-in [:open-db :status] :error))))
+
+(reg-event-fx
  :open-db-error
- (fn [db [_event-id error]]
-   (-> db (assoc-in [:open-db :error-text] error)
-       (assoc-in [:open-db :status] :error))))
+ (fn [{:keys [db]} [_event-id error]]
+   {:db (-> db (assoc-in [:open-db :error-text] error)
+            (assoc-in [:open-db :status] :error))
+    :fx [[:dispatch [:common/progress-message-box-hide]]]}))
 
 (reg-event-fx
  :open-db-file-loading-done
  (fn [{:keys [db]} [_event-id kdbx-loaded]]
    ;; will hide dialog
-   {:db (-> db init-open-db-vals) 
+   {:db (-> db init-open-db-vals)
     ;; Need to hide any progress msg dialog if shown
     :fx [[:dispatch [:common/progress-message-box-hide]]
          [:dispatch [:common/kdbx-database-opened kdbx-loaded]]]}))
 
-(defn- on-file-loading [api-response]
-  (let [error-fn (fn [err] (dispatch [:open-db-error err]))]
-    (when-let [kdbx-loaded (check-error api-response error-fn)]
-      (dispatch [:open-db-file-loading-done kdbx-loaded]))))
-
 ;;IMPORTANT reg-fx handler fn takes single argument. So we need to use vec [file-name pwd]
 (reg-fx
-  :bg-load-kdbx-file
+ :bg-load-kdbx-file
  (fn [[file-name pwd key-file-name on-file-loading]]
    (bg/load-kdbx file-name pwd key-file-name on-file-loading)))
 
@@ -188,15 +194,15 @@
    {:db (-> db init-open-db-vals) ;; will hide dialog
     :fx [[:dispatch [:common/kdbx-database-unlocked kdbx-loaded]]]}))
 
-#_(defn- unlock-response-handler [api-response]
+(defn- unlock-response-handler [api-response]
   (when-let [kdbx-loaded (check-error
                           api-response
                           #(dispatch [:open-db-error %]))]
     (dispatch [:unlock-db-file-loading-done kdbx-loaded])))
 
 (reg-fx
-  :bg-unlock-kdbx-file
- (fn [[db-key pwd key-file-name dispatch-fn]] 
+ :bg-unlock-kdbx-file
+ (fn [[db-key pwd key-file-name dispatch-fn]]
    (bg/unlock-kdbx db-key pwd key-file-name dispatch-fn)))
 
 (reg-event-fx
@@ -222,7 +228,6 @@
                                            (dispatch [:open-db-biometric-login-success])
                                            (dispatch [:open-db-biometric-login-fail]))))))))
 
-
 (reg-event-fx
  :open-db-biometric-login-success
  (fn [{:keys [db]} [_event-id]]
@@ -232,12 +237,12 @@
 (reg-fx
  :bg-unlock-kdbx-on-biometric-authentication
  (fn [[db-key]]
-   (bg/unlock-kdbx-on-biometric-authentication db-key
-                                               (fn [api-response]
-                                                 (when-let [kdbx-loaded (check-error
-                                                                         api-response
-                                                                         #(dispatch [:open-db-error %]))]
-                                                   (dispatch [:unlock-db-file-loading-done kdbx-loaded]))))))
+   (bg/unlock-kdbx-on-biometric-authentication db-key unlock-response-handler
+                                               #_(fn [api-response]
+                                                   (when-let [kdbx-loaded (check-error
+                                                                           api-response
+                                                                           #(dispatch [:open-db-error %]))]
+                                                     (dispatch [:unlock-db-file-loading-done kdbx-loaded]))))))
 
 
 (reg-event-fx
@@ -254,15 +259,12 @@
 
 ;;;;;;;;;;;;;;;;;;;;  auto db open ;;;;;;;;;;;;;;;;;;;
 
-(defn- handle-auto-open-response [api-response] 
+(defn- handle-auto-open-response [api-response]
   (when-let [kdbx-loaded (check-error api-response)]
     (dispatch [:open-db-file-loading-done kdbx-loaded])))
 
-(defn- handle-auto-open-unlock-response [api-response]
-  (when-let [kdbx-loaded (check-error
-                          api-response
-                          #(dispatch [:open-db-error %]))]
-    (dispatch [:common/progress-message-box-hide])
+(defn- handle-auto-open-unlock-response [api-response] 
+  (when-let [kdbx-loaded (check-error api-response)]
     (dispatch [:auto-open-unlock-db-file-loading-done kdbx-loaded])))
 
 (reg-event-fx
@@ -296,7 +298,8 @@
    ;; by the event handler in ':common/kdbx-database-unlocked' where the lcoked status 
    ;; set to false
    {:db (cmn-events/set-active-db-key-direct db db-key)
-    :fx [[:dispatch [:common/kdbx-database-unlocked kdbx-loaded]]]}))
+    :fx [[:dispatch [:common/progress-message-box-hide]]
+         [:dispatch [:common/kdbx-database-unlocked kdbx-loaded]]]}))
 
 (comment
   (keys @re-frame.db/app-db)
