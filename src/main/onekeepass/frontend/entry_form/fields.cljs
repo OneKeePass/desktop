@@ -40,11 +40,11 @@
     :else
     value))
 
-(defn- end-icons [{:keys [key protected visibile edit] :as kv}]
+(defn- end-icons [{:keys [key protected visible edit] :as kv}] 
   (let [val (to-value kv)]
     [:<>
      (when protected
-       (if visibile
+       (if visible
          [mui-icon-button {:sx {:margin-right "-8px"}
                            :edge "end"
                            :on-click #(form-events/entry-form-field-visibility-toggle key)}

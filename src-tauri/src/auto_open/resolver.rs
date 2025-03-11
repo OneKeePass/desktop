@@ -104,6 +104,28 @@ impl AutoOpenProperties {
   }
 }
 
+// https://stackoverflow.com/questions/50322817/how-do-i-remove-the-prefix-from-a-canonical-windows-path
+#[cfg(not(target_os = "windows"))]
+fn adjust_canonicalization<P: AsRef<Path>>(p: P) -> String {
+    p.as_ref().display().to_string()
+}
+
+// While checking auto open on windows, windows path are resolved with prefix \\?
+// and because of this recent db list includes this prefixed db keys as distinct from the same
+// path without this prefix. removing this prefix ensures single entry
+// This may create some issue if we want to use UNC path. In that case we may need to do this pefix removal
+// only before using as db-key
+#[cfg(target_os = "windows")]
+fn adjust_canonicalization<P: AsRef<Path>>(p: P) -> String {
+    const VERBATIM_PREFIX: &str = r#"\\?\"#;
+    let p = p.as_ref().display().to_string();
+    if p.starts_with(VERBATIM_PREFIX) {
+        p[VERBATIM_PREFIX.len()..].to_string()
+    } else {
+        p
+    }
+}
+
 fn resolved_path(parent_dir_path: &Path, in_path: &String) -> Result<String> {
   let (remaining, parsed) = parse_field_value(in_path)
     .map_err(|e| error::Error::AutoOpenError(format!("Parsing failed with error {}", e)))?;
@@ -117,10 +139,16 @@ fn resolved_path(parent_dir_path: &Path, in_path: &String) -> Result<String> {
   } else {
     let p = parent_dir_path.join(&parsed.full_path_part);
     // If the canonicalize path is not found, then this will return an error
-    p.canonicalize()
-      .map_err(|e| Error::AutoOpenError(format!("Error: Path {:?} : {}", &p, e)))?
-      .to_string_lossy()
-      .to_string()
+    // p.canonicalize()
+    //   .map_err(|e| Error::AutoOpenError(format!("Error: Path {:?} : {}", &p, e)))?
+    //   .to_string_lossy()
+    //   .to_string()
+
+    let pf =   p.canonicalize()
+      .map_err(|e| Error::AutoOpenError(format!("Error: Path {:?} : {}", &p, e)))?;
+
+    adjust_canonicalization(pf)
+    
   };
 
   // let mut p = parent_dir_path.join(&parsed.full_path_part);
@@ -227,60 +255,3 @@ mod tests {
     println!("resolved is {:?}", resolved);
   }
 }
-
-/*
-#[test]
-  fn verify2() {
-    let cv = "My-MacBook-Pro16-M1.local".to_lowercase();
-    let s = "Computer-one, Computer-Two,    ! Computer-Six, !Computer-nine,!My-MacBook-Pro16-M1.local";
-    let v: Vec<String> = s.split(",").map(|s| s.trim().to_lowercase()).collect();
-    println!("v is {:?}", &v);
-
-    let mut exclude = false;
-    for c in &v {
-      if c.starts_with("!") {
-        let v1 = c.strip_prefix("!");
-        let v2 = c.strip_prefix("!").is_some_and(|s| s.trim() == &cv);
-        println!("no ! {:?},{}", &v1, v2);
-        if v2 {
-          exclude = true;
-          break;
-        }
-      } else {
-        if c == &cv {
-          exclude = false;
-          break;
-        }
-      }
-    }
-
-    println!("Exclude is {}", &exclude);
-  }
-
-  #[test]
-  fn verify1() {
-    //println!("Host name is {:?}", hostname::get());
-
-    //println!("Host name 2 is {:?}", gethostname::gethostname().to_string_lossy().to_string());
-
-    println!(
-      "Result {:?} ",
-      super::parse_field_value("kdbx://{DB_DIR}/../Test14.kdbx")
-    );
-
-    println!("Result {:?} ", super::parse_field_value("./Test14.kdbx"));
-
-    println!(
-      "Result {:?} ",
-      super::parse_field_value("kdbx://../Test14.kdbx")
-    );
-
-    // let b = "/Users/jeyasankar/Documents/OneKeePass";
-    // let mut p = PathBuf::from(&b);
-    // p.push("/f1/PasswordsUsesKeyFile2.kdbx");
-    // //let s = p.push("f1/PasswordsUsesKeyFile2.kdbx");
-
-    // println!("s is {:?}", &p);
-  }
-
-*/

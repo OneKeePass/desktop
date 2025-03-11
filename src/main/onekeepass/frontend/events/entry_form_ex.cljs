@@ -317,6 +317,7 @@
               (assoc-in-key-db [entry-form-key :edit] false)
               (init-expiry-duration-selection entry-data)
               (assoc-in-key-db [entry-form-key :showing] :selected)
+              (assoc-in-key-db [entry-form-key :visibility-list] nil)
               ;; otp-fields is map with otp field name as key and token info (map) as value
               ;; This map is updated periodically when polling is started
               (assoc-in-key-db [entry-form-key :otp-fields] otp-fields))})))

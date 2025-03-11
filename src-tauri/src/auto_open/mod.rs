@@ -56,6 +56,9 @@ fn inner_open_all_auto_open_dbs(
   grouping_kind: &EntryCategoryGrouping,
 ) {
   // Get all entries of "AutoOpen" group for this db_key
+  // Here we are assuming all entries under auto open group are of auto open type
+  // If there is any entry is found here, then the url parsing will fail as it will not be kdbx:// url
+  // TODO: exclude non auto open entry type
   let entry_uuids =
     kp_service::auto_open_group_entry_uuids(auto_open_db_key).unwrap_or_else(|_| vec![]);
 

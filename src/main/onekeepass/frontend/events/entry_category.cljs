@@ -10,6 +10,7 @@
              :refer [active-db-key 
                      assoc-in-key-db
                      check-error
+                     on-error
                      get-in-key-db]]
             [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-fx
                                    reg-sub subscribe]]))
@@ -104,6 +105,22 @@
     (= start-view-to-show GROUPING_LABEL_TAGS) :tag
     :else :type))
 
+(defn- grouping-kind->pref-entry-category-groupings
+  "Converts the show-as kw to a string that is used in app preference settings"
+  [kw-kind]
+  (cond
+    (= kw-kind :type)
+    GROUPING_LABEL_TYPES
+
+    (= kw-kind :tag)
+    GROUPING_LABEL_TAGS
+
+    (= kw-kind :category)
+    GROUPING_LABEL_CATEGORIES
+
+    (= kw-kind :group)
+    GROUPING_LABEL_GROUPS))
+
 (defn is-current-detail-general?
   "Checks whether the passed arg 'category-detail' map is from :general-categories 
    or from :grouped-categories (for :type or :category or :tag)"
@@ -128,9 +145,21 @@
                       [:dispatch [:selected-category-info nil]]
                       [:dispatch [:entry-list/clear-entry-items]]
                       [:dispatch [:entry-form-ex/show-welcome]]
-                      [:dispatch [:load-combined-category-data kind]]]]
+                      [:dispatch [:load-combined-category-data kind]]
+                      [:bg-entry-category-groupings-preference [kind]]
+                      ]]
      ;; here cmn-actions is a vec of vec
      {:fx cmn-actions})))
+
+(reg-fx
+   :bg-entry-category-groupings-preference
+   (fn [[showin-kind-kw]]
+     (bg/update-preference {:default-entry-category-groupings (grouping-kind->pref-entry-category-groupings showin-kind-kw)}
+                           (fn [api-reponse]
+                             (when-not (on-error api-reponse)
+                               ;; Reloads the whole app preference 
+                               ;; This ensures the pass phrase option in preference data is the updated one 
+                               (dispatch [:common/load-app-preference]))))))
 
 ;; kind may be :type, :tag, :category or :group and it represents the bottom view only
 (reg-event-db
