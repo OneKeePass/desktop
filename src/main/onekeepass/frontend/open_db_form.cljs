@@ -53,8 +53,8 @@
                                            {:edge "end" :sx {:mr "-8px"}
                                             :onClick od-events/open-file-explorer-on-click}
                                            [mui-icon-folder-outlined]]]))}}]
-          
-          [mui-stack {:sx { :margin-bottom "20px"} }]
+
+          [mui-stack {:sx {:margin-bottom "20px"}}]
 
           [m/text-field {:label (tr-l password)
                          :value password
@@ -95,10 +95,9 @@
                                                                                      :onClick od-events/open-key-file-explorer-on-click}
                                                                     [mui-icon-folder-outlined]]])}
                          :type (if key-file-visibility-on "text" "password")}]
-          
-          [mui-stack {:sx {:margin-top "10px" :margin-bottom "5px"}} 
-           [mui-typography {:variant "caption"} (tr-m openDbPage txt1)]]
-          ]
+
+          [mui-stack {:sx {:margin-top "10px" :margin-bottom "5px"}}
+           [mui-typography {:variant "caption"} (tr-m openDbPage txt1)]]]
          [mui-stack (tr-m openDbPage txt2)])
        (cond
          (= status :in-progress)
@@ -118,12 +117,12 @@
      [mui-dialog-actions
       [mui-button {:color "secondary"
                    :disabled in-progress?
-                   :on-click od-events/cancel-on-click} 
+                   :on-click od-events/cancel-on-click}
        (tr-bl cancel)]
       [mui-button {:color "secondary"
                    :disabled in-progress?
                    :on-click
-                   ok-action} 
+                   ok-action}
        (tr-bl ok)]]]))
 
 (defn open-db-dialog-main []

@@ -7,7 +7,8 @@
             [onekeepass.frontend.events.entry-form-common :refer [entry-form-key
                                                                   extract-form-otp-fields
                                                                   merge-section-key-value]]
-            [re-frame.core :refer [reg-event-fx reg-fx reg-sub]]))
+            [re-frame.core :refer [reg-event-fx reg-fx reg-sub]]
+            [onekeepass.frontend.constants :as const]))
 
 
 ;; Called to update with the current tokens 
@@ -34,7 +35,7 @@
 (defn remove-section-otp-field [otp-field-name {:keys [key] :as section-field-m}]
   (cond
     ;; current-opt-token is Option type in struct CurrentOtpTokenData and should be set to nil and not {}
-    (= key "otp")
+    (= key const/OTP)
     (assoc section-field-m :value nil :current-opt-token nil)
 
     (= key otp-field-name)

@@ -2,12 +2,11 @@
   (:require [clojure.string :as str]
             [onekeepass.frontend.common-components
              :refer [alert-dialog-factory confirm-text-dialog
-                     enter-key-pressed-factory selection-autocomplete]]
+                     enter-key-pressed-factory selection-autocomplete on-change-factory
+                     on-check-factory]]
             [onekeepass.frontend.db-icons :as db-icons]
             [onekeepass.frontend.entry-form.common :as ef-cmn :refer [popper-button-sx
                                                                       theme-popper-box-sx]]
-            [onekeepass.frontend.events.common :as ce :refer [on-change-factory
-                                                              on-check-factory]]
             [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
             [onekeepass.frontend.events.entry-form-ex :as form-events]
             [onekeepass.frontend.events.move-group-entry :as move-events]
@@ -353,6 +352,7 @@
                                           new-title
                                           parent-group-uuid
                                           keep-histories
+                                          link-by-reference
                                           _error-fields]}]
   [mui-dialog {:open dialog-show :on-click #(.stopPropagation ^js/Event %)
                   ;; This will set the Paper width in all child components 
@@ -366,18 +366,15 @@
          ;;group-selection-field-error-text (:group-selection error-fields)
          title-error-text (when (str/blank? new-title) (tr-m entryForm cloneEntryTitleName))]
      [mui-dialog-content {:dividers true}
-      [mui-stack {:sx {:width "80%"}}
+      [mui-stack {:sx {:width "100%"}}
        [mui-stack {:direction "row" :sx {:width "100%" :margin-bottom "10px"}}
         [mui-text-field
          {:label (tr-l "newTitle")
           :value new-title
           :sx  {}
           :error  (not (nil? title-error-text))
-          :helperText (if-not (nil? title-error-text) title-error-text nil #_(tr-h "entryTitle"))
-          :on-change (fn [^js/Event e]
-                       (dlg-events/clone-entry-options-dialog-update
-                        :new-title
-                        (-> e .-target  .-value)))
+          :helperText (if-not (nil? title-error-text) title-error-text nil)
+          :on-change (on-change-factory dlg-events/clone-entry-options-dialog-update :new-title) 
           :InputProps {}
           :variant "standard"
           :fullWidth true}]]
@@ -398,16 +395,20 @@
           ;;:error-text group-selection-field-error-text
           }]]
 
-       [mui-stack {:sx {:width "50%"}}
+       [mui-stack {:direction "row" :sx {:justify-content "space-between" :width "100%"}}
         [mui-form-control-label
          {:control (r/as-element
                     [mui-checkbox
                      {:checked keep-histories
-                      :on-change (fn [^js/Event e]
-                                   (dlg-events/clone-entry-options-dialog-update
-                                    :keep-histories
-                                    (-> e .-target  .-checked)))}])
-          :label (tr-l "keepHistories")}]]]])
+                      :on-change (on-check-factory dlg-events/clone-entry-options-dialog-update :keep-histories)}])
+          :label (tr-l "keepHistories")}]
+
+        [mui-form-control-label
+         {:control (r/as-element
+                    [mui-checkbox
+                     {:checked link-by-reference
+                      :on-change (on-check-factory dlg-events/clone-entry-options-dialog-update :link-by-reference)}])
+          :label (tr-l "useRefForUsernamePassword")}]]]])
 
    [mui-dialog-actions
     [mui-button

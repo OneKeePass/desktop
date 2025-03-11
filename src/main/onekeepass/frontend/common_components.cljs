@@ -1,33 +1,31 @@
 (ns onekeepass.frontend.common-components
-  (:require [clojure.string :as str]
-            [onekeepass.frontend.background :as bg]
-            [onekeepass.frontend.constants :refer [ADD_TAG_PREFIX]]
-            [onekeepass.frontend.events.common :as cmn-events]
-            [onekeepass.frontend.mui-components :as m :refer [auto-sizer
-                                                              fixed-size-list
-                                                              is-light-theme?
-                                                              mui-alert
-                                                              mui-autocomplete
-                                                              mui-box
-                                                              mui-button
-                                                              mui-dialog
-                                                              mui-dialog-actions
-                                                              mui-dialog-content
-                                                              mui-dialog-content-text
-                                                              mui-dialog-title
-                                                              mui-icon-button
-                                                              mui-icon-close-outlined
-                                                              mui-icon-file-copy-outlined
-                                                              mui-linear-progress
-                                                              mui-snackbar
-                                                              mui-stack
-                                                              mui-text-field-type
-                                                              mui-tooltip
-                                                              mui-typography
-                                                              react-use-state]]
-            [onekeepass.frontend.translation :refer-macros [tr-bl] :refer [lstr-sm]]
-            [onekeepass.frontend.utils :refer [contains-val?]]
-            [reagent.core :as r]))
+  (:require
+   [clojure.string :as str]
+   [onekeepass.frontend.background :as bg]
+   [onekeepass.frontend.constants :refer [ADD_TAG_PREFIX]]
+   [onekeepass.frontend.events.common :as cmn-events]
+   [onekeepass.frontend.mui-components :as m :refer [auto-sizer
+                                                     fixed-size-list
+                                                     is-light-theme? mui-alert
+                                                     mui-autocomplete mui-box
+                                                     mui-button mui-dialog
+                                                     mui-dialog-actions
+                                                     mui-dialog-content
+                                                     mui-dialog-content-text
+                                                     mui-dialog-title
+                                                     mui-icon-button
+                                                     mui-icon-close-outlined
+                                                     mui-icon-file-copy-outlined
+                                                     mui-linear-progress
+                                                     mui-snackbar mui-stack
+                                                     mui-text-field-type
+                                                     mui-tooltip
+                                                     mui-typography
+                                                     react-use-state]]
+   [onekeepass.frontend.translation :refer-macros [tr-bl] :refer [lstr-sm]]
+   [onekeepass.frontend.utils :refer [contains-val? str->int]]
+   [reagent.core :as r]
+   [reagent.ratom]))
 
 #_(set! *warn-on-infer* true)
 
@@ -42,28 +40,28 @@
 ;; children ? 
 
 #_(defn theme-text-field-read-sx [theme-mode]
-  {"&.MuiInput-root"
-   {:border 0
-    :border-bottom  (if (is-light-theme?)
-                      "1px solid #eeeeee" (str "1px solid " "rgba(255, 255, 255, 0.3)"))
+    {"&.MuiInput-root"
+     {:border 0
+      :border-bottom  (if (is-light-theme?)
+                        "1px solid #eeeeee" (str "1px solid " "rgba(255, 255, 255, 0.3)"))
                                     ;;  :border-bottom-color "#eeeeee"
                                     ;;  :border-bottom-style "solid"
                                     ;;  :border-bottom-width "1px"
-    }
+      }
 
   ;;  "&.Mui-focused"
   ;;  {:border "1px solid var(--color-primary-main)"
   ;;   :border-bottom "1px solid var(--color-primary-main)"}
-   })
+     })
 
 #_(defn theme-text-field-edit-sx [theme-mode]
-  {"&.MuiInput-root"
-   {:border "1px solid grey"
-    :outline "1px solid transparent"}
+    {"&.MuiInput-root"
+     {:border "1px solid grey"
+      :outline "1px solid transparent"}
 
-   "&.Mui-focused"
-   {:border "1px solid var(--color-primary-main)"
-    :outline "1px solid var(--color-primary-main)"}})
+     "&.Mui-focused"
+     {:border "1px solid var(--color-primary-main)"
+      :outline "1px solid var(--color-primary-main)"}})
 
 (defn theme-text-field-sx [edit theme]
   (if edit
@@ -251,8 +249,9 @@
   This 'row-item-fn' is the returned value of the function of 'render-row-factory'
   The various options are passed in the map 'options'
   "
-  [items row-item-fn  {:keys [item-size list-style div-style]
+  [items row-item-fn  {:keys [item-size scroll-to-item-index list-style div-style]
                        :or {item-size 60
+                            scroll-to-item-index 0
                             div-style {}
                             list-style {:max-width 275}}}]
   ;; This component makes use of 'fixed-size-list' and 'auto-sizer' (Function-as-child Components)
@@ -268,21 +267,28 @@
     ;; Need to set this so that splitpane's left side has some min width when content is small 
     [:div {:style (merge {:min-width 200 :height "100%" :width "275"} div-style)}
      ;;AutoSizer needs to be a child of div for its to work within a flex container  
-     (when  (not-empty @items)
-       [auto-sizer {}
-        ;; auto-sizer child should be a function 
-        (fn [dims]
-          (let [dims (js->clj dims :keywordize-keys true)]
-            ;; (println "dims are " dims)
-            (r/as-element
-             [:div {:style {:min-width 200 :height (:height dims)}}
-              [fixed-size-list {:style list-style ;;{:max-width 275} ;; Need to set this so that splitpane's left side  does not expand
-                                :height (:height dims)
-                                :width (:width dims)
-                                  ;; this is the size of the row component returned by render-row fn
-                                :itemSize item-size
-                                :itemCount (count @items)
-                                :overscanCount 1} row-item-fn]])))])]))
+     (let [list-items (if (instance? reagent.ratom/Reaction items) @items items)]
+       (when  (not-empty list-items) #_(not-empty @items)
+              [auto-sizer {}
+               ;; auto-sizer child should be a function 
+               (fn [dims]
+                 (let [dims (js->clj dims :keywordize-keys true)]
+                   ;; (println "dims are " dims)
+                   (r/as-element
+                    [:div {:style {:min-width 200 :height (:height dims)}}
+                     [fixed-size-list {:style list-style ;;{:max-width 275} ;; Need to set this so that splitpane's left side  does not expand
+                                       :height (:height dims)
+                                       :width (:width dims)
+                                       ;; this is the size of the row component returned by render-row fn
+                                       :itemSize item-size
+                                       :overflow-y "scroll"
+                                       ;; Need to get ref to access methods scrollToItem or scrollTo
+                                       ;; See https://react-window.vercel.app/#/api/FixedSizeList
+                                       ;; See https://react-window.vercel.app/#/examples/list/scroll-to-item
+                                       :ref (fn [^js/Ref e]
+                                              (some-> e (.scrollToItem scroll-to-item-index)))
+                                       :itemCount (count list-items)
+                                       :overscanCount 1} row-item-fn]])))]))]))
 
 (defn list-items-factory
   "Returns a function that can be used as a child in fixed-size-list.
@@ -509,6 +515,40 @@
                        :on-click #(bg/write-to-clipboard value)}
       [mui-icon-file-copy-outlined]])))
 
+#_(defn on-change-factory
+    "A function factory 
+   The arg 'handler-name' is a fn that is called with supplier arg 'field-name-kw' and 
+   the event value
+   Returns a function that can be used in a on-change handler of a text field
+  "
+    [handler-name field-name-kw]
+    (fn [^js/Event e]
+      (handler-name field-name-kw (-> e .-target  .-value))))
+
+(defn on-change-factory
+  "A function factory 
+     The arg 'handler-name' is a fn that is called 
+     with supplied arg 'field-name-kw' and the event value
+     Returns a function that can be used in a on-change handler of a text field
+  "
+  ([handler-name field-name-kw int-val]
+   (fn [^js/Event e]
+     (let [val (-> e .-target  .-value)
+               ;; Need to ensure that length is an int as expected by backend api
+           val (if int-val  (str->int val) val)]
+       (handler-name field-name-kw val))))
+  ([handler-name field-name-kw]
+   (on-change-factory handler-name field-name-kw false)))
+
+(defn on-check-factory
+  "Called in on-change handler of a check field.
+   Returns a fn that accepts check event 
+   and this fn in turn calls the 'handler-name' fn with 'field-name-kw' and value
+   "
+  [handler-name field-name-kw]
+  (fn [e]
+    (handler-name field-name-kw (-> e .-target  .-checked))))
+
 (defn overflow-tool-tip
   "Tooltip is enabled only when the text has ellipsis shown
   This is based on tips in 
@@ -568,3 +608,11 @@
     (reset! anchor-el nil)
     (apply action action-args)
     (.stopPropagation ^js/Event e)))
+
+
+#_(fn [e] (println "ref is called ..." (when-not (nil? e)
+                                         (js/Object.getOwnPropertyNames e)
+                                         (println "  ref acess " (-> e (.scrollToItem 1))
+                                                  #_(-> e  .-state .-instance js/Object.entries #_js/Object.getOwnPropertyNames)
+                                                  #_(-> e  js/Object.entries)
+                                                  #_(js/Object.entries (.-_outerRef e))))))

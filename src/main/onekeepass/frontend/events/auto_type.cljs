@@ -62,6 +62,7 @@
                 (assoc-in-key-db [:auto-type-perform-dialog :api-error-text] nil)
                 (assoc-in-key-db [:auto-type-perform-dialog :error-fields] nil)))}))
 
+;; Shows the dialog to send the sequence to an active window
 (reg-event-fx
  :perform-dialog-init
  (fn [{:keys [db]} [_event-id entry-uuid window-info auto-type-m]]
@@ -73,6 +74,7 @@
             (assoc-in-key-db [:auto-type-perform-dialog :api-error-text] nil)
             (assoc-in-key-db [:auto-type-perform-dialog :error-fields] nil))}))
 
+;; Called to send the sequence to an active window
 (reg-event-fx
  :send-auto-sequence
  (fn [{:keys [db]} [_event-id]]
@@ -96,11 +98,17 @@
    {:fx [[:dispatch [:perform-dialog-show-close]]
          [:dispatch [:common/message-snackbar-open "Auto typing is completed"]]]}))
 
+;; Backend call to get the active to which we will be sending the sequence
+;; auto-type-m (or auto-type) is a map from struct AutoType (for tag AutoType)
+;; auto-type is from entry-form-data
+
 (reg-fx
  :auto-type/bg-active-window-to-auto-type
  (fn [[entry-uuid auto-type-m]]
    (bg/active-window-to-auto-type (fn [api-response]
                                     (when-let [window-info (check-error api-response)]
+                                      ;; window-info is a map from struct WindowInfo
+                                      ;; Shows the dialog to send the sequence to an active window
                                       (dispatch [:perform-dialog-init entry-uuid window-info auto-type-m]))))))
 
 (reg-sub

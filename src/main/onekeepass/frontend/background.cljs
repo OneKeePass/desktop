@@ -8,13 +8,16 @@
    [camel-snake-kebab.core :as csk]
    [onekeepass.frontend.utils :refer [contains-val?]]
 
+   [onekeepass.frontend.background-common :as bg-cmn ]
+   [onekeepass.frontend.background-password :as bg-pwd]
+
    ;; All tauri side corresponding endpoint command apis can be found in 
-   ;; https://github.com/tauri-apps/tauri/blob/tauri-v1.5.0/core/tauri/src/endpoints
+   ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/endpoints
    ;; The api implementation is in 
-   ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.5.0/core/tauri/src/api
+   ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/api 
 
    ["@tauri-apps/api/dialog" :refer (open,save)]
-   ["@tauri-apps/api/tauri" :refer (invoke)]
+   #_["@tauri-apps/api/tauri" :refer (invoke)]
    ["@tauri-apps/api/clipboard" :refer [writeText readText]]
    ["@tauri-apps/api/event" :as tauri-event]
    ["@tauri-apps/api/shell" :as tauri-shell]
@@ -26,62 +29,11 @@
 
 (set! *warn-on-infer* true)
 
-(defn invoke-api
-  "Invokes the backend command API calls using the tauri's 'invoke' command.
-   Args 
-    'name' is the tauri command name
-    'api-args' is the argument map that is passed to the tauri command. The args must be serializable by the tauri API.
-    'dispatch-fn' is a function that will be called when the tauri command call's promise is resolved or in error. 
-     The call back function 'distach-fn' should accept a map (keys are  :result, :error) as input arg  
+(def invoke-api bg-cmn/invoke-api)
 
-    IMPORTANT: If the returned value is a string instead of a map or any other type 
-    and we want the string as {:result \"some string value\"}, then we need to pass :convert-response false
-  "
-  [name api-args dispatch-fn &
-   {:keys [convert-request convert-response convert-response-fn]
-    :or {convert-request true convert-response true}}]
-  (go
-    (try
-      (let [;; when convert-request is false, the api-args is assumed to be a js object 
-            ;; that can deserialized to Rust names and types as expected by the 'command' api
-            ;; When convert-request is true, the api args are converted to 'camelCaseString' as expected by tauri command fns 
-            ;; so that args can be deserialized to tauri types
-            ;; When convert-request is true and api-args is a js object, (cske/transform-keys csk/->camelCaseString) 
-            ;; does not make any changes as expected to be in a proper deserilaizable format
-            args (if convert-request
-                   ;; changes all keys to camelCase (e.g db-key -> dbKey)
-                   ;; Tauri expects all API arguments names passed in JS api to be in camelCase which 
-                   ;; are in turn deserialized as snake_case to match rust argument names used in 
-                   ;; tauri commands.  
-                   ;; Note
-                   ;; Only the api argument names are expected to be in camelCase. The keys of value passed are not changed to cameCase 
-                   ;; and they deserialized by the the corresponding struct serde definition. As result, mostly  convert-request = false
-                   (->> api-args (cske/transform-keys csk/->camelCaseString) clj->js)
-                   api-args)
-            r (<p! (invoke name args))]
-        ;; Call the dispatch-fn with the resolved value 'r'
-        ;;(println "r is " r)
-        (dispatch-fn {:result (cond
+(def analyzed-password bg-pwd/analyzed-password)
 
-                                (not (nil? convert-response-fn))
-                                (-> r js->clj convert-response-fn) ;; custom transformer of response
-
-                                (and convert-response (string? r))
-                                (csk/->kebab-case-keyword r)
-
-                                convert-response
-                                (->> r js->clj (cske/transform-keys csk/->kebab-case-keyword))
-
-                                ;; No conversion is done and just js->clj
-                                :else
-                                (js->clj r))})
-        ;; Just to track db modifications if any
-        (dispatch [:common/db-api-call-completed name]))
-      (catch js/Error err
-        (do
-          ;;Call the dispatch-fn with any error returned by the backend API
-          (dispatch-fn {:error (ex-cause err)})
-          (js/console.log (ex-cause err)))))))
+(def score-password bg-pwd/score-password)
 
 (def ^:private tauri-event-listeners
   "This is a map where keys are the event name (kw) values tauri listeners" (atom {}))
@@ -149,19 +101,32 @@
       ;;TODO Add returning error to dispatch-fn
       (catch js/Error err (js/console.log (ex-cause err))))))
 
+;; https://v1.tauri.app/v1/api/js/shell#open
+(defn- tauri-shell-open
+  "Uses tauri shell open api to open a website or a file using 
+  the system's default app
+  "
+  [path dispatch-fn]
+  (go
+    (try
+      (let [f (<p! (tauri-shell/open path))]
+        (dispatch-fn {:result f}))
+      (catch js/Error err
+        (dispatch-fn {:error (ex-cause err)})
+        (js/console.log (ex-cause err))))))
+
 (defn open-file
   "Opens a file passed as 'file-name' from the local file system with the system's default app
    The arg 'file-name' expected to be the complete path.
    Any error in opening is passed as {:error msg} to the 'dispatch-fn'
   "
   [file-name dispatch-fn]
-  (go
-    (try
-      (let [f (<p! (tauri-shell/open file-name))]
-        (dispatch-fn {:result f}))
-      (catch js/Error err
-        (dispatch-fn {:error (ex-cause err)})
-        (js/console.log (ex-cause err))))))
+  (tauri-shell-open file-name dispatch-fn))
+
+(defn open-url
+  "Url is expected to start with https:// or http://,  otherwise it will result in an error"
+  [url dispatch-fn]
+  (tauri-shell-open url dispatch-fn))
 
 (defn write-to-clipboard
   "Copies given data to the clipboard - equivalent to Cmd + C"
@@ -200,7 +165,7 @@
   "Calls the API to unlock the previously opened db file.
    Calls the dispatch-fn with the received map of type 'KdbxLoaded' 
   "
-  [db-key password key-file-name dispatch-fn]
+  [db-key password key-file-name dispatch-fn] 
   (invoke-api "unlock_kdbx" {:db-key db-key
                              :password password
                              :key-file-name key-file-name} dispatch-fn))
@@ -236,14 +201,30 @@
   `allEntries`, `favourites`, `deleted`,   
   `{:group \"valid uuid\"}`, 
   `{:entry-type-uuid \"9e644c27-d00b-4aca-8355-5078c5a4fb44\"}`
-  `{:tag \"Bank\"}`,   
+  `{:tag \"Bank\"}`,  
+
+  Returns a vec of maps (struct EntrySummary)
   "
-  [db-key entry-category dispatch-fn]
-  (invoke-api "entry_summary_data"
-              {:db-key db-key :entry-category
-               (if (map? entry-category)
-                 entry-category
-                 (csk/->camelCaseString entry-category))} dispatch-fn :convert-response true))
+  [db-key entry-category dispatch-fn] 
+  ;; We need to do a custom conversion of request because of the use of #[serde(rename_all = "camelCase")] 
+  ;; for the enum 'EntryCategory'. This was done during very early time and needs the following fix 
+  ;; fix mentioned in TODO
+  ;; TODO: 
+  ;; We need to fix this and change it to use serde attribute tag and content
+  ;; Changes to be done for both Desktop and Mobile same time if we change this in enum EntryCategory
+  (let [args (clj->js {:dbKey db-key
+                       :entryCategory
+                       (if (map? entry-category)
+                         (cske/transform-keys csk/->camelCaseString entry-category)
+                         (csk/->camelCaseString entry-category))})]
+    ;; We must pass :convert-request false as we have done all conversions of args
+    (invoke-api "entry_summary_data" args dispatch-fn :convert-request false :convert-response true))
+  ;; Leaving the old one before the introduction of 'as-tauri-args'
+  #_(invoke-api "entry_summary_data"
+                {:db-key db-key :entry-category
+                 (if (map? entry-category)
+                   entry-category
+                   (csk/->camelCaseString entry-category))} dispatch-fn :convert-response true))
 
 (defn history-entries-summary [db-key entry-uuid dispatch-fn]
   (invoke-api "history_entries_summary" {:db-key db-key :entry-uuid entry-uuid} dispatch-fn))
@@ -253,9 +234,10 @@
   using custom key transformer
    "
   [entry]
-  (let [keys_exclude (->  entry (get "section_fields") keys vec)
+  (let [keys-exclude (->  entry (get "section_fields") keys vec)
+        keys-exclude (into keys-exclude (->  entry (get "parsed_fields") keys vec))
         t-fn (fn [k]
-               (if (contains-val? keys_exclude k)
+               (if (contains-val? keys-exclude k)
                  k
                  (csk/->kebab-case-keyword k)))]
     (cske/transform-keys t-fn entry)))
@@ -326,13 +308,9 @@
   [db-key entry-uuid entry-clone-option dispatch-fn]
   ;; All args for tauri api are in cameCase. 
   ;; But keys in 'entry-clone-option' map (passed as value in :entryCloneOption)
-  ;; are to be in snake_case
-  (invoke-api "clone_entry" (clj->js
-                             {:dbKey db-key
-                              :entryUuid entry-uuid
-                              :entryCloneOption (->> entry-clone-option (cske/transform-keys csk/->snake_case))})
+  ;; are to be in snake_case - see the use of 'as-tauri-args' to take care of this
+  (invoke-api "clone_entry" {:db-key db-key :entry-uuid entry-uuid :entry-clone-option entry-clone-option}
               dispatch-fn
-              :convert-request false
               ;; clone_entry api call returns clone entry's uuid string 
               ;; and the usual conversion should not be used on this uuid string
               :convert-response false))
@@ -346,9 +324,10 @@
   "Called to update the group data in the backend storage"
   [db-key group dispatch-fn]
   ;;(println "Going to update group..." group)
-  (let [args (clj->js {:dbKey db-key
-                       :group (->> group (cske/transform-keys csk/->snake_case))})]
-    (invoke-api "update_group" args dispatch-fn :convert-request false)))
+  (invoke-api "update_group" {:db-key db-key :group group} dispatch-fn)
+  #_(let [args (clj->js {:dbKey db-key
+                         :group (->> group (cske/transform-keys csk/->snake_case))})]
+      (invoke-api "update_group" args dispatch-fn :convert-request false)))
 
 (defn insert-group [db-key group dispatch-fn]
   (let [args (clj->js {:dbKey db-key
@@ -501,9 +480,11 @@
   (invoke-api "system_info_with_preference" {} dispatch-fn))
 
 (defn update-preference [preference-data dispatch-fn]
-  (let [args (clj->js {:preferenceData (->> preference-data (cske/transform-keys csk/->snake_case))})]
+  (invoke-api "update_preference" {:preference-data  preference-data} dispatch-fn :convert-response false)
+  #_(let [args (clj->js {:preferenceData (->> preference-data (cske/transform-keys csk/->snake_case))})]
     ;; We transform args to statisfy the requirements of arg name to tauri command should be in cameCase
     ;; and field names of preference-data should be snake_case
+    (println "update-preference is called " preference-data)
     (invoke-api "update_preference" args dispatch-fn :convert-response false)))
 
 (defn clear-recent-files [dispatch-fn]
@@ -512,6 +493,8 @@
 (defn- handle-argon2-renaming
   "A custom transform fuction to make sure Argon2 is converted to :Argon2 not converted to :argon-2 so that 
   we can keep same as generated by serde 
+
+  The arg 'data' is map (only js->clj done) from struct DbSettings 
   "
   [data]
   (let [t (fn [k] (if (= k "Argon2")
@@ -581,21 +564,6 @@
   [db-key entry-type-uuid dispatch-fn]
   (invoke-api "delete_custom_entry_type" {:db-key db-key :entry-type-uuid entry-type-uuid} dispatch-fn))
 
-(defn analyzed-password
-  "Generates a password with the given options and returns the 
-  generated password with its analysis"
-  [password-options dispatch-fn]
-  (invoke-api "analyzed_password"
-              (clj->js
-               {:passwordOptions
-                (->> password-options
-                     (cske/transform-keys csk/->snake_case))})
-              dispatch-fn
-              :convert-request false))
-
-(defn score-password [password dispatch-fn]
-  (invoke-api "score_password" {:password password} dispatch-fn))
-
 (defn parse-auto-type-sequence [sequence entry-fields dispatch-fn]
   (let [api-args {:sequence sequence
                   :entryFields entry-fields}]
@@ -611,7 +579,9 @@
   (invoke-api "platform_window_titles" {} dispatch-fn))
 
 (defn active-window-to-auto-type
-  "Gets the top most window to which auto type sequence will be sent"
+  "Gets the top most window to which auto type sequence will be sent.
+   Returns a map (struct WindowInfo) in response
+   "
   [dispatch-fn]
   (invoke-api "active_window_to_auto_type" {} dispatch-fn))
 
@@ -630,6 +600,7 @@
                   :windowInfo (->> window-info (cske/transform-keys csk/->snake_case))}]
     (invoke-api api-to-call (clj->js api-args) dispatch-fn
                 :convert-request false)))
+
 
 ;;;;;;;;;;;;;;;; OTP related ;;;;;;;;;;;;
 
@@ -698,6 +669,10 @@
 
 
 (comment
+  (def auto-open-properties {:source-db-key "/Users/jeyasankar/Documents/OneKeePass/TestAutoOpenXC.kdbx"
+                             :url-field-value "kdbx://{DB_DIR}/f1/PasswordsUsesKeyFile2.kdbx"
+                             :key-file-path "./f1//mytestkey2.keyx"
+                             :device_if_val nil})
   (-> @re-frame.db/app-db keys)
   (def db-key (:current-db-file-name @re-frame.db/app-db))
   (-> @re-frame.db/app-db (get db-key) keys)

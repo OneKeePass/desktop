@@ -3,14 +3,21 @@
   windows_subsystem = "windows"
 )]
 
+mod auto_open;
+mod app_paths;
+mod app_preference;
+mod app_state;
 mod auto_type;
 mod biometric;
 mod commands;
 mod constants;
+mod file_util;
 mod key_secure;
 mod menu;
-mod preference;
-mod utils;
+mod translation;
+mod pass_phrase;
+mod password_gen_preference;
+// mod callback_service_provider;
 
 use constants::event_action_names::*;
 use constants::event_names::*;
@@ -41,20 +48,20 @@ fn main() {
   // for the current prefered language from the resource dir in order to prepare Menus
   let context = tauri::generate_context!();
 
-  // TODO: Reuse this preference file content in Preference::read_toml 
-  let pref_str = utils::read_preference_file();
-  let lng = utils::read_language_selection(&pref_str);
+  // TODO: Reuse this preference file content in Preference::read_toml
+  let pref_str = app_state::read_preference_file();
+  let lng = app_state::read_language_selection(&pref_str);
 
   //println!("lng to use is {}", &lng);
 
   // This loaded tranalation data is passed to menus creation call (builder.menu(..)) and there they are used
-  // in preparing the system menu names in the current prefered language. 
+  // in preparing the system menu names in the current prefered language.
   // If user changes the prefered language the app needs to be restarted. This is because
-  // the system menus's titles can not be changed without restarting though all sub menus's titles 
-  // can be changed dynamically. 
+  // the system menus's titles can not be changed without restarting though all sub menus's titles
+  // can be changed dynamically.
 
   let menu_translation =
-    utils::load_system_menu_translations(&lng, &context.config(), &context.package_info());
+    translation::load_system_menu_translations(&lng, &context.config(), &context.package_info());
 
   // let rc_dir = tauri::api::path::resource_dir(context.package_info(),&tauri::Env::default());
   // println!("== Resource dir from context is {:?}",&rc_dir);
@@ -64,8 +71,8 @@ fn main() {
   // See below
 
   let app = tauri::Builder::default()
-    .manage(utils::AppState::new())
-    .setup(|app| Ok(utils::init_app(app)))
+    .manage(app_state::AppState::new())
+    .setup(|app| Ok(app_state::init_app(app)))
     // .on_window_event(|event| match event.event() {
     //   tauri::WindowEvent::Focused(focused) => {
     //     if !focused {
@@ -86,6 +93,7 @@ fn main() {
       commands::active_window_to_auto_type,
       commands::analyzed_password,
       commands::authenticate_with_biometric,
+      commands::auto_open_group_uuid,
       commands::clear_recent_files,
       commands::clone_entry,
       commands::close_kdbx,
@@ -104,6 +112,7 @@ fn main() {
       commands::export_main_content_as_xml,
       commands::form_otp_url,
       commands::generate_key_file,
+      commands::generate_password_phrase,
       commands::get_db_settings,
       commands::get_entry_form_data_by_id,
       commands::get_group_by_id,
@@ -129,6 +138,7 @@ fn main() {
       commands::move_group_to_recycle_bin,
       commands::new_blank_group,
       commands::new_entry_form_data,
+      commands::open_all_auto_open_dbs,
       commands::parse_auto_type_sequence,
       commands::platform_window_titles,
       commands::read_and_verify_db_file,
@@ -136,6 +146,7 @@ fn main() {
       commands::reload_kdbx,
       commands::remove_entry_permanently,
       commands::remove_group_permanently,
+      commands::resolve_auto_open_properties,
       commands::save_all_modified_dbs,
       commands::save_as_kdbx,
       commands::save_attachment_as_temp_file,
@@ -161,7 +172,7 @@ fn main() {
       commands::update_entry_from_form_data,
       commands::update_group,
       commands::upload_entry_attachment,
-      commands:: update_preference,
+      commands::update_preference,
     ])
     .build(context)
     .expect("error while building tauri application");

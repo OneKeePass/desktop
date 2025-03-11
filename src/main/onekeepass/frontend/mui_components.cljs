@@ -39,6 +39,7 @@
 
 (def react-use-state (.-useState ^js/React react))
 (def react-use-effect (.-useEffect ^js/React react))
+#_(def react-use-ref (.-useRef ^js/React react))
 
 #_(def use-idle-timer (.-useIdleTimer ^js/ReactIdleTimer react-idle-timer))
 
@@ -159,6 +160,8 @@
     :else
     (->  theme .-palette .-primary .-main)))
 
+(defn get-theme-color [color-kw]
+  (theme-color @custom-theme-atom color-kw))
 
 (declare set-colors)
 
@@ -174,8 +177,9 @@
 ;; Default primary #1976d2, secondary #9c27b0 (https://mui.com/material-ui/customization/palette/) 
 
 
-;; https://mui.com/customization/default-theme/ 
-;; Here we can all props of the theme object are shown for MUI's organization branding theme
+;; https://mui.com/customization/default-theme/  
+;; https://v5.mui.com/material-ui/customization/default-theme/  ( The new url for v5 as the other one is meant for the latest mui)
+;; Here we can see all the props of the theme object that are shown for MUI's organization branding theme
 ;; From this link: 
 ;; If you want to learn more about how the theme is assembled, 
 ;; take a look at material-ui/style/createTheme.js, and the related imports which createTheme uses.
@@ -450,6 +454,7 @@
   FavoriteBorder
   FeedOutlined
   FlightTakeoffOutlined
+  Launch
   LoginOutlined
   LockOpenOutlined
   LockOutlined

@@ -1,27 +1,157 @@
 (ns onekeepass.frontend.events.entry-form-ex
-  (:require ;; Need to be called here so that events are registered
- ;; Should it be moved to core.cljs ?
-            [clojure.string :as str]
-            [onekeepass.frontend.background :as bg] ;; Need to be called here so that events are registered
-            [onekeepass.frontend.constants :as const :refer [PASSWORD]]
-            [onekeepass.frontend.events.common :as cmn-events :refer [active-db-key
-                                                                      assoc-in-key-db
-                                                                      check-error
-                                                                      fix-tags-selection-prefix
-                                                                      get-in-key-db
-                                                                      on-error]]
-            [onekeepass.frontend.events.entry-form-common :refer [add-section-field
-                                                                  entry-form-key
-                                                                  extract-form-otp-fields
-                                                                  is-field-exist
-                                                                  merge-section-key-value]] ;; Need to be called here so that events are registered
-            [onekeepass.frontend.events.entry-form-otp :as ef-otp-events]
-            [onekeepass.frontend.translation :refer [lstr-sm]]
-            [onekeepass.frontend.utils :as u :refer [contains-val?]]
-            [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-fx
-                                   reg-sub subscribe]]))
+  (:require
+   [clojure.string :as str]
+   [onekeepass.frontend.background :as bg]
+   [onekeepass.frontend.constants :as const :refer [PASSWORD]]
+   [onekeepass.frontend.events.common :as cmn-events :refer [active-db-key
+                                                             assoc-in-key-db
+                                                             check-error
+                                                             fix-tags-selection-prefix
+                                                             get-in-key-db
+                                                             on-error]]
+   ;; Do not remove. Required to register otp evets
+   [onekeepass.frontend.events.entry-form-otp] 
+   [onekeepass.frontend.events.entry-form-common :as ef-events-cmn :refer [add-section-field
+                                                         entry-form-key
+                                                         extract-form-field-names-values
+                                                         extract-form-otp-fields
+                                                         get-form-data
+                                                         is-field-exist 
+                                                         merge-section-key-value]] 
+   ;; Need to be called here so that events are registered 
+   [onekeepass.frontend.events.entry-form-auto-open :as ao-events]
+   [onekeepass.frontend.translation :refer [lstr-sm]]
+   [onekeepass.frontend.utils :as u :refer [contains-val?]]
+   [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-fx reg-sub
+                          subscribe]]))
 
 (def Favorites "Favorites")
+
+(def entry-form-open-url ao-events/entry-form-open-url)
+
+(def place-holder-resolved-value ef-events-cmn/place-holder-resolved-value)
+
+;;;;;;;;;;;;;;;;;;;;;;   Support functions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn- validate-entry-form-data
+  "Verifies that the user has entered valid values in some of the required fields of the entry form
+  Returns a map of fileds with errors and error-fields will be {} in case no error is found
+  "
+  [{:keys [group-uuid title]}]
+  ;;(println "group-uuid title are " group-uuid title)
+  (let [error-fields (cond-> {}
+                       (u/uuid-nil-or-default? group-uuid)
+                       (assoc :group-selection "Please select a group ")
+
+                       (str/blank? title)
+                       (assoc :title "Please enter a title for this form"))]
+    error-fields))
+
+(defn- validate-required-fields [error-fields _kvsd]
+  error-fields
+  #_(loop [{:keys [key value required] :as m} (first kvsd)
+           rest-kvsd (next kvsd)
+           acc error-fields]
+      (if (nil? m) acc
+          (let [acc (if (and required (str/blank? value))
+                      (assoc acc key "Please enter a valid value for this required field")
+                      acc)]
+            (recur (first rest-kvsd) (next rest-kvsd) acc)))))
+
+(defn- validate-all
+  "Validates all required fields including title, parent group etc
+  Returns the error-fields map or an empty map if all required values are present
+   "
+  [form-data]
+  (let [error-fields (validate-entry-form-data form-data)
+         ;; We get all fields across all sections
+         ;; Need to make a flattened sequence of all KV maps
+        kvds (flatten (vals (:section-fields form-data)))
+        error-fields (validate-required-fields error-fields kvds)]
+    error-fields))
+
+(defn- init-expiry-duration-selection
+  "Iniatializes the expiry related data in entry-form top level field. 
+  Returns the updated app-db"
+  [app-db entry-form-data]
+  (if (:expires entry-form-data)
+    (assoc-in-key-db app-db [entry-form-key :expiry-duration-selection] "custom-date")
+    (assoc-in-key-db app-db [entry-form-key :expiry-duration-selection] "no-expiry")))
+
+;; TODO: Need to replace with generic fns from common
+(defn- has-password-field
+  "Checks whether the arg 'field-maps-vec' has a map with entry form entry field map  
+  (struct KeyValueData) that has a 'key' for password
+  Reurns true if the passed vec of maps has a map with :key = Password
+  "
+  [field-maps-vec]
+  (->> field-maps-vec (filter
+                       (fn [m] (= (:key m) PASSWORD))) empty? boolean not))
+
+(defn- section-with-password-score
+  "Returns a vector of two elements [section-name [{:key..} {:key ..}]] or empty vector
+  if no PASSWORD field is found
+  "
+  [db]
+  (let [section-fields  (get-in-key-db db [entry-form-key :data :section-fields])
+        ;; filter returns a seq with 0 or 1 member vec [k v]
+        section-name-with-kvs (->> section-fields
+                                   (filterv (fn [[_section-name field-maps-vec]]
+                                              (has-password-field field-maps-vec))) first)]
+    section-name-with-kvs))
+
+(defn- adjust-expiration-time
+  "Returns the updated app-db"
+  [app-db selection expiry-time]
+  (println "adjust-expiration-time in " expiry-time)
+  (if (= selection "no-expiry")
+    (assoc-in-key-db app-db [entry-form-key :data :expires] false)
+    ;; value is js Date utc string of format "2022-05-13T04:02:44.481Z"
+    ;; The backend rust deserialization fails with this value
+    ;; Removing the '.481Z' and using just "2022-05-13T04:02:44" works for now
+    ;; Need to fix the backend to accept the date string ending in Z without this hack
+    (-> app-db (assoc-in-key-db [entry-form-key :data :expires] true)
+        (assoc-in-key-db [entry-form-key :data :expiry-time] (u/strip-utc-tz expiry-time)  #_(first (str/split expiry-time #"\."))))))
+
+(defn expiry-date-on-change-factory
+  "Creates an event handler to handle an event when the date is changed in the date time picker"
+  []
+  ;; Returns a function that acceps two arguments 'value: TValue, keyboardInputValue: string'
+  ;; See @mui/x-date-pickers-pro/DateTimePicker onChange prop
+  (fn [v kb]
+    ;;(println "kb is " kb)
+    ;; (println " exp v str is " (str v) " v as date " v )
+
+    ;; Following is not used as kb will be in the format of '09/29/2022 08:53 pm' and this is not in the 
+    ;; format as expected by backend api and call will fail 
+    #_(let [d (cond
+                (= (str v) "Invalid Date")
+              ;; kb is nil if v is a valid date; 
+                kb
+
+                (instance? js/Date v)
+                (u/to-UTC-ISO-string v)
+
+                :else
+                v)]
+        (dispatch [:entry-form-update-section [:main {:fields [:expiry :value]
+                                                      :value d}]])
+        (dispatch [:entry-form-update-section [:main {:fields [:expiry :expiry-duration-selection]
+                                                      :value "custom-date"}]]))
+
+    ;; If we edit the field directly, we get #inst "0NaN-NaN-NaNTNaN:NaN:NaN.NaN-00:00" in v
+    ;; This causes 'Compile Exception: Unrecognized date/time syntax: 0NaN-NaN-NaNTNaN:NaN:NaN.NaN-00:00'
+    ;; For now we ignore any attempt changes in the input and allow the date change by datetime picker
+    ;; by using the following check. (str v) returns the string "Invalid Date" and kb will have keyboard input 
+    ;; in the format '09/29/2022 08:53 pm'.
+    (when-not (= (str v) "Invalid Date")
+      (let [d (if (instance? js/Date v) (u/to-UTC-ISO-string v) v)]
+        ;; Need to strip 'Z' indicating UTC from datetime str 
+        (dispatch [:entry-form-data-update-field-value :expiry-time (u/strip-utc-tz d)])
+        (dispatch [:entry-form-data-update-field-value :expires true])
+        (dispatch [:entry-form-all-update-field-value :expiry-duration-selection "custom-date"])))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  
 
 (defn password-generator-show []
   (dispatch [:password-generator/start
@@ -75,52 +205,14 @@
   [_e tags]
   (dispatch [:entry-form-tags-selected-ex (fix-tags-selection-prefix tags)]))
 
-(defn section-date-field-on-change-factory
-  "Creates an event handler to handle an event when the date is changed in the date picker"
-  [section key]
-  (fn [date-val kb]
+#_(defn section-date-field-on-change-factory
+    "Creates an event handler to handle an event when the date is changed in the date picker"
+    [section key]
+    (fn [date-val kb]
     ;;(println "date-val is " date-val " and type is " (type date-val))
-    (when-not (= (str date-val) "Invalid Date")
-      (let [date-val-str (if (instance? js/Date date-val) (.toLocaleDateString date-val) date-val)]
-        (dispatch [:entry-form-update-section-value section key date-val-str])))))
-
-(defn expiry-date-on-change-factory
-  "Creates an event handler to handle an event when the date is changed in the date time picker"
-  []
-  ;; Returns a function that acceps two arguments 'value: TValue, keyboardInputValue: string'
-  ;; See @mui/x-date-pickers-pro/DateTimePicker onChange prop
-  (fn [v kb]
-    ;;(println "kb is " kb)
-    ;; (println " exp v str is " (str v) " v as date " v )
-
-    ;; Following is not used as kb will be in the format of '09/29/2022 08:53 pm' and this is not in the 
-    ;; format as expected by backend api and call will fail 
-    #_(let [d (cond
-                (= (str v) "Invalid Date")
-              ;; kb is nil if v is a valid date; 
-                kb
-
-                (instance? js/Date v)
-                (u/to-UTC-ISO-string v)
-
-                :else
-                v)]
-        (dispatch [:entry-form-update-section [:main {:fields [:expiry :value]
-                                                      :value d}]])
-        (dispatch [:entry-form-update-section [:main {:fields [:expiry :expiry-duration-selection]
-                                                      :value "custom-date"}]]))
-
-    ;; If we edit the field directly, we get #inst "0NaN-NaN-NaNTNaN:NaN:NaN.NaN-00:00" in v
-    ;; This causes 'Compile Exception: Unrecognized date/time syntax: 0NaN-NaN-NaNTNaN:NaN:NaN.NaN-00:00'
-    ;; For now we ignore any attempt changes in the input and allow the date change by datetime picker
-    ;; by using the following check. (str v) returns the string "Invalid Date" and kb will have keyboard input 
-    ;; in the format '09/29/2022 08:53 pm'.
-    (when-not (= (str v) "Invalid Date")
-      (let [d (if (instance? js/Date v) (u/to-UTC-ISO-string v) v)]
-        ;; Need to strip 'Z' indicating UTC from datetime str 
-        (dispatch [:entry-form-data-update-field-value :expiry-time (u/strip-utc-tz d)])
-        (dispatch [:entry-form-data-update-field-value :expires true])
-        (dispatch [:entry-form-all-update-field-value :expiry-duration-selection "custom-date"])))))
+      (when-not (= (str date-val) "Invalid Date")
+        (let [date-val-str (if (instance? js/Date date-val) (.toLocaleDateString date-val) date-val)]
+          (dispatch [:entry-form-update-section-value section key date-val-str])))))
 
 (defn expiry-duration-selection-on-change [value]
   (dispatch [:expiry-duration-selection-ex value]))
@@ -196,48 +288,12 @@
   ;;Delegates to a subcriber in group tree event
   (subscribe [:group-tree-content/groups-listing]))
 
-(defn is-entry-parent-group-deleted 
+(defn is-entry-parent-group-deleted
   [group-uuid]
   (subscribe [:group-tree-content/group-in-recycle-bin group-uuid]))
 
-;;;;;;;;;;;;;;;;;;;;;;;  Form Events ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;  Form Events      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn validate-entry-form-data
-  "Verifies that the user has entered valid values in some of the required fields of the entry form
-  Returns a map of fileds with errors and error-fields will be {} in case no error is found
-  "
-  [{:keys [group-uuid title]}]
-  ;;(println "group-uuid title are " group-uuid title)
-  (let [error-fields (cond-> {}
-                       (u/uuid-nil-or-default? group-uuid)
-                       (assoc :group-selection "Please select a group ")
-
-                       (str/blank? title)
-                       (assoc :title "Please enter a title for this form"))]
-    error-fields))
-
-(defn validate-required-fields [error-fields _kvsd]
-  error-fields
-  #_(loop [{:keys [key value required] :as m} (first kvsd)
-           rest-kvsd (next kvsd)
-           acc error-fields]
-      (if (nil? m) acc
-          (let [acc (if (and required (str/blank? value))
-                      (assoc acc key "Please enter a valid value for this required field")
-                      acc)]
-            (recur (first rest-kvsd) (next rest-kvsd) acc)))))
-
-(defn validate-all
-  "Validates all required fields including title, parent group etc
-  Returns the error-fields map or an empty map if all required values are present
-   "
-  [form-data]
-  (let [error-fields (validate-entry-form-data form-data)
-         ;; We get all fields across all sections
-         ;; Need to use make a sequence of all KV maps
-        kvds (flatten (vals (:section-fields form-data)))
-        error-fields (validate-required-fields error-fields kvds)]
-    error-fields))
 
 (reg-event-fx
  :entry-form-ex/find-entry-by-id
@@ -247,53 +303,49 @@
                                  (fn [api-response]
                                    (when-let [entry (check-error
                                                      api-response
-                                                     #(dispatch [:entry-form-data-load-completed :error %]))]
+                                                     #(dispatch [:entry-form-data-load-error %]))]
                                      (dispatch [:entry-form-data-load-completed-ok entry]))))
    {}))
 
-(defn- init-expiry-duration-selection
-  "Iniatializes the expiry related data in entry-form top level field. 
-  Returns the updated app-db"
-  [app-db entry-form-data]
-  (if (:expires entry-form-data)
-    (assoc-in-key-db app-db [entry-form-key :expiry-duration-selection] "custom-date")
-    (assoc-in-key-db app-db [entry-form-key :expiry-duration-selection] "no-expiry")))
 
 (reg-event-fx
  :entry-form-data-load-completed-ok
- (fn [{:keys [db]} [_event-id entry-data]]
+ (fn [{:keys [db]} [_event-id  entry-data]] 
    (let [otp-fields (extract-form-otp-fields entry-data)]
      {:db (-> db
               (assoc-in-key-db [entry-form-key :data] entry-data)
               (assoc-in-key-db [entry-form-key :edit] false)
               (init-expiry-duration-selection entry-data)
               (assoc-in-key-db [entry-form-key :showing] :selected)
+              (assoc-in-key-db [entry-form-key :visibility-list] nil)
               ;; otp-fields is map with otp field name as key and token info (map) as value
               ;; This map is updated periodically when polling is started
               (assoc-in-key-db [entry-form-key :otp-fields] otp-fields))})))
 
+(reg-event-db
+ :entry-form-data-load-error
+ (fn [db [_event-id error]]
+   (-> db (assoc-in-key-db [entry-form-key :api-error-text] error))))
+
 ;; Rename :entry-form-data-load-completed-error
 ;; and remove ok part
-(reg-event-db
- :entry-form-data-load-completed
- (fn [db [_event-id status result]] ;;result is )
-   (if (= status :ok)
-     (-> db
-         #_(assoc-in-key-db [entry-form-key] {})
-         (assoc-in-key-db [entry-form-key :data] result)
-         (assoc-in-key-db [entry-form-key :edit] false)
-         (init-expiry-duration-selection result)
-         (assoc-in-key-db [entry-form-key :showing] :selected))
+#_(reg-event-db
+   :entry-form-data-load-completed
+   (fn [db [_event-id status result]] ;;result is )
+     (if (= status :ok)
+       (-> db
+           #_(assoc-in-key-db [entry-form-key] {})
+           (assoc-in-key-db [entry-form-key :data] result)
+           (assoc-in-key-db [entry-form-key :edit] false)
+           (init-expiry-duration-selection result)
+           (assoc-in-key-db [entry-form-key :showing] :selected))
 
-     (-> db (assoc-in-key-db [entry-form-key :api-error-text] result)))))
-
+       (-> db (assoc-in-key-db [entry-form-key :api-error-text] result)))))
 
 (reg-event-fx
  :entry-form-update-section-value
  (fn [{:keys [db]} [_event-id section key value]]
-   (let [;;section-kvs (get-in-key-db db [entry-form-key :data :section-fields section])
-         ;;section-kvs (mapv (fn [m] (if (= (:key m) key) (assoc m :value value) m)) section-kvs)
-         section-kvs (merge-section-key-value db section key value)]
+   (let [section-kvs (merge-section-key-value db section key value)]
 
      (if-not (= key PASSWORD)
        {:db (assoc-in-key-db db [entry-form-key :data :section-fields section] section-kvs)}
@@ -309,27 +361,6 @@
                         (when-let [password-score (check-error api-response)]
                           ;; password-score is a map from struct 'PasswordScore'
                           (dispatch [:entry-form-update-section-password-score password-score]))))))
-
-(defn- has-password-field
-  "Checks whether the arg 'field-maps-vec' has a map with entry form entry field map 
-  (struct KeyValueData) has a 'key' for password
-  Reurns true if the passed vec of maps has a map with :key = Password
-  "
-  [field-maps-vec]
-  (->> field-maps-vec (filter
-                       (fn [m] (= (:key m) PASSWORD))) empty? boolean not))
-
-(defn- section-with-password-score
-  "Returns a vector of two elements [section-name [{:key..} {:key ..}]] or empty vector
-  if no PASSWORD field is found
-  "
-  [db]
-  (let [section-fields  (get-in-key-db db [entry-form-key :data :section-fields])
-        ;; filter returns a seq with 0 or 1 member vec [k v]
-        section-name-with-kvs (->> section-fields
-                                   (filterv (fn [[_section-name field-maps-vec]]
-                                              (has-password-field field-maps-vec))) first)]
-    section-name-with-kvs))
 
 ;; Updates the new score 
 (reg-event-db
@@ -416,26 +447,15 @@
  (fn [{:keys [db]} [_event-id edit?]]
    (if edit?
      {:db (-> db
-              (assoc-in-key-db [entry-form-key :undo-data] (get-in-key-db db [entry-form-key :data]))
+              (assoc-in-key-db [entry-form-key :undo-data] (get-form-data db))
               (assoc-in-key-db [entry-form-key :edit] edit?))}
      {:db (assoc-in-key-db db [entry-form-key :edit] edit?)})))
-
-
-
-#_(reg-event-db
-   :entry-form-ex/edit
-   (fn [db [_event-id edit?]]
-     (if edit?
-       (-> db
-           (assoc-in-key-db [entry-form-key :undo-data] (get-in-key-db db [entry-form-key :data]))
-           (assoc-in-key-db [entry-form-key :edit] edit?))
-       (assoc-in-key-db db [entry-form-key :edit] edit?))))
 
 (reg-event-fx
  :cancel-entry-edit-ex
  (fn [{:keys [db]} [_event-id]]
    (let [undo-data (get-in-key-db db [entry-form-key :undo-data])
-         data (get-in-key-db db [entry-form-key :data])]
+         data (get-form-data db)]
      {:db (if (and (seq undo-data) (not= undo-data data))
             (-> db (assoc-in-key-db [entry-form-key :data] undo-data)
                 (assoc-in-key-db [entry-form-key :undo-data] {})
@@ -446,30 +466,29 @@
                 (assoc-in-key-db [entry-form-key :error-fields] {})))
       :fx []})))
 
-
 #_(reg-event-db
- :cancel-entry-edit-ex
- (fn [db [_event-id]]
-   (let [undo-data (get-in-key-db db [entry-form-key :undo-data])
-         data (get-in-key-db db [entry-form-key :data])]
-     (if (and (seq undo-data) (not= undo-data data))
-       (-> db (assoc-in-key-db [entry-form-key :data] undo-data)
-           (assoc-in-key-db [entry-form-key :undo-data] {})
-           (assoc-in-key-db [entry-form-key :edit] false)
-           (assoc-in-key-db [entry-form-key :error-fields] {}))
-       (-> db (assoc-in-key-db  [entry-form-key :edit] false)
-           (assoc-in-key-db [entry-form-key :undo-data] {})
-           (assoc-in-key-db [entry-form-key :error-fields] {}))))))
+   :cancel-entry-edit-ex
+   (fn [db [_event-id]]
+     (let [undo-data (get-in-key-db db [entry-form-key :undo-data])
+           data (get-in-key-db db [entry-form-key :data])]
+       (if (and (seq undo-data) (not= undo-data data))
+         (-> db (assoc-in-key-db [entry-form-key :data] undo-data)
+             (assoc-in-key-db [entry-form-key :undo-data] {})
+             (assoc-in-key-db [entry-form-key :edit] false)
+             (assoc-in-key-db [entry-form-key :error-fields] {}))
+         (-> db (assoc-in-key-db  [entry-form-key :edit] false)
+             (assoc-in-key-db [entry-form-key :undo-data] {})
+             (assoc-in-key-db [entry-form-key :error-fields] {}))))))
 
 (defn- update-entry [db dispatch-fn]
-  (let [form-data (get-in-key-db db [entry-form-key :data])]
+  (let [form-data (get-form-data db)]
     (bg/update-entry (active-db-key db) form-data dispatch-fn)))
 
 ;; Edit is accepted and calls the backend API to update the Db
 (reg-event-fx
  :ok-entry-edit-ex
  (fn [{:keys [db]} [_event-id]]
-   (let [form-data (get-in-key-db db [entry-form-key :data])
+   (let [form-data (get-form-data db)
          error-fields (validate-all form-data)]
      ;;(println "auto type is " (:auto-type form-data))
      (if (boolean (seq error-fields))
@@ -484,7 +503,7 @@
 (reg-event-fx
  :entry-form/validate-form-fields
  (fn [{:keys [db]} [_event-id callback-fn]]
-   (let [form-data (get-in-key-db db [entry-form-key :data])
+   (let [form-data (get-form-data db)
          error-fields (validate-all form-data)]
      (if (boolean (seq error-fields))
        {:db (assoc-in-key-db db [entry-form-key :error-fields] error-fields)}
@@ -537,18 +556,6 @@
      {:db (assoc-in-key-db db [entry-form-key :data :tags] tags)
       :fx [[:dispatch [:ok-entry-edit-ex]]]})))
 
-(defn- adjust-expiration-time
-  "Returns the updated app-db"
-  [app-db selection expiry-time]
-  (println "adjust-expiration-time in " expiry-time)
-  (if (= selection "no-expiry")
-    (assoc-in-key-db app-db [entry-form-key :data :expires] false)
-    ;; value is js Date utc string of format "2022-05-13T04:02:44.481Z"
-    ;; The backend rust deserialization fails with this value
-    ;; Removing the '.481Z' and using just "2022-05-13T04:02:44" works for now
-    ;; Need to fix the backend to accept the date string ending in Z without this hack
-    (-> app-db (assoc-in-key-db [entry-form-key :data :expires] true)
-        (assoc-in-key-db [entry-form-key :data :expiry-time] (u/strip-utc-tz expiry-time)  #_(first (str/split expiry-time #"\."))))))
 
 (reg-event-db
  :expiry-duration-selection-ex
@@ -586,7 +593,7 @@
 (reg-sub
  :entry-form-data-ex
  (fn [db _query-vec]
-   (get-in-key-db db [entry-form-key :data])))
+   (get-form-data db)))
 
 ;; Gets the only section data
 (reg-sub
@@ -631,7 +638,7 @@
  :modified-ex
  (fn [db _query-vec]
    (let [undo-data (get-in-key-db db [entry-form-key :undo-data])
-         data (get-in-key-db db [entry-form-key :data])]
+         data (get-form-data db)]
      (if (and (seq undo-data) (not= undo-data data))
        true
        false))))
@@ -1181,7 +1188,7 @@
  (fn [{:keys [db]} [_event-id]]
    {:db (-> db
             (assoc-in-key-db [entry-form-key :undo-data]
-                             (get-in-key-db db [entry-form-key :data]))
+                             (get-form-data db))
             (assoc-in-key-db [entry-form-key :data] entry-type-data)
             (assoc-in-key-db [entry-form-key :error-fields] {})
             (assoc-in-key-db [entry-form-key :showing] :custom-entry-type-new))}))
@@ -1214,7 +1221,7 @@
 (reg-event-fx
  :create-custom-entry-type
  (fn [{:keys [db]} [_event-id]]
-   (let [entry-type-form-data (get-in-key-db db [entry-form-key :data])
+   (let [entry-type-form-data (get-form-data db)
          error-fields (validate-entry-type-form-data entry-type-form-data)]
      (if (boolean (seq error-fields))
        {:db (assoc-in-key-db db [entry-form-key :error-fields] error-fields)}
@@ -1339,13 +1346,8 @@
 (reg-event-fx
  :ok-new-entry-add-ex
  (fn [{:keys [db]} [_event-id]]
-   (let [form-data (get-in-key-db db [entry-form-key :data])
-         error-fields (validate-all form-data)
-        ;;  error-fields (validate-entry-form-data form-data)
-        ;;  ;; We get all fields across all sections
-        ;;  ;; Need to use make a sequence of all KV maps
-        ;;  kvds (flatten (vals (:section-fields form-data)))
-        ;;  error-fields (validate-required-fields error-fields kvds)
+   (let [form-data (get-form-data db)
+         error-fields (validate-all form-data) 
          errors-found (boolean (seq error-fields))]
      (if errors-found
        {:db (assoc-in-key-db db [entry-form-key :error-fields] error-fields)}
@@ -1670,7 +1672,6 @@
  (fn [db _query-vec]
    (get-in-key-db db [:entry-delete])))
 
-;;;;;;;;;;;;;;; Entry delete End ;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;; Auto type ;;;;;;;;;;;;;;;;;;;;;;
 
 (defn perform-auto-type-start []
@@ -1682,32 +1683,21 @@
 (defn auto-type-perform-dialog-data []
   (subscribe [:auto-type/perform-dialog]))
 
+;; auto-type is map from struct AutoType of EntryFormData as wells as Entry (for tag AutoType)
+;; Sometime we use 'auto-type-m' for 'auto-type'
 (reg-event-fx
  :entry-perform-auto-type
  (fn [{:keys [db]} [_event-id]]
-   (let [{:keys [uuid auto-type]} (get-in-key-db db [entry-form-key :data])]
+   (let [{:keys [uuid auto-type]} (get-form-data db)]
+     ;; Backend call to get the active to which we will be sending the sequence
      {:fx [[:auto-type/bg-active-window-to-auto-type [uuid auto-type]]]})))
-
-
-(defn extract-form-field-names-values
-  "Returns a map with field name as key and field value as value"
-  [form-data]
-  ;; :section-fields returns a map with section name as keys
-  ;; vals fn return 'values' ( a vec of field info map) for all sections. Once vec for each section. 
-  ;; And need to use flatten to combine all section values
-  ;; For example if two sections, vals call will return a two member ( 2 vec)
-  ;; sequence. Flatten combines both vecs and returns a single sequence of field info maps
-  (let [fields (-> form-data :section-fields vals flatten)
-        names-values (into {} (for [{:keys [key value]} fields] [key value]))]
-    names-values))
 
 (reg-event-fx
  :entry-auto-type-edit
  (fn [{:keys [db]} [_event-id]]
-   (let [{:keys [uuid auto-type] :as form-data} (get-in-key-db db [entry-form-key :data])
+   (let [{:keys [uuid auto-type] :as form-data} (get-form-data db)
          entry-form-fields (extract-form-field-names-values form-data)]
      {:fx [[:dispatch [:auto-type/edit-init uuid auto-type entry-form-fields]]]})))
-
 
 ;;;;;;;;;;;;;;;;;;;;; Otp (TOPT) related ;;;;;;;;;;;
 
@@ -1744,12 +1734,10 @@
 
   ;; All entry form data keys
   (-> (get @re-frame.db/app-db db-key) :entry-form-data :data keys)
-  ;; => :tags :icon-id :binary-key-values :section-fields :title :expiry-time :history-count
+  ;; => :tags :icon-id :parsed-fields :binary-key-values :section-fields :title :expiry-time :history-count
   ;;    :expires :standard-section-names :last-modification-time :entry-type-name :auto-type
   ;;    :notes :section-names :entry-type-icon-name :last-access-time :uuid :entry-type-uuid :group-uuid :creation-time
   )
-
-
 
 ;;;;;;;;;;;;;;;;;;;;;    Custom Field Add Dialog     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

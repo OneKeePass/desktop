@@ -1,3 +1,20 @@
+### 0.15.0
+- Automatic Database Opening featurure to open one or more databases automatically when you open a single database. For this, entries are to be created using the entry template 'Auto Database Open' in a group 'AutoOpen'. See FAQ how to use this feature
+
+- Added Diceware Passphrase generator with multiple words list support 
+
+- Using standard place holder variables in entry field values are now supported
+
+- Cloning an entry now supports replacing the username and password with references
+
+- Additional translations of texts 
+
+    - German  - Thanks [imar-io](https://github.com/imar-io)
+
+    - Chinese - Thanks [CSLukkun](https://github.com/CSLukkun)
+
+- Upgraded backend tauri and frontend mui packages 
+
 ### 0.14.0
 - Added cloning an entry
 - Groups can be sorted based on its name

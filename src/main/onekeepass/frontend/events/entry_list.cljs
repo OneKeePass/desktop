@@ -53,6 +53,9 @@
 (defn entry-list-sort-creteria []
   (subscribe [:entry-list-sort-creteria]))
 
+(defn selected-entry-item-index []
+  (subscribe [:selected-entry-item-index]))
+
 ;;;;;;;;;;;;;;;;;;;;;;; Entries sorting ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def sort-default-key-name const/TITLE)
@@ -68,7 +71,7 @@
        el-sort))))
 
 (defn sort-entries [{:keys [key-name direction]} entries]
-  (sort-by 
+  (sort-by
 
    ;; This is the key fn that provides keys for the comparion
    (fn [{:keys [title modified-time created-time]}]
@@ -84,7 +87,7 @@
 
        :else
        title))
-   
+
    ;; This is comparater for the keys
    (fn [v1 v2] (if (= direction const/ASCENDING)
                  (compare v1 v2)
@@ -115,8 +118,8 @@
  (fn [{:keys [db]} [_event-id]]
    (let [curr-direction (get-in-key-db db [:entry-list :sort :direction])]
      {:db (assoc-in-key-db db [:entry-list :sort :direction]
-                           (if (or (nil? curr-direction) (= curr-direction const/ASCENDING)) 
-                             const/DESCENDING 
+                           (if (or (nil? curr-direction) (= curr-direction const/ASCENDING))
+                             const/DESCENDING
                              const/ASCENDING))
       :fx [[:dispatch [:sort-entry-items]]]})))
 
@@ -165,6 +168,7 @@
      {:db db
       :fx [#_[:dispatch [:entry-category/selected-category-title category]]
            [:dispatch [:entry-category/select-all-entries-category]]
+           [:dispatch [:group-tree-content/clear-group-selection]]
            [:dispatch [:entry-list/update-selected-entry-id entry-uuid]]
            [:dispatch [:entry-form-ex/find-entry-by-id entry-uuid]]
            [:load-bg-entry-summary-data [(active-db-key db) category]]]})))
@@ -182,32 +186,41 @@
  (fn [[db-key category]]
    (bg/entry-summary-data db-key category
                           (fn [api-response]
-                            (when-let [result (check-error api-response)]
-                              (dispatch [:entry-list-load-complete result category])))
+                            (when-let [entry-summaries-v (check-error api-response)]
+                              (dispatch [:entry-list-load-complete entry-summaries-v category])))
                           #_(partial summary-entry-items-loaded category))))
 
 ;; When a list of all entry summary data is loaded successfully, this is called 
 (reg-event-fx
  :entry-list-load-complete
- (fn [{:keys [db]} [_event-id result category]]
+ (fn [{:keys [db]} [_event-id entry-summaries-v category]]
    (let [current-selected-entry-id (get-in-key-db db [:entry-list :selected-entry-id])
-         found (filter (fn [m] (= current-selected-entry-id (:uuid m))) result)]
+         ;; When user selects an entry (double click) in the search list, current-selected-entry-id is set and 
+         ;; entry summary vec is loaded to show in 'entry-list'. 
+         ;; We need to find the entry's index in that vec so that we can use that info to scroll to that item. 
+         ;; In all other cases, the index is 0  
+         [item-index item] (as-> entry-summaries-v coll
+                             (map-indexed (fn [idx item] [idx item]) coll)
+                             (filter (fn [[_idx m]] (= current-selected-entry-id (:uuid m))) coll)
+                             (first coll))]
      
-     {:db db
+     {:db (-> db (assoc-in-key-db [:entry-list :selected-entry-item-index] item-index))
       :fx [;; Need to sort the loaded entry list as per the current sort creteria
-           [:dispatch [:update-selected-entry-items (sort-entries-with-creteria db result)]]
-           
-           [:dispatch [:update-category-source category]]
-           (if-not (boolean (seq found))
+           [:dispatch [:update-selected-entry-items (sort-entries-with-creteria db entry-summaries-v)]]
+           [:dispatch [:update-category-source category]] 
+           (if-not (boolean (seq item))
              [:dispatch [:entry-form-ex/show-welcome]]
-             (dispatch [:entry-form-ex/find-entry-by-id current-selected-entry-id]))]})))
+             ;; Following event is dipatched only when 'item' is non nil value ( search time ) 
+             [:dispatch [:entry-form-ex/find-entry-by-id current-selected-entry-id]]
+             ;; Following will not work as  we see warning on console "re-frame: in ":fx" effect found" 
+             #_[[:dispatch [:entry-form-ex/find-entry-by-id current-selected-entry-id]]])]})))
 
 ;; list of entry items returned by backend api when a category selected
 ;; or entry items returned in a search result - Work is yet to be done
 (reg-event-db
  :update-selected-entry-items
- (fn [db [_event-id  v]]
-   (assoc-in-key-db db [:entry-list :selected-entry-items] v)))
+ (fn [db [_event-id  entry-summaries-v]]
+   (assoc-in-key-db db [:entry-list :selected-entry-items] entry-summaries-v)))
 
 ;; Sets the category-source that is selected in the category view
 (reg-event-db
@@ -241,6 +254,12 @@
  :<- [:category-source]
  (fn [{:keys [entry-type-uuid]} _query-vec]
    entry-type-uuid))
+
+(reg-sub
+ :selected-entry-item-index
+ (fn [db [_query-id]]
+   (let [index (get-in-key-db db [:entry-list :selected-entry-item-index])]
+     (if-not (nil? index) index 0))))
 
 
 (comment

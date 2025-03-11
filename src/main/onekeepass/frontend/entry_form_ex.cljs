@@ -1,73 +1,69 @@
 (ns onekeepass.frontend.entry-form-ex
-  (:require [clojure.string :as str]
-            [onekeepass.frontend.common-components :as cc :refer [list-items-factory
-                                                                  selection-autocomplete
-                                                                  tags-field]]
-            [onekeepass.frontend.constants :as const :refer [ADDITIONAL_ONE_TIME_PASSWORDS
-                                                             ONE_TIME_PASSWORD_TYPE
-                                                             STANDARD_ENTRY_TYPES]]
-            [onekeepass.frontend.db-icons :as db-icons :refer [entry-icon
-                                                               entry-type-icon]]
-            [onekeepass.frontend.entry-form.common :as ef-cmn :refer [ENTRY_DATETIME_FORMAT
-                                                                      theme-content-sx]]
-            [onekeepass.frontend.entry-form.dialogs :as dlg :refer [add-modify-section-field-dialog
-                                                                    add-modify-section-popper
-                                                                    attachment-delete-confirm-dialog
-                                                                    custom-field-delete-confirm
-                                                                    custom-section-delete-confirm
-                                                                    clone-entry-options-dialog
-                                                                    delete-all-confirm-dialog
-                                                                    delete-confirm-dialog
-                                                                    delete-permanent-dialog
-                                                                    delete-totp-confirm-dialog
-                                                                    icons-dialog
-                                                                    icons-dialog-flag
-                                                                    restore-confirm-dialog
-                                                                    set-up-totp-dialog
-                                                                    show-icons-dialog]]
-            [onekeepass.frontend.entry-form.fields :refer [datetime-field
-                                                           otp-field
-                                                           simple-selection-field
-                                                           text-area-field
-                                                           text-field]]
-            [onekeepass.frontend.entry-form.menus :as menus]
-            [onekeepass.frontend.events.common :as ce]
-            [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
-            [onekeepass.frontend.events.entry-form-ex :as form-events]
-            [onekeepass.frontend.events.move-group-entry :as move-events]
-            [onekeepass.frontend.group-tree-content :as gt-content]
-            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
-                                                              mui-alert
-                                                              mui-avatar
-                                                              mui-box
-                                                              mui-button
-                                                              mui-button
-                                                              mui-divider
-                                                              mui-icon-add-circle-outline-outlined
-                                                              mui-icon-article-outlined
-                                                              mui-icon-button
-                                                              mui-icon-button
-                                                              mui-icon-delete-outline
-                                                              mui-icon-edit-outlined
-                                                              mui-icon-save-as-outlined
-                                                              mui-link
-                                                              mui-list-item
-                                                              mui-list-item-avatar
-                                                              mui-list-item-text
-                                                              mui-list-item-text
-                                                              mui-menu-item
-                                                              mui-stack
-                                                              mui-text-field
-                                                              mui-tooltip
-                                                              mui-typography
-                                                              theme-color]]
-            [onekeepass.frontend.translation :as t :refer-macros [tr-bl tr-l tr-h tr-t
-                                                                  tr-entry-field-name-cv
-                                                                  tr-entry-section-name-cv
-                                                                  tr-entry-type-title-cv]]
-            [onekeepass.frontend.utils :as u :refer [contains-val?
-                                                     to-file-size-str]]
-            [reagent.core :as r]))
+  (:require
+   [clojure.string :as str]
+   [onekeepass.frontend.common-components :as cc :refer [list-items-factory
+                                                         selection-autocomplete
+                                                         tags-field]]
+   [onekeepass.frontend.constants :as const :refer [ADDITIONAL_ONE_TIME_PASSWORDS
+                                                    IFDEVICE
+                                                    ONE_TIME_PASSWORD_TYPE
+                                                    PASSWORD
+                                                    STANDARD_ENTRY_TYPES URL
+                                                    USERNAME]]
+   [onekeepass.frontend.db-icons :as db-icons :refer [entry-icon
+                                                      entry-type-icon]]
+   [onekeepass.frontend.entry-form.common :as ef-cmn :refer [ENTRY_DATETIME_FORMAT
+                                                             theme-content-sx]]
+   [onekeepass.frontend.entry-form.dialogs :as dlg :refer [add-modify-section-field-dialog
+                                                           add-modify-section-popper
+                                                           attachment-delete-confirm-dialog
+                                                           clone-entry-options-dialog
+                                                           custom-field-delete-confirm
+                                                           custom-section-delete-confirm
+                                                           delete-all-confirm-dialog
+                                                           delete-confirm-dialog
+                                                           delete-permanent-dialog
+                                                           delete-totp-confirm-dialog
+                                                           icons-dialog
+                                                           icons-dialog-flag
+                                                           restore-confirm-dialog
+                                                           set-up-totp-dialog
+                                                           show-icons-dialog]]
+   [onekeepass.frontend.entry-form.fields :refer [datetime-field otp-field
+                                                  simple-selection-field
+                                                  text-area-field text-field]]
+   [onekeepass.frontend.entry-form.menus :as menus]
+   [onekeepass.frontend.events.common :as ce]
+   [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
+   [onekeepass.frontend.events.entry-form-ex :as form-events :refer [place-holder-resolved-value]]
+   [onekeepass.frontend.events.move-group-entry :as move-events]
+   [onekeepass.frontend.group-tree-content :as gt-content]
+   [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
+                                                     mui-alert mui-avatar
+                                                     mui-box mui-button
+                                                     mui-button mui-divider
+                                                     mui-icon-add-circle-outline-outlined
+                                                     mui-icon-article-outlined
+                                                     mui-icon-button
+                                                     mui-icon-button
+                                                     mui-icon-delete-outline
+                                                     mui-icon-edit-outlined
+                                                     mui-icon-save-as-outlined
+                                                     mui-link mui-list-item
+                                                     mui-list-item-avatar
+                                                     mui-list-item-text
+                                                     mui-list-item-text
+                                                     mui-menu-item mui-stack
+                                                     mui-text-field
+                                                     mui-tooltip
+                                                     mui-typography
+                                                     theme-color]]
+   [onekeepass.frontend.translation :as t :refer [lstr-field-name] :refer-macros [tr-bl tr-l tr-h tr-t
+                                                                                  tr-entry-field-name-cv
+                                                                                  tr-entry-section-name-cv
+                                                                                  tr-entry-type-title-cv]]
+   [onekeepass.frontend.utils :as u :refer [contains-val? to-file-size-str]]
+   [reagent.core :as r]))
 
 ;;(set! *warn-on-infer* true)
 
@@ -78,9 +74,9 @@
       (handler-name field-name-kw (-> e .-target  .-value))
       (handler-name field-name-kw (-> e .-target  .-checked)))))
 
-(defn on-check-factory [handler-name field-name-kw]
-  (fn [e]
-    (handler-name field-name-kw (-> e .-target  .-checked))))
+#_(defn on-check-factory [handler-name field-name-kw]
+    (fn [e]
+      (handler-name field-name-kw (-> e .-target  .-checked))))
 
 (defn on-change-factory2
   [handler-name]
@@ -141,7 +137,10 @@
         expiry-duration-selection @(form-events/entry-form-field :expiry-duration-selection)
         expiry-dt @(form-events/entry-form-data-fields :expiry-time)
         creation-time @(form-events/entry-form-data-fields :creation-time)
-        last-modification-time @(form-events/entry-form-data-fields :last-modification-time)]
+        last-modification-time @(form-events/entry-form-data-fields :last-modification-time)
+        parent-group-uuid @(form-events/entry-form-data-fields :group-uuid)
+        {:keys [name]} @(dlg-events/selected-group-info parent-group-uuid)
+        ]
     (when-not edit
       [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
 
@@ -153,9 +152,13 @@
         [mui-typography (str (tr-l "created") ":")]
         [mui-typography (u/to-local-datetime-str creation-time ENTRY_DATETIME_FORMAT)]]
 
-       [mui-stack {:direction "row" :sx {:justify-content "space-between"}}
+       [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
         [mui-typography (str (tr-l "lastModified") ":")]
         [mui-typography (u/to-local-datetime-str last-modification-time ENTRY_DATETIME_FORMAT)]]
+       
+       [mui-stack {:direction "row" :sx {:justify-content "space-between"}}
+        [mui-typography (str (tr-l "group") ":")]
+        [mui-typography name]]
 
        (when-not (= expiry-duration-selection "no-expiry")
          [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-top "10px"}}
@@ -208,7 +211,9 @@
             [mui-icon-add-circle-outline-outlined]]]])]))
 
 ;; Note translations for field names (labels) are done in 'text-field' defined in fields.cljs
-(defn section-content [edit section-name section-data group-uuid]
+(defn section-content
+  "This is called for each section of an entry"
+  [{:keys [edit section-name section-data group-uuid]}]
   (let [errors @(form-events/entry-form-field :error-fields)]
     ;; Show a section in edit mode irrespective of its contents; In non edit mode a section is shown only 
     ;; if it has some fields with non blank value. 
@@ -220,25 +225,27 @@
                   }
          [section-header section-name]
          (doall
-          (for [{:keys [key value
+          (for [{:keys [key
+                        value
                         protected
                         required
                         data-type
                         select-field-options
-                        standard-field
-                        password-score] :as kv} section-data]
-          ;; All fields of this section is shown in edit mode. In case of non edit mode, only the  
-          ;; fields with values are shown
+                        ;; standard-field indicates a predefined field of an entry type or not
+                        standard-field] :as kv} section-data]
+            ;; All fields of this section is shown in edit mode. In case of non edit mode, only the  
+            ;; fields with values are shown 
             (when (or edit (not (str/blank? value))) #_(or edit (or required (not (str/blank? value))))
                   ^{:key key}
                   [mui-stack {:direction "row"
-                              :ref (fn [e]
-                             ;; We keep a ref to the underlying HtmlElememnt - #object[HTMLDivElement [object HTMLDivElement]] 
-                             ;; The ref is kept for each filed's enclosing container 'Stack' component so that we can position the Popper 
-                             ;; Sometimes the value of e is nil as react redraws the node
-                                     (swap! refs assoc key e))}
+                              ;; We keep a ref to the underlying HtmlElememnt - #object[HTMLDivElement [object HTMLDivElement]] 
+                              ;; The ref is kept for each field's enclosing container 'Stack' component so that we can position the Popper.
+                              ;; Sometimes the value of e is nil as react redraws the node
+                              :ref (fn [e] (swap! refs assoc key e))}
                    [mui-stack {:direction "row" :sx {:width (if edit "92%" "100%")}}
                     (cond
+                      ;; select-field-options is vec of strings and gets data from 
+                      ;; field 'select_field_options' in struct KeyValueData 
                       (not (nil? select-field-options))
                       [simple-selection-field (assoc kv
                                                      :edit edit
@@ -255,7 +262,6 @@
                       [text-field (assoc kv
                                          :edit edit
                                          :error-text (get errors key)
-                                         :password-score password-score
                                          :visible @(form-events/visible? key)
                                          :on-change-handler #(form-events/update-section-value-on-change
                                                               section-name key (-> % .-target  .-value)))])]
@@ -278,16 +284,58 @@
          #_[custom-field-delete-confirm @(form-events/field-delete-dialog-data)]
          #_[custom-section-delete-confirm @(form-events/section-delete-dialog-data)]]))))
 
-(defn all-sections-content []
+(defn get-section-data
+  "Called to set up any entry type specific data in kv
+   Returns an vec of kvd map for a section
+   "
+  [entry-type-uuid section-name section-fields parsed-fields]
+  (let [section-data (get section-fields section-name)
+
+        adjusted-section-data (mapv
+                               (fn [{:keys [key] :as m}]
+                                 (assoc m :read-value (place-holder-resolved-value parsed-fields key)))
+                               section-data)
+
+        adjusted-section-data  (if (not= entry-type-uuid const/UUID_OF_ENTRY_TYPE_AUTO_OPEN) 
+                                 adjusted-section-data
+                                 (mapv
+                                  (fn [{:keys [key] :as m}]
+                                    ;; Note the use of lstr-field-name vs tr-entry-field-name-cv
+                                    ;; lstr-field-name is fn and tr-entry-field-name-cv is a macro 
+                                    (cond
+                                      (= key URL)
+                                      ;; for now read-value is not used 
+                                      ;;:read-value (:url-field-value m)
+                                      (assoc m :field-name (tr-entry-field-name-cv "autoOpenKdbxFileOpen"))
+
+                                      (= key USERNAME)
+                                      (assoc m :field-name (lstr-field-name 'autoOpenKeyFile)
+                                             :read-value (place-holder-resolved-value parsed-fields key)) ;; :read-value (:key-file-path m)
+
+                                      (= key PASSWORD)
+                                      (assoc m  :read-value (place-holder-resolved-value parsed-fields key))
+
+                                      (= key IFDEVICE)
+                                      (assoc m :field-name (tr-entry-field-name-cv "autoOpenIfDevice"))
+
+                                      :else
+                                      m))
+                                  adjusted-section-data))]
+    adjusted-section-data))
+
+(defn all-sections-content
+  "Component for all sections of an entry"
+  []
   (let [{:keys [edit showing]
-         {:keys [section-names section-fields uuid group-uuid]} :data}
+         {:keys [entry-type-uuid section-names section-fields uuid group-uuid]} :data}
         @(form-events/entry-form-all)
-        deleted? @(form-events/is-entry-parent-group-deleted group-uuid)]
+        deleted? @(form-events/is-entry-parent-group-deleted group-uuid)
+        parsed-fields @(form-events/entry-form-data-fields :parsed-fields)]
     (m/react-use-effect
      (fn []
        #_(println "init - uuid showing edit deleted? : \n" uuid showing edit deleted?)
        (when (and (= showing :selected) (not edit) (not deleted?))
-        ;; (println "Will fire entry-form-otp-start-polling")
+         #_(println "Will fire entry-form-otp-start-polling")
          (form-events/entry-form-otp-start-polling))
 
        (fn []
@@ -300,7 +348,12 @@
     [mui-stack
      (doall
       (for [section-name section-names]
-        ^{:key section-name} [section-content edit section-name (get section-fields section-name) group-uuid]))]))
+        ^{:key section-name} [section-content {:entry-type-uuid entry-type-uuid
+                                               :edit edit
+                                               :parsed-fields parsed-fields
+                                               :section-name section-name
+                                               :section-data (get-section-data entry-type-uuid section-name section-fields parsed-fields) #_(get section-fields section-name)
+                                               :group-uuid group-uuid}]))]))
 
 (defn title-with-icon-field  []
   ;;(println "title-with-icon-field called ")
@@ -317,15 +370,13 @@
                       :required true
                       :helper-text (tr-h "entryTitle")
                       :error-text (:title errors)
-                      :on-change-handler #(form-events/entry-form-data-update-field-value
-                                           :title (-> % .-target  .-value))}]]
+                      :on-change-handler  (on-change-factory form-events/entry-form-data-update-field-value :title)}]]
 
         [mui-stack {:direction "row" :sx {:width "12%" :justify-content "center" :align-items "center"}}
          [mui-typography {:sx {:padding-left "5px"} :align "center" :paragraph false :variant "subtitle1"}
           (tr-l "icons")]
-         [mui-icon-button {:edge "end" :color "primary" :sx {;;:margin-top "16px"
-                                                             ;;:margin-right "-8px"
-                                                             }
+         [mui-icon-button {:edge "end" :color "primary"
+                           :sx {} #_{:margin-top "16px" :margin-right "-8px"}
                            :on-click  show-icons-dialog}
           [entry-icon (:icon-id fields)]]]
         [icons-dialog @icons-dialog-flag]]])))
@@ -468,6 +519,9 @@
 (defn entry-content []
   (fn []
     (let [title @(form-events/entry-form-data-fields :title)
+          parsed-fields @(form-events/entry-form-data-fields :parsed-fields)
+          title (place-holder-resolved-value parsed-fields :title  title)
+
           icon-id @(form-events/entry-form-data-fields :icon-id)
           entry-uuid  @(form-events/entry-form-data-fields :uuid)
           edit @(form-events/form-edit-mode)
@@ -614,11 +668,11 @@
                           :label (tr-l entryType)
                           :value entry-type-uuid ;;field-type
                           :helper-text (tr-h entryTypeFields)
-                          :on-change (on-change-factory2 form-events/entry-type-uuid-on-change) #_de/custom-field-type-edit-on-change
+                          :on-change (on-change-factory2 form-events/entry-type-uuid-on-change)
                           :variant "standard" :fullWidth true}
          ;; select fields options
          (doall
-          (for [{:keys [name uuid]} @entry-type-headers] 
+          (for [{:keys [name uuid]} @entry-type-headers]
             ^{:key uuid} [mui-menu-item {:value uuid}
                           (translated-entry-type-name name)]))]]
        [mui-stack {:direction "row"
@@ -669,7 +723,7 @@
       [mui-stack {:sx {:align-items "flex-end"}}
        [:div.buttons1
         [mui-button {:variant "contained" :color "secondary"
-                     :on-click form-events/new-entry-cancel-on-click #_ee/new-entry-cancel-on-click} "Cancel"]
+                     :on-click form-events/new-entry-cancel-on-click} "Cancel"]
         [mui-button {:variant "contained" :color "secondary"
                      :on-click form-events/ok-new-entry-add} "Ok"]]]]
 
@@ -739,10 +793,11 @@
                      [mui-stack {:direction "row" :sx {:width "8%" :align-items "flex-end"}}
                       [mui-tooltip  {:title "Modify Field" :enterDelay 2500}
                        [mui-icon-button {:edge "end"
-                                         :on-click  #(form-events/open-section-field-modify-dialog {:key key
-                                                                                                    :protected protected
-                                                                                                    :required required
-                                                                                                    :section-name section-name})}
+                                         :on-click  #(form-events/open-section-field-modify-dialog
+                                                      {:key key
+                                                       :protected protected
+                                                       :required required
+                                                       :section-name section-name})}
                         [mui-icon-edit-outlined]]]
                       [mui-tooltip  {:title "Delete Field" :enterDelay 2500}
                        [mui-icon-button {:edge "end"

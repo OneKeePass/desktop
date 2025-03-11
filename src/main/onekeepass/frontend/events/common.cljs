@@ -6,7 +6,7 @@
             [onekeepass.frontend.constants :as const :refer [ADD_TAG_PREFIX
                                                              DB_CHANGED]]
             [onekeepass.frontend.events.common-supports :as cmn-supports]
-            [onekeepass.frontend.translation :refer-macros [tr-dlg-title tr-dlg-text ] :refer [lstr-sm]]
+            [onekeepass.frontend.translation :refer-macros [tr-dlg-title tr-dlg-text] :refer [lstr-sm]]
             [onekeepass.frontend.utils :refer [contains-val? str->int
                                                utc-to-local-datetime-str]]
             [re-frame.core :refer [dispatch dispatch-sync reg-event-db
@@ -39,30 +39,12 @@
                          (let [file-name (check-error api-response)]
                            (dispatch [kw-dispatch-name file-name])))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;  Common factory ;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn on-change-factory
-  "A function factory 
-   The arg 'handler-name' is a fn that is called with supplier arg 'field-name-kw' and 
-   the event value
-   Returns a function that can be used in a on-change handler of a text field
-  "
-  [handler-name field-name-kw]
-  (fn [^js/Event e]
-    (handler-name field-name-kw (-> e .-target  .-value))))
-
-(defn on-check-factory
-  "Called in on-change handler of a check field"
-  [handler-name field-name-kw]
-  (fn [e]
-    (handler-name field-name-kw (-> e .-target  .-checked))))
-
 ;;;;;;;;;;;;;;;;;;;;;;;; System Info and Preference ;;;;;;;;;;;;;;;;;;;;
 
 (declare set-session-timeout)
 
 #_(defn load-language-translation-completed []
-  (dispatch [:load-language-translation-complete]))
+    (dispatch [:load-language-translation-complete]))
 
 (defn new-db-full-file-name [app-db db-name]
   (let [document-dir (-> app-db :standard-dirs :document-dir)
@@ -89,11 +71,17 @@
 (defn app-theme-light? []
   (subscribe [:app-theme-light]))
 
+(defn app-version []
+  (subscribe [:app-version]))
+
 (defn biometric-type-available []
   (subscribe [:biometric-type-available]))
 
 (defn os-name []
   (subscribe [:os-name]))
+
+(defn app-preference-phrase-generator-options [app-db]
+  (-> app-db :app-preference :password-gen-preference :phrase-generator-options))
 
 (reg-event-fx
  :init-process
@@ -164,7 +152,7 @@
 
 (reg-event-fx
  :clear-recent-files-done
- (fn [{:keys [db]} [_event-id]] 
+ (fn [{:keys [db]} [_event-id]]
    {:db (assoc-in db [:app-preference :recent-files] [])}))
 
 (reg-sub
@@ -185,6 +173,12 @@
  (fn [pref _query-vec]
    ;; valid values (:theme pref) => light or dark
    (= "light" (:theme pref))))
+
+(reg-sub
+ :app-version
+ :<- [:app-preference]
+ (fn [pref _query-vec]
+   (:version pref)))
 
 (reg-sub
  :app-preference-loading-completed
@@ -232,6 +226,20 @@
                                            ;;:database-name (:database-name meta)
                                            }))))
 
+(defn update-db-opened
+  "Updates the db list and current active db key when a new kdbx database is loaded
+  The args are the re-frame 'app-db' and KdbxLoaded struct returned by backend API.
+  Returns the updated app-db
+  "
+  [app-db {:keys [db-key database-name file-name key-file-name]}] ;;kdbx-loaded
+  (let [app-db  (if (nil? (:opened-db-list app-db)) (assoc app-db :opened-db-list []) app-db)]
+    (-> app-db
+        (update-in [:opened-db-list] conj {:db-key db-key
+                                           :database-name database-name
+                                           :file-name file-name
+                                           :key-file-name key-file-name
+                                           :user-action-time (js/Date.now)}))))
+
 (defn active-db-key
   ;; To be called only in react components as it used 'subscribe' (i.e in React context)
   ([]
@@ -246,8 +254,15 @@
 (defn set-active-db-key
   "Sets the new current active db"
   [db-key]
-  #_(dispatch [:set-active-db-key db-key])
-  (dispatch [:change-active-db-complete db-key]))
+  (dispatch [:common/change-active-db-complete db-key]))
+
+(defn set-active-db-key-direct
+  "Called to set the current db to the given db-key and thus making it active
+   It is assumed that the 'db-key' is already available in the opened db list
+   Returns the updated app-db map
+    "
+  [app-db db-key]
+  (assoc app-db :current-db-file-name db-key))
 
 (defn opened-db-list
   "Gets an atom to get all opened db summary list if app-db is not passed"
@@ -286,6 +301,18 @@
         kdb (get app-db kdbx-db-key)]
     (assoc app-db kdbx-db-key (assoc-in kdb ks v))))
 
+(defn assoc-in-with-db-key
+  "Called to associate the value in 'v' to the keys 'ks' location 
+  in the db for the selected db key and then updates the main db 
+  with this new key db
+  Returns the main db 
+  "
+  [app-db db-key ks v]
+  ;;Get db with db_key and update that map with v in ks
+  ;;Then update the main db
+  (let [kdb (get app-db db-key)]
+    (assoc app-db db-key (assoc-in kdb ks v))))
+
 #_(defn get-in-key-db
     "Gets the value for the key lists from an active kdbx content"
     [app-db ks]
@@ -295,12 +322,20 @@
 (defn get-in-key-db
   "Gets the value for the key lists from an active kdbx content"
   ([app-db ks]
-     ;; First we get the kdbx content map and then supplied keys 'ks' used to get the actual value
+   ;; First we get the kdbx content map and then supplied keys 'ks' used to get the actual value
+   ;; ks may be single kw or vec of keywords
    (get-in app-db (into [(active-db-key app-db)] ks)))
-
   ([app-db ks default]
    (get-in app-db (into [(active-db-key app-db)] ks) default)))
 
+(defn get-in-with-db-key
+  "Gets the value for the key lists from an active kdbx content"
+  ([app-db db-key ks]
+   ;; ks may be single kw or vec of keywords
+   (get-in app-db (into [db-key] ks)))
+
+  ([app-db db-key ks default]
+   (get-in app-db (into [db-key] ks) default)))
 
 (defn save-as
   "Called when user wants to save a modified db to another name"
@@ -329,14 +364,16 @@
 
 (reg-event-fx
  :common/kdbx-database-loading-complete
- (fn [{:keys [db]} [_event-id kdbx-loaded]]
+ (fn [{:keys [db]} [_event-id {:keys [db-key] :as _kdbx-loaded}]]
    {:fx [[:dispatch [:load-all-tags]]
          [:dispatch [:group-tree-content/load-groups]]
          [:dispatch [:entry-category/category-data-load-start
                      (-> db :app-preference :default-entry-category-groupings)]]
          [:dispatch [:common/load-entry-type-headers]]
          [:dispatch [:common/message-snackbar-open
-                     (lstr-sm 'dbOpened {:dbFileName (:db-key kdbx-loaded)})]]]}))
+                     (lstr-sm 'dbOpened {:dbFileName db-key})]]
+         ;; This db may have AutoOpen group
+         [:dispatch [:auto-open/verify-and-load db-key]]]}))
 
 ;; A common refresh all forms after an entry form changes - delete, put back , delete permanent
 (reg-event-fx
@@ -464,8 +501,13 @@
 (defn locked?
   ([]
    (subscribe [:common/current-db-locked]))
+  ;; Following two fns access the app-db directly
   ([app-db]
-   (boolean (get-in-key-db app-db [:locked]))))
+   ;; Current db key is used
+   (boolean (get-in-key-db app-db [:locked])))
+  ([app-db db-key]
+   ;; Finds out whether the db that has the db-key is locked or not
+   (boolean (get-in app-db [db-key :locked]))))
 
 (defn unlock-current-db
   "Unlocks the database using biometric option if available"
@@ -722,7 +764,7 @@
    {:opened-db-list []}))
 
 (reg-event-fx
- :change-active-db-complete
+ :common/change-active-db-complete
  (fn [{:keys [db]} [_event-id db-key]]
    (let [db (assoc db :current-db-file-name db-key)]
      {:db db})))
@@ -1048,6 +1090,21 @@
       ;; For now only db-settings dialog receives this and closes if user leaves it open
       ;; and session timeout happens during that time
       :fx [[:dispatch [:db-settings/notify-screen-locked]]]})))
+
+;;;;;;;;;;  Tauri shell open common calls ;;;;;;;;;;;
+(reg-fx
+ :common/bg-open-url
+ (fn [[path]]
+   (bg/open-url path
+                (fn [api-response]
+                  (on-error api-response)))))
+
+(reg-fx
+ :common/bg-open-file
+ (fn [[path]]
+   (bg/open-file path
+                 (fn [api-response]
+                   (on-error api-response)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;  Common Dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

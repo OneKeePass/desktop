@@ -47,10 +47,14 @@
 (def entry-groupings [{:name "Groups" :value "Groups"} {:name "Categories" :value "Categories"}
                       {:name "Types" :value "Types"} {:name "Tags" :value "Tags"}])
 
+;; Here we list all lanaguages that we support. 
+;; We need to have the corresponding translation json files in the dir resources/public/translations
+;; See translation.rs for the backend loading of these json files
 (def languages [{:name "en - English" :value "en"}
                 {:name "es - Español" :value "es"}
+                {:name "de - Deutsch" :value "de"}
+                {:name "zh - 中文" :value "zh"}
                 #_{:name "fr - Français" :value "fr"}])
-
 
 (defn- user-interface
   "Incoming settings map has nested maps and are destructred"

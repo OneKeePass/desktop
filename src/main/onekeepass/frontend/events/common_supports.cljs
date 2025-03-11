@@ -31,8 +31,12 @@
    (if-not (nil? error)
      (do
        (if (nil? error-fn)
-         (dispatch [:common/message-snackbar-error-open error])
-         (error-fn error))
+         (do
+           (dispatch [:common/message-snackbar-error-open error])
+           (dispatch [:common/progress-message-box-hide]))
+         (do
+           (error-fn error)
+           (dispatch [:common/progress-message-box-hide])))
        nil)
      result))
   ([api-response]
@@ -46,6 +50,8 @@
   ([{:keys [error]} error-fn]
    (if-not (nil? error)
      (do
+       ;; Ensure that we hide this message box 
+       (dispatch [:common/progress-message-box-hide])
        (if  (nil? error-fn)
          #_(println "API returned error: " error)
          ;; Should we use a generic error dialog instead of snackbar ?

@@ -3,6 +3,9 @@
 ;; This is the default Entry type to use 
 (def UUID_OF_ENTRY_TYPE_LOGIN "ffef5f51-7efc-4373-9eb5-382d5b501768")
 
+;; This is the entry type id for Auto Open entry type
+(def UUID_OF_ENTRY_TYPE_AUTO_OPEN "389368a9-73a9-4256-8247-321a2e60b2c7")
+
 ;; Standard Entry Type Names
 ;; These should match names used in 'standard_entry_types.rs'
 
@@ -11,11 +14,14 @@
 (def WIRELESS_ROUTER_TYPE_NAME "Wireless Router")
 (def PASSPORT_TYPE_NAME "Passport")
 (def BANK_ACCOUNT_TYPE_NAME "Bank Account")
+(def AUTO_DB_OPEN_TYPE_NAME "Auto Database Open")
 
+;; This list is used in Entry Type select menu items on the new entry form
 (def STANDARD_ENTRY_TYPES [LOGIN_TYPE_NAME
                            CREDIT_DEBIT_CARD_TYPE_NAME
                            WIRELESS_ROUTER_TYPE_NAME
-                           BANK_ACCOUNT_TYPE_NAME])
+                           BANK_ACCOUNT_TYPE_NAME
+                           AUTO_DB_OPEN_TYPE_NAME])
 
 (def ADDITIONAL_ONE_TIME_PASSWORDS "Additional One-Time Passwords")
 ;;
@@ -63,12 +69,16 @@
 (def FACE_ID "FaceID")
 (def NO_BIOMETRIC "None")
 
+(def MACOS "macos")
+
+;; Some entry standard fields
 (def TITLE "Title")
 (def MODIFIED_TIME "Modified Time")
 (def CREATED_TIME "Created Time")
+(def USERNAME "UserName")
 (def PASSWORD "Password")
-
-(def MACOS "macos")
+(def URL "URL")
+(def IFDEVICE "IfDevice")
 
 (def ONE_TIME_PASSWORD_TYPE "Field type" "OneTimePassword")
 
@@ -80,6 +90,6 @@
 (def OTP_TOKEN_UPDATE_EVENT "OtpTokenUpdateEvent")
 (def TAURI_MENU_EVENT "TauriMenuEvent")
 (def WINDOW_FOCUS_CHANGED "WindowFocusChanged")
-(def CLOSE_REQUESTED  "CloseRequested" )
+(def CLOSE_REQUESTED  "CloseRequested")
 
 

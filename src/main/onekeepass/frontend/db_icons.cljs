@@ -7,6 +7,7 @@
                                                      mui-icon-vpn-key-outlined
                                                      mui-icon-credit-card-outlined
                                                      mui-icon-flight-takeoff-outlined
+                                                     mui-icon-launch
                                                      mui-icon-login-outlined
                                                      mui-icon-wifi-outlined
                                                      mui-icon-account-balance-outlined]]))
@@ -774,17 +775,19 @@
                     :display "flex" :alignItems "center"}}
      (get all-icons index [mui-icon-vpn-key-outlined])]))
 
-(def entry-type-icons-m "Icons shown while showing entry types in category panel" 
+(def entry-type-icons-m 
+  "Icons shown while showing entry types in category panel"
   {const/LOGIN_TYPE_NAME mui-icon-login-outlined
    const/CREDIT_DEBIT_CARD_TYPE_NAME mui-icon-credit-card-outlined
    const/BANK_ACCOUNT_TYPE_NAME mui-icon-account-balance-outlined
    const/WIRELESS_ROUTER_TYPE_NAME mui-icon-wifi-outlined
-   const/PASSPORT_TYPE_NAME mui-icon-flight-takeoff-outlined})
+   const/PASSPORT_TYPE_NAME mui-icon-flight-takeoff-outlined
+   const/AUTO_DB_OPEN_TYPE_NAME mui-icon-launch})
 
 (defn entry-type-icon
   "Resturns an as form-1 reagent component for the given name"
   [name icon-name]
-  (let [icon (get entry-type-icons-m name)] 
+  (let [icon (get entry-type-icons-m name)]
     (if icon
       [icon]
       [entry-icon (str->int icon-name)])))

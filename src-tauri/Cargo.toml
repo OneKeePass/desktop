@@ -7,7 +7,7 @@ license = ""
 repository = ""
 default-run = "onekeepass-frontend"
 edition = "2021"
-rust-version = "1.60"
+# rust-version = "1.60"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -18,7 +18,7 @@ serde = { version = "1.0", features = ["derive"] }
 chrono =  {version = "0.4.19", features = ["serde"] }
 log = "0.4.17"
 log4rs = "1.1.1"
-toml = "0.5.9"
+toml = "0.8.19"
 once_cell = "1.18.0"
 secstr = "0.5.1"
 hex = "0.4.3"
@@ -27,6 +27,7 @@ cfg-if = "1.0"
 nom = "7.1.3"
 os_info = "3"
 sys-locale = "0.3.1"
+gethostname = "0.5.0"
 
 #tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
 tokio = { version = "1", features = [ "time" ] }
@@ -35,23 +36,25 @@ tokio = { version = "1", features = [ "time" ] }
 ## Adding "devtools" to features list enables devtools in production; But in mac it uses private api 
 ## Tauri rust features are listed in the doc home page https://docs.rs/tauri/1.5.4/tauri/
 ## Also see 'allowlist' in tauri.conf.json where we need to enable some of these APIs
-tauri = { version = "1.7.1", features = ["clipboard-all", "dialog-all", "global-shortcut-all", "path-all", "process-exit", "shell-all"] }
+tauri = { version = "1.8.1", features = ["clipboard-all", "dialog-all", "global-shortcut-all", "path-all", "process-exit", "shell-all"] }
 
 ## using from the local crate during development
-## onekeepass-core = {path = "../../onekeepass-core", version = "0.15.0"} 
+## onekeepass-core = {path = "../../onekeepass-core", version = "0.17.0"} 
 
 ## Need to use the git ref for release 
-onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.15.0" }
+onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.17.0" }
 
 [build-dependencies]
-tauri-build = { version = "1.5.3", features = [] }
+tauri-build = { version = "1.5.5", features = [] }
 
 ## Need to use specific revision from git to ensure we can build for both 'aarch64' and 'x86_64' targets
 [target."cfg(target_os = \"macos\")".dependencies]
-swift-rs =  {git = "https://github.com/Brendonovich/swift-rs.git" , rev="973c22215734d1d5b97c496601d658371e537ece" }
+swift-rs = "1.0.7" 
+## swift-rs =  {git = "https://github.com/Brendonovich/swift-rs.git" , rev="973c22215734d1d5b97c496601d658371e537ece" }
 
 [target."cfg(target_os = \"macos\")".build-dependencies]
-swift-rs =  {git = "https://github.com/Brendonovich/swift-rs.git" , rev="973c22215734d1d5b97c496601d658371e537ece", features = ["build"] }
+swift-rs = { version = "1.0.7", features = ["build"] } 
+## swift-rs =  {git = "https://github.com/Brendonovich/swift-rs.git" , rev="973c22215734d1d5b97c496601d658371e537ece", features = ["build"] }
 
 [features]
 default = ["custom-protocol"]

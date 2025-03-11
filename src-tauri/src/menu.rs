@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{constants::event_names::TAURI_MENU_EVENT, utils::SystemMenuTranslation};
+use crate::{constants::event_names::TAURI_MENU_EVENT, translation::SystemMenuTranslation};
 use log::info;
 use onekeepass_core::db_service as kp_service;
 use serde::{Deserialize, Serialize};

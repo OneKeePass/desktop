@@ -77,6 +77,7 @@
      #_(str/join "." (conj v# "labels"))
      (onekeepass.frontend.translation/lstr (str/join "." (conj v# "entryTypeTitles")))))
 
+;; lstr-field-name is an equivalent impl using fn
 (defmacro tr-entry-field-name-cv
   "Uses values found in the symbols passed as keys and adds the prefix before calling lstr"
   [& keys]

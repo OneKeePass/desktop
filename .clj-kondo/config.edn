@@ -93,6 +93,7 @@
                                 FavoriteBorder
                                 FeedOutlined
                                 FlightTakeoffOutlined
+                                Launch
                                 LoginOutlined
                                 LockOpenOutlined
                                 LockOutlined
@@ -121,14 +122,14 @@
 
                                 ;; Dialogs related
                                 clone-entry-options-dialog
-                                data 
+                                data
                                 on-ok
                                 show
-                                show-with-state 
+                                show-with-state
                                 state-m
 
                                 ;; Translations related
-                                entryForm 
+                                entryForm
                                 cloneEntryTitleName
                                 discard
                                 confirmDiscard
@@ -281,14 +282,12 @@
                                 txt4
                                 txt5]}
 
-  :unresolved-var {:exclude [onekeepass.frontend.mui-components 
-                             onekeepass.frontend.background/go
-                             ]}
-  
-  
+  :unresolved-var {:exclude [onekeepass.frontend.mui-components
+                             onekeepass.frontend.background/go]}
+
+
   ;;Following is not working 
   ;; :unused-import {:exclude [camel-snake-kebab.core]}
   }
-  
-  :skip-comments true
-  }
+
+ :skip-comments true}

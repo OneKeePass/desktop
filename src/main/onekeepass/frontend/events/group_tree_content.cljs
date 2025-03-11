@@ -58,13 +58,11 @@
 (defn groups-listing []
   (subscribe [:group-tree-content/groups-listing]))
 
-
 (defn expanded-nodes []
   (subscribe [:expanded-nodes]))
 
 (defn recycle-bin-empty-check []
   (subscribe [:recycle-bin-empty-check]))
-
 
 ;;;;;;;;;
 
