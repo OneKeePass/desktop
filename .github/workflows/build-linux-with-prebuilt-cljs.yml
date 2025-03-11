@@ -1,4 +1,4 @@
-name: Builds Linux bundle only
+name: Builds Linux bundle only with prebuilt cljs
 on:
   workflow_dispatch:
   # push:
