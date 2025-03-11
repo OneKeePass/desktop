@@ -39,7 +39,7 @@ jobs:
       - name: Build cljs main bundle
         run:  clojure -M:frontend:fw  -m figwheel.main -O advanced  -bo dev 
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: artifacts-cljs-main-bundle
           path: |
