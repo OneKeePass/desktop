@@ -82,6 +82,8 @@ fn inner_open_all_auto_open_dbs(
     // unwrap is fine as we have checked for error
     let kvs = kvs_result.unwrap();
 
+    debug!("Going to resolve for the entry uuid {}", &entry_uuid);
+
     // Prepare props to resolve
     let auto_open_properties = AutoOpenProperties {
       source_db_key: auto_open_db_key.to_string(),
@@ -97,6 +99,7 @@ fn inner_open_all_auto_open_dbs(
     if let Err(e) = ao_val {
       // As there are errors in resolving, we skip this entry uuid
       auto_open_dbs_info.error_messages.push(e.to_string());
+      debug!("The auto_open_properties.resolve call failed with error: {}",e);
       continue;
     }
     // unwrap is fine as we have checked for error
@@ -145,10 +148,12 @@ fn inner_open_all_auto_open_dbs(
         }
       }
     } else {
-      auto_open_dbs_info.error_messages.push(format!(
+      let msg = format!(
         "Cound not form a valid url from {:?}",
         kvs.get(kp_service::entry_keyvalue_key::USER_NAME).cloned()
-      ));
+      );
+      debug!("{}",&msg);
+      auto_open_dbs_info.error_messages.push(msg);
     }
   }
 }
