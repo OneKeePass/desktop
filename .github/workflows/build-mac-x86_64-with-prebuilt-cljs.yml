@@ -10,12 +10,13 @@ jobs:
       matrix:
         include:
           - build: macos
-            os: macos-12
+            # os: macos-12
+            os: macos-latest
             arch: x86_64
             target: x86_64-apple-darwin
     steps:
       - name: desktop repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -74,7 +75,7 @@ jobs:
 
 
       - name: Mac DMG final artifact 
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         # if: matrix.os == 'macos-latest'
         with:
           name: artifacts-mac-${{ matrix.arch }}
