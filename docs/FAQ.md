@@ -106,6 +106,44 @@ If you want to update or to change an OTP field, the existing field needs to be 
 ## Is Auto-Type supported ?
 Yes. For now few basic features are supported for macOS and soon supports for other platforms will be added. See [here](./AUTO-TYPE.md) for additional details
 
+## How to do Automatic Database Opening ?
+
+One or more databases can be opened automatically when you open a single database. For this, you need to create a special group called **AutoOpen** under the root group. 
+
+Create entries using the entry template/type **Auto Database Open** in this group. 
+
+Enter the file path in the 'URL' field and password in the 'Password' field.  If there is any key file is used, then the key file path is entered in the 'UserName' field 
+
+The database file path should start with **kdbx://**
+
+Some examples are:
+
+```
+kdbx://./MyPasswords.kdbx
+
+kdbx://{DB_DIR}/MyPasswords.kdbx
+
+kdbx://{DB_DIR}/child-databases/MyPasswords.kdbx
+
+```
+
+Key file path examples:
+
+```
+./MyKeyFile.keyx
+
+{DB_DIR}/MyKeyFile.keyx
+
+{DB_DIR}/all-my-keys/MyKeyFile.keyx
+
+```
+
+
+
+
+
+When this main database is opened, all child databases will be opened automatically
+
 
 
 

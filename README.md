@@ -33,6 +33,9 @@ All created database files are encrypted using the best and most secure encrypti
 - Time based One-Time Passwords (TOTP) can added and used
 - Supports Light/Dark Theme
 - Multi-language support 
+- Automatic Database Opening feature
+- Cloning/Copying entries
+- Diceware Passphrase generator
 - Fully offline 
 
 ## Todo

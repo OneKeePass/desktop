@@ -1,5 +1,5 @@
 ### 0.15.0
-- Automatic Database Opening featurure to open one or more databases automatically when you open a single database. For this, entries are to be created using the entry template 'Auto Database Open' in a group 'AutoOpen'. See FAQ how to use this feature
+- Automatic Database Opening feature to open one or more databases automatically when you open a single database. For this, entries are to be created using the entry template **Auto Database Open** in a special group **AutoOpen**. See FAQ how to use this feature
 
 - Added Diceware Passphrase generator with multiple words list support 
 
