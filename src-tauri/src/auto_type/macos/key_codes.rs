@@ -1,4 +1,3 @@
-
 // Copied from /Library/Developer/CommandLineTools/SDKs/MacOSX12.1.sdk/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/Headers/Events.h
 
 use onekeepass_core::db_service as kp_service;
@@ -7,7 +6,7 @@ use onekeepass_core::db_service as kp_service;
 #[allow(non_camel_case_types)]
 #[allow(dead_code)]
 #[derive(Clone)]
-pub (crate) enum KeyEventCode {
+pub(crate) enum KeyEventCode {
   kVK_Return = 0x24,
   kVK_Tab = 0x30,
   kVK_Space = 0x31,

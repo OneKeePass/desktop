@@ -12,15 +12,16 @@ pub struct KeyStoreServiceImpl {
 
 #[inline]
 fn formatted_key(db_key: &str) -> SRString {
-  format!("OKP-{}", kp_service::service_util::string_to_simple_hash(db_key))
-    .as_str()
-    .into()
+  format!(
+    "OKP-{}",
+    kp_service::service_util::string_to_simple_hash(db_key)
+  )
+  .as_str()
+  .into()
 }
 
 impl kp_service::KeyStoreService for KeyStoreServiceImpl {
   fn store_key(&mut self, db_key: &str, data: Vec<u8>) -> kp_service::Result<()> {
-    
-
     #[allow(unused_assignments)]
     let mut keychain_call_success = false;
 

@@ -1,12 +1,12 @@
-use tauri::api::path::{document_dir, download_dir, home_dir};
-use tauri::command;
+use tauri::utils::platform::resource_dir;
+use tauri::{command, Emitter, Env};
 use tauri::Runtime;
 use tauri::State;
 
 use std::collections::HashMap;
 use std::io::ErrorKind;
 
-use log::{debug, error, info};
+use log::{debug, info};
 use serde::{Deserialize, Serialize};
 use std::fs::read_to_string;
 use std::path::Path;
@@ -14,8 +14,8 @@ use uuid::Uuid;
 
 use crate::app_state::SystemInfoWithPreference;
 use crate::auto_open::{self, AutoOpenProperties, AutoOpenPropertiesResolved};
-use crate::menu::{self, MenuActionRequest, MenuTitleChangeRequest};
-use crate::{app_paths, pass_phrase, translation};
+use crate::menu::MenuActionRequest;
+use crate::{menu,pass_phrase, translation};
 use crate::{app_preference, app_state};
 use crate::{auto_type, biometric, OTP_TOKEN_UPDATE_EVENT};
 use onekeepass_core::async_service as kp_async_service;
@@ -147,61 +147,16 @@ pub(crate) async fn load_kdbx(
 /// UI layer redirects any backend menu actions
 #[tauri::command]
 pub(crate) async fn menu_action_requested<R: Runtime>(
-  app: tauri::AppHandle<R>,
+  app_handle: tauri::AppHandle<R>,
   request: MenuActionRequest,
 ) -> Result<()> {
-  menu::menu_action_requested(request, app);
-  Ok(())
-}
-
-#[tauri::command]
-pub(crate) async fn menu_titles_change_requested<R: Runtime>(
-  app: tauri::AppHandle<R>,
-  request: MenuTitleChangeRequest,
-) -> Result<()> {
-  menu::menu_titles_change_requested(request, app);
+  menu::menu_action_requested(request, &app_handle);
   Ok(())
 }
 
 #[command]
 pub(crate) async fn is_path_exists(in_path: String) -> bool {
   Path::new(&in_path).exists()
-}
-
-#[tauri::command]
-pub(crate) async fn standard_paths<R: Runtime>(
-  app: tauri::AppHandle<R>,
-) -> HashMap<String, Option<String>> {
-  let mut m: HashMap<String, Option<String>> = HashMap::new();
-
-  if let Some(p) = document_dir() {
-    m.insert(
-      "document-dir".into(),
-      p.as_path().to_str().map(|s| s.into()),
-    );
-  }
-
-  if let Some(p) = home_dir() {
-    m.insert("home-dir".into(), p.as_path().to_str().map(|s| s.into()));
-  }
-
-  if let Some(p) = download_dir() {
-    m.insert(
-      "download-dir".into(),
-      p.as_path().to_str().map(|s| s.into()),
-    );
-  }
-
-  match app_paths::app_resources_dir(app) {
-    Ok(r) => {
-      info!("Resource dir is {}", r);
-      m.insert("resources-dir".into(), Some(r));
-    }
-    Err(x) => {
-      error!("Resource dir is not found with error {:?}", x)
-    }
-  };
-  m
 }
 
 #[tauri::command]
@@ -361,12 +316,9 @@ pub(crate) async fn open_all_auto_open_dbs(
   Ok(auto_open::open_all_auto_open_dbs(db_key, app_state)?)
 }
 
-
 #[command]
-pub(crate) async fn auto_open_group_uuid(
-  db_key: &str,
-) -> Result<Option<Uuid>> {
-  Ok(kp_service::auto_open_group_uuid(db_key,)?)
+pub(crate) async fn auto_open_group_uuid(db_key: &str) -> Result<Option<Uuid>> {
+  Ok(kp_service::auto_open_group_uuid(db_key)?)
 }
 
 #[command]
@@ -752,44 +704,40 @@ pub async fn load_language_translations<R: Runtime>(
   app: tauri::AppHandle<R>,
   language_ids: Vec<String>,
 ) -> Result<translation::TranslationResource> {
-  Ok(translation::load_language_translations(app, language_ids)?)
+  Ok(translation::load_language_translations(&app, language_ids)?)
 }
 
 #[tauri::command]
 pub async fn load_custom_svg_icons<R: Runtime>(
   app: tauri::AppHandle<R>,
 ) -> Result<HashMap<String, String>> {
-  Ok(app_state::load_custom_svg_icons(app))
+  Ok(app_state::load_custom_svg_icons(&app))
 }
 
 // TODO: Remove this or need to clean up if required
 // Leaving it here as example for the future use if any
 #[tauri::command]
 pub async fn svg_file<R: Runtime>(app: tauri::AppHandle<R>, name: &str) -> Result<String> {
-  //let ad = utils::app_resources_dir(app.package_info());
-
-  use tauri::{
-    api::path::{app_config_dir, home_dir, resolve_path, resource_dir, runtime_dir, BaseDirectory},
-    Env,
-  };
-
+  
   println!(
     "Resources dir is {:?}",
     resource_dir(app.package_info(), &Env::default())
   );
-  println!("Home dir is {:?}", home_dir());
-  println!("Runtime dir {:?}", runtime_dir());
-  println!("App Config dir {:?}", app_config_dir(&app.config().clone()));
+  // println!("Home dir is {:?}", home_dir());
+  // println!("Runtime dir {:?}", runtime_dir());
+  // println!("App Config dir {:?}", app_config_dir(&app.config().clone()));
 
-  let path = resolve_path(
-    &app.config(),
-    app.package_info(),
-    &Env::default(),
-    "../resources/public/icons/custom-svg",
-    Some(BaseDirectory::Resource),
-  )
-  .unwrap();
-  println!("resolved path  is {:?}", path);
+  // let path = resolve_path(
+  //   &app.config(),
+  //   app.package_info(),
+  //   &Env::default(),
+  //   "../resources/public/icons/custom-svg",
+  //   Some(BaseDirectory::Resource),
+  // )
+  // .unwrap();
+  // println!("resolved path  is {:?}", path);
+
+
   let svg_path = resource_dir(app.package_info(), &Env::default())
     .unwrap()
     .join("_up_/resources/public/icons/custom-svg")

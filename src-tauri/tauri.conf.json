@@ -1,75 +1,57 @@
 {
-  "package": {
-    "productName": "OneKeePass",
-    "version": "0.15.0"
-  },
-  "build": {
-    "distDir": "../resources/public",
-    "devPath": "http://localhost:9500",
-    "beforeDevCommand": "",
-    "beforeBuildCommand": ""
-  },
-  "tauri": {
-    "bundle": {
-      "active": true,
-      "targets": "all",
-      "identifier": "com.onekeepass",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
-      "resources": [
-        "../resources/public/icons",
-        "../resources/public/translations",
-        "../resources/public/wordlists"
-      ],
-      "externalBin": [],
-      "copyright": "",
-      "category": "Productivity",
-      "shortDescription": "Password Manager",
-      "longDescription": "A secure offline password manager",
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": [
+      "../resources/public/icons",
+      "../resources/public/translations",
+      "../resources/public/wordlists"
+    ],
+    "externalBin": [],
+    "copyright": "",
+    "category": "Productivity",
+    "shortDescription": "Password Manager",
+    "longDescription": "A secure offline password manager",
+    "macOS": {
+      "frameworks": [],
+      "minimumSystemVersion": "10.15",
+      "exceptionDomain": "",
+      "signingIdentity": null,
+      "providerShortName": null,
+      "entitlements": null
+    },
+    "linux": {
       "deb": {
         "depends": []
-      },
-      "macOS": {
-        "frameworks": [],
-        "minimumSystemVersion": "10.15",
-        "exceptionDomain": "",
-        "signingIdentity": null,
-        "providerShortName": null,
-        "entitlements": null
-      },
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": ""
       }
-    },
-    "updater": {
-      "active": false
-    },
-    "allowlist": {
-      "clipboard": {
-        "all": true
-      },
-      "process": {
-        "exit": true
-      },
-      "path": {
-        "all": true
-      },
-      "dialog": {
-        "all": true
-      },
-      "globalShortcut": {
-        "all": true
-      },
-      "shell": {
-        "all": true
-      }
+    }
+  },
+  "build": {
+    "beforeBuildCommand": "",
+    "frontendDist": "../resources/public",
+    "beforeDevCommand": "",
+    "devUrl": "http://localhost:9500"
+  },
+  "productName": "OneKeePass",
+  "mainBinaryName": "OneKeePass",
+  "version": "0.16.0",
+  "identifier": "com.onekeepass",
+  "plugins": {},
+  "app": {
+    "security": {
+      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'; connect-src ipc: http://ipc.localhost"
     },
     "windows": [
       {
@@ -77,11 +59,9 @@
         "width": 1000,
         "height": 800,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "useHttpsScheme": true
       }
-    ],
-    "security": {
-      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'"
-    }
+    ]
   }
 }

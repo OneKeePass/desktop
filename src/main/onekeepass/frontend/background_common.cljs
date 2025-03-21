@@ -11,7 +11,7 @@
    ;; The api implementation is in 
    ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/api 
 
-   ["@tauri-apps/api/tauri" :refer (invoke)]))
+   ["@tauri-apps/api/core" :refer (invoke)]))
 
 (defn to-snake-case [cljs-map]
   (->> cljs-map (cske/transform-keys csk/->snake_case)))

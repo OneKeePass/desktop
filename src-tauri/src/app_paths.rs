@@ -3,14 +3,10 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use tauri::{
-  api::path::{home_dir, resolve_path, BaseDirectory},
-  Env, Runtime,
-};
-
+use tauri::{path::BaseDirectory, Manager, Runtime};
 use crate::file_util;
 
-// Should be called on app startup so that all app dirs are created 
+// Should be called on app startup so that all app dirs are created
 pub(crate) fn init_app_paths() {
   let app_dir = app_home_dir();
   let log_dir = app_logs_dir();
@@ -46,15 +42,16 @@ pub(crate) fn init_app_paths() {
 
 // IMPORTANT: unwrap() is used. What is the alternative ?
 pub(crate) fn app_home_dir() -> PathBuf {
+
   #[cfg(not(feature = "onekeepass-dev"))]
-  let p = home_dir()
+  let p = std::env::home_dir()
     .unwrap()
     .join(Path::new(".onekeepass"))
     .join(Path::new("prod"));
 
   // To activate this feature during development, we need to use 'cargo tauri dev -f onekeepass-dev'
   #[cfg(feature = "onekeepass-dev")]
-  let p = home_dir()
+  let p = std::env::home_dir()
     .unwrap()
     .join(Path::new(".onekeepass"))
     .join(Path::new("dev"));
@@ -100,14 +97,8 @@ pub fn create_sub_dir_path<P: AsRef<Path>>(root_dir: P, sub: &str) -> PathBuf {
   final_full_path_dir
 }
 
-pub(crate) fn app_resources_dir<R: Runtime>(app: tauri::AppHandle<R>) -> Result<String, String> {
-  if let Ok(path) = resolve_path(
-    &app.config(),
-    app.package_info(),
-    &Env::default(),
-    "../resources/public/",
-    Some(BaseDirectory::Resource),
-  ) {
+pub(crate) fn app_resources_dir<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<String, String> {
+  if let Ok(path) = app.path().resolve("../resources/public/",BaseDirectory::Resource) {
     path
       .as_path()
       .to_str()

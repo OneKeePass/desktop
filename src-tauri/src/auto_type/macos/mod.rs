@@ -4,7 +4,7 @@ use self::key_codes::KeyEventCode;
 
 use onekeepass_core::db_service as kp_service;
 use std::collections::HashMap;
-use swift_rs::{swift, Int, Int32, SRObjectArray, SRString, UInt16, UInt8,};
+use swift_rs::{swift, Int, Int32, SRObjectArray, SRString, UInt16, UInt8};
 //use crate::auto_type::WindowInfo; // This will also work
 use super::{parsing, WindowInfo};
 
@@ -70,7 +70,7 @@ fn send_key(key_code: KeyEventCode) {
 // This needs to be async as we need to use tokio async sleep call
 async fn send_text_aync(text: &str, inter_key_delay: u64) {
   let utf16: Vec<u16> = text.encode_utf16().collect();
-  
+
   for char_utf16 in utf16 {
     unsafe { auto_type_send_char(char_utf16) };
     // wait before sending the next char
@@ -90,7 +90,7 @@ async fn sleep(time_in_ms: u64) {
 
   // Also in MacOS 13.6, using thead::sleep with no async fns worked, the app crashed in MacOS 10.15.7 (Catalina)
   // Also see comments in Swift funcs for async use
-  
+
   tokio::time::sleep(tokio::time::Duration::from_millis(time_in_ms)).await;
 }
 
@@ -113,8 +113,8 @@ pub async fn send_sequence_to_winow_async(
 
   // Raise window to the top
   raise_window(window.process_id)?;
-  
-  // Give 1/2 second so that window is brought to the top before sending keys  
+
+  // Give 1/2 second so that window is brought to the top before sending keys
   sleep(500).await;
 
   // Send chars and key actions with required delay
@@ -204,7 +204,6 @@ mod tests {
   //   //println!("r is {:?}", &r);
   // }
 }
-
 
 /*
 

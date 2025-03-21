@@ -15,17 +15,11 @@
    ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/endpoints
    ;; The api implementation is in 
    ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/api 
-
-   ["@tauri-apps/api/dialog" :refer (open,save)]
-   #_["@tauri-apps/api/tauri" :refer (invoke)]
-   ["@tauri-apps/api/clipboard" :refer [writeText readText]]
-   ["@tauri-apps/api/event" :as tauri-event]
-   ["@tauri-apps/api/shell" :as tauri-shell]
-
-   #_["@tauri-apps/api/path" :as tauri-path]
-   #_["@tauri-apps/api/event" :as tauri-event :refer [listen]]
-   #_["@tauri-apps/api/app"   :refer (getName getVersion)]
-   #_["@tauri-apps/api/window" :refer (getCurrent)]))
+   
+   ["@tauri-apps/plugin-shell" :as tauri-shell] 
+   ["@tauri-apps/plugin-dialog" :refer (open,save)] 
+   ["@tauri-apps/plugin-clipboard-manager" :refer [writeText readText]] 
+   ["@tauri-apps/api/event" :as tauri-event]))
 
 (set! *warn-on-infer* true)
 

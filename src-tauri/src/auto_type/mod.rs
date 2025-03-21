@@ -4,7 +4,6 @@ mod parsing;
 #[path = "macos/mod.rs"]
 mod platform;
 
-
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 #[path = "other.rs"]
 mod platform;
@@ -42,7 +41,6 @@ pub async fn send_sequence_to_winow_async(
   platform::send_sequence_to_winow_async(window, sequence, entry_fields).await?;
   Ok(())
 }
-
 
 /*
 pub fn send_sequence_to_winow(

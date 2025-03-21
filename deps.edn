@@ -1,5 +1,5 @@
 {:deps  {;;org.clojure/clojure {:mvn/version "1.10.3"}
-         org.clojure/clojurescript   {:mvn/version "1.11.54"}}
+         org.clojure/clojurescript   {:mvn/version "1.11.132"}}
 
  :paths ["src/main" "target" "resources"]
 
@@ -16,14 +16,13 @@
                            org.clojure/data.xml {:mvn/version "0.0.8"}
                            ;;org.clojure/data.xml {:mvn/version "0.2.0-alpha6"} ;; preview
                            }}
-  ;;Figwheel dependencies
-  :fw {:extra-deps {com.bhauman/figwheel-main {:mvn/version "0.2.18"}
+  ;; Figwheel dependencies
+  :fw {:extra-deps {com.bhauman/figwheel-main {:mvn/version "0.2.20"}
                     com.bhauman/rebel-readline-cljs {:mvn/version "0.1.4"}}
        ;;:main-opts ["-m" "figwheel.main" "-b" "dev" "-r"]
        }
 
   :nrepl {:extra-deps {nrepl/nrepl {:mvn/version "1.0.0"}
                        cider/piggieback {:mvn/version "0.5.3"}
-                       cider/cider-nrepl {:mvn/version "0.38.1"} ;;
-                       }
+                       cider/cider-nrepl {:mvn/version "0.52.1"}}
           :main-opts ["-m" "nrepl.cmdline" "--middleware" "[cider.piggieback/wrap-cljs-repl]"]}}}
