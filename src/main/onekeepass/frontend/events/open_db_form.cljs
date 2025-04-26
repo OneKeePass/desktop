@@ -1,5 +1,5 @@
 (ns onekeepass.frontend.events.open-db-form
-  (:require 
+  (:require
    [re-frame.core :refer [reg-event-db reg-event-fx reg-fx reg-sub dispatch subscribe]]
    [onekeepass.frontend.events.common :as cmn-events :refer [check-error
                                                              active-db-key
@@ -10,6 +10,9 @@
 
 (defn open-file-explorer-on-click []
   (dispatch [:open-db-form/open-db]))
+
+(defn open-file-explorer-on-click-1 [dbs-merge-request]
+  (dispatch [:open-db-form/open-db dbs-merge-request]))
 
 (defn open-key-file-explorer-on-click []
   (bg/open-file-dialog (fn [api-response]
@@ -29,14 +32,19 @@
   (dispatch [:open-db-dialog-show-on-file-selection file-name]))
 
 (defn cancel-on-click []
-  (dispatch [:open-db-dialog-hide])
+  (dispatch [:open-db/dialog-hide])
   ;; Refresh start page. Need to do this only in case there was a load error instead of just cancel
   (dispatch [:common/load-app-preference]))
 
-(defn ok-on-click [file-name pwd key-file-name db-list]
-  (if (cmn-events/is-in-opend-db-list file-name db-list)
+(defn ok-on-click [file-name pwd key-file-name db-list dbs-merge-request]
+  (if (and (cmn-events/is-in-opend-db-list file-name db-list) (not dbs-merge-request))
     (dispatch [:open-db-error "Database is already opened"])
     (dispatch [:open-db-login-credential-entered file-name pwd key-file-name])))
+
+#_(defn ok-on-click [file-name pwd key-file-name db-list]
+    (if (cmn-events/is-in-opend-db-list file-name db-list)
+      (dispatch [:open-db-error "Database is already opened"])
+      (dispatch [:open-db-login-credential-entered file-name pwd key-file-name])))
 
 (defn unlock-ok-on-click
   "Called when user enters the credential instead of using TouchID in mac. 
@@ -62,14 +70,19 @@
   (-> db
       (assoc-in [:open-db :dialog-show] false)
       (assoc-in [:open-db :unlock-request] false)
+      (assoc-in [:open-db :dbs-merge-request] false)
       (assoc-in [:open-db :password-visibility-on] false)
       (assoc-in [:open-db :key-file-visibility-on] false)
       (assoc-in [:open-db :status] nil)
       (assoc-in [:open-db :error-fields] {})
       (assoc-in [:open-db :error-text] nil)
+
+      ;; file-name is an absolute database file path
       (assoc-in [:open-db :file-name] nil)
-      (assoc-in [:open-db :password] nil)
-      (assoc-in [:open-db :key-file-name] nil)))
+      ;; key-file-name is an absolute key file path
+      (assoc-in [:open-db :key-file-name] nil)
+
+      (assoc-in [:open-db :password] nil)))
 
 (reg-event-db
  :open-db-password-visible
@@ -100,7 +113,7 @@
 ;; Called to open the system file explorer
 (reg-event-fx
  :open-db-form/open-db
- (fn [{:keys [_db]}  [_event-id]]
+ (fn [{:keys [_db]}  [_event-id dbs-merge-request]]
    (bg/open-file-dialog (fn [api-response]
                           (let [file-name (check-error api-response)]
                             (dispatch [:open-db-dialog-show-on-file-selection file-name]))))
@@ -109,9 +122,11 @@
 ;; Called when user selects a file from file system using system File Open Dialog
 (reg-event-fx
  :open-db-dialog-show-on-file-selection
- (fn [{:keys [db]} [_event-id file-name]]
+ (fn [{:keys [db]} [_event-id file-name dbs-merge-request]]
    (if file-name
-     {:db (-> db (assoc-in [:open-db :dialog-show] true)
+     {:db (-> db
+              (assoc-in [:open-db :dialog-show] true)
+              (assoc-in [:open-db :dbs-merge-request] dbs-merge-request)
               (assoc-in [:open-db :file-name] file-name))}
      {:db (init-open-db-vals db)})))
 
@@ -125,7 +140,7 @@
               (assoc-in [:open-db :key-file-name] key-file-name)
               (assoc-in [:open-db :file-name] file-name))})))
 
-;; After unlock, we detected databse change. But reloading of database fails  
+;; After unlock, we detected database change. But reloading of database fails  
 ;; because the credentials of database has been changed outside our app
 ;; Need to do relogin
 (reg-event-fx
@@ -138,7 +153,7 @@
             (assoc-in [:open-db :error-text] error-text))}))
 
 (reg-event-db
- :open-db-dialog-hide
+ :open-db/dialog-hide
  (fn [db [_event-id]]
    (init-open-db-vals db)))
 
@@ -152,19 +167,36 @@
 (reg-event-fx
  :open-db-login-credential-entered
  (fn [{:keys [db]} [_event-id file-name pwd key-file-name]]
-   (let [unlock-request (get-in db [:open-db :unlock-request])]
+   (let [unlock-request (get-in db [:open-db :unlock-request])
+         dbs-merge-request (get-in db [:open-db :dbs-merge-request])]
+     ;; (println "dbs-merge-request is " dbs-merge-request)
      {:db (-> db
               (assoc-in [:open-db :error-fields] {})
               (assoc-in [:open-db :status] :in-progress))
-      :fx [(if unlock-request
+      :fx [(cond
+             unlock-request
              [:bg-unlock-kdbx-file [(active-db-key db) pwd key-file-name unlock-response-handler]]
-             [:bg-load-kdbx-file [file-name pwd key-file-name on-file-loading]])]})))
+
+             dbs-merge-request
+             [:dispatch [:merging/credentials-entered file-name pwd key-file-name]]
+
+             :else
+             [:bg-load-kdbx-file [file-name pwd key-file-name on-file-loading]])
+
+           #_(if unlock-request
+               [:bg-unlock-kdbx-file [(active-db-key db) pwd key-file-name unlock-response-handler]]
+               [:bg-load-kdbx-file [file-name pwd key-file-name on-file-loading]])]})))
 
 #_(reg-event-db
    :open-db-error
    (fn [db [_event-id error]]
      (-> db (assoc-in [:open-db :error-text] error)
          (assoc-in [:open-db :status] :error))))
+
+(reg-event-fx
+ :open-db/db-merge-error
+ (fn [{:keys [_db]} [_event-id error]]
+   {:fx [[:dispatch [:open-db-error error]]]}))
 
 (reg-event-fx
  :open-db-error
@@ -263,7 +295,7 @@
   (when-let [kdbx-loaded (check-error api-response)]
     (dispatch [:open-db-file-loading-done kdbx-loaded])))
 
-(defn- handle-auto-open-unlock-response [api-response] 
+(defn- handle-auto-open-unlock-response [api-response]
   (when-let [kdbx-loaded (check-error api-response)]
     (dispatch [:auto-open-unlock-db-file-loading-done kdbx-loaded])))
 
@@ -272,7 +304,7 @@
  (fn [{:keys [db]} [_event-id db-file-full-path pwd key-file-name]]
    (let [db-list (cmn-events/opened-db-list db)
          already_opened (cmn-events/is-in-opend-db-list db-file-full-path db-list)
-         db-locked (cmn-events/locked? db db-file-full-path)] 
+         db-locked (cmn-events/locked? db db-file-full-path)]
      (cond
        db-locked
        {:fx [[:dispatch [:common/progress-message-box-show
@@ -303,6 +335,6 @@
 
 (comment
   (keys @re-frame.db/app-db)
-;; /Users/jeyasankar/Documents/OneKeePass/Test14.kdbx
+  ;; /Users/jeyasankar/Documents/OneKeePass/Test14.kdbx
   (def db-key (:current-db-file-name @re-frame.db/app-db))
   (-> @re-frame.db/app-db (get db-key) keys))

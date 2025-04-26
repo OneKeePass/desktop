@@ -141,6 +141,7 @@ fn main() {
       commands::lock_kdbx,
       commands::mark_group_as_category,
       commands::menu_action_requested,
+      commands::merge_databases,
       // commands::menu_titles_change_requested,
       commands::move_entry,
       commands::move_entry_to_recycle_bin,

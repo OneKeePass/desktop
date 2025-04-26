@@ -141,7 +141,7 @@
           [mui-typography {:variant "caption"}
            (tr-m newDbPage txt2)]])])]])
 
-(defn- file-info [{:keys [database-file-name db-file-file-exists database-name]}]
+(defn- file-info [{:keys [database-file-name db-file-file-exists database-name]}] 
   [mui-stack {:spacing 2}
    [mui-typography (tr-l saveAs)]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}

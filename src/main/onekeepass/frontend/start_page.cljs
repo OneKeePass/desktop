@@ -51,10 +51,14 @@
          (tr-l newDatabase)]
         [nd-form/new-database-dialog-main]]
 
+       ;; Open a file explorer by clicking on a button or on a link
        [mui-stack {:direction "row" :gap 2 :alignItems "center"}
+        ;; Click on icon button to open a file explorer
         [mui-icon-button  {:edge "start" :color "inherit" :sx {:ml 0}
                            :onClick od-events/open-file-explorer-on-click}
          [mui-icon-folder-outlined {}]]
+        
+        ;; Click on a link to open a file explorer
         [mui-link {:variant "subtitle1"
                    :onClick od-events/open-file-explorer-on-click}
          (tr-l openDatabase)]

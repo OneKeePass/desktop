@@ -7,6 +7,7 @@ use log4rs::encode::pattern::PatternEncoder;
 use serde::{Deserialize, Serialize};
 
 use log::info;
+use tauri::State;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -229,9 +230,15 @@ pub struct SystemInfoWithPreference {
   pub biometric_type_available: String,
   pub preference: Preference,
 }
-
+//app_state: State<'_, app_state::AppState>
+// app: tauri::AppHandle<R>,
 impl SystemInfoWithPreference {
-  pub fn init(app_state: &AppState) -> Self {
+  // pub fn init(app_state: &AppState) -> Self {
+
+  pub fn init<R:Runtime>(app: tauri::AppHandle<R>) -> Self {
+
+    let app_state: State<'_, AppState> = app.state();
+
     let p = app_state.preference.lock().unwrap();
 
     let os_name = std::env::consts::OS.into();
@@ -249,7 +256,7 @@ impl SystemInfoWithPreference {
       arch,
       path_sep: std::path::MAIN_SEPARATOR.to_string(),
       standard_dirs: StandardDirs {
-        document_dir: None,
+        document_dir: app.path().document_dir().map_or_else(|_| None, |d| Some(d.as_os_str().to_string_lossy().to_string())),
       },
       biometric_type_available: biometric::supported_biometric_type(),
       // document_dir().and_then(|d| Some(d.as_os_str().to_string_lossy().to_string())),

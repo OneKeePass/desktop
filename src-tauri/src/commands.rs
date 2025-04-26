@@ -1,7 +1,7 @@
 use tauri::utils::platform::resource_dir;
-use tauri::{command, Emitter, Env};
 use tauri::Runtime;
 use tauri::State;
+use tauri::{command, Emitter, Env};
 
 use std::collections::HashMap;
 use std::io::ErrorKind;
@@ -15,9 +15,9 @@ use uuid::Uuid;
 use crate::app_state::SystemInfoWithPreference;
 use crate::auto_open::{self, AutoOpenProperties, AutoOpenPropertiesResolved};
 use crate::menu::MenuActionRequest;
-use crate::{menu,pass_phrase, translation};
 use crate::{app_preference, app_state};
 use crate::{auto_type, biometric, OTP_TOKEN_UPDATE_EVENT};
+use crate::{menu, pass_phrase, translation};
 use onekeepass_core::async_service as kp_async_service;
 use onekeepass_core::db_service as kp_service;
 
@@ -168,10 +168,11 @@ pub(crate) async fn read_app_preference(
 }
 
 #[tauri::command]
-pub(crate) async fn system_info_with_preference(
-  app_state: State<'_, app_state::AppState>,
+pub(crate) async fn system_info_with_preference<R: Runtime>(
+  app: tauri::AppHandle<R>,
 ) -> Result<SystemInfoWithPreference> {
-  Ok(SystemInfoWithPreference::init(app_state.inner()))
+  Ok(SystemInfoWithPreference::init(app))
+  // Ok(SystemInfoWithPreference::init(app_state.inner()))
 }
 
 #[tauri::command]
@@ -653,6 +654,21 @@ pub(crate) async fn reload_kdbx(db_key: &str) -> Result<kp_service::KdbxLoaded> 
 }
 
 #[command]
+pub(crate) async fn merge_databases(
+  target_db_key: &str,
+  source_db_key: &str,
+  password: Option<&str>,
+  key_file_name: Option<&str>,
+) -> Result<()> {
+  Ok(kp_service::merge_databases(
+    target_db_key,
+    source_db_key,
+    password,
+    key_file_name,
+  )?)
+}
+
+#[command]
 pub(crate) async fn collect_entry_group_tags(db_key: &str) -> Result<kp_service::AllTags> {
   Ok(kp_service::collect_entry_group_tags(db_key)?)
 }
@@ -718,7 +734,6 @@ pub async fn load_custom_svg_icons<R: Runtime>(
 // Leaving it here as example for the future use if any
 #[tauri::command]
 pub async fn svg_file<R: Runtime>(app: tauri::AppHandle<R>, name: &str) -> Result<String> {
-  
   println!(
     "Resources dir is {:?}",
     resource_dir(app.package_info(), &Env::default())
@@ -736,7 +751,6 @@ pub async fn svg_file<R: Runtime>(app: tauri::AppHandle<R>, name: &str) -> Resul
   // )
   // .unwrap();
   // println!("resolved path  is {:?}", path);
-
 
   let svg_path = resource_dir(app.package_info(), &Env::default())
     .unwrap()
@@ -757,6 +771,8 @@ pub async fn supported_biometric_type() -> Result<String> {
 pub async fn authenticate_with_biometric(db_key: &str) -> Result<bool> {
   Ok(biometric::authenticate_with_biometric(db_key))
 }
+
+///--------------   All auto typing command calls
 
 #[tauri::command]
 pub async fn parse_auto_type_sequence(

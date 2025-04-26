@@ -4,8 +4,7 @@ use log::info;
 use onekeepass_core::db_service as kp_service;
 use serde::{Deserialize, Serialize};
 use tauri::menu::{
-  AboutMetadata, MenuBuilder, MenuEvent, MenuItem, MenuItemBuilder, Submenu,
-  SubmenuBuilder,
+  AboutMetadata, MenuBuilder, MenuEvent, MenuItem, MenuItemBuilder, Submenu, SubmenuBuilder,
 };
 use tauri::{AppHandle, Emitter, Runtime};
 
@@ -28,6 +27,8 @@ pub mod menu_ids {
   pub const CLOSE_DATABASE: &str = "CloseDatabase";
   pub const LOCK_DATABASE: &str = "LockDatabase";
   pub const LOCK_ALL_DATABASES: &str = "LockAllDatabases";
+
+  pub const MERGE_DATABASE: &str = "MergeDatabase";
 
   pub const NEW_GROUP: &str = "NewGroup";
   pub const EDIT_GROUP: &str = "EditGroup";
@@ -175,6 +176,16 @@ fn build_database_menus<R: Runtime>(
       system_menu_translation.sub_menu(LOCK_ALL_DATABASES, "Lock All Databases"),
       false,
       Some("Shift+CmdOrControl+L"),
+    )?,
+  ])
+  .separator()
+  .items(&[
+    &MenuItem::with_id(
+      app_handle,
+      MERGE_DATABASE,
+      system_menu_translation.sub_menu(MERGE_DATABASE, "Merge Database..."),
+      false,
+      None::<&str>,
     )?,
   ])
   .build();
@@ -344,7 +355,8 @@ pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app_handle:
       //debug!("Calling toggle_enable_disable for SEARCH");
       toggle_enable_disable(app_handle, MAIN_MENU_EDIT, menu_id, menu_enabled);
     }
-    LOCK_DATABASE | LOCK_ALL_DATABASES | CLOSE_DATABASE | SAVE_DATABASE | SAVE_DATABASE_AS => {
+    LOCK_DATABASE | LOCK_ALL_DATABASES | CLOSE_DATABASE | SAVE_DATABASE | SAVE_DATABASE_AS
+    | SAVE_DATABASE_BACKUP | MERGE_DATABASE => {
       toggle_enable_disable(app_handle, MAIN_MENU_DATABASE, menu_id, menu_enabled);
     }
     EDIT_ENTRY | NEW_ENTRY => {
@@ -362,6 +374,9 @@ pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app_handle:
     }
   }
 }
+
+
+
 /*
 fn print_menu<R: Runtime>(menu: &Menu<R>) {
   use MenuItemKind::*;
@@ -423,218 +438,4 @@ fn all_menus<R: Runtime>(app_hanle: &AppHandle<R>) {
 }
 */
 
-/*
 
-// tauri v1 menus
-
-pub fn get_app_menu(system_menu_translation: SystemMenuTranslation) -> Menu {
-  let app_name = "OneKeePass";
-
-  let app_settings = CustomMenuItem::new(
-    APP_SETTINGS,
-    system_menu_translation.sub_menu(APP_SETTINGS, "Settings..."),
-  )
-  .accelerator("CmdOrControl+,");
-
-  let quit = CustomMenuItem::new(
-    QUIT,
-    system_menu_translation.sub_menu(QUIT, "Quit OneKeePass"),
-  )
-  .accelerator("CmdOrControl+Q");
-
-  #[allow(unused_mut)]
-  let mut first_menu;
-  #[cfg(target_os = "macos")]
-  {
-    let about = MenuItem::About(app_name.to_string(), AboutMetadata::default());
-    first_menu = Menu::with_items([
-      about.into(),
-      MenuItem::Separator.into(),
-      app_settings.into(),
-      MenuItem::Separator.into(),
-      quit.into(),
-    ]);
-  }
-
-  #[cfg(not(target_os = "macos"))]
-  {
-    first_menu = Menu::with_items([quit.into()]);
-  }
-
-  // In mac these are needed for Cut, Copy and Paste to work when user uses keyboard
-  let edit_sub_menu = Menu::with_items([
-    MenuItem::Cut.into(),
-    MenuItem::Copy.into(),
-    MenuItem::Paste.into(),
-    MenuItem::Separator.into(),
-    CustomMenuItem::new(SEARCH, system_menu_translation.sub_menu(SEARCH, "Search"))
-      .accelerator("CmdOrControl+F")
-      .disabled()
-      .into(),
-  ]);
-
-  let database_sub_menu = Menu::with_items([
-    CustomMenuItem::new(
-      NEW_DATABASE,
-      system_menu_translation.sub_menu(NEW_DATABASE, "New Database"),
-    )
-    .accelerator("Shift+CmdOrControl+N")
-    .into(),
-    CustomMenuItem::new(
-      OPEN_DATABASE,
-      system_menu_translation.sub_menu(OPEN_DATABASE, "Open Database"),
-    )
-    .accelerator("CmdOrControl+O")
-    .into(),
-    CustomMenuItem::new(
-      SAVE_DATABASE,
-      system_menu_translation.sub_menu(SAVE_DATABASE, "Save Database"),
-    )
-    .accelerator("CmdOrControl+S")
-    .disabled()
-    .into(),
-    CustomMenuItem::new(
-      SAVE_DATABASE_AS,
-      system_menu_translation.sub_menu(SAVE_DATABASE_AS, "Save Database As"),
-    )
-    .accelerator("Shift+CmdOrControl+S")
-    .disabled()
-    .into(),
-    CustomMenuItem::new(
-      SAVE_DATABASE_BACKUP,
-      system_menu_translation.sub_menu(SAVE_DATABASE_BACKUP, "Save Database Backup"),
-    )
-    .disabled()
-    .into(),
-    CustomMenuItem::new(
-      CLOSE_DATABASE,
-      system_menu_translation.sub_menu(CLOSE_DATABASE, "Close Database"),
-    )
-    .accelerator("CmdOrControl+W")
-    .disabled()
-    .into(),
-    MenuItem::Separator.into(),
-    CustomMenuItem::new(
-      LOCK_DATABASE,
-      system_menu_translation.sub_menu(LOCK_DATABASE, "Lock Database"),
-    )
-    .accelerator("CmdOrControl+L")
-    .disabled()
-    .into(),
-    CustomMenuItem::new(
-      LOCK_ALL_DATABASES,
-      system_menu_translation.sub_menu(LOCK_ALL_DATABASES, "Lock All Databases"),
-    )
-    .accelerator("Shift+CmdOrControl+L")
-    .disabled()
-    .into(),
-  ]);
-
-  let entries_sub_menu = Menu::with_items([
-    CustomMenuItem::new(
-      NEW_ENTRY,
-      system_menu_translation.sub_menu(NEW_ENTRY, "New Entry"),
-    )
-    .accelerator("CmdOrControl+N")
-    .disabled()
-    .into(),
-    MenuItem::Separator.into(),
-    CustomMenuItem::new(
-      EDIT_ENTRY,
-      system_menu_translation.sub_menu(EDIT_ENTRY, "Edit Entry"),
-    )
-    .accelerator("CmdOrControl+E")
-    .disabled()
-    .into(),
-  ]);
-
-  let groups_sub_menu = Menu::with_items([
-    CustomMenuItem::new(
-      NEW_GROUP,
-      system_menu_translation.sub_menu(NEW_GROUP, "New Group"),
-    )
-    .disabled()
-    .into(),
-    MenuItem::Separator.into(),
-    CustomMenuItem::new(
-      EDIT_GROUP,
-      system_menu_translation.sub_menu(EDIT_GROUP, "Edit Group"),
-    )
-    .disabled()
-    .into(),
-  ]);
-
-  // let tools_sub_menu = Menu::with_items([CustomMenuItem::new(
-  //   PASSWORD_GENERATOR,
-  //   system_menu_translation.sub_menu(PASSWORD_GENERATOR, "Password Generator"),
-  // )
-  // .accelerator("CmdOrControl+G")
-  // .disabled()
-  // .into()]);
-
-  let pw_gen_menu_item = CustomMenuItem::new(
-    PASSWORD_GENERATOR,
-    system_menu_translation.sub_menu(PASSWORD_GENERATOR, "Password Generator"),
-  )
-  .accelerator("CmdOrControl+G")
-  .disabled();
-
-  #[cfg(target_os = "macos")]
-  {
-    let tools_sub_menu = Menu::with_items([pw_gen_menu_item.into()]);
-
-    Menu::new()
-      .add_submenu(Submenu::new("App Menu", first_menu))
-      .add_submenu(Submenu::new(
-        system_menu_translation.main_menu("Edit"),
-        edit_sub_menu,
-      ))
-      .add_submenu(Submenu::new(
-        system_menu_translation.main_menu("Database"),
-        database_sub_menu,
-      ))
-      .add_submenu(Submenu::new(
-        system_menu_translation.main_menu("Entries"),
-        entries_sub_menu,
-      ))
-      .add_submenu(Submenu::new(
-        system_menu_translation.main_menu("Groups"),
-        groups_sub_menu,
-      ))
-      .add_submenu(Submenu::new(
-        system_menu_translation.main_menu("Tools"),
-        tools_sub_menu,
-      ))
-  }
-
-  #[cfg(not(target_os = "macos"))]
-  {
-    let tools_sub_menu = Menu::with_items([pw_gen_menu_item.into(), app_settings.into()]);
-    Menu::new()
-      .add_submenu(Submenu::new(
-        system_menu_translation.main_menu("File"),
-        first_menu,
-      ))
-      .add_submenu(Submenu::new(
-        system_menu_translation.main_menu("Edit"),
-        edit_sub_menu,
-      ))
-      .add_submenu(Submenu::new(
-        system_menu_translation.main_menu("Database"),
-        database_sub_menu,
-      ))
-      .add_submenu(Submenu::new(
-        system_menu_translation.main_menu("Entries"),
-        entries_sub_menu,
-      ))
-      .add_submenu(Submenu::new(
-        system_menu_translation.main_menu("Groups"),
-        groups_sub_menu,
-      ))
-      .add_submenu(Submenu::new(
-        system_menu_translation.main_menu("Tools"),
-        tools_sub_menu,
-      ))
-  }
-}
-  */

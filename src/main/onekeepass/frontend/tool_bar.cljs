@@ -169,14 +169,17 @@
                             (tauri-events/enable-app-menu const/MENU_ID_CLOSE_DATABASE true)
                             (tauri-events/enable-app-menu const/MENU_ID_LOCK_DATABASE true)
                             (tauri-events/enable-app-menu const/MENU_ID_SEARCH true)
+                            (tauri-events/enable-app-menu const/MENU_ID_MERGE_DATABASE (not locked?))
+                            
                             ;; cleanup fn is returned which is called when this component unmounts
                             (fn []
                               (tauri-events/enable-app-menu const/MENU_ID_PASSWORD_GENERATOR false)
                               (tauri-events/enable-app-menu const/MENU_ID_CLOSE_DATABASE false)
                               (tauri-events/enable-app-menu const/MENU_ID_LOCK_DATABASE false)
                               (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_AS false)
+                              (tauri-events/enable-app-menu const/MENU_ID_MERGE_DATABASE false)
                               (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_BACKUP false)
-                              (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js []))
+                              (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js [locked?]))
 
       [:div {:style {:flex-grow 1}}
        [mui-app-bar {:position "static" :color "primary"}
