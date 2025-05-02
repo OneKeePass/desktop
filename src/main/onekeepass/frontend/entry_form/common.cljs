@@ -2,6 +2,7 @@
   (:require [onekeepass.frontend.mui-components :as m :refer [theme-color]]
             [reagent.core :as r]))
 
+;; Use DATETIME_FORMAT from constants
 (def ENTRY_DATETIME_FORMAT "dd MMM yyyy pp")
 
 (def popper-border-color "#E7EBF0")
@@ -13,7 +14,7 @@
 ;; The 'create-custom-theme' is only called when the app start page is mounted 
 ;; Then only we can use 'custom-them-atom'
 
-(defn theme-popper-box-sx 
+(defn theme-popper-box-sx
   "Uses current them from reagent atom to get the colors based on the mode
    IMPORTANT: We need to use a fn from the component to get sx props for the created theme 
   "

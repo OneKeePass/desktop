@@ -9,6 +9,8 @@
 ;; Standard Entry Type Names
 ;; These should match names used in 'standard_entry_types.rs'
 
+(def DATETIME_FORMAT "dd MMM yyyy pp")
+
 (def LOGIN_TYPE_NAME "Login")
 (def CREDIT_DEBIT_CARD_TYPE_NAME "Credit/Debit Card")
 (def WIRELESS_ROUTER_TYPE_NAME "Wireless Router")

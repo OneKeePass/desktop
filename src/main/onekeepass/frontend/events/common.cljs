@@ -975,6 +975,7 @@
    "mark_group_as_category"
    "move_group_to_recycle_bin"
    "remove_group_permanently"
+   "empty_trash"
 
    "insert-or-update-custom-entry-type"
    "delete-custom-entry-type"

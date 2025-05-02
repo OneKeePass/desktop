@@ -113,10 +113,10 @@
 ;; Called to open the system file explorer
 (reg-event-fx
  :open-db-form/open-db
- (fn [{:keys [_db]}  [_event-id dbs-merge-request]]
+ (fn [{:keys [_db]}  [_event-id dbs-merge-request]] 
    (bg/open-file-dialog (fn [api-response]
-                          (let [file-name (check-error api-response)]
-                            (dispatch [:open-db-dialog-show-on-file-selection file-name]))))
+                          (when-let [file-name (check-error api-response)]
+                            (dispatch [:open-db-dialog-show-on-file-selection file-name dbs-merge-request]))))
    {}))
 
 ;; Called when user selects a file from file system using system File Open Dialog

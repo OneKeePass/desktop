@@ -21,8 +21,7 @@
 
 (reg-event-fx
  :merging/credentials-entered
- (fn [{:keys [db]} [_event-id source-db-fkey pwd key-file-name]]
-   (println ":merging/credentials-entered is called ...")
+ (fn [{:keys [db]} [_event-id source-db-fkey pwd key-file-name]] 
    (let [target-db-fkey (active-db-key db)]
      (if-not (nil? target-db-fkey)
        {:fx [[:bg-merge-databases [(active-db-key db) source-db-fkey  pwd key-file-name]]]}
@@ -32,19 +31,21 @@
  :bg-merge-databases
  (fn [[target-db-key source-db-key  password key-file-name]]
    (bg-merging/merge-databases target-db-key source-db-key  password key-file-name
-                               (fn [api-response]
-                                 (when-not (on-error api-response #(dispatch [:open-db/db-merge-error %]))
-                                   (dispatch [:merge-databases-completed])
-                                   #_(dispatch [:open-db/dialog-hide])
-                                   #_(dispatch [:common/refresh-forms])
-                                   #_(dispatch [:common/message-snackbar-open
-                                                "Database merging is completed"]))))))
+                               (fn [api-response] 
+                                 (when-some [merge-result (check-error api-response #(dispatch [:open-db/db-merge-error %]))]
+                                   (println "merge-result is " merge-result)
+                                   (dispatch [:merge-databases-completed]))
+                                 #_(when-not (on-error api-response #(dispatch [:open-db/db-merge-error %]))
+                                     (dispatch [:merge-databases-completed])
+                                     #_(dispatch [:open-db/dialog-hide])
+                                     #_(dispatch [:common/refresh-forms])
+                                     #_(dispatch [:common/message-snackbar-open
+                                                  "Database merging is completed"]))))))
 ;;[:bg-reload-kdbx [(active-db-key db)]]
 (reg-event-fx
  :merge-databases-completed
  (fn [{:keys [db]} [_event-id]]
-   {:fx [
-         [:dispatch [:open-db/dialog-hide]]
+   {:fx [[:dispatch [:open-db/dialog-hide]]
          [:dispatch [:common/message-snackbar-open "Database merging is completed"]]
          [:dispatch [:common/reload-on-merge]]
          #_[:dispatch [:common/refresh-forms]]

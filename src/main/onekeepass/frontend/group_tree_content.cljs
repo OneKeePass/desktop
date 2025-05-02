@@ -125,6 +125,10 @@
                      :on-click (menu-action anchor-el gt-events/sort-groups g-uuid false)}
       (tr-ml "sortZtoA")]
 
+     #_[mui-menu-item {:divider false
+                       :on-click (menu-action anchor-el move-events/move-group-entry-dialog-show :group true)}
+        "Move"]
+
      [mui-menu-item {:divider false
                      :disabled @(gt-events/root-group-selected?)
                      :on-click (menu-action anchor-el gt-events/group-delete-start g-uuid)}
@@ -227,7 +231,18 @@
                       :display "flex"
                       :alignItems "center"}}
         [group-icon icon_id]]
-       [mui-typography {:variant "body1" :sx {:flex-grow 1}} name]
+       ;; Based on the discussions
+       ;; https://github.com/mui/material-ui/issues/19953#issuecomment-1184953127
+       [mui-typography {:variant "body1" :sx {:flex-grow 1}
+                        ;; This disables the tree item expanding/collapsing when user clicks on the label by calling stopPropagation
+                        ;; in the onclick event. 
+                        ;; User needs to click on expand icon to see all child tree items under a tree item
+                        :on-click (fn [^js/Event e]
+                                    ;; Need to call this event so that group is selected without expanding or collapsing
+                                    (gt-events/node-on-select nil uuid)
+                                    (.stopPropagation e))} name]
+
+       ;; Shows three dot veritical icon for the menu popup
        (when (= uuid @g-uuid)
          (cond
            @recycle-bin?

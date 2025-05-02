@@ -103,7 +103,7 @@
    (assoc-in-key-db db [:groups-tree :expanded-nodes] (js->clj node-ids))))
 
 (defn- group-summary-load-callback [api-response]
-  (when-let [result (check-error api-response)]
+  (when-let [result (check-error api-response)] 
     (dispatch [:groups-tree-data-update (js->clj result)])))
 
 ;;;;;;; 

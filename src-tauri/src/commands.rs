@@ -659,7 +659,7 @@ pub(crate) async fn merge_databases(
   source_db_key: &str,
   password: Option<&str>,
   key_file_name: Option<&str>,
-) -> Result<()> {
+) -> Result<kp_service::MergeResult> {
   Ok(kp_service::merge_databases(
     target_db_key,
     source_db_key,
