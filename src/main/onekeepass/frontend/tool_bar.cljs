@@ -3,6 +3,7 @@
    [onekeepass.frontend.translation :as t :refer-macros [tr-bl tr-dlg-title tr-dlg-text]]
    [onekeepass.frontend.app-settings :refer [app-settings-dialog-main]]
    [onekeepass.frontend.auto-type :as at-form]
+   [onekeepass.frontend.merging :as merging]
    [onekeepass.frontend.common-components :refer [confirm-text-dialog
                                                   error-info-dialog
                                                   message-dialog
@@ -170,7 +171,7 @@
                             (tauri-events/enable-app-menu const/MENU_ID_LOCK_DATABASE true)
                             (tauri-events/enable-app-menu const/MENU_ID_SEARCH true)
                             (tauri-events/enable-app-menu const/MENU_ID_MERGE_DATABASE (not locked?))
-                            
+
                             ;; cleanup fn is returned which is called when this component unmounts
                             (fn []
                               (tauri-events/enable-app-menu const/MENU_ID_PASSWORD_GENERATOR false)
@@ -184,8 +185,8 @@
       [:div {:style {:flex-grow 1}}
        [mui-app-bar {:position "static" :color "primary"}
         [mui-toolbar {:style {:min-height 32}}
-       ;; Using box to provide common styles - left margin -  for all its children - buttons 
-       ;; Using "&.MuiIconButton-root" etc did not work
+         ;; Using box to provide common styles - left margin -  for all its children - buttons 
+         ;; Using "&.MuiIconButton-root" etc did not work
          [mui-box {:sx {"& .MuiButtonBase-root" {:ml "-8px"}}}
           [mui-tooltip {:title "Open" :enterDelay 2000}
            [mui-icon-button
@@ -264,4 +265,5 @@
        [conflict-action-confirm-dialog @(tb-events/conflict-action-confirm-dialog-data)]
        [ask-save-dialog @(tb-events/ask-save-dialog-data)]
        [ask-save-on-lock @(tb-events/on-lock-ask-save-dialog-data)]
-       [close-current-db-save-dialog @(tb-events/close-current-db-dialog-data)]])))
+       [close-current-db-save-dialog @(tb-events/close-current-db-dialog-data)]
+       [merging/merge-result-dialog]])))

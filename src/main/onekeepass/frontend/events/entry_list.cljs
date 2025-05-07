@@ -177,7 +177,15 @@
 (reg-event-fx
  :entry-list/entry-updated
  (fn [{:keys [db]} [_event-id]]
-   (let [category (get-in-key-db db [:entry-list :category-source])]
+   (let [category (get-in-key-db db [:entry-list :category-source])
+         ;; category in [:entry-list :category-source] may be nil when no 'category' is 
+         ;; selected on the left panel in the begining
+         ;; When this event is called, we expect a valid category selected
+         ;; However when the refreshing of the UI done after db merge, there is a possibility
+         ;; category is nil as the user might have not selected any category on the left panel
+         ;; before calling db merge. If the nil category is passed to the backend api 'bg/entry-summary-data'
+         ;; The cameCase conversion will fail. So we need to ensure some default 'category' to use in such a case
+         category (if-not (nil? category) category const/CATEGORY_ALL_ENTRIES)]
      {:fx [[:load-bg-entry-summary-data [(active-db-key db) category]]]})))
 
 (reg-fx
@@ -185,7 +193,7 @@
  ;; reg-fx accepts only single argument. So the calleer needs to use map or vector to pass multiple values
  (fn [[db-key category]]
    (bg/entry-summary-data db-key category
-                          (fn [api-response]
+                          (fn [api-response] 
                             (when-let [entry-summaries-v (check-error api-response)]
                               (dispatch [:entry-list-load-complete entry-summaries-v category])))
                           #_(partial summary-entry-items-loaded category))))
@@ -203,11 +211,11 @@
                              (map-indexed (fn [idx item] [idx item]) coll)
                              (filter (fn [[_idx m]] (= current-selected-entry-id (:uuid m))) coll)
                              (first coll))]
-     
+
      {:db (-> db (assoc-in-key-db [:entry-list :selected-entry-item-index] item-index))
       :fx [;; Need to sort the loaded entry list as per the current sort creteria
            [:dispatch [:update-selected-entry-items (sort-entries-with-creteria db entry-summaries-v)]]
-           [:dispatch [:update-category-source category]] 
+           [:dispatch [:update-category-source category]]
            (if-not (boolean (seq item))
              [:dispatch [:entry-form-ex/show-welcome]]
              ;; Following event is dipatched only when 'item' is non nil value ( search time ) 

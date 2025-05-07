@@ -161,6 +161,29 @@
     :else
     (str (.toFixed (/ number GB) 2) " GiB")))
 
+;; From an article https://dnaeon.github.io/recursively-merging-maps-in-clojure/
+(defn deep-merge
+  "Recursively merges maps."
+  [& maps]
+  (letfn [(m [& xs]
+            (if (some #(and (map? %) (not (record? %))) xs)
+              (apply merge-with m xs)
+              (last xs)))]
+    (reduce m maps)))
+
+(defn deep-merge-with
+  "Recursively merges maps. Applies function f when we have duplicate keys.
+  The fn 'f' should take two args
+  "
+  [f & maps]
+  (letfn [(m [& xs]
+             ;;(println "xs is " xs)
+            (if (some #(and (map? %) (not (record? %))) xs)
+              (apply merge-with m xs)
+              (apply f xs)))]
+    (reduce m maps)))
+
+
 (comment
   (capitalize-words "custom fields") ;; => "Custom Fields"
   (capitalize-words "CUSTOM FIELDS") ;; => "Custom Fields"
@@ -202,7 +225,7 @@
 
   ;; Formats a UTC datetime to local datetime string
   (.formatByString c/date-fns-utils (js/Date. "2022-09-10T05:29:28Z") "yyyy-MM-dd'T'HH:mm:ss")
-   ;; => "2022-09-09T22:29:28"
+  ;; => "2022-09-09T22:29:28"
 
   (to-UTC-ISO-string (js/Date. "2022-09-09T22:29:28"))
   ;; "2022-09-10T05:29:28.000Z"

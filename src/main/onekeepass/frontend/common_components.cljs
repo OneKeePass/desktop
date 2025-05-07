@@ -602,7 +602,10 @@
     {}))
 
 (defn menu-action
-  "Returns a fn that is used as on-click handler"
+  " The arg 'action' is a fn 
+    The arg 'action-args' is one or more arguments that are passed to the action fn
+    Returns a fn that is used as on-click handler of a menu item
+  "
   [anchor-el action & action-args]
   (fn [^js/Event e]
     (reset! anchor-el nil)

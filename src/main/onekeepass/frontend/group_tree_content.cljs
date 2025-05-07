@@ -20,8 +20,15 @@
    [onekeepass.frontend.events.group-form :as gf-events]
    [onekeepass.frontend.events.move-group-entry :as move-events]
    [onekeepass.frontend.events.tauri-events :as tauri-events]
+   [onekeepass.frontend.events.generic-dialogs :as gd-events]
    [onekeepass.frontend.constants :as const]
-   [onekeepass.frontend.mui-components :as m :refer [mui-tree-view
+   [onekeepass.frontend.utils :as u]
+   [onekeepass.frontend.mui-components :as m :refer [mui-button
+                                                     mui-tree-view
+                                                     mui-dialog
+                                                     mui-dialog-title
+                                                     mui-dialog-content
+                                                     mui-dialog-actions
                                                      mui-tree-item
                                                      mui-icon-arrow-right
                                                      mui-icon-arrow-drop-down
@@ -84,6 +91,7 @@
    (when (and (nil? api-error-text) (= status :in-progress))
      [mui-linear-progress {:sx {:mt 2}}])])
 
+;; Used only to move an entry or a group to recycle bin
 (defn move-dialog
   "The arg is a map with keys [dialog-data ..] that is expected by the mui-dialog
    created and returned by 'dialog-factory' 
@@ -99,6 +107,66 @@
     ;; Returns a Form 2 reagent component
     (fn [data]
       [dlg data])))
+
+;; Uses the generic dialog concepts 
+
+(defn move-group-or-entry-dialog
+  ([{:keys [dialog-show
+            title
+            group-selection-info
+            kind-kw
+            uuid-selected-to-move
+            current-parent-group-uuid
+            field-error api-error-text status]}]
+   ;; Ensure that we build mui-dialog only when dialog-show show is true
+   (when dialog-show
+     (let [groups-listing @(gt-events/groups-listing)
+           ;; Need to exlude few groups showing in the list
+           
+           ;; 
+           groups-listing (filter (fn [g] 
+                                    ;; Note: In case of entry 'uuid-selected-to-move' is the entry-uuid and stricly not 
+                                    ;; required to be excluded vec
+                                    (not (u/contains-val? [uuid-selected-to-move current-parent-group-uuid] (:uuid g))))
+                                  groups-listing)]
+
+       [mui-dialog {:open dialog-show
+                    :on-click #(.stopPropagation ^js/Event %)
+                    :sx {"& .MuiPaper-root" {:width "60%"}}}
+        [mui-dialog-title title]
+        [mui-dialog-content
+         [mui-stack
+          [mui-typography (tr-t selectAGroup)]
+          [mui-box
+           [selection-autocomplete {:label (tr-l "group")
+                                    :options groups-listing #_(filter (fn [g] (not= (:uuid g) current-group-uuid)) groups-listing)
+                                    :current-value group-selection-info
+                                    :on-change (fn [_e group-info]
+                                                 (gd-events/move-group-or-entry-dialog-update-with-map
+                                                  {:group-selection-info (js->clj group-info :keywordize-keys true)}))
+                                    :required true
+                                    :error field-error
+                                    :error-text (when field-error (tr-h selectAValidGroup))}]]
+          (when api-error-text
+            [mui-alert {:severity "error" :style {:width "100%"} :sx {:mt 1}} api-error-text])
+          (when (and (nil? api-error-text) (= status :in-progress))
+            [mui-linear-progress {:sx {:mt 2}}])]]
+        [mui-dialog-actions
+         [mui-button {:on-click gd-events/move-group-or-entry-dialog-close} (tr-bl "cancel")]
+         [mui-button {:on-click  (fn []
+                                   (move-events/move-entry-or-group kind-kw uuid-selected-to-move group-selection-info))} (tr-bl "ok")]]])))
+
+  ([]
+   (move-group-or-entry-dialog @(gd-events/move-group-or-entry-dialog-data))))
+
+
+(defn move-group-or-entry-dialog-show-with-state
+  "Called to show the move dialog when menu item in group or entry panel is clicked"
+  [kind-kw title uuid-selected-to-move current-parent-group-uuid]
+  (gd-events/move-group-or-entry-dialog-show-with-state {:title title
+                                                         :kind-kw kind-kw
+                                                         :uuid-selected-to-move uuid-selected-to-move
+                                                         :current-parent-group-uuid current-parent-group-uuid}))
 
 (defn tree-item-menu-items []
   (fn [anchor-el g-uuid _db-key]
@@ -125,9 +193,10 @@
                      :on-click (menu-action anchor-el gt-events/sort-groups g-uuid false)}
       (tr-ml "sortZtoA")]
 
-     #_[mui-menu-item {:divider false
-                       :on-click (menu-action anchor-el move-events/move-group-entry-dialog-show :group true)}
-        "Move"]
+     [mui-menu-item {:divider true
+                     :on-click (menu-action anchor-el move-group-or-entry-dialog-show-with-state
+                                            :group "Move group" g-uuid @(gt-events/selected-group-parent-uuid g-uuid))}
+      "Move"]
 
      [mui-menu-item {:divider false
                      :disabled @(gt-events/root-group-selected?)
@@ -221,7 +290,7 @@
            [tree-item-menu-items anchor-el g-uuid @(cmn-events/active-db-key)])]))))
 
 (defn tree-label []
-  (let [g-uuid (gt-events/selected-group)
+  (let [g-uuid (gt-events/selected-group-uuid)
         recycle-bin? (gt-events/recycle-group-selected?)
         group-in-recycle-bin? (gt-events/selected-group-in-recycle-bin?)]
     (fn [uuid name icon_id]
@@ -290,7 +359,7 @@
 
 (defn group-tree-view []
   (let [gd @(gt-events/groups-tree-data)
-        selected-group-uuid @(gt-events/selected-group)
+        selected-group-uuid @(gt-events/selected-group-uuid)
         root-id @(gt-events/root-group-uuid)
         expanded @(gt-events/expanded-nodes)
         groups-listing (gt-events/groups-listing)]
@@ -315,6 +384,9 @@
 
        [empty-recycle-bin-confirm-dialog @empty-recycle-bin-confirm-dialog-data]
 
+       ;; Used to move one parent group to another (based on the generic dialogs concept)
+       [move-group-or-entry-dialog]
+       ;; Used to move a group to recycle bin
        [move-dialog
         {:dialog-data @(move-events/move-group-entry-dialog-data :group)
          :title (tr-dlg-title putBack)
@@ -328,3 +400,4 @@
 
 (defn group-tree-panel []
   [mui-stack  [group-tree-view]])
+   

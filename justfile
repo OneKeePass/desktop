@@ -23,6 +23,9 @@ run-tauri-dev:
 advanced-compile-start-server:
     clojure -M:frontend:fw  -m figwheel.main -O advanced  -bo dev -s
 
+advanced-compile:
+    clojure -M:frontend:fw  -m figwheel.main -O advanced  -bo dev
+
 build-cljs-bundle:
     clojure -M:frontend:fw  -m figwheel.main -O advanced  -bo dev
     mkdir  -p ./resources/public/cljs-out/dev
