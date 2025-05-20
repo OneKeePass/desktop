@@ -707,6 +707,14 @@ pub(crate) async fn create_new_db_with_imported_csv(
 }
 
 #[command]
+pub(crate) async fn update_db_with_imported_csv(
+  db_key: &str,
+  mapping: kp_service::CsvImportMapping,
+) -> Result<()> {
+  Ok(mapping.import_into_db(db_key)?)
+}
+
+#[command]
 pub(crate) async fn collect_entry_group_tags(db_key: &str) -> Result<kp_service::AllTags> {
   Ok(kp_service::collect_entry_group_tags(db_key)?)
 }

@@ -953,7 +953,8 @@
 ;;;;;;;;;;;; Db Modification tracking ;;;;;;
 
 ;; These are the api calls implemented in tauri commands.rs
-;; Note: The name should be in snake_case as used in background.cljs invoke api calls
+;; IMPORTANT: The name should be in snake_case as used in background.cljs invoke api calls
+
 (def ^:private all-modiying-api-calls
   ["update_entry"
    "insert_entry"
@@ -978,11 +979,12 @@
    "remove_group_permanently"
    "empty_trash"
 
-   "insert-or-update-custom-entry-type"
-   "delete-custom-entry-type"
+   "insert_or_update_custom_entry_type"
+   "delete_custom_entry_type"
    "set_db_settings"
 
-   "merge_databases"])
+   "merge_databases"
+   "update_db_with_imported_csv"])
 
 (defn db-save-pending?
   "Checks whether there is any unsaved changes for the current db

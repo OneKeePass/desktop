@@ -6,9 +6,10 @@
    [onekeepass.frontend.background.csv :as bg-csv]
    [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.events.common :as cmn-events :refer [check-error
+                                                             on-error
                                                              current-opened-db
-                                                             locked?]] 
-   [re-frame.core :refer [dispatch reg-event-fx reg-fx reg-sub subscribe]]))
+                                                             locked?]]
+   [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-fx reg-sub subscribe]]))
 
 ;; Called from csv-imoprt-start-dialog
 (defn open-file-explorer-on-click
@@ -22,11 +23,21 @@
 (defn import-csv-mapped [mapping-options]
   (dispatch [:import-csv-mapped mapping-options]))
 
-(defn import-csv-map-custom-field [checked?]
+(defn import-csv-map-custom-field
+  "Called whether we want to consider the unmapped header fields as custom fields or not"
+  [checked?]
   (dispatch [:import-csv-map-custom-field checked?]))
 
-(defn import-csv-new-database []
+(defn import-csv-new-database
+  "Called when new database creation is selected after the mapping"
+  []
   (dispatch [:import-csv-new-database]))
+
+(defn import-csv-into-current-db []
+  (dispatch [:import-csv-into-current-db]))
+
+(defn import-csv-unmapped-header-field-delete [header-field]
+  (dispatch [:import-csv-unmapped-header-field-delete header-field]))
 
 (defn import-csv-mapping-result []
   (subscribe [:import-csv-mapping-result]))
@@ -62,7 +73,7 @@
                                       {:field-name const/PASSWORD :mapped-name NOT_PRESENT}
                                       {:field-name const/URL :mapped-name NOT_PRESENT}
 
-                                      {:field-name const/NOTES :mapped-name NOT_PRESENT} 
+                                      {:field-name const/NOTES :mapped-name NOT_PRESENT}
                                       {:field-name const/OTP :mapped-name NOT_PRESENT}
                                       {:field-name const/TAGS :mapped-name NOT_PRESENT}
                                       #_{:field-name const/MODIFIED_TIME :mapped-name NOT_PRESENT}
@@ -98,9 +109,6 @@
 
          {:keys [db-key file-name]} (current-opened-db db)
          db-locked? (locked? db-key)]
-     ;; (println "Counts : mapped-headers not-mapped-headers " (count mapped-headers) (count not-mapped-headers))
-     ;; (println "mapped-headers not-mapped-headers " (vec mapped-headers) not-mapped-headers)
-     ;;(println "matched-count db-key db-locked? title-matched" matched-count db-key db-locked? title-matched)
      (cond
 
        (= matched-count 0)
@@ -111,14 +119,14 @@
 
        :else
        {:db (-> db (assoc-in [:import-csv :mapping-result] {:mapped-fields mapped-fields
-                                                            
+
                                                             :mapped-headers (vec mapped-headers)
                                                             :not-mapped-headers (vec not-mapped-headers)
-                                                            :db-key db-key 
+                                                            :db-key db-key
                                                             :unmapped-custom-field false
                                                             :current-db-file-name file-name
                                                             :db-locked db-locked?}))
-        :fx [[:dispatch [:generic-dialog-close :csv-columns-mapping-dialog]]
+        :fx [#_[:dispatch [:generic-dialog-close :csv-columns-mapping-dialog]]
              [:dispatch [:generic-dialog-show :csv-mapping-completed-dialog]]]}))))
 
 (reg-event-fx
@@ -126,21 +134,38 @@
  (fn [{:keys [db]} [_event-id checked?]]
    {:db (-> db (assoc-in [:import-csv :mapping-result :unmapped-custom-field] checked?))}))
 
+;; Removes a header field from considering it as a custom field
+(reg-event-fx
+ :import-csv-unmapped-header-field-delete
+ (fn [{:keys [db]} [_event-id header-field]]
+   (let [unmapped-headers (get-in db [:import-csv :mapping-result :not-mapped-headers])
+         unmapped-headers (filterv (fn [h] (not= h header-field)) unmapped-headers)]
+     {:db (-> db (assoc-in [:import-csv :mapping-result :not-mapped-headers] unmapped-headers))})))
 
+;; Called when user wants to create a new database with imported csv data. 
+;; This launches the standard "New Database" dialog 
 (reg-event-fx
  :import-csv-new-database
- (fn [{:keys [db]} [_event-id]]
-   {:fx [[:dispatch [:generic-dialog-close :csv-mapping-completed-dialog]]
+ (fn [{:keys [_db]} [_event-id]]
+   {:fx [;; Need to close dialogs
+         [:dispatch [:generic-dialog-close :csv-mapping-completed-dialog]]
+         [:dispatch [:generic-dialog-close :csv-columns-mapping-dialog]]
+         ;; Launches the usual new database creation dialog
          [:dispatch [:new-database/dialog-show true]]]}))
 
+(defn- to-mapping [db]
+  (let [headers (get-in db [:import-csv :headers])
+        {:keys [mapped-fields not-mapped-headers unmapped-custom-field]} (get-in db [:import-csv :mapping-result])]
+    (as-map [headers mapped-fields not-mapped-headers unmapped-custom-field])))
+
+;; Called after user enter details for new databse creation in the "New Database" dialog and clicks done button
 (reg-event-fx
  :import-file/new-database
  (fn [{:keys [db]} [_event-id new-db on-database-creation-completed]]
-   (println "import-file/new-database is called with " new-db)
-
-   (let [headers (get-in db [:import-csv :headers])
-         {:keys [mapped-fields not-mapped-headers unmapped-custom-field]} (get-in db [:import-csv :mapping-result])
-         mapping (as-map [headers mapped-fields not-mapped-headers unmapped-custom-field])]
+   (let [;;  headers (get-in db [:import-csv :headers])
+         ;;  {:keys [mapped-fields not-mapped-headers unmapped-custom-field]} (get-in db [:import-csv :mapping-result])
+         ;;  mapping (as-map [headers mapped-fields not-mapped-headers unmapped-custom-field])
+         mapping (to-mapping db)]
 
      {:fx [[:bg-create-new-db-with-imported-csv [new-db mapping on-database-creation-completed]]]})))
 
@@ -149,15 +174,38 @@
  (fn [[new-db mapping on-database-creation-completed]]
    (bg-csv/create-new-db-with-imported-csv new-db mapping on-database-creation-completed)))
 
-;; (reg-event-fx
-;;  :imports-csv-new-db-created
-;;  (fn [{:keys [db]} [_event-id kdbx-loaded]]
-;;    {}))
+(reg-event-fx
+ :import-csv-into-current-db
+ (fn [{:keys [db]} [_event-id]]
+   (let [db-key (get-in db [:import-csv :mapping-result :db-key])
+         mapping (to-mapping db)]
+     {:fx [[:bg-update-db-with-imported_csv [db-key mapping]]]})))
 
-;; (reg-event-fx
-;;  :imports-csv-new-db-create-failed
-;;  (fn [{:keys [db]} [_event-id error]]
-;;    {}))
+(reg-fx
+ :bg-update-db-with-imported_csv
+ (fn [[db-key mapping]]
+   (bg-csv/update-db-with-imported-csv db-key mapping
+                                       (fn [api-response]
+                                         (when-not (on-error api-response)
+                                           (dispatch [:generic-dialog-close :csv-mapping-completed-dialog])
+                                           (dispatch [:generic-dialog-close :csv-columns-mapping-dialog])
+                                           (dispatch [:common/reload-on-merge])
+                                           (dispatch [:import-csv/clear])
+                                           (dispatch [:common/message-snackbar-open "Import completed"]))))))
+
+(defn import-csv-clear []
+  (dispatch [:import-csv/clear]))
+
+(reg-event-db
+ :import-csv/clear
+ (fn [db [_event-id]]
+   (let [import-csv (get-in db [:import-csv])]
+     (if-not (nil? import-csv)
+       (do
+         ;; Side effect call
+         (bg-csv/clear-csv-data-cache (fn [api-response] (on-error api-response)))
+         (-> db (assoc-in [:import-csv] nil)))
+       db))))
 
 (reg-sub
  :import-csv-mapping-result
@@ -166,5 +214,3 @@
 
 (comment
   (-> @re-frame.db/app-db keys))
-
-;;not-matched (filter (fn [{:keys [mapped-name] :as m}] (when (= mapped-name NOT_PRESENT) m)) mapped)

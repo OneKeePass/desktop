@@ -236,7 +236,8 @@
    {:db (-> db (assoc-in [:new-database :api-error-text] nil)
             (assoc-in [:new-database :call-to-create-status] :completed))
     :fx [[:dispatch [:new-database-dialog-hide]]
-         [:dispatch [:common/kdbx-database-opened kdbx-loaded]]]}))
+         [:dispatch [:common/kdbx-database-opened kdbx-loaded]]
+         [:dispatch [:import-csv/clear]]]}))
 
 (reg-event-db
  :new-database-create-kdbx-error

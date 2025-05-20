@@ -21,6 +21,10 @@
               (clj->js {:newDb (request-argon2key-transformer new-db)
                         :mapping (to-snake-case mapping)}) dispatch-fn :convert-request false))
 
+(defn update-db-with-imported-csv [db-key mapping dispatch-fn]
+  (invoke-api "update_db_with_imported_csv" {:db-key db-key
+                                             :mapping mapping} dispatch-fn))
+
 
 (comment
   (-> @re-frame.db/app-db keys))

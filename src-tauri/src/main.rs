@@ -185,6 +185,7 @@ fn main() {
       // commands::tokio_runtime_start,
       commands::unlock_kdbx,
       commands::unlock_kdbx_on_biometric_authentication,
+      commands::update_db_with_imported_csv,
       commands::update_entry_from_form_data,
       commands::update_group,
       commands::upload_entry_attachment,

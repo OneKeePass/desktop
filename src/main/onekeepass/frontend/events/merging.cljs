@@ -36,6 +36,7 @@
  (fn [{:keys [_db]} [_event-id merge-result]]
    {:fx [[:dispatch [:open-db/dialog-hide]]
          [:dispatch [:common/reload-on-merge]]
+         ;; As we show this dialog with merge result, we do not call the usual ':common/message-snackbar-open'
          [:dispatch [:generic-dialog-show-with-state :merge-result-dialog {:data merge-result}]]]}))
 
 

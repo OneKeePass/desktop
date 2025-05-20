@@ -49,9 +49,7 @@
      (let [{:keys [mapped-headers not-mapped-headers unmapped-custom-field current-db-file-name]} @(csv-events/import-csv-mapping-result)
            ;;matched not-matched
            matched-count (count mapped-headers)
-           not-matched-count (count not-mapped-headers)]
-
-       ;; (println "mapped-headers not-mapped-headers vec count " (count (vec mapped-headers)))
+           not-matched-count (count not-mapped-headers)] 
        [mui-dialog {:open dialog-show
                     :on-click stop-propagation
                     :sx {:min-width "600px"
@@ -90,12 +88,12 @@
                 [mui-stack {:direction "row" :sx {:flex-wrap "wrap" :gap "2px"}}
                  (doall
                   (for [umf not-mapped-headers]
-                    [mui-chip {:label umf :on-delete #()}]))])])]]]
+                    [mui-chip {:label umf :on-delete #(csv-events/import-csv-unmapped-header-field-delete umf)}]))])])]]]
         [mui-dialog-actions
          [mui-button {:on-click  gd-events/csv-mapping-completed-dialog-close} (tr-bl "cancel")]
          [mui-button {:on-click  csv-events/import-csv-new-database} "New Database"]
          (when-not (nil? current-db-file-name)
-           [mui-button {:on-click  gd-events/csv-mapping-completed-dialog-close} "current opened database"])]])))
+           [mui-button {:on-click  csv-events/import-csv-into-current-db} "current opened database"])]])))
   ([]
    [csv-mapping-completed-dialog @(gd-events/csv-mapping-completed-dialog-data)]))
 
@@ -179,11 +177,11 @@
          [mui-alert {:severity "error" :sx {:mt 1}} api-error-text])]]
 
      [mui-dialog-actions
-      [mui-button {:on-click  gd-events/csv-columns-mapping-dialog-close} (tr-bl "cancel")]
-      [mui-button {:on-click  (fn []
-                                #_(gd-events/csv-columns-mapping-dialog-close)
-                                (csv-events/import-csv-mapped mapping-options)
-                                #_(gd-events/dialog-with-id-show :csv-mapping-completed-dialog))} (tr-bl "ok")]]]
+      [mui-button {:on-click (fn []
+                               (csv-events/import-csv-clear)
+                               (gd-events/csv-columns-mapping-dialog-close))} (tr-bl "cancel")]
+      [mui-button {:on-click  (fn [] 
+                                (csv-events/import-csv-mapped mapping-options))} (tr-bl "ok")]]]
     [csv-mapping-completed-dialog]])
   ([]
    [csv-columns-mapping-dialog @(gd-events/csv-columns-mapping-dialog-data)]))
