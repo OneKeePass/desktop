@@ -4,6 +4,7 @@
    [onekeepass.frontend.app-settings :refer [app-settings-dialog-main]]
    [onekeepass.frontend.auto-type :as at-form]
    [onekeepass.frontend.merging :as merging]
+   [onekeepass.frontend.import-file.csv :as csv]
    [onekeepass.frontend.common-components :refer [confirm-text-dialog
                                                   error-info-dialog
                                                   message-dialog
@@ -244,7 +245,7 @@
 
        ;; Include all dialogs that we need to use when the toll bar is visibible
        ;; Also see start_page.cljs for other dialogs  
-
+       
        ;; Auto type dialogs
        [at-form/perform-auto-type-dialog @(at-events/auto-type-perform-dialog-data)]
        [at-form/auto-type-edit-dialog @(at-events/auto-type-edit-dialog-data)]
@@ -266,4 +267,6 @@
        [ask-save-dialog @(tb-events/ask-save-dialog-data)]
        [ask-save-on-lock @(tb-events/on-lock-ask-save-dialog-data)]
        [close-current-db-save-dialog @(tb-events/close-current-db-dialog-data)]
+       [csv/csv-columns-mapping-dialog]
+       [csv/csv-imoprt-start-dialog]
        [merging/merge-result-dialog]])))

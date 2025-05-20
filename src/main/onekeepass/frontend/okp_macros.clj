@@ -12,7 +12,8 @@
 ;; 'dialog-events-by-name' is a helper fn
 ;; Though we are not using any gensym based variables here
 (defn- dialog-events-by-name [dlg-name suffix args subscribe-event?]
-  (let [f-name (symbol (str dlg-name "-" (str suffix)))
+  (let [dlg-name (if (symbol? dlg-name) dlg-name (symbol dlg-name))
+        f-name (symbol (str dlg-name "-" (str suffix)))
         g-name (keyword (str "generic-dialog" "-" (str suffix)))
         dlg-id (keyword (str dlg-name))
         event-name (if subscribe-event? (symbol "re-frame.core/subscribe")  (symbol "re-frame.core/dispatch"))]
@@ -36,12 +37,25 @@
   `(do
      ~@(map (fn [[sx args]] (dialog-events-by-name dlg-name sx args subscribe-event?)) suffixes-with-args)))
 
+(defmacro defn-generic-dialog-disp-events [dlg-name suffixes-with-args]
+  `(def-generic-dialog-events ~dlg-name ~suffixes-with-args false))
+
+(defmacro defn-generic-dialog-subs-events [dlg-name suffixes-with-args]
+  `(def-generic-dialog-events ~dlg-name ~suffixes-with-args true))
+
+
 
 (comment
+  (macroexpand '(defn-generic-dialog-subs-events :setup-otp-action-kw-dialog [[data nil]]))
+
+  (macroexpand '(defn-generic-dialog-subs-events setup-otp-action-sym-dialog [[data nil]]))
+
+  (macroexpand '(defn-generic-dialog-disp-events :setup-otp-action-dialog [[show nil] [close nil] [update [k v]]]))
+
   (macroexpand '(def-generic-dialog-events setup-otp-action-dialog  [[show nil] [close nil] [show-with-state state-m]] false))
-  
+
   ;; =>
-  
+
   ;; (do
   ;;   (clojure.core/defn
   ;;     setup-otp-action-dialog-show
@@ -55,6 +69,4 @@
   ;;     setup-otp-action-dialog-show-with-state
   ;;     [state-m]
   ;;     (re-frame.core/dispatch [:generic-dialog-show-with-state :setup-otp-action-dialog state-m])))
-
-  
   )

@@ -3,7 +3,7 @@
    [re-frame.core :refer [reg-event-fx reg-fx dispatch]]
    [onekeepass.frontend.events.common :as cmn-events :refer [check-error
                                                              active-db-key]]
-   [onekeepass.frontend.background-merging :as bg-merging]))
+   [onekeepass.frontend.background.merging :as bg-merging]))
 (reg-event-fx
  :merging/open-dbs-start
  (fn [{:keys [db]}  [_event-id]]

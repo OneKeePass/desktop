@@ -29,7 +29,7 @@
                          (when (not (str/blank? key-file-name))
                            (bg/generate-key-file key-file-name  (fn [api-response]
                                                                   (when-not (on-error api-response)
-                                                                    (dispatch [:new-database-field-update  
+                                                                    (dispatch [:new-database-field-update
                                                                                :key-file-name key-file-name]))))))))
 
 (defn next-on-click []
@@ -95,7 +95,10 @@
                     :db-file-file-exists false
                     :error-fields {} ;; a map e.g {:id1 "some error text" :id2 "some error text" }
                     :panel :basic-info
-                    :call-to-create-status nil})
+                    :call-to-create-status nil
+
+                    ;; Indicates that new database will be created with imported data
+                    :imported-data false})
 
 (defn- init-new-database-data [app-db]
   (assoc app-db :new-database blank-new-db))
@@ -137,7 +140,7 @@
           cp (get-in db [:new-database :password-confirm])
           visible  (get-in db [:new-database :password-visible])]
       (when (and (not visible) (not= p cp))
-            {:password-confirm "Password and Confirm password are not matching"}))
+        {:password-confirm "Password and Confirm password are not matching"}))
 
     ;; (= panel :security-info)
     ;; (validate-security-fields db)
@@ -198,27 +201,33 @@
                                                      (dispatch [:new-database-create-kdbx-error error])))]
     (dispatch [:new-database-created kdbx-loaded])))
 
+
+(defn- kdf-fix [new-db]
+  (-> new-db
+      (update-in [:kdf :Argon2 :iterations] str->int)
+      (update-in [:kdf :Argon2 :parallelism] str->int)
+      (update-in [:kdf :Argon2 :memory] str->int)
+      ;; Need to make sure memory value is in MB 
+      (update-in [:kdf :Argon2 :memory] * 1048576)))
+
 ;; Called when 'Done' is clicked
 (reg-event-fx
  :new-database-create
  (fn [{:keys [db]} [_event-id]]
    ;;(println "event new-database-create called") 
-   (let [errors (validate-security-fields db)]
+   (let [errors (validate-security-fields db)
+         imported-data? (get-in db [:new-database :imported-data])]
      (if (boolean (seq errors))
        {:db (assoc-in db [:new-database :error-fields] errors)}
        {:db (-> db (assoc-in [:new-database :call-to-create-status] :in-progress)
                 (assoc-in [:new-database :api-error-text] nil))
-        :fx [[:bg-create-kdbx (:new-database db)]]}))))
-
+        :fx [(if-not imported-data?
+               [:bg-create-kdbx (:new-database db)]
+               [:dispatch [:import-file/new-database (kdf-fix (:new-database db)) on-database-creation-completed]])]}))))
 (reg-fx
  :bg-create-kdbx
  (fn [new-db]
-   (bg/create-kdbx  (-> new-db
-                        (update-in [:kdf :Argon2 :iterations] str->int)
-                        (update-in [:kdf :Argon2 :parallelism] str->int)
-                        (update-in [:kdf :Argon2 :memory] str->int)
-                        ;; Need to make sure memory value is in MB 
-                        (update-in [:kdf :Argon2 :memory] * 1048576)) on-database-creation-completed)))
+   (bg/create-kdbx (kdf-fix new-db)  on-database-creation-completed)))
 
 
 (reg-event-fx
@@ -242,6 +251,13 @@
  :new-database-dialog-show
  (fn [db [_event-id]]
    (-> db init-new-database-data (assoc-in  [:new-database :dialog-show] true))))
+
+(reg-event-db
+ :new-database/dialog-show
+ (fn [db [_event-id imported-data?]]
+   ;; (println "new-database/dialog-show is called ")
+   (-> db init-new-database-data (assoc-in [:new-database :dialog-show] true)
+       (assoc-in [:new-database :imported-data] imported-data?))))
 
 (reg-sub
  :new-database-dialog-data

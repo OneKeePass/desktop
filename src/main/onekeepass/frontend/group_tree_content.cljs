@@ -145,11 +145,11 @@
                                                  (gd-events/move-group-or-entry-dialog-update-with-map
                                                   {:group-selection-info (js->clj group-info :keywordize-keys true)}))
                                     :required true
-                                    :error field-error
-                                    :error-text (when field-error (tr-h selectAValidGroup))}]]
-          (when api-error-text
+                                    :error nil  ;; field-error
+                                    :error-text nil #_(when field-error (tr-h selectAValidGroup))}]]
+          #_(when api-error-text
             [mui-alert {:severity "error" :style {:width "100%"} :sx {:mt 1}} api-error-text])
-          (when (and (nil? api-error-text) (= status :in-progress))
+          #_(when (and (nil? api-error-text) (= status :in-progress))
             [mui-linear-progress {:sx {:mt 2}}])]]
         [mui-dialog-actions
          [mui-button {:on-click gd-events/move-group-or-entry-dialog-close} (tr-bl "cancel")]

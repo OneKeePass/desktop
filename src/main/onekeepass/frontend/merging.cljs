@@ -25,8 +25,7 @@
              meta-data-changed
              permanently-deleted-entries
              permanently-deleted-groups]
-      :as _data} :data}]
-
+      :as _data} :data}] 
    [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
                 :on-click #(.stopPropagation %)
                 :sx {:min-width "600px"

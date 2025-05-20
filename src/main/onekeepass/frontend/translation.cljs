@@ -199,8 +199,8 @@
             :fallbackLng "en"
             :compatibilityJSON "v4"
             :debug false}
-        ^js/i18nInstanceObj instance (.createInstance i18n-obj )]
-    (.use instance (clj->js back-end))
+         instance ^js/i18nInstanceObj (.createInstance i18n-obj )]
+    (.use ^js/i18nInstanceObj instance (clj->js back-end))
     (create-i18n-init instance m)))
 
 (comment

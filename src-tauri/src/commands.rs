@@ -109,6 +109,18 @@ pub(crate) async fn stop_polling_all_entries_otp_fields(_db_key: &str) -> Result
   Ok(())
 }
 
+// #[tauri::command]
+// pub(crate) async fn tokio_runtime_start() -> Result<()> {
+//   kp_async_service::start_runtime();
+//   Ok(())
+// }
+
+// #[tauri::command]
+// pub(crate) async fn tokio_runtime_shutdown() -> Result<()> {
+//   kp_async_service::shutdown_runtime();
+//   Ok(())
+// }
+
 // ----------
 
 #[command]
@@ -666,6 +678,32 @@ pub(crate) async fn merge_databases(
     password,
     key_file_name,
   )?)
+}
+
+#[command]
+pub(crate) async fn import_csv_file(file_full_path: &str) -> Result<kp_service::CvsHeaderInfo> {
+  Ok(kp_service::CsvImport::read_from_path(file_full_path, None)?)
+}
+
+#[command]
+pub(crate) async fn clear_csv_data_cache() -> Result<()> {
+  Ok(kp_service::CsvImport::clear_stored_records())
+}
+
+#[command]
+pub(crate) async fn create_new_db_with_imported_csv(
+  new_db: kp_service::NewDatabase,
+  mapping: kp_service::CsvImportMapping,
+  app_state: State<'_, app_state::AppState>,
+) -> Result<kp_service::KdbxLoaded> {
+  let r = mapping.create_new_db(new_db)?;
+  // Need to add to the most recent list as done in create_kdbx call
+  app_state
+    .preference
+    .lock()
+    .unwrap()
+    .add_recent_file(&r.db_key);
+  Ok(r)
 }
 
 #[command]

@@ -5,7 +5,7 @@
    [cljs.core.async.interop :refer-macros [<p!]]
    [camel-snake-kebab.extras :as cske]
    [camel-snake-kebab.core :as csk]
-   
+
    ;; All tauri side corresponding endpoint command apis can be found in 
    ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/endpoints
    ;; The api implementation is in 
@@ -19,7 +19,7 @@
 ;; Tauri expects all API arguments names passed in JS api to be in camelCase which 
 ;; are in turn deserialized as snake_case to match rust argument names used in tauri commands.
 
-(defn as-tauri-args 
+(defn as-tauri-args
   " 
   The arg 'api-args' is a map and its keys are converted to be in 'camelCase' as expected by tauri. 
   These keys of 'api-args' are then converted to command fns args 'snake_case' by tauri deserilaization.
@@ -30,10 +30,10 @@
   [api-args]
   (clj->js
    (reduce (fn [acc [k v]]
-             (assoc 
+             (assoc
               ;; arg map keys are in camelCase
               acc (csk/->camelCaseString k)
-              (if (map? v) 
+              (if (map? v)
                 ;; keys of value map should be in snake_case
                 (to-snake-case v) v))) {} api-args)))
 
@@ -70,14 +70,14 @@
                    ;; Note
                    ;; Only the api argument names are expected to be in camelCase. The keys of value passed are not changed to cameCase 
                    ;; and they deserialized by the the corresponding struct serde definition. As result, mostly  convert-request = false
-                   
+
                    ;; (->> api-args (cske/transform-keys csk/->camelCaseString) clj->js)
-                   
+
                    ;; TODO: 
                    ;; Review all background fns where we are using :convert-request false and 
                    ;; see whether that is required any more or not as using as-tauri-args in most of the cases
                    (as-tauri-args api-args)
-                   
+
                    api-args)
             r (<p! (invoke name args))]
         ;; (println "r is " r)
@@ -88,10 +88,10 @@
 
                                 (not (nil? convert-response-fn))
                                 (-> r js->clj convert-response-fn) ;; custom transformer of response
-                                
+
                                 (and convert-response (string? r))
                                 (csk/->kebab-case-keyword r)
-                                
+
                                 ;; Recursively the keys are transformed as kw
                                 convert-response
                                 (->> r js->clj (cske/transform-keys csk/->kebab-case-keyword))
@@ -101,16 +101,29 @@
                                 (js->clj r))})
         ;; Just to track db modifications if any
         (dispatch [:common/db-api-call-completed name]))
-      
+
       ;; Promise returns error,when tauri calls return Err(..) and then this catch clause is called
       ;; This is different from the way done in mobile cljs
       ;; In mobile cljs r is a map {:ok somevalue, :error nil} or {:ok nil, :error someError}
       ;; Also promise reject in mobile app results in {:ok nil, :error rejectError}
-      (catch js/Error err 
+      (catch js/Error err
         (do
           ;;Call the dispatch-fn with any error returned by the backend API
           (dispatch-fn {:error (ex-cause err)})
           (js/console.log (ex-cause err)))))))
+
+
+;; This custom transform is not required when we handle
+;; the 'Kdf' enum serialization properly
+;; Other places where similar things used are  get-db-settings, set-db-settings
+(defn request-argon2key-transformer
+  "A custom transformer that transforms a map that has ':Argon2' key "
+  [new-db]
+  (let [t (fn [k] (if (= k :Argon2)
+                    ;;retains the key as :Argon2 instead of :argon-2
+                    :Argon2
+                    (csk/->snake_case k)))]
+    (cske/transform-keys t new-db)))
 
 
 

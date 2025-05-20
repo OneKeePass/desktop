@@ -1,5 +1,5 @@
 (ns onekeepass.frontend.background
-  "All backend api calls"
+  "All backend api calls. Few api calls are moved to the specific cljs ns"
   (:require
    [re-frame.core :refer [dispatch]]
    [cljs.core.async :refer [go]]
@@ -8,7 +8,7 @@
    [camel-snake-kebab.core :as csk]
    [onekeepass.frontend.utils :refer [contains-val?]]
 
-   [onekeepass.frontend.background-common :as bg-cmn ]
+   [onekeepass.frontend.background-common :as bg-cmn :refer [request-argon2key-transformer] ]
    [onekeepass.frontend.background-password :as bg-pwd]
 
    ;; All tauri side corresponding endpoint command apis can be found in 
@@ -411,14 +411,6 @@
   [db-key dispatch-fn]
   (invoke-api "close_kdbx" {:db-key db-key} dispatch-fn))
 
-(defn- request-argon2key-transformer
-  "A custom transformer that transforms a map that has ':Argon2' key "
-  [new-db]
-  (let [t (fn [k] (if (= k :Argon2)
-                    ;;retains the key as :Argon2 instead of :argon-2
-                    :Argon2
-                    (csk/->snake_case k)))]
-    (cske/transform-keys t new-db)))
 
 (defn generate-key-file
   "Called to generate 32 bytes random key ans tsored in version 2.0 keepass xml file"

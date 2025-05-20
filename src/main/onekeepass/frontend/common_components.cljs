@@ -4,6 +4,7 @@
    [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.constants :refer [ADD_TAG_PREFIX]]
    [onekeepass.frontend.events.common :as cmn-events]
+   [onekeepass.frontend.events.generic-dialogs :as gd-events]
    [onekeepass.frontend.mui-components :as m :refer [auto-sizer
                                                      fixed-size-list
                                                      is-light-theme? mui-alert
@@ -19,6 +20,7 @@
                                                      mui-linear-progress
                                                      mui-snackbar mui-stack
                                                      mui-text-field-type
+                                                     mui-text-field
                                                      mui-tooltip
                                                      mui-typography
                                                      react-use-state]]
@@ -44,14 +46,14 @@
      {:border 0
       :border-bottom  (if (is-light-theme?)
                         "1px solid #eeeeee" (str "1px solid " "rgba(255, 255, 255, 0.3)"))
-                                    ;;  :border-bottom-color "#eeeeee"
-                                    ;;  :border-bottom-style "solid"
-                                    ;;  :border-bottom-width "1px"
+      ;;  :border-bottom-color "#eeeeee"
+      ;;  :border-bottom-style "solid"
+      ;;  :border-bottom-width "1px"
       }
 
-  ;;  "&.Mui-focused"
-  ;;  {:border "1px solid var(--color-primary-main)"
-  ;;   :border-bottom "1px solid var(--color-primary-main)"}
+     ;;  "&.Mui-focused"
+     ;;  {:border "1px solid var(--color-primary-main)"
+     ;;   :border-bottom "1px solid var(--color-primary-main)"}
      })
 
 #_(defn theme-text-field-edit-sx [theme-mode]
@@ -77,9 +79,9 @@
      {:border 0
       :border-bottom  (if (is-light-theme? theme)
                         "1px solid #eeeeee" (str "1px solid " "rgba(255, 255, 255, 0.3)"))
-                                        ;;  :border-bottom-color "#eeeeee"
-                                        ;;  :border-bottom-style "solid"
-                                        ;;  :border-bottom-width "1px"
+      ;;  :border-bottom-color "#eeeeee"
+      ;;  :border-bottom-style "solid"
+      ;;  :border-bottom-width "1px"
       }}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Using Autocomplte ;;;;;;;;;;;;;;;;;;;;;;;;;;;;  
@@ -149,12 +151,12 @@
 
     ;; Render the input - a fn that returns a ReactNode
     :render-input (fn [^js/Okp.params params]
-                       ;; use an atom p in this ns and do (reset! p params)
-                       ;; to see props of params in repl
+                    ;; use an atom p in this ns and do (reset! p params)
+                    ;; to see props of params in repl
 
-                       ;; Don't call js->clj because that would recursively
-                       ;; convert all JS objects (e.g. React ref objects)
-                       ;; to Cljs maps, which breaks them
+                    ;; Don't call js->clj because that would recursively
+                    ;; convert all JS objects (e.g. React ref objects)
+                    ;; to Cljs maps, which breaks them
                     (set! (.-variant params) "standard")
                     (set! (.-label params) "Tags")
                     ;;(println "InputProps is " (.-label params)) results in stackoverflow
@@ -179,7 +181,7 @@
 
     :on-change on-change ;; a callback function that accespts two parameters [event info]
     :isOptionEqualToValue (fn [^js/Okp.Option option ^js/Okp.Value value]
-                              ;;(println "option" option " and value " value)
+                            ;;(println "option" option " and value " value)
                             (= (.-name option) (.-name value)))
 
     ;; We need to use getOptionLabel if option does not have "label" property
@@ -192,34 +194,34 @@
                       (r/as-element [mui-box p (.-name option) #_[:strong (str "Icon-" (.-title option))]])))
 
     :render-input (fn [^js/Okp.Params params]
-                       ;;Calling (println "params " params) or (js/Object.entries params) itself results in Error:
-                       ;;RangeError: Maximum call stack size exceeded. 
-                       ;;It looks like calling directly or indirectly js->clj resulted in stack overflow 
+                    ;;Calling (println "params " params) or (js/Object.entries params) itself results in Error:
+                    ;;RangeError: Maximum call stack size exceeded. 
+                    ;;It looks like calling directly or indirectly js->clj resulted in stack overflow 
 
-                       ;;(type params) works
-                       ;;(js/Object.keys params) 
-                       ;; => #js["id" "disabled" "fullWidth" "size" "InputLabelProps" "InputProps" "inputProps" "variant" "label"]
+                    ;;(type params) works
+                    ;;(js/Object.keys params) 
+                    ;; => #js["id" "disabled" "fullWidth" "size" "InputLabelProps" "InputProps" "inputProps" "variant" "label"]
 
-                       ;;(.-InputProps params) resulted in stack overflow
-                       ;;(js/Object.keys (.-InputProps params)) 
-                       ;;=> #js["ref" "className" "startAdornment" "endAdornment"]
-                       ;;Same error when we do (.-endAdornment (.-InputProps params))
-                       ;;(js/Object.keys (.-endAdornment (.-InputProps @pa))) 
-                       ;;=> #js["$$typeof" "type" "key" "ref" "props" "_owner" "_store"]
+                    ;;(.-InputProps params) resulted in stack overflow
+                    ;;(js/Object.keys (.-InputProps params)) 
+                    ;;=> #js["ref" "className" "startAdornment" "endAdornment"]
+                    ;;Same error when we do (.-endAdornment (.-InputProps params))
+                    ;;(js/Object.keys (.-endAdornment (.-InputProps @pa))) 
+                    ;;=> #js["$$typeof" "type" "key" "ref" "props" "_owner" "_store"]
 
-                       ;;Accessing some properties resulted "RangeError: Maximum call stack size exceeded".
-                       ;;Not sure why. May be a bug in clojurescript or javascript object circular references?
+                    ;;Accessing some properties resulted "RangeError: Maximum call stack size exceeded".
+                    ;;Not sure why. May be a bug in clojurescript or javascript object circular references?
 
-                       ;;The :renderInput idea used for "mui-date-time-picker" did not work
-                       ;;A solution based on
-                       ;;From https://stackoverflow.com/questions/63944323/problem-with-autocomplete-material-ui-react-reagent-clojurescript
+                    ;;The :renderInput idea used for "mui-date-time-picker" did not work
+                    ;;A solution based on
+                    ;;From https://stackoverflow.com/questions/63944323/problem-with-autocomplete-material-ui-react-reagent-clojurescript
 
-                       ;; Don't call js->clj because that would recursively
-                       ;; convert all JS objects (e.g. React ref objects)
-                       ;; to Cljs maps, which breaks them, even when converted back to JS.
-                       ;; Best thing is to use r/create-element and
-                       ;; pass the JS params to it.
-                       ;; If necessary, use JS interop to modify params.
+                    ;; Don't call js->clj because that would recursively
+                    ;; convert all JS objects (e.g. React ref objects)
+                    ;; to Cljs maps, which breaks them, even when converted back to JS.
+                    ;; Best thing is to use r/create-element and
+                    ;; pass the JS params to it.
+                    ;; If necessary, use JS interop to modify params.
                     ;;(println "required is " (.-required params))
                     (set! (.-variant params) "standard")
                     (set! (.-label params) label)
@@ -354,16 +356,24 @@
                                    :disabled (= status :in-progress)
                                    :on-click (on-click-factory all-data)} label])]]))
 
+;; TODO: 
+;; Rename confirm-text-dialog as common-dialog as we can 
+;; now use a reagent component as body instead of simple text 
+
 (defn confirm-text-dialog
   "Shows some text message and when user takes some action, a progress bar is shown. The dialog is 
   closed on completting the work requested or shows any error 
   "
-  [title body-text actions {:keys [dialog-show status api-error-text]}]
+  [title content-component actions {:keys [dialog-show status api-error-text] :as dialog-data}]
   [mui-dialog {:open dialog-show :on-click #(.stopPropagation ^js/Event %)}
    [mui-dialog-title title]
    [mui-dialog-content {:dividers true :style {:min-height "100px"}}
     [mui-stack
-     body-text
+     ;; content-component may be a simple text string or an valid reagent component accepting a map as arg or nil
+     (if (string? content-component)
+       content-component
+       [content-component dialog-data])
+
      (when api-error-text
        [mui-alert {:severity "error" :sx {:mt 1}} api-error-text])
      (when (and (nil? api-error-text) (= status :in-progress))
@@ -374,7 +384,9 @@
     (for [{:keys [label on-click]}  actions]
       ^{:key label} [mui-button {:color "secondary"
                                  :disabled (= status :in-progress)
-                                 :on-click on-click} label])]])
+                                 ;; The fn 'on-click' may accept a map as an optional arg or nil
+                                 :on-click (fn []
+                                             (on-click dialog-data))} label])]])
 
 ;; TODO: 
 ;; Do we really need this? It looks like this dialog is not working properly 
@@ -481,6 +493,44 @@
   ([]
    [message-sanckbar-alert @(cmn-events/message-snackbar-alert-data)]))
 
+;; When this field has the focus, Shift + Down key will show the menu items and can then be used to move up or down.
+;; Also if we press the first letter (case sensitive ) of any options, then cursor moves to that menu item option
+
+;; Saw this warning: MUI: You have provided an out-of-range value `2024` for the select component.
+;; See https://lightrun.com/solutions/mui-material-ui-suppress-the-material-ui-select-component-out-of-range-error/
+;; May need to fix if any issue comes up
+
+;; TODO: 
+;; Also change in 'src/main/onekeepass/frontend/entry_form/fields.cljs' to use this common one
+
+(defn simple-selection-field [{:keys [id
+                                      field-name
+                                      value
+                                      edit
+                                      error-text
+                                      helper-text
+                                      on-change-handler
+                                      select-field-options]} & {:as opts}]
+  ;; We are using the mui-text-field directly as select component 
+  ;; This type of simple select list can also be done using the following components 
+  ;; as given in the examples found mui.com which uses now this method
+  ;; [mui-form-control [mui-input-label] [mui-select {} [mui-menu-item]] [mui-form-helper-text]  ]
+  [mui-text-field {:id (if (nil? id) field-name id)
+                   :sx (:sx opts)
+                   :required false
+                   :select true
+                   :label field-name
+                   :value value
+                   :on-change on-change-handler
+                   :error  (not (nil? error-text))
+                   :helperText (if (nil? error-text) helper-text error-text)
+                   :inputProps  {:readOnly (not edit)}
+                   :variant "standard" :fullWidth true}
+   (doall (for [y select-field-options]
+            (let [{:keys [value label]} (if (string? y) {:value y :label y} y)]
+              ^{:key y} [m/mui-menu-item {:value value} label])))])
+
+
 (defn enter-key-pressed-factory
   "Returns a on-click function which calls the passed function 'to-call' when the Enter key is pressed"
   [to-call]
@@ -490,8 +540,8 @@
 
 ;; Another way of calling focus of an element
 #_(defn focus [^js/InputRef comp-ref]
-  ;; calling  (.getElementById js/document "search_fld") will also work. But 'id' of input element 
-  ;; should be unique
+    ;; calling  (.getElementById js/document "search_fld") will also work. But 'id' of input element 
+    ;; should be unique
     #_(.focus (.getElementById js/document "search_fld"))
     (if-let [comp-id (some-> comp-ref .-props .-id)]
       (.focus (.getElementById js/document comp-id))
@@ -534,7 +584,7 @@
   ([handler-name field-name-kw int-val]
    (fn [^js/Event e]
      (let [val (-> e .-target  .-value)
-               ;; Need to ensure that length is an int as expected by backend api
+           ;; Need to ensure that length is an int as expected by backend api
            val (if int-val  (str->int val) val)]
        (handler-name field-name-kw val))))
   ([handler-name field-name-kw]
@@ -546,7 +596,7 @@
    and this fn in turn calls the 'handler-name' fn with 'field-name-kw' and value
    "
   [handler-name field-name-kw]
-  (fn [e]
+  (fn [^js/CheckedEvent e]
     (handler-name field-name-kw (-> e .-target  .-checked))))
 
 (defn overflow-tool-tip
@@ -565,9 +615,9 @@
     (when-not (str/blank? display-name)
       [mui-tooltip {:title display-name :disableHoverListener (not disable)}
        [mui-typography {:ref (fn [^js/HTMLParagraphElement e]
-                             ;; e is js object - #object[HTMLParagraphElement [object HTMLParagraphElement]]
-                             ;; .-scrollWidth .-clientWidth are properties of this Elemment
-                             ;; See https://developer.mozilla.org/en-US/docs/Web/API/HTMLParagraphElement
+                               ;; e is js object - #object[HTMLParagraphElement [object HTMLParagraphElement]]
+                               ;; .-scrollWidth .-clientWidth are properties of this Elemment
+                               ;; See https://developer.mozilla.org/en-US/docs/Web/API/HTMLParagraphElement
                                (when-not (nil? e)
                                  (set-disable (> (.-scrollWidth e) (.-clientWidth e)))))
                         :sx {:white-space "nowrap"

@@ -37,6 +37,7 @@
   [kw-dispatch-name]
   (bg/open-file-dialog (fn [api-response]
                          (let [file-name (check-error api-response)]
+                           ;; file-name may be nil if user cancelled the open file dialog without picking a file
                            (dispatch [kw-dispatch-name file-name])))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;; System Info and Preference ;;;;;;;;;;;;;;;;;;;;

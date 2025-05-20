@@ -80,6 +80,9 @@
       
       (= menu-id const/MENU_ID_MERGE_DATABASE)
       (dispatch [:merging/open-dbs-start])
+      
+      (= menu-id const/MENU_ID_IMPORT)
+      (dispatch [:import/import-csv-file-start])
 
       :else
       (dispatch [:common/message-box-show "Work In Progress" (str "Menu action for " menu-id " will be implemented soon")]))))

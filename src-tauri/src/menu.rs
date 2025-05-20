@@ -29,6 +29,7 @@ pub mod menu_ids {
   pub const LOCK_ALL_DATABASES: &str = "LockAllDatabases";
 
   pub const MERGE_DATABASE: &str = "MergeDatabase";
+  pub const IMPORT: &str = "Import";
 
   pub const NEW_GROUP: &str = "NewGroup";
   pub const EDIT_GROUP: &str = "EditGroup";
@@ -185,6 +186,16 @@ fn build_database_menus<R: Runtime>(
       MERGE_DATABASE,
       system_menu_translation.sub_menu(MERGE_DATABASE, "Merge Database..."),
       false,
+      None::<&str>,
+    )?,
+  ])
+  .separator()
+  .items(&[
+    &MenuItem::with_id(
+      app_handle,
+      IMPORT,
+      system_menu_translation.sub_menu(IMPORT, "Import"),
+      true,
       None::<&str>,
     )?,
   ])

@@ -1,4 +1,4 @@
-(ns onekeepass.frontend.background-merging
+(ns onekeepass.frontend.background.merging
   (:require
    [camel-snake-kebab.extras :as cske]
    [camel-snake-kebab.core :as csk]

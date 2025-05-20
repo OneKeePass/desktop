@@ -1,5 +1,5 @@
 (ns ^:figwheel-always onekeepass.frontend.start-page
-  (:require [onekeepass.frontend.common-components :refer [message-dialog]]
+  (:require [onekeepass.frontend.common-components :as cc :refer [message-dialog]]
             [onekeepass.frontend.app-settings :refer [app-settings-dialog-main]]
             [onekeepass.frontend.custom-icons :as cust-icons]
             [onekeepass.frontend.events.common :as cmn-events]
@@ -18,6 +18,7 @@
                                                               theme-color]]
             [onekeepass.frontend.new-database :as nd-form]
             [onekeepass.frontend.open-db-form :as od-form]
+            [onekeepass.frontend.import-file.csv :as csv-form]
             [onekeepass.frontend.translation :refer-macros [tr tr-l tr-t]]
             [reagent.core :as r]))
 
@@ -111,5 +112,7 @@
 
    ;; Dialogs that can be used in start page itself
    ;; See toll_bar.cljs for all other dialogs 
+   [csv-form/csv-columns-mapping-dialog]
+   [csv-form/csv-imoprt-start-dialog]
    [app-settings-dialog-main]
    [message-dialog]])

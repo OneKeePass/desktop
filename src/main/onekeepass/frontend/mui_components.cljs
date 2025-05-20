@@ -37,21 +37,21 @@
 ;; modules are bundled for both dev time and production time using
 ;; webpack
 
-(def react-use-state (.-useState ^js/React react))
-(def react-use-effect (.-useEffect ^js/React react))
+(def react-use-state ^js/UseState (.-useState ^js/React react)) ;; (.-useState ^js/React react)
+(def react-use-effect ^js/UseEffect (.-useEffect ^js/React react))
 #_(def react-use-ref (.-useRef ^js/React react))
 
 #_(def use-idle-timer (.-useIdleTimer ^js/ReactIdleTimer react-idle-timer))
 
 ;; datetime picker component v 5.x used date-fns DateAdapter
 ;; datetime picker component v 6.x needs to use this
-(def adapter-date-fns (.-AdapterDateFns ^js/AdapterDateFns mui-x-adapter-date-fns))
+(def adapter-date-fns ^js/AdapterDateFns (.-AdapterDateFns  mui-x-adapter-date-fns))
 
 ;; https://github.com/dmtrKovalenko/date-io
 ;; DateAdapter is #js{:default #object[DateFnsUtils]}
 ;; (.-default DateAdapter) is #object[DateFnsUtils]
 ;; (type date-adapter)  is #object[Function]
-(def date-adapter (.-default ^js/DateAdapter DateAdapter))
+(def date-adapter ^js/DateAdapter (.-default  DateAdapter))
 
 ;; (Object.keys date-fns-utils) will give all available fuctions from this util
 (def ^js/DateAdapter.Utils date-fns-utils (date-adapter.))
@@ -60,29 +60,29 @@
 ;;s p is #js{:default #object[SplitPane], :Pane #object[Pane]}
 (def split-pane
   "A reagent component formed from react componet found in default property of sp "
-  (reagent.core/adapt-react-class (.-default ^js/SplitPane sp)))
+  (reagent.core/adapt-react-class ^js/SplitPane (.-default ^js/SplitPane sp)))
 
 ;;rw is #js{:VariableSizeGrid #object[Grid], :VariableSizeList #object[List], :FixedSizeGrid #object[Grid], :FixedSizeList #object[List], :areEqual #object[areEqual], :shouldComponentUpdate #object[shouldComponentUpdate]}
 (def fixed-size-list
   "A reagent component formed from react componet FixedSizeList"
-  (reagent.core/adapt-react-class (.-FixedSizeList ^js/ReactWindow rw)))
+  (reagent.core/adapt-react-class ^js/ReactWindow (.-FixedSizeList  rw)))
 
 ;; vas is #js{:default #object[AutoSizer]}
 (def auto-sizer
   "A reagent component formed from react componet AutoSizer"
-  (reagent.core/adapt-react-class (.-default ^js/VirtualAutoSizer vas)))
+  (reagent.core/adapt-react-class ^js/VirtualAutoSizer (.-default  vas)))
 
 (def auto-complete-filter
   "Autocomplete component exposes a factory to create a filter method 
    that can be provided to the filterOptions prop. 
    This is used to change the default option filter behavior."
-  (.-createFilterOptions ^js/Mui.Autocomplete mui-ac))
+  ^js/Mui.Autocomplete (.-createFilterOptions  mui-ac))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  OneKeePass Custom Theme  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def ^:private create-theme mui-mat-styles/createTheme)
 
-(def color-grey (.-grey  ^js/Mui.Colors mui-colors))
+(def color-grey ^js/Mui.Colors (.-grey  mui-colors))
 
 ;; We can change the theme type to 'light' or 'dark' by reseting this atom
 (defonce theme-mode (r/atom "light"))
@@ -103,7 +103,7 @@
         light? (= mode "light")
         pm  (->  theme .-palette .-primary .-main)
         bg (->  theme .-palette .-background .-default)
-        dc1 (if light? "rgba(0, 0, 0, 0.12)" (gobj/get (.-blueGrey  ^js/Mui.Colors mui-colors) 500))
+        dc1 (if light? "rgba(0, 0, 0, 0.12)" (gobj/get ^js/Mui.Colors (.-blueGrey mui-colors) 500))
         c1 (if light? (gobj/get color-grey 200) (-> theme .-palette .-text .-disabled))]
     {:color1 c1
      :divider-color1 dc1
@@ -355,6 +355,7 @@
   Backdrop
   CssBaseline
   Checkbox
+  Chip
   ClickAwayListener
   CircularProgress
   Container

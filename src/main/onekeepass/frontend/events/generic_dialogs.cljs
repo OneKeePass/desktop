@@ -1,8 +1,9 @@
 (ns onekeepass.frontend.events.generic-dialogs
   "All common dialog events that are used across many pages"
   (:require-macros [onekeepass.frontend.okp-macros
-                    :refer  [def-generic-dialog-events]])
-  (:require [re-frame.core :refer [reg-event-fx reg-sub]]
+                    :refer  [defn-generic-dialog-disp-events
+                             defn-generic-dialog-subs-events]])
+  (:require [re-frame.core :refer [reg-event-fx reg-sub dispatch subscribe]]
             [onekeepass.frontend.utils :as u]))
 
 
@@ -17,33 +18,64 @@
 
 ;; dialog-identifier-kw :merge-result-dialog
 
-(def-generic-dialog-events merge-result-dialog  [;; The arg 'close' means there is a re-frame event ending in 'close'
-                                                 ;; The second arg is passed to that event
-                                                 [close nil]
-                                                 [show-with-state state-m]
-                                                 #_[init state-m]
-                                                 #_[update-and-show state-m]
-                                                 #_[show nil]] false)
+(defn-generic-dialog-disp-events merge-result-dialog  [;; The arg 'close' means there is a re-frame event ending in 'close'
+                                                       ;; The second arg is passed to that event
+                                                       [close nil]
+                                                       [show-with-state state-m]
+                                                       #_[init state-m]
+                                                       #_[update-and-show state-m]
+                                                       #_[show nil]])
 
 ;; a subscribe event wrapper
-(def-generic-dialog-events merge-result-dialog [[data nil]] true)
+(defn-generic-dialog-subs-events merge-result-dialog [[data nil]])
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  move-group-or-entry-dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; dialog-identifier-kw :move-group-or-entry-dialog
 
-(def-generic-dialog-events move-group-or-entry-dialog  [[close nil]
-                                                        [show-with-state state-m]
-                                                        [update-with-map state-m]
-                                                        #_[init state-m]
-                                                        #_[update-and-show state-m]
-                                                        #_[show nil]] false)
+(defn-generic-dialog-disp-events move-group-or-entry-dialog  [[close nil]
+                                                              [show-with-state state-m]
+                                                              [update-with-map state-m]
+                                                              #_[init state-m]
+                                                              #_[update-and-show state-m]
+                                                              #_[show nil]])
 
 ;; a subscribe event wrapper
-(def-generic-dialog-events move-group-or-entry-dialog [[data nil]] true)
+(defn-generic-dialog-subs-events move-group-or-entry-dialog [[data nil]])
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  csv-columns-mapping-dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dialog-identifier-kw :csv-columns-mapping-dialog
+
+(defn-generic-dialog-disp-events :csv-columns-mapping-dialog  [[close nil]
+                                                               [set-api-error error]
+                                                               [show-with-state state-m]
+                                                               [update-with-map state-m]])
+
+
+(defn-generic-dialog-subs-events :csv-columns-mapping-dialog [[data nil]])
+
 ;;;;;;
 
+(defn-generic-dialog-disp-events :csv-imoprt-start-dialog [[close nil]])
+
+
+(defn-generic-dialog-subs-events :csv-imoprt-start-dialog [[data nil]])
+
+
+;;;;;;
+
+(defn-generic-dialog-disp-events :csv-mapping-completed-dialog [[close nil]])
+
+
+(defn-generic-dialog-subs-events :csv-mapping-completed-dialog [[data nil]])
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn- init-dialog-map
   "Called to initialize fields of a dialog identified by 'dialog-identifier-kw' 
@@ -54,8 +86,8 @@
       (assoc-in [:title] nil)
       (assoc-in [:confirm-text] nil)
       (assoc-in [:actions] [])
-      (assoc-in [:call-on-ok-fn] #())
-      (assoc-in [:dispatch-on-ok] {})
+      ;; (assoc-in [:call-on-ok-fn] #())
+      ;; (assoc-in [:dispatch-on-ok] {})
       (assoc-in [:error-fields] {})
       (assoc-in [:api-error-text] nil)
       (assoc-in [:data] {})))
@@ -124,6 +156,11 @@
          db (assoc-in db [GENERIC-DIALOGS dialog-identifier-kw :error-fields] {})]
      {:db db})))
 
+(reg-event-fx
+ :generic-dialog-set-api-error
+ (fn [{:keys [db]} [_event-id dialog-identifier-kw error]]
+   {:db (-> db (assoc-in [GENERIC-DIALOGS dialog-identifier-kw :api-error-text] error))}))
+
 ;; Called using macro a wrapper fn is created in this ns
 ;; May be called through (dispatch [:generic-dialog-close dialog-identifier-kw]) from other fx events
 
@@ -142,6 +179,23 @@
          dlg-data (if-not (nil? dlg-data) dlg-data (init-dialog-map))]
      dlg-data)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  id based dialog ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
+
+;; (defn dialog-with-id-show [dialog-id-kw]
+;;   (dispatch [:generic-dialog-show dialog-id-kw]))
+
+;; (defn dialog-with-id-close [dialog-id-kw]
+;;   (dispatch [:generic-dialog-close dialog-id-kw]))
+
+;; (defn dialog-with-id-update-with-map [dialog-id-kw state-m]
+;;   (dispatch [:generic-dialog-update-with-map dialog-id-kw state-m]))
+
+;; (defn dialog-with-id-show-with-state [dialog-id-kw state-m]
+;;   (dispatch [:generic-dialog-show-with-state dialog-id-kw state-m]))
+
+;; (defn dialog-with-id-data [dialog-id-kw]
+;;   (subscribe [:generic-dialog-data dialog-id-kw]))
+
 
 (comment
 
@@ -151,3 +205,4 @@
   ;; Use the following in a repl
   (require '[clojure.repl :refer [dir]])
   (dir onekeepass.frontend.events.generic-dialogs))
+
