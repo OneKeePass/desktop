@@ -167,7 +167,7 @@
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_BACKUP (not locked?))
       ;; React useEffect 
       (m/react-use-effect (fn []
-                            (tauri-events/enable-app-menu const/MENU_ID_PASSWORD_GENERATOR true)
+                            #_(tauri-events/enable-app-menu const/MENU_ID_PASSWORD_GENERATOR true)
                             (tauri-events/enable-app-menu const/MENU_ID_CLOSE_DATABASE true)
                             (tauri-events/enable-app-menu const/MENU_ID_LOCK_DATABASE true)
                             (tauri-events/enable-app-menu const/MENU_ID_SEARCH true)
@@ -175,7 +175,7 @@
 
                             ;; cleanup fn is returned which is called when this component unmounts
                             (fn []
-                              (tauri-events/enable-app-menu const/MENU_ID_PASSWORD_GENERATOR false)
+                              #_(tauri-events/enable-app-menu const/MENU_ID_PASSWORD_GENERATOR false)
                               (tauri-events/enable-app-menu const/MENU_ID_CLOSE_DATABASE false)
                               (tauri-events/enable-app-menu const/MENU_ID_LOCK_DATABASE false)
                               (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_AS false)

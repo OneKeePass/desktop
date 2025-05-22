@@ -3,6 +3,7 @@
    [reagent.core :as r]
    [onekeepass.frontend.events.new-database :as nd-events]
    [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-t tr-h tr-m]]
+   [onekeepass.frontend.common-components :refer [cipher-algorithms kdf-algorithms]]
    [onekeepass.frontend.mui-components :as m :refer [mui-menu-item
                                                      mui-alert
                                                      mui-divider
@@ -35,7 +36,7 @@
                     :value database-name
                     :required true
                     :error (contains? error-fields :database-name)
-                    :helperText (get error-fields :database-name (tr-h dbDisplayName) )
+                    :helperText (get error-fields :database-name (tr-h dbDisplayName))
                     :autoFocus true
                     :on-change (nd-events/field-update-factory :database-name)
                     :variant "standard" :fullWidth true}]]
@@ -61,12 +62,12 @@
                                                                                 :onClick nd-events/open-key-file-explorer-on-click}
                                                                [mui-icon-folder-outlined]]])}}]])
 
-(defn- credentials-info [{:keys [password 
-                                 password-confirm 
-                                 password-visible 
-                                 key-file-name 
+(defn- credentials-info [{:keys [password
+                                 password-confirm
+                                 password-visible
+                                 key-file-name
                                  database-name
-                                 show-additional-protection 
+                                 show-additional-protection
                                  error-fields]}]
 
   [mui-stack {:spacing 2}
@@ -131,7 +132,7 @@
                         :variant "text"
                         :on-click nd-events/open-key-file-explorer-on-click} (tr-l "browse")]
 
-          [mui-typography {:variant "caption"} 
+          [mui-typography {:variant "caption"}
            (tr-m newDbPage txt1)]
 
           [mui-button  {:sx {:m 1}
@@ -141,7 +142,7 @@
           [mui-typography {:variant "caption"}
            (tr-m newDbPage txt2)]])])]])
 
-(defn- file-info [{:keys [database-file-name db-file-file-exists database-name]}] 
+(defn- file-info [{:keys [database-file-name db-file-file-exists database-name]}]
   [mui-stack {:spacing 2}
    [mui-typography (tr-l saveAs)]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
@@ -161,10 +162,8 @@
      (when db-file-file-exists
        [mui-alert {:severity "warning" :sx {:mt 1}} (tr-m newDbPage txt4)])]]]) ;;"** Database file already exists and will be replaced with this new one **"
 
-(def algorithms [{:name "AES 256" :value "Aes256"} {:name "ChaCha20 256" :value "ChaCha20"}])
-
 (defn- security-info [{:keys [cipher-id error-fields]
-                       {{:keys [iterations memory parallelism]} :Argon2} :kdf}]
+                       {:keys [iterations memory parallelism algorithm]} :kdf}]
   [mui-stack {:spacing 2}
    [mui-typography (tr-l security)]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}} ;;:alignItems "center"
@@ -178,19 +177,22 @@
                      :on-change (nd-events/field-update-factory :cipher-id)
                      :variant "standard" :fullWidth true}
        (doall
-        (for [{:keys [name value]} algorithms]
+        (for [{:keys [name value]} cipher-algorithms]
           ^{:key value} [mui-menu-item {:value value} name]))]]]
 
     [mui-stack {:direction "row" :sx {:width "100%"}}
      [mui-stack {:sx {:width "50%" :ml 3}}
       [m/text-field {:label (tr-l kdf)
-                     :value :Argon-2d
+                     :value algorithm
                      :required true
                      :select true
                      :autoFocus true
-                    ;;:on-change 
+                     :on-change (fn [^js/Event e]
+                                  (nd-events/new-database-kdf-algorithm-select (->  e ^js/EventT (.-target) .-value)))
                      :variant "standard" :fullWidth true}
-       [mui-menu-item {:value :Argon-2d} "Argon 2d"]]]]
+       (doall
+        (for [{:keys [name value]} kdf-algorithms]
+          ^{:key value} [mui-menu-item {:value value} name]))]]]
 
     [mui-stack {:direction "row" :sx {:width "100%"}}
      [mui-stack {:sx {:width "33.33%" :ml 3}}
@@ -199,7 +201,7 @@
                      :type "number"
                      :error (contains? error-fields :iterations)
                      :helperText (get error-fields :iterations)
-                     :on-change (nd-events/field-update-factory [:kdf :Argon2 :iterations])
+                     :on-change (nd-events/field-update-factory [:kdf :iterations])
                      :variant "standard" :fullWidth true}]]
 
      [mui-stack {:sx {:width "33.33%" :ml 3}}
@@ -208,7 +210,7 @@
                      :type "number"
                      :error (contains? error-fields :memory)
                      :helperText (get error-fields :memory)
-                     :on-change (nd-events/field-update-factory [:kdf :Argon2 :memory])
+                     :on-change (nd-events/field-update-factory [:kdf :memory])
                      :variant "standard" :fullWidth true}]]
      [mui-stack {:sx {:width "33.33%" :ml 3}}
       [m/text-field {:label (tr-l "parallelism")
@@ -219,9 +221,7 @@
                      ;; Using min for "number" type is not working
                      ;;:InputProps {:min "2"}
                      ;;:min 2 
-
-
-                     :on-change (nd-events/field-update-factory [:kdf :Argon2 :parallelism])
+                     :on-change (nd-events/field-update-factory [:kdf :parallelism])
                      :variant "standard" :fullWidth true}]]]]])
 
 (defn new-database-dialog [{:keys [dialog-show panel call-to-create-status api-error-text] :as m}]

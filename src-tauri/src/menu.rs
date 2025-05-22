@@ -276,7 +276,7 @@ fn build_tools_menus<R: Runtime>(
     app_handle,
     PASSWORD_GENERATOR,
     system_menu_translation.sub_menu(PASSWORD_GENERATOR, "Password Generator"),
-    false,
+    true,
     Some("CmdOrControl+G"),
   )?)
   .build();
@@ -376,9 +376,9 @@ pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app_handle:
     EDIT_GROUP | NEW_GROUP => {
       toggle_enable_disable(app_handle, MAIN_MENU_GROUPS, menu_id, menu_enabled);
     }
-    PASSWORD_GENERATOR => {
-      toggle_enable_disable(app_handle, MAIN_MENU_TOOLS, menu_id, menu_enabled);
-    }
+    // PASSWORD_GENERATOR => {
+    //   toggle_enable_disable(app_handle, MAIN_MENU_TOOLS, menu_id, menu_enabled);
+    // }
 
     _ => {
       info!("Not yet handled menu action: {:?}", request);

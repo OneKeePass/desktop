@@ -116,7 +116,7 @@
 ;; This custom transform is not required when we handle
 ;; the 'Kdf' enum serialization properly
 ;; Other places where similar things used are  get-db-settings, set-db-settings
-(defn request-argon2key-transformer
+#_(defn request-argon2key-transformer
   "A custom transformer that transforms a map that has ':Argon2' key "
   [new-db]
   (let [t (fn [k] (if (= k :Argon2)

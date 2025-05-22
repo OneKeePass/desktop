@@ -5,6 +5,7 @@
             [onekeepass.frontend.events.common :as cmn-events]
             [onekeepass.frontend.events.new-database :as nd-events]
             [onekeepass.frontend.events.open-db-form :as od-events]
+            [onekeepass.frontend.events.password-generator :as gen-events]
             [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                               mui-box
                                                               mui-container
@@ -16,6 +17,7 @@
                                                               mui-tooltip
                                                               mui-typography
                                                               theme-color]]
+            [onekeepass.frontend.password-generator :as gen-form]
             [onekeepass.frontend.new-database :as nd-form]
             [onekeepass.frontend.open-db-form :as od-form]
             [onekeepass.frontend.import-file.csv :as csv-form]
@@ -112,6 +114,7 @@
 
    ;; Dialogs that can be used in start page itself
    ;; See toll_bar.cljs for all other dialogs 
+   [gen-form/password-generator-dialog @(gen-events/generator-dialog-data)]
    [csv-form/csv-columns-mapping-dialog]
    [csv-form/csv-imoprt-start-dialog]
    [app-settings-dialog-main]

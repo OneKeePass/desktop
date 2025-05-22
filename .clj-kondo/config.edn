@@ -291,7 +291,10 @@
 
   :unresolved-var {:exclude [onekeepass.frontend.mui-components
                              onekeepass.frontend.background/go
-                             onekeepass.frontend.events.generic-dialogs]}
+                             onekeepass.frontend.events.generic-dialogs
+                             
+                             go
+                             ]}
 
 
   ;;Following is not working 

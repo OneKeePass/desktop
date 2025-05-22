@@ -663,6 +663,12 @@
     (.stopPropagation ^js/Event e)))
 
 
+(def cipher-algorithms [{:name "AES 256" :value "Aes256"} {:name "ChaCha20 256" :value "ChaCha20"}])
+
+(def kdf-algorithms [{:name "Argon 2d (KDBX 4)" :value "Argon2d"} {:name "Argon 2id (KDBX 4)" :value "Argon2id"}])
+
+
+
 #_(fn [e] (println "ref is called ..." (when-not (nil? e)
                                          (js/Object.getOwnPropertyNames e)
                                          (println "  ref acess " (-> e (.scrollToItem 1))

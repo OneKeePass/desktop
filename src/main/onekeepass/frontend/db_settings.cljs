@@ -1,5 +1,6 @@
 (ns onekeepass.frontend.db-settings
   (:require [onekeepass.frontend.events.db-settings :as settings-events]
+            [onekeepass.frontend.common-components :refer [cipher-algorithms kdf-algorithms]]
             [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                               mui-alert
                                                               mui-box
@@ -25,7 +26,7 @@
                                                               mui-stack
                                                               mui-tooltip
                                                               mui-typography
-                                                              theme-color]]
+                                                              theme-color]] 
             [onekeepass.frontend.translation  :refer-macros [tr-l
                                                              tr-t
                                                              tr-h
@@ -33,9 +34,7 @@
                                                              tr-dlg-title]]
             [reagent.core :as r]))
 
-;;(set! *warn-on-infer* true)
-
-(def algorithms [{:name "AES 256" :value "Aes256"} {:name "ChaCha20 256" :value "ChaCha20"}])
+(set! *warn-on-infer* true)
 
 (def text-style-m {:primaryTypographyProps
                    {:font-size 15 :font-weight "medium"}})
@@ -151,7 +150,7 @@
       (when (not password-visible)
         [m/text-field {:label (tr-l confirmPassword)
                        :value password-confirm
-                                           ;;:required true
+                       ;;:required true
                        :placeholder (tr-l confirmPassword)
                        :error (contains? error-fields :password-confirm)
                        :helperText (get error-fields :password-confirm)
@@ -229,7 +228,7 @@
 
 (defn- security-info [{:keys [error-fields]
                        {:keys [cipher-id]
-                        {{:keys [iterations memory parallelism]} :Argon2} :kdf} :data}]
+                        {:keys [iterations memory parallelism algorithm]} :kdf} :data}] 
   [mui-stack {:spacing 2}
    [mui-typography {:text-align "center"} (tr-t security)]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}} ;;:alignItems "center"
@@ -243,19 +242,22 @@
                      :on-change (settings-events/field-update-factory [:data :cipher-id])
                      :variant "standard" :fullWidth true}
        (doall
-        (for [{:keys [name value]} algorithms]
+        (for [{:keys [name value]} cipher-algorithms]
           ^{:key value} [mui-menu-item {:value value} name]))]]]
 
     [mui-stack {:direction "row" :sx {:width "100%"}}
      [mui-stack {:sx {:width "50%" :ml 3}}
       [m/text-field {:label (tr-l kdf)
-                     :value :Argon-2d
+                     :value algorithm
                      :required true
                      :select true
                      :autoFocus true
-                    ;;:on-change 
+                     :on-change (fn [^js/Event e]  ;;^js/EventT (.-target)
+                                  (settings-events/db-settings-kdf-algorithm-select (->  e ^js/EventT (.-target)  .-value)))
                      :variant "standard" :fullWidth true}
-       [mui-menu-item {:value :Argon-2d} "Argon 2d"]]]]
+       (doall
+        (for [{:keys [name value]} kdf-algorithms]
+          ^{:key value} [mui-menu-item {:value value} name]))]]]
 
     [mui-stack {:direction "row" :sx {:width "100%"}}
      [mui-stack {:sx {:width "33.33%" :ml 3}}
@@ -264,7 +266,7 @@
                      :type "number"
                      :error (contains? error-fields :iterations)
                      :helperText (get error-fields :iterations)
-                     :on-change (settings-events/field-update-factory [:data :kdf :Argon2 :iterations])
+                     :on-change (settings-events/field-update-factory [:data :kdf :iterations])
                      :variant "standard" :fullWidth true}]]
 
      [mui-stack {:sx {:width "33.33%" :ml 3}}
@@ -273,7 +275,7 @@
                      :type "number"
                      :error (contains? error-fields :memory)
                      :helperText (get error-fields :memory)
-                     :on-change (settings-events/field-update-factory [:data :kdf :Argon2 :memory])
+                     :on-change (settings-events/field-update-factory [:data :kdf :memory])
                      :variant "standard" :fullWidth true}]]
      [mui-stack {:sx {:width "33.33%" :ml 3}}
       [m/text-field {:label (tr-l parallelism)
@@ -284,7 +286,7 @@
                      ;; Using min for "number" type is not working
                      ;;:InputProps {:min "2"}
                      ;;:min 2 
-                     :on-change (settings-events/field-update-factory [:data :kdf :Argon2 :parallelism])
+                     :on-change (settings-events/field-update-factory [:data :kdf :parallelism])
                      :variant "standard" :fullWidth true}]]]]])
 
 (defn settings-dialog [{:keys [dialog-show
@@ -295,7 +297,7 @@
   (let [in-progress? (= :in-progress status)
         modified @(settings-events/db-settings-modified)]
     [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
-                 :on-click #(.stopPropagation %)
+                 :on-click #(.stopPropagation ^js/Event %)
                  :sx {:min-width "600px"
                       "& .MuiDialog-paper" {:max-width "650px" :width "90%"}}}
      [mui-dialog-title (tr-dlg-title databaseSettings)]
@@ -312,10 +314,10 @@
            [list-items dialog-data]]
           [:div {:class "gfooter"}
            [mui-stack {:justify-content "center"}
-            [mui-button {:variant "text" 
+            [mui-button {:variant "text"
                          :disabled (or modified in-progress? (-> error-fields seq boolean))
                          :color "secondary"
-                         :on-click settings-events/app-settings-dialog-read-start } 
+                         :on-click settings-events/app-settings-dialog-read-start}
              (tr-l "appSettings")]]]]]
 
         ;; Right side panel
@@ -343,8 +345,8 @@
            :else
            [:div])]]
 
-       (when api-error-text 
-             [mui-alert {:severity "error" :sx {:mt 1}} api-error-text])
+       (when api-error-text
+         [mui-alert {:severity "error" :sx {:mt 1}} api-error-text])
 
        (when (and (nil? api-error-text) in-progress?)
          [mui-linear-progress {:sx {:mt 2}}])]]
