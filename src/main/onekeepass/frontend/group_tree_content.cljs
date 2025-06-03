@@ -116,14 +116,11 @@
             group-selection-info
             kind-kw
             uuid-selected-to-move
-            current-parent-group-uuid
-            field-error api-error-text status]}]
+            current-parent-group-uuid]}]
    ;; Ensure that we build mui-dialog only when dialog-show show is true
    (when dialog-show
      (let [groups-listing @(gt-events/groups-listing)
-           ;; Need to exlude few groups showing in the list
-           
-           ;; 
+           ;; Need to exlude few groups showing in the list 
            groups-listing (filter (fn [g] 
                                     ;; Note: In case of entry 'uuid-selected-to-move' is the entry-uuid and stricly not 
                                     ;; required to be excluded vec

@@ -17,7 +17,13 @@
                                                      mui-checkbox
                                                      get-theme-color]]
    [onekeepass.frontend.common-components :as cc :refer [confirm-text-dialog]]
-   [onekeepass.frontend.translation  :refer-macros [tr-bl] :refer [lstr-l-cv lstr-field-name lstr-l]]
+   [onekeepass.frontend.translation  
+    :refer-macros [tr-bl] 
+    :refer [lstr-l-cv 
+            lstr-bl
+            lstr-dlg-title 
+            lstr-field-name 
+            lstr-l]]
    [reagent.core :as r]
    [onekeepass.frontend.constants :as const]))
 
@@ -31,11 +37,11 @@
 
 (defn csv-imoprt-start-dialog []
   [confirm-text-dialog
-   "Import"
+   (lstr-dlg-title "import")
    csv-imoprt-start-dialog-content
    [{:label (tr-bl cancel) :on-click (fn []
                                        (gd-events/csv-imoprt-start-dialog-close))}
-    {:label "Open csv file" :on-click (fn []
+    {:label (lstr-bl 'openCsvFile) :on-click (fn []
                                         (gd-events/csv-imoprt-start-dialog-close)
                                         (csv-events/open-file-explorer-on-click))}]
    @(gd-events/csv-imoprt-start-dialog-data)])
@@ -54,7 +60,7 @@
                     :on-click stop-propagation
                     :sx {:min-width "600px"
                          "& .MuiDialog-paper" {:max-width "650px" :width "90%"}}}
-        [mui-dialog-title "Import Into"]
+        [mui-dialog-title (lstr-dlg-title 'importInto)]
         [mui-dialog-content {:dividers true}
          [mui-box
           [mui-stack {:sx {:mr 2 :ml 2}}
@@ -91,9 +97,9 @@
                     [mui-chip {:label umf :on-delete #(csv-events/import-csv-unmapped-header-field-delete umf)}]))])])]]]
         [mui-dialog-actions
          [mui-button {:on-click  gd-events/csv-mapping-completed-dialog-close} (tr-bl "cancel")]
-         [mui-button {:on-click  csv-events/import-csv-new-database} "New Database"]
+         [mui-button {:on-click  csv-events/import-csv-new-database} (tr-bl newDatabase)]
          (when-not (nil? current-db-file-name)
-           [mui-button {:on-click  csv-events/import-csv-into-current-db} "current opened database"])]])))
+           [mui-button {:on-click  csv-events/import-csv-into-current-db} (lstr-bl 'currentOpenedDatabase)])]])))
   ([]
    [csv-mapping-completed-dialog @(gd-events/csv-mapping-completed-dialog-data)]))
 
@@ -169,7 +175,7 @@
                                             ;; set even when we set 100px. In this dialog, we need not set the min height
                                             ;;:min-height "100px"
                                             }}}
-     [mui-dialog-title "CSV Mapping"]
+     [mui-dialog-title (lstr-dlg-title 'csvMapping)]
      [mui-dialog-content {:dividers true}
       [mui-box {:sx {}}
        [fields-mapping-form csv-headers mapping-options]

@@ -43,7 +43,8 @@
   []
   (subscribe [:selected-group-uuid]))
 
-(defn selected-group-parent-uuid 
+;;TODO: As each group-info map is having 'parent-group-uuid' field. Need to use that instead of using this fn
+(defn selected-group-parent-uuid
   "Gets the parent group uuid of the passed group-uuid"
   [group-uuid]
   (subscribe [:selected-group-parent-uuid group-uuid]))
@@ -161,8 +162,8 @@
 (reg-sub
  :selected-group-parent-uuid
  :<- [:groups-tree-data-updated]
- (fn [data [_query-id group-uuid]] 
-   (let [g (-> data (get "groups") (get group-uuid))] 
+ (fn [data [_query-id group-uuid]]
+   (let [g (-> data (get "groups") (get group-uuid))]
      (get g "parent_group_uuid"))))
 
 (reg-sub

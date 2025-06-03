@@ -1,17 +1,14 @@
 (ns onekeepass.frontend.merging
-  (:require [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
-                                                              mui-box
-                                                              mui-button
-                                                              mui-dialog
-                                                              mui-dialog-actions
-                                                              mui-dialog-content
-                                                              mui-dialog-title
-                                                              mui-divider
-                                                              mui-stack
-                                                              mui-typography
-                                                              theme-color]]
-            [onekeepass.frontend.events.generic-dialogs :as gd-events]
-            [onekeepass.frontend.translation  :refer-macros [tr-bl]]))
+  (:require
+   [onekeepass.frontend.events.generic-dialogs :as gd-events]
+   [onekeepass.frontend.mui-components :as m :refer [mui-box mui-button
+                                                     mui-dialog
+                                                     mui-dialog-actions
+                                                     mui-dialog-content
+                                                     mui-dialog-title
+                                                     mui-divider mui-stack
+                                                     mui-typography]]
+   [onekeepass.frontend.translation  :refer-macros [tr-bl] :refer [lstr-dlg-title]]))
 
 
 (defn merge-result-dialog
@@ -25,12 +22,12 @@
              meta-data-changed
              permanently-deleted-entries
              permanently-deleted-groups]
-      :as _data} :data}] 
+      :as _data} :data}]
    [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
                 :on-click #(.stopPropagation %)
                 :sx {:min-width "600px"
                      "& .MuiDialog-paper" {:max-width "650px" :width "90%"}}}
-    [mui-dialog-title "Merge result"]
+    [mui-dialog-title (lstr-dlg-title 'mergeResult)]
     [mui-dialog-content
      [mui-box
       [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}

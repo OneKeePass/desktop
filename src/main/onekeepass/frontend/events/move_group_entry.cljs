@@ -191,7 +191,7 @@
 
 (defn- call-on-move-complete [kind-kw api-response]
   (when-not (on-error api-response)
-    ;; Ensure that the dillog is closed
+    ;; Ensure that the dialog is closed
     (dispatch [:generic-dialog-close :move-group-or-entry-dialog])
     (dispatch [:common/message-snackbar-open
                (str (if (= kind-kw :group) "Group" "Entry") " is moved")])
