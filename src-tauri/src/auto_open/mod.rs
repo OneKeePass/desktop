@@ -99,7 +99,10 @@ fn inner_open_all_auto_open_dbs(
     if let Err(e) = ao_val {
       // As there are errors in resolving, we skip this entry uuid
       auto_open_dbs_info.error_messages.push(e.to_string());
-      debug!("The auto_open_properties.resolve call failed with error: {}",e);
+      debug!(
+        "The auto_open_properties.resolve call failed with error: {}",
+        e
+      );
       continue;
     }
     // unwrap is fine as we have checked for error
@@ -152,13 +155,13 @@ fn inner_open_all_auto_open_dbs(
         "Cound not form a valid url from {:?}",
         kvs.get(kp_service::entry_keyvalue_key::USER_NAME).cloned()
       );
-      debug!("{}",&msg);
+      debug!("{}", &msg);
       auto_open_dbs_info.error_messages.push(msg);
     }
   }
 }
 
-// Here we collect all data on opening a database and this is 
+// Here we collect all data on opening a database and this is
 // based on the steps done in :common/kdbx-database-loading-complete of src/main/onekeepass/frontend/events/common.cljs
 fn load_init_data(
   grouping_kind: &EntryCategoryGrouping,

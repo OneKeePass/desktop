@@ -7,10 +7,7 @@ use std::fs;
 
 use sys_locale::get_locale;
 
-use tauri::{
-  api::path::{resolve_path, BaseDirectory},
-  Env, Manager, Runtime,
-};
+use tauri::{path::BaseDirectory, AppHandle, Manager, Runtime};
 
 use crate::app_state::AppState;
 
@@ -43,7 +40,7 @@ const TRANSLATION_RESOURCE_DIR: &str = "../resources/public/translations";
 // Loads language translation strings for the passed language ids
 // Typically it should be en and the preferedd or the locale language
 pub fn load_language_translations<R: Runtime>(
-  app: tauri::AppHandle<R>,
+  app: &tauri::AppHandle<R>,
   language_ids: Vec<String>,
 ) -> kp_service::Result<TranslationResource> {
   let current_locale_lng = current_locale_language(); //get_locale().unwrap_or_else(|| String::from("en")); // "en-US" language+region
@@ -72,19 +69,15 @@ pub fn load_language_translations<R: Runtime>(
   // "../resources/public/translations" should be included in "resources" key in  /desktop/src-tauri/tauri.conf.json
   // Note: ../ in path will add _up_
 
-  let path = resolve_path(
-    &app.config(),
-    app.package_info(),
-    &Env::default(),
-    TRANSLATION_RESOURCE_DIR,
-    Some(BaseDirectory::Resource),
-  )
-  .map_err(|e| {
-    kp_service::Error::UnexpectedError(format!(
-      "Resource translations dir locations not found. Error is {} ",
-      e
-    ))
-  })?;
+  let path = app
+    .path()
+    .resolve(TRANSLATION_RESOURCE_DIR, BaseDirectory::Resource)
+    .map_err(|e| {
+      kp_service::Error::UnexpectedError(format!(
+        "Resource translations dir locations not found. Error is {} ",
+        e
+      ))
+    })?;
 
   info!("Translation files root dir for i18n is {:?} ", &path);
 
@@ -132,34 +125,28 @@ impl SystemMenuTranslation {
     let sm = s
       .get(menu_id)
       .map_or_else(|| default_name.into(), |v| v.into());
-    debug!("Submenu for menu_id {} is {}", menu_id, &sm);
+    // debug!("Submenu for menu_id {} is {}", menu_id, &sm);
     sm
   }
 }
 
 // Called to load the menu string translations before building the app
-pub fn load_system_menu_translations(
+pub(crate) fn load_system_menu_translations<R:Runtime>(
   language: &str,
-  config: &tauri::Config,
-  package_info: &tauri::PackageInfo,
+  app_handle: &AppHandle<R>,
 ) -> SystemMenuTranslation {
   let mut system_menu_tr = SystemMenuTranslation {
     system_menus: HashMap::default(),
   };
 
-  let Ok(path) = resolve_path(
-    &config,
-    &package_info,
-    &Env::default(),
-    TRANSLATION_RESOURCE_DIR,
-    Some(BaseDirectory::Resource),
-  ) else {
+  let Ok(path) = app_handle
+    .path()
+    .resolve(TRANSLATION_RESOURCE_DIR, BaseDirectory::Resource)
+  else {
     return system_menu_tr;
   };
 
   let p = path.join(format!("{}.json", &language));
-
-  //println!("Json file is {:?}", &p);
 
   let data = fs::read_to_string(p)
     .ok()

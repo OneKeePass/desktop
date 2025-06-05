@@ -3,6 +3,8 @@
    [onekeepass.frontend.translation :as t :refer-macros [tr-bl tr-dlg-title tr-dlg-text]]
    [onekeepass.frontend.app-settings :refer [app-settings-dialog-main]]
    [onekeepass.frontend.auto-type :as at-form]
+   [onekeepass.frontend.merging :as merging]
+   [onekeepass.frontend.import-file.csv :as csv]
    [onekeepass.frontend.common-components :refer [confirm-text-dialog
                                                   error-info-dialog
                                                   message-dialog
@@ -165,24 +167,27 @@
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_BACKUP (not locked?))
       ;; React useEffect 
       (m/react-use-effect (fn []
-                            (tauri-events/enable-app-menu const/MENU_ID_PASSWORD_GENERATOR true)
+                            #_(tauri-events/enable-app-menu const/MENU_ID_PASSWORD_GENERATOR true)
                             (tauri-events/enable-app-menu const/MENU_ID_CLOSE_DATABASE true)
                             (tauri-events/enable-app-menu const/MENU_ID_LOCK_DATABASE true)
                             (tauri-events/enable-app-menu const/MENU_ID_SEARCH true)
+                            (tauri-events/enable-app-menu const/MENU_ID_MERGE_DATABASE (not locked?))
+
                             ;; cleanup fn is returned which is called when this component unmounts
                             (fn []
-                              (tauri-events/enable-app-menu const/MENU_ID_PASSWORD_GENERATOR false)
+                              #_(tauri-events/enable-app-menu const/MENU_ID_PASSWORD_GENERATOR false)
                               (tauri-events/enable-app-menu const/MENU_ID_CLOSE_DATABASE false)
                               (tauri-events/enable-app-menu const/MENU_ID_LOCK_DATABASE false)
                               (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_AS false)
+                              (tauri-events/enable-app-menu const/MENU_ID_MERGE_DATABASE false)
                               (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_BACKUP false)
-                              (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js []))
+                              (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js [locked?]))
 
       [:div {:style {:flex-grow 1}}
        [mui-app-bar {:position "static" :color "primary"}
         [mui-toolbar {:style {:min-height 32}}
-       ;; Using box to provide common styles - left margin -  for all its children - buttons 
-       ;; Using "&.MuiIconButton-root" etc did not work
+         ;; Using box to provide common styles - left margin -  for all its children - buttons 
+         ;; Using "&.MuiIconButton-root" etc did not work
          [mui-box {:sx {"& .MuiButtonBase-root" {:ml "-8px"}}}
           [mui-tooltip {:title "Open" :enterDelay 2000}
            [mui-icon-button
@@ -240,7 +245,7 @@
 
        ;; Include all dialogs that we need to use when the toll bar is visibible
        ;; Also see start_page.cljs for other dialogs  
-
+       
        ;; Auto type dialogs
        [at-form/perform-auto-type-dialog @(at-events/auto-type-perform-dialog-data)]
        [at-form/auto-type-edit-dialog @(at-events/auto-type-edit-dialog-data)]
@@ -261,4 +266,7 @@
        [conflict-action-confirm-dialog @(tb-events/conflict-action-confirm-dialog-data)]
        [ask-save-dialog @(tb-events/ask-save-dialog-data)]
        [ask-save-on-lock @(tb-events/on-lock-ask-save-dialog-data)]
-       [close-current-db-save-dialog @(tb-events/close-current-db-dialog-data)]])))
+       [close-current-db-save-dialog @(tb-events/close-current-db-dialog-data)]
+       [csv/csv-columns-mapping-dialog]
+       [csv/csv-imoprt-start-dialog]
+       [merging/merge-result-dialog]])))

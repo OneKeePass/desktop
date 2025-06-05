@@ -1,31 +1,27 @@
 (ns onekeepass.frontend.background
-  "All backend api calls"
-  (:require
-   [re-frame.core :refer [dispatch]]
+  "All backend api calls. Few api calls are moved to the specific cljs ns"
+  (:require 
    [cljs.core.async :refer [go]]
    [cljs.core.async.interop :refer-macros [<p!]]
    [camel-snake-kebab.extras :as cske]
    [camel-snake-kebab.core :as csk]
    [onekeepass.frontend.utils :refer [contains-val?]]
 
-   [onekeepass.frontend.background-common :as bg-cmn ]
+   [onekeepass.frontend.background-common :as bg-cmn]
    [onekeepass.frontend.background-password :as bg-pwd]
 
    ;; All tauri side corresponding endpoint command apis can be found in 
    ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/endpoints
    ;; The api implementation is in 
    ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/api 
-
-   ["@tauri-apps/api/dialog" :refer (open,save)]
-   #_["@tauri-apps/api/tauri" :refer (invoke)]
-   ["@tauri-apps/api/clipboard" :refer [writeText readText]]
-   ["@tauri-apps/api/event" :as tauri-event]
-   ["@tauri-apps/api/shell" :as tauri-shell]
-
-   #_["@tauri-apps/api/path" :as tauri-path]
-   #_["@tauri-apps/api/event" :as tauri-event :refer [listen]]
-   #_["@tauri-apps/api/app"   :refer (getName getVersion)]
-   #_["@tauri-apps/api/window" :refer (getCurrent)]))
+   
+   ;; All node package modules (npm) that are loaded by webpack bundler
+   ;; Also see src/main/onekeepass/frontend/mui_components.cljs for other npm packages
+   
+   ["@tauri-apps/plugin-shell" :as tauri-shell]
+   ["@tauri-apps/plugin-dialog" :refer (open,save)]
+   ["@tauri-apps/plugin-clipboard-manager" :refer [writeText readText]]
+   ["@tauri-apps/api/event" :as tauri-event]))
 
 (set! *warn-on-infer* true)
 
@@ -46,19 +42,19 @@
    "
   ([caller-name event-name event-handler-fn]
    (let [el (get @tauri-event-listeners [caller-name event-name])]
-    ;;Register the event handler function only if the '[caller-name event-name]' is not already registered
+     ;;Register the event handler function only if the '[caller-name event-name]' is not already registered
      (when (nil? el)
        (go
          (try
            (let [event-name-str  event-name #_(-> event-name csk/->snake_case name) ;; :group-update => "group_update"
                  unlisten-fn (<p! (tauri-event/listen event-name-str event-handler-fn))]
-            ;;unlisten-fn is the resolved value of the Promise returned by fn tauri-event/listen
+             ;;unlisten-fn is the resolved value of the Promise returned by fn tauri-event/listen
              (swap! tauri-event-listeners assoc [caller-name event-name] unlisten-fn))
            (catch js/Error err
              (do
                (println "error is " (ex-cause err))
                (js/console.log (ex-cause err))))))
-      ;;To log the following messsage use 'if' instead of 'when' form
+       ;;To log the following messsage use 'if' instead of 'when' form
        (when-not (nil? el)
          (println "Tauri event listener for " event-name " is already registered"))
        #_(println "Tauri event listener for " event-name " is already registered"))))
@@ -165,7 +161,7 @@
   "Calls the API to unlock the previously opened db file.
    Calls the dispatch-fn with the received map of type 'KdbxLoaded' 
   "
-  [db-key password key-file-name dispatch-fn] 
+  [db-key password key-file-name dispatch-fn]
   (invoke-api "unlock_kdbx" {:db-key db-key
                              :password password
                              :key-file-name key-file-name} dispatch-fn))
@@ -205,7 +201,7 @@
 
   Returns a vec of maps (struct EntrySummary)
   "
-  [db-key entry-category dispatch-fn] 
+  [db-key entry-category dispatch-fn]
   ;; We need to do a custom conversion of request because of the use of #[serde(rename_all = "camelCase")] 
   ;; for the enum 'EntryCategory'. This was done during very early time and needs the following fix 
   ;; fix mentioned in TODO
@@ -274,7 +270,7 @@
    "
   [entry-form-data]
   (let [keys_exclude (->  entry-form-data :section-fields keys vec)
-       ;; _ (println "keys_exclude are " keys_exclude)
+        ;; _ (println "keys_exclude are " keys_exclude)
         t-fn (fn [k]
                (if (contains-val? keys_exclude k)
                  k
@@ -417,14 +413,6 @@
   [db-key dispatch-fn]
   (invoke-api "close_kdbx" {:db-key db-key} dispatch-fn))
 
-(defn- request-argon2key-transformer
-  "A custom transformer that transforms a map that has ':Argon2' key "
-  [new-db]
-  (let [t (fn [k] (if (= k :Argon2)
-                    ;;retains the key as :Argon2 instead of :argon-2
-                    :Argon2
-                    (csk/->snake_case k)))]
-    (cske/transform-keys t new-db)))
 
 (defn generate-key-file
   "Called to generate 32 bytes random key ans tsored in version 2.0 keepass xml file"
@@ -435,10 +423,8 @@
   "Called to create new database.
   The arg new-db is deserializable as json as expected by NewDatabase struct
   "
-  [new-db dispatch-fn]
-  ;; Tauri api expects 'camelCase' 'newDb' and deserializes that to the argument 'new_db' in 'create_kdbx' command
-  ;; and we do not want to do any conversion in invoke fn as we have already done it here 
-  (invoke-api "create_kdbx" (clj->js {:newDb (request-argon2key-transformer new-db)}) dispatch-fn :convert-request false))
+  [new-db dispatch-fn] 
+  (invoke-api "create_kdbx" {:newDb new-db} dispatch-fn))
 
 (defn combined-category-details
   [db-key grouping-kind dispatch-fn]
@@ -447,7 +433,7 @@
 
 #_(defn mark-group-as-category
     [db-key group-uuid dispatch-fn & opts]
-  ;;TODO: Rename group_id to group_uuid in backend API and then change here the key group-id to group-uuid
+    ;;TODO: Rename group_id to group_uuid in backend API and then change here the key group-id to group-uuid
     (apply invoke-api "mark_group_as_category" {:db-key db-key :group-id group-uuid} dispatch-fn opts))
 
 (defn search-term
@@ -480,43 +466,18 @@
   (invoke-api "system_info_with_preference" {} dispatch-fn))
 
 (defn update-preference [preference-data dispatch-fn]
-  (invoke-api "update_preference" {:preference-data  preference-data} dispatch-fn :convert-response false)
-  #_(let [args (clj->js {:preferenceData (->> preference-data (cske/transform-keys csk/->snake_case))})]
-    ;; We transform args to statisfy the requirements of arg name to tauri command should be in cameCase
-    ;; and field names of preference-data should be snake_case
-    (println "update-preference is called " preference-data)
-    (invoke-api "update_preference" args dispatch-fn :convert-response false)))
+  (invoke-api "update_preference" {:preference-data  preference-data} dispatch-fn :convert-response false))
 
 (defn clear-recent-files [dispatch-fn]
   (invoke-api "clear_recent_files" {} dispatch-fn))
 
-(defn- handle-argon2-renaming
-  "A custom transform fuction to make sure Argon2 is converted to :Argon2 not converted to :argon-2 so that 
-  we can keep same as generated by serde 
 
-  The arg 'data' is map (only js->clj done) from struct DbSettings 
-  "
-  [data]
-  (let [t (fn [k] (if (= k "Argon2")
-                    :Argon2
-                    (csk/->kebab-case-keyword k)))]
-    ;; transform-keys walks through the keys of a map using the transforming fn passed as first arg 
-    ;; see https://github.com/clj-commons/camel-snake-kebab/blob/version-0.4.3/src/camel_snake_kebab/extras.cljc
-    (cske/transform-keys t data)))
-
-(defn get-db-settings [db-key dispatch-fn]
-  ;; Note: With regard to reading and writing of DbSettings, we use custom conversion from json to clojure data and back
-  ;; It is possible to use just custom converter only in 'set-db-settings' by using the default response converted :argon-2 in clojure code
-  ;; Then convert only :argon-2 to :Argon2 before calling 'set-db-settings'
-  (invoke-api "get_db_settings" {:db-key db-key} dispatch-fn {:convert-response-fn handle-argon2-renaming}))
+(defn get-db-settings [db-key dispatch-fn] 
+  (invoke-api "get_db_settings" {:db-key db-key} dispatch-fn))
 
 (defn set-db-settings [db-key db-settings dispatch-fn]
-  ;; We keep Argon2 as expected by tauri api serde conversion for DbSettings struct (serde expects 'snake_case' fields of DbSettings)
-  ;; The default csk/->snake_case converts Argon2 to argon_2 
-  (let [t (fn [k] (if (= k :Argon2) k (csk/->snake_case k)))
-        converted  (cske/transform-keys t db-settings)]
-    ;; Tauri api keys - dbKey and dbSettings -  are to be in 'camelCase'  
-    (invoke-api "set_db_settings" (clj->js {:dbKey db-key :dbSettings converted}) dispatch-fn {:convert-request false})))
+  (invoke-api "set_db_settings" {:dbKey db-key :db-settings db-settings} dispatch-fn))
+
 
 (defn menu-action-requested
   "The args menu-id and action should match MenuActionRequest and action should match enum 'MenuAction'"

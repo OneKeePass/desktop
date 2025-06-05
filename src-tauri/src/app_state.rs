@@ -7,14 +7,14 @@ use log4rs::encode::pattern::PatternEncoder;
 use serde::{Deserialize, Serialize};
 
 use log::info;
+use tauri::State;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use tauri::{
-  api::path::{document_dir, resolve_path, BaseDirectory},
-  App, Env, Manager, Runtime,
+use tauri::{path::BaseDirectory,
+  App, Manager, Runtime,
 };
 
 use crate::app_preference::{Preference, PreferenceData};
@@ -27,14 +27,14 @@ use crate::{app_paths, file_util};
 //////    App startup time Init call //////////
 
 pub fn init_app(app: &App) {
-  // An example of using Short Cut Key to use with menus and auto typing
-  use tauri::GlobalShortcutManager;
-  let _r = app
-    .app_handle()
-    .global_shortcut_manager()
-    .register("Alt+Shift+R", move || {
-      println!("⌥⇧R is pressed");
-    });
+  // An example of using Short Cut Key (in v1) to use with menus and auto typing
+  // use tauri::GlobalShortcutManager;
+  // let _r = app
+  //   .app_handle()
+  //   .global_shortcut_manager()
+  //   .register("Alt+Shift+R", move || {
+  //     println!("⌥⇧R is pressed");
+  //   });
   ////
 
   // Ensure that all app dir paths are created if required and available
@@ -47,7 +47,7 @@ pub fn init_app(app: &App) {
   init_log(&app_paths::app_logs_dir());
   // Now onwards all loggings calls will be effective
 
-  // Se the resource path for latter use
+  // Set the resource path for latter use
   let resource_path = app_paths::app_resources_dir(app.app_handle())
     .ok()
     .map(|ref p| PathBuf::from(&p));
@@ -120,6 +120,7 @@ impl AppState {
   }
 
   fn set_resource_dir_path(&self, resource_path: Option<PathBuf>) {
+    // println!("set_resource_dir_path is {:?}",&resource_path);
     let mut resource_dir_path = self.resource_dir_path.lock().unwrap();
     *resource_dir_path = resource_path;
   }
@@ -229,9 +230,15 @@ pub struct SystemInfoWithPreference {
   pub biometric_type_available: String,
   pub preference: Preference,
 }
-
+//app_state: State<'_, app_state::AppState>
+// app: tauri::AppHandle<R>,
 impl SystemInfoWithPreference {
-  pub fn init(app_state: &AppState) -> Self {
+  // pub fn init(app_state: &AppState) -> Self {
+
+  pub fn init<R:Runtime>(app: tauri::AppHandle<R>) -> Self {
+
+    let app_state: State<'_, AppState> = app.state();
+
     let p = app_state.preference.lock().unwrap();
 
     let os_name = std::env::consts::OS.into();
@@ -249,7 +256,7 @@ impl SystemInfoWithPreference {
       arch,
       path_sep: std::path::MAIN_SEPARATOR.to_string(),
       standard_dirs: StandardDirs {
-        document_dir: document_dir().and_then(|p| p.as_path().to_str().map(|s| s.into())),
+        document_dir: app.path().document_dir().map_or_else(|_| None, |d| Some(d.as_os_str().to_string_lossy().to_string())),
       },
       biometric_type_available: biometric::supported_biometric_type(),
       // document_dir().and_then(|d| Some(d.as_os_str().to_string_lossy().to_string())),
@@ -259,22 +266,15 @@ impl SystemInfoWithPreference {
 }
 
 // TODO Return Result<HashMap<>>
-pub fn load_custom_svg_icons<R: Runtime>(app: tauri::AppHandle<R>) -> HashMap<String, String> {
+pub fn load_custom_svg_icons<R: Runtime>(app: &tauri::AppHandle<R>) -> HashMap<String, String> {
   //IMPORTANT:
   // "../resources/public/icons/custom-svg" should be included in "resources" key in  /desktop/src-tauri/tauri.conf.json
 
   // Note: ../ in path will add _up_
 
-  let path = resolve_path(
-    &app.config(),
-    app.package_info(),
-    &Env::default(),
-    "../resources/public/icons/custom-svg",
-    Some(BaseDirectory::Resource),
-  )
-  .unwrap();
+  let path = app.path().resolve("../resources/public/icons/custom-svg", BaseDirectory::Resource).unwrap();
 
-  //info!("Resolved resource path is {:?}", path);
+  info!("Resolved resource path is {:?}", path);
 
   let mut files: HashMap<String, String> = HashMap::new();
 

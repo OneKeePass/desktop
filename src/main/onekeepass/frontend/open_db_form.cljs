@@ -2,6 +2,7 @@
   (:require [onekeepass.frontend.common-components :refer [enter-key-pressed-factory]]
             [onekeepass.frontend.events.common :as cmn-events]
             [onekeepass.frontend.events.open-db-form :as od-events]
+            [onekeepass.frontend.events.merging]
             [onekeepass.frontend.mui-components :as m :refer [mui-alert
                                                               mui-button
                                                               mui-dialog
@@ -23,6 +24,7 @@
 
 (defn open-db-dialog [{:keys [dialog-show
                               unlock-request
+                              dbs-merge-request
                               file-name
                               password
                               key-file-name
@@ -33,7 +35,7 @@
         passord-error-text (:password error-fields)
         ok-action (if unlock-request
                     #(od-events/unlock-ok-on-click password key-file-name)
-                    #(od-events/ok-on-click file-name password key-file-name opened-db-list))]
+                    #(od-events/ok-on-click file-name password key-file-name opened-db-list dbs-merge-request))]
     [mui-dialog {:open (if (nil? dialog-show) false dialog-show) :on-click #(.stopPropagation %)
                  :classes {:paper "pwd-dlg-root"}}
      [mui-dialog-title (if unlock-request (tr-t "unlockDatabase") (tr-t "openDatabase"))]
@@ -51,7 +53,7 @@
                                          [mui-input-adornment {:position "end"}
                                           [mui-icon-button
                                            {:edge "end" :sx {:mr "-8px"}
-                                            :onClick od-events/open-file-explorer-on-click}
+                                            :onClick #(od-events/open-file-explorer-on-click-1 dbs-merge-request)} 
                                            [mui-icon-folder-outlined]]]))}}]
 
           [mui-stack {:sx {:margin-bottom "20px"}}]

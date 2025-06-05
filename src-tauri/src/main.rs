@@ -3,10 +3,10 @@
   windows_subsystem = "windows"
 )]
 
-mod auto_open;
 mod app_paths;
 mod app_preference;
 mod app_state;
+mod auto_open;
 mod auto_type;
 mod biometric;
 mod commands;
@@ -14,15 +14,16 @@ mod constants;
 mod file_util;
 mod key_secure;
 mod menu;
-mod translation;
 mod pass_phrase;
 mod password_gen_preference;
+mod translation;
 // mod callback_service_provider;
 
 use constants::event_action_names::*;
 use constants::event_names::*;
 
 use log::info;
+use tauri::Emitter;
 use tauri::Manager;
 
 pub type Result<T> = std::result::Result<T, String>;
@@ -60,8 +61,7 @@ fn main() {
   // the system menus's titles can not be changed without restarting though all sub menus's titles
   // can be changed dynamically.
 
-  let menu_translation =
-    translation::load_system_menu_translations(&lng, &context.config(), &context.package_info());
+  // let menu_translation = translation::load_system_menu_translations(&lng, &context.config(), &context.package_info());
 
   // let rc_dir = tauri::api::path::resource_dir(context.package_info(),&tauri::Env::default());
   // println!("== Resource dir from context is {:?}",&rc_dir);
@@ -71,8 +71,18 @@ fn main() {
   // See below
 
   let app = tauri::Builder::default()
+    .plugin(tauri_plugin_dialog::init())
+    .plugin(tauri_plugin_clipboard_manager::init())
+    .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+    .plugin(tauri_plugin_process::init())
+    .plugin(tauri_plugin_shell::init())
     .manage(app_state::AppState::new())
-    .setup(|app| Ok(app_state::init_app(app)))
+    .setup(|app|  {
+      app_state::init_app(app);
+      Ok(menu::build_menus(app.app_handle())?)
+    })
+    
+    
     // .on_window_event(|event| match event.event() {
     //   tauri::WindowEvent::Focused(focused) => {
     //     if !focused {
@@ -81,9 +91,9 @@ fn main() {
     //   }
     //   _ => {}
     // })
-    .menu(menu::get_app_menu(menu_translation))
-    .on_menu_event(|menu_event| {
-      menu::handle_menu_events(&menu_event);
+    // .menu(menu::get_app_menu(menu_translation))
+    .on_menu_event(|app_handle, menu_event| {
+      let _ = menu::handle_menu_events(app_handle,&menu_event);
     })
     .invoke_handler(tauri::generate_handler![
       // dev test calll
@@ -94,12 +104,14 @@ fn main() {
       commands::analyzed_password,
       commands::authenticate_with_biometric,
       commands::auto_open_group_uuid,
+      commands::clear_csv_data_cache,
       commands::clear_recent_files,
       commands::clone_entry,
       commands::close_kdbx,
       commands::collect_entry_group_tags,
       commands::combined_category_details,
       commands::create_kdbx,
+      commands::create_new_db_with_imported_csv,
       commands::delete_custom_entry_type,
       commands::delete_history_entries,
       commands::delete_history_entry_by_index,
@@ -119,6 +131,7 @@ fn main() {
       commands::groups_summary_data,
       commands::history_entries_summary,
       commands::history_entry_by_index,
+      commands::import_csv_file,
       commands::insert_entry_from_form_data,
       commands::insert_group,
       commands::insert_or_update_custom_entry_type,
@@ -131,7 +144,8 @@ fn main() {
       commands::lock_kdbx,
       commands::mark_group_as_category,
       commands::menu_action_requested,
-      commands::menu_titles_change_requested,
+      commands::merge_databases,
+      // commands::menu_titles_change_requested,
       commands::move_entry,
       commands::move_entry_to_recycle_bin,
       commands::move_group,
@@ -160,15 +174,18 @@ fn main() {
       // commands::send_sequence_to_winow_sync,
       commands::send_sequence_to_winow_async,
       commands::sort_sub_groups,
-      commands::standard_paths,
+      // commands::standard_paths,
       commands::start_polling_entry_otp_fields,
       commands::stop_polling_entry_otp_fields,
       commands::stop_polling_all_entries_otp_fields,
       commands::supported_biometric_type,
       commands::svg_file,
       commands::system_info_with_preference,
+      // commands::tokio_runtime_shutdown,
+      // commands::tokio_runtime_start,
       commands::unlock_kdbx,
       commands::unlock_kdbx_on_biometric_authentication,
+      commands::update_db_with_imported_csv,
       commands::update_entry_from_form_data,
       commands::update_group,
       commands::upload_entry_attachment,
@@ -189,7 +206,7 @@ fn main() {
           let app_handle = app_handle.clone();
           // window label will be 'main' for now as we have only
           // one window
-          let window = app_handle.get_window(&label).unwrap();
+          let window = app_handle.get_webview_window(&label).unwrap();
           let mut wr = WindowEventPayload::new(WINDOW_FOCUS_CHANGED);
           wr.focused = Some(focused);
           let _r = window.emit(MAIN_WINDOW_EVENT, wr);
@@ -200,7 +217,7 @@ fn main() {
             label
           );
           let app_handle = app_handle.clone();
-          let window = app_handle.get_window(&label).unwrap();
+          let window = app_handle.get_webview_window(&label).unwrap();
           // The Window CloseRequested event is in turn sent to the UI layer
           // so that user can be informed for any saved changes before quiting
           // See onekeepass.frontend.events.tauri-events/handle-main-window-event

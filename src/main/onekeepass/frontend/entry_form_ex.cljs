@@ -86,7 +86,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;; Menu ;;;;;;;;;;;;;;;;
 ;; Re-exported for use in entry-list
-#_{:clj-kondo/ignore [:redefined-var]}
+;; #_{:clj-kondo/ignore [:redefined-var]}
 (def form-menu menus/form-menu)
 
 ;;;;;;;;;;;;;;;  
@@ -630,6 +630,10 @@
        [custom-section-delete-confirm @(form-events/section-delete-dialog-data)]
        [clone-entry-options-dialog @(dlg-events/clone-entry-options-dialog-data)]
 
+       ;; Used to move one parent group to another (based on the generic dialogs concept)
+       [gt-content/move-group-or-entry-dialog]
+       
+       ;; Used to move the entry to recycle bin
        [gt-content/move-dialog
         {:dialog-data @(move-events/move-group-entry-dialog-data :entry)
          :title "Put back"

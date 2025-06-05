@@ -7,7 +7,8 @@
    [reagent.impl.template :as rtpl]
    [goog.object :as gobj]
 
-   ;; All node package modules (npm)
+   ;; All node package modules (npm) that are loaded by webpack bundler
+   ;; Also see src/main/onekeepass/frontend/background.cljs for other npm packages
    [react]
    ["@mui/material" :as mui]
    ["@mui/icons-material" :as mui-icons]
@@ -25,9 +26,8 @@
    #_["onekeepass-local" :as okp-local]
 
    ["react-split-pane" :as sp]
-   ["react-window" :as rw]
-   ["react-virtualized-auto-sizer" :as vas]
-   #_["react-idle-timer" :as react-idle-timer]))
+   ["react-window" :as react-window]
+   ["react-virtualized-auto-sizer" :as vas]))
 
 (set! *warn-on-infer* true)
 
@@ -37,21 +37,21 @@
 ;; modules are bundled for both dev time and production time using
 ;; webpack
 
-(def react-use-state (.-useState ^js/React react))
-(def react-use-effect (.-useEffect ^js/React react))
+(def react-use-state ^js/UseState (.-useState ^js/React react)) ;; (.-useState ^js/React react)
+(def react-use-effect ^js/UseEffect (.-useEffect ^js/React react))
 #_(def react-use-ref (.-useRef ^js/React react))
 
 #_(def use-idle-timer (.-useIdleTimer ^js/ReactIdleTimer react-idle-timer))
 
 ;; datetime picker component v 5.x used date-fns DateAdapter
 ;; datetime picker component v 6.x needs to use this
-(def adapter-date-fns (.-AdapterDateFns ^js/AdapterDateFns mui-x-adapter-date-fns))
+(def adapter-date-fns ^js/AdapterDateFns (.-AdapterDateFns  mui-x-adapter-date-fns))
 
 ;; https://github.com/dmtrKovalenko/date-io
 ;; DateAdapter is #js{:default #object[DateFnsUtils]}
 ;; (.-default DateAdapter) is #object[DateFnsUtils]
 ;; (type date-adapter)  is #object[Function]
-(def date-adapter (.-default ^js/DateAdapter DateAdapter))
+(def date-adapter ^js/DateAdapter (.-default  DateAdapter))
 
 ;; (Object.keys date-fns-utils) will give all available fuctions from this util
 (def ^js/DateAdapter.Utils date-fns-utils (date-adapter.))
@@ -60,29 +60,55 @@
 ;;s p is #js{:default #object[SplitPane], :Pane #object[Pane]}
 (def split-pane
   "A reagent component formed from react componet found in default property of sp "
-  (reagent.core/adapt-react-class (.-default ^js/SplitPane sp)))
+  (reagent.core/adapt-react-class ^js/SplitPane (.-default ^js/SplitPane sp)))
+
+
+;;;;;;;;;;;;;;; Issue found while creating reagent component from react component 'react-window' ;;;;; 
+
+;; After Tauri 2 upgrade, saw some issues with compling all @tauri-apps/* packages by cljs in REPL.
+;; Upgraded clojurescript and it worked.
+
+;; However during production build time, we could compile cljs 'main_bundle.js' with advanced option of closure compiler. 
+;; But when the final built app was lauched,the cljs bundle failed to load because of failure of 'adapt-react-class' call with 'my-fix-list' with error
+;; "Error: Assert failed: Component must not be nil" 
+;; And the UI part of app failed to lauch
+
+;; But when compiled the cljs 'main_bundle.js' with simple option, the final app build worked without any runtime error
+
+;; Could not find where the problem is - is it in advanced compiled code (main.js) or the final webpacking the code 'main_bundle.js' ?
+
+;; For now decided to use 'simple' option. The size of the final build increase around 3 to 4 MB as the 
+;; size of 'main_bundle.js' increased
+
+(def ^js/FixedSizeListObj my-fix-list ^js/FixedSizeList (.-FixedSizeList react-window))
+
+#_(js/console.log "my-fix-list is " my-fix-list)
 
 ;;rw is #js{:VariableSizeGrid #object[Grid], :VariableSizeList #object[List], :FixedSizeGrid #object[Grid], :FixedSizeList #object[List], :areEqual #object[areEqual], :shouldComponentUpdate #object[shouldComponentUpdate]}
 (def fixed-size-list
   "A reagent component formed from react componet FixedSizeList"
-  (reagent.core/adapt-react-class (.-FixedSizeList ^js/ReactWindow rw)))
+  (reagent.core/adapt-react-class my-fix-list #_(gobj/get react-window "FixedSizeList") #_(.-FixedSizeList react-window)))
+
+#_(def MyFixedSizeList (-> (js->clj react-window :keywordize-keys true) :FixedSizeList))
+
+;;;;;;;;;;;;;
 
 ;; vas is #js{:default #object[AutoSizer]}
 (def auto-sizer
   "A reagent component formed from react componet AutoSizer"
-  (reagent.core/adapt-react-class (.-default ^js/VirtualAutoSizer vas)))
+  (reagent.core/adapt-react-class ^js/VirtualAutoSizer (.-default vas)))
 
 (def auto-complete-filter
   "Autocomplete component exposes a factory to create a filter method 
    that can be provided to the filterOptions prop. 
    This is used to change the default option filter behavior."
-  (.-createFilterOptions ^js/Mui.Autocomplete mui-ac))
+  ^js/Mui.Autocomplete (.-createFilterOptions mui-ac))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  OneKeePass Custom Theme  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def ^:private create-theme mui-mat-styles/createTheme)
 
-(def color-grey (.-grey  ^js/Mui.Colors mui-colors))
+(def color-grey ^js/Mui.Colors (.-grey  mui-colors))
 
 ;; We can change the theme type to 'light' or 'dark' by reseting this atom
 (defonce theme-mode (r/atom "light"))
@@ -103,7 +129,7 @@
         light? (= mode "light")
         pm  (->  theme .-palette .-primary .-main)
         bg (->  theme .-palette .-background .-default)
-        dc1 (if light? "rgba(0, 0, 0, 0.12)" (gobj/get (.-blueGrey  ^js/Mui.Colors mui-colors) 500))
+        dc1 (if light? "rgba(0, 0, 0, 0.12)" (gobj/get ^js/Mui.Colors (.-blueGrey mui-colors) 500))
         c1 (if light? (gobj/get color-grey 200) (-> theme .-palette .-text .-disabled))]
     {:color1 c1
      :divider-color1 dc1
@@ -123,7 +149,7 @@
 
     (= color-kw :section-header)
     (-> theme .-customColors .-sectionHeader)
-    
+
     (= color-kw :category-item)
     (->  theme .-palette .-secondary .-dark)
 
@@ -135,7 +161,7 @@
 
     (= color-kw :db-settings-icons)
     (-> theme .-customColors .-dbSettingsIcons)
-    
+
     (= color-kw :entry-category-icons)
     (-> theme .-customColors .-dbSettingsIcons)
 
@@ -150,10 +176,10 @@
 
     (= color-kw :entry-content-box-border)
     (-> theme .-entryContent .-boxBorderColor)
-    
+
     (= color-kw :primary-main)
     (->  theme .-palette .-primary .-main)
-    
+
     (= color-kw :info-main)
     (->  theme .-palette .-info .-main)
 
@@ -169,7 +195,7 @@
 ;; https://mui.com/customization/theme-components/
 
 ;; Just by changing main color of primary and secondary all other colors are
- ;; automatically calculated and set in the theme by mui system
+;; automatically calculated and set in the theme by mui system
 ;; See the following for selecting suitable color combinations
 ;; https://mui.com/material-ui/customization/color/#picking-colors 
 ;; https://material.io/inline-tools/color/
@@ -190,7 +216,7 @@
         ;; Need to use creating the theme in two steps and 
         ;; First one is to use the palette colors and that theme can be used in second 
         ;; See page :https://mui.com/material-ui/customization/palette/#generate-tokens-using-augmentcolor-utility
-        
+
         theme-data1 (clj->js  {:palette {:mode mode
                                          :primary {:main  p-main}
                                          :secondary {:main s-main}}})
@@ -200,7 +226,7 @@
         ;; txt-primary (->  theme1 .-palette .-text .-primary)
         ;; hf-color (if (= mode "light") (gobj/get color-grey 200) (-> theme1 .-palette .-text .-disabled))
         ;; color1 (if (= mode "light") (gobj/get color-grey 200) (-> theme1 .-palette .-text .-disabled)) ;;rgb(241, 241, 241)
-        
+
         light? (= mode "light")
 
         {:keys [color1
@@ -212,12 +238,12 @@
                 header-footer
                 section-header
                 text-primary]} (prepare-theme-colors theme1)
-        
+
         ;;IMPORTANT: All theme properties name should be in camelCase
         theme-data (clj->js {;; We can add custom properties in theme like status->danger 
-                            ;; Such custom theme values can be accessed and used in 'sx' as shown here 
-                            ;; {:sx {:bgcolor (fn [theme] (-> theme .-status .-danger))}
-                             
+                             ;; Such custom theme values can be accessed and used in 'sx' as shown here 
+                             ;; {:sx {:bgcolor (fn [theme] (-> theme .-status .-danger))}
+
                              :status {:danger "#e53e3e"}
 
                              :headerFooter {:color header-footer}
@@ -263,8 +289,7 @@
                               :MuiLink {:defaultProps {:color "inherit" :underline "hover" :href "#"}} ;;
                               :MuiSvgIcon
                               {:styleOverrides
-                               {
-                                ;;:root {:color text-primary}
+                               {;;:root {:color text-primary}
                                 }
                                :defaultProps {:fontSize "small"}}
                               :MuiInputLabel {:defaultProps {:shrink true}}
@@ -294,30 +319,30 @@
 
 ;;rgba(255, 255, 255, 0.3)
 #_(defn set-colors [^js/Mui.Theme theme]
-  (let [mode (->  theme .-palette .-mode)
-        ;; primary-main (->  theme .-palette .-primary .-main)
-        ;; bg-default  (->  theme .-palette .-background .-default)
-        ;; txt-primary (->  theme .-palette .-text .-primary)
-        ;;el-color (if (= mode "light") (gobj/get color-grey 200) (-> theme .-palette .-text .-disabled))
-        ;;bx-color (if (= mode "light") txt-primary "rgba(255, 255, 255, 0.75)")
-        ]
-    #_(reset! primary-main-color primary-main)
-    #_(reset! primary-dark-color (->  theme .-palette .-primary .-dark))
-    #_(reset! secondary-main-color (->  theme .-palette .-secondary .-dark))
-    #_(reset! background-default-color bg-default)
+    (let [mode (->  theme .-palette .-mode)
+          ;; primary-main (->  theme .-palette .-primary .-main)
+          ;; bg-default  (->  theme .-palette .-background .-default)
+          ;; txt-primary (->  theme .-palette .-text .-primary)
+          ;;el-color (if (= mode "light") (gobj/get color-grey 200) (-> theme .-palette .-text .-disabled))
+          ;;bx-color (if (= mode "light") txt-primary "rgba(255, 255, 255, 0.75)")
+          ]
+      #_(reset! primary-main-color primary-main)
+      #_(reset! primary-dark-color (->  theme .-palette .-primary .-dark))
+      #_(reset! secondary-main-color (->  theme .-palette .-secondary .-dark))
+      #_(reset! background-default-color bg-default)
 
-    #_(reset! start-page-divider-color (gobj/get (.-blueGrey  ^js/Mui.Colors mui-colors) 500) #_(-> theme .-palette .-text .-primary))
+      #_(reset! start-page-divider-color (gobj/get (.-blueGrey  ^js/Mui.Colors mui-colors) 500) #_(-> theme .-palette .-text .-primary))
 
-    #_(reset! entry-list-header-footer-color el-color #_(-> theme .-palette .-text .-disabled) #_(gobj/get (.-blueGrey  ^js/Mui.Colors mui-colors) 800))
+      #_(reset! entry-list-header-footer-color el-color #_(-> theme .-palette .-text .-disabled) #_(gobj/get (.-blueGrey  ^js/Mui.Colors mui-colors) 800))
 
-    #_(reset! entry-content-box-border-color bx-color)
-    #_(reset! entry-content-bg-color bg-default)
-    #_(reset! entry-category-icons-color primary-main)
-    #_(reset! db-settings-icons-color primary-main)
-    #_(reset! section-name-color primary-main)))
+      #_(reset! entry-content-box-border-color bx-color)
+      #_(reset! entry-content-bg-color bg-default)
+      #_(reset! entry-category-icons-color primary-main)
+      #_(reset! db-settings-icons-color primary-main)
+      #_(reset! section-name-color primary-main)))
 
 #_(defn theme-primary-main-color [^js/Mui.Theme theme]
-  (->  theme .-palette .-primary .-main))
+    (->  theme .-palette .-primary .-main))
 
 
 #_(def color-grey-200 (gobj/get color-grey 200)) ;; replacement for var (--mui-color-grey-200)
@@ -355,6 +380,7 @@
   Backdrop
   CssBaseline
   Checkbox
+  Chip
   ClickAwayListener
   CircularProgress
   Container
@@ -410,8 +436,8 @@
   TreeView]
  "mui-", "mui-x-tree-view/")
 
- ;; DateTimePicker and LocalizationProvider are moved from mui lab to mui-x date pickers
- ;; See https://mui.com/blog/lab-date-pickers-to-mui-x/
+;; DateTimePicker and LocalizationProvider are moved from mui lab to mui-x date pickers
+;; See https://mui.com/blog/lab-date-pickers-to-mui-x/
 (declare-mui-classes
  [DateTimePicker
   DesktopDatePicker
@@ -498,7 +524,7 @@
 ;; use wrapper input element created by Reagent instead of
 ;; letting Material-UI to create input element directly using React.
 ;; Create-element + convert-props-value is the same as what adapt-react-class does.
-(defn text-field [props & children] 
+(defn text-field [props & children]
   (let [props (-> props
                   (assoc-in [:InputProps :inputComponent] (cond
                                                             (and (:multiline props) (:rows props) (not (:maxRows props)))

@@ -38,10 +38,16 @@
   []
   (subscribe [:groups-tree-data-updated]))
 
-(defn selected-group
+(defn selected-group-uuid
   "The group uuid of the selected group on the tree item"
   []
   (subscribe [:selected-group-uuid]))
+
+;;TODO: As each group-info map is having 'parent-group-uuid' field. Need to use that instead of using this fn
+(defn selected-group-parent-uuid
+  "Gets the parent group uuid of the passed group-uuid"
+  [group-uuid]
+  (subscribe [:selected-group-parent-uuid group-uuid]))
 
 (defn recycle-group-selected? []
   (subscribe [:group-tree-content/recycle-group-selected]))
@@ -154,6 +160,13 @@
    (get-in-key-db db [:groups-tree :data])))
 
 (reg-sub
+ :selected-group-parent-uuid
+ :<- [:groups-tree-data-updated]
+ (fn [data [_query-id group-uuid]]
+   (let [g (-> data (get "groups") (get group-uuid))]
+     (get g "parent_group_uuid"))))
+
+(reg-sub
  :group-tree-content/root-group-uuid
  :<- [:groups-tree-data-updated]
  (fn [data _query-vec]
@@ -261,6 +274,7 @@
        ;; Few fiedlds for each group
        (map (fn [v] {:name (get v "name")
                      :uuid (get v "uuid")
+                     :parent-group-uuid (get v "parent_group_uuid")
                      :icon-id 0}) (filter #(not (contains-val? recycle-groups %))
                                           coll))
        ;; Sort by name - Note kw :name vs "name" used previously

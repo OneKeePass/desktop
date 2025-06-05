@@ -37,6 +37,7 @@
   [kw-dispatch-name]
   (bg/open-file-dialog (fn [api-response]
                          (let [file-name (check-error api-response)]
+                           ;; file-name may be nil if user cancelled the open file dialog without picking a file
                            (dispatch [kw-dispatch-name file-name])))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;; System Info and Preference ;;;;;;;;;;;;;;;;;;;;
@@ -216,8 +217,8 @@
   (let [app-db  (if (nil? (:opened-db-list app-db)) (assoc app-db :opened-db-list []) app-db)]
     (-> app-db
         (assoc :current-db-file-name db-key)
-         ;; TODO: Need to avoid duplicate entries for the same db-key. 
-         ;;       This should be done in open db dialog validation itself (?)
+        ;; TODO: Need to avoid duplicate entries for the same db-key. 
+        ;;       This should be done in open db dialog validation itself (?)
         (update-in [:opened-db-list] conj {:db-key db-key
                                            :database-name database-name
                                            :file-name file-name
@@ -316,7 +317,7 @@
 #_(defn get-in-key-db
     "Gets the value for the key lists from an active kdbx content"
     [app-db ks]
-  ;; First we get the kdbx content map and then supplied keys 'ks' used to get the actual value
+    ;; First we get the kdbx content map and then supplied keys 'ks' used to get the actual value
     (get-in app-db (into [(active-db-key app-db)] ks)))
 
 (defn get-in-key-db
@@ -374,6 +375,17 @@
                      (lstr-sm 'dbOpened {:dbFileName db-key})]]
          ;; This db may have AutoOpen group
          [:dispatch [:auto-open/verify-and-load db-key]]]}))
+
+(reg-event-fx
+ :common/reload-on-merge
+ (fn [{:keys [db]} [_event-id]]
+   {:fx [[:dispatch [:load-all-tags]]
+         [:dispatch [:entry-form-ex/show-welcome]]
+         [:dispatch [:group-tree-content/load-groups]]
+         [:dispatch [:entry-category/category-data-load-start
+                     (-> db :app-preference :default-entry-category-groupings)]]
+         [:dispatch [:common/load-entry-type-headers]]
+         [:dispatch [:entry-list/entry-updated]]]}))
 
 ;; A common refresh all forms after an entry form changes - delete, put back , delete permanent
 (reg-event-fx
@@ -941,6 +953,8 @@
 ;;;;;;;;;;;; Db Modification tracking ;;;;;;
 
 ;; These are the api calls implemented in tauri commands.rs
+;; IMPORTANT: The name should be in snake_case as used in background.cljs invoke api calls
+
 (def ^:private all-modiying-api-calls
   ["update_entry"
    "insert_entry"
@@ -963,10 +977,14 @@
    "mark_group_as_category"
    "move_group_to_recycle_bin"
    "remove_group_permanently"
+   "empty_trash"
 
-   "insert-or-update-custom-entry-type"
-   "delete-custom-entry-type"
-   "set_db_settings"])
+   "insert_or_update_custom_entry_type"
+   "delete_custom_entry_type"
+   "set_db_settings"
+
+   "merge_databases"
+   "update_db_with_imported_csv"])
 
 (defn db-save-pending?
   "Checks whether there is any unsaved changes for the current db
@@ -982,7 +1000,7 @@
 (reg-event-fx
  :common/db-api-call-completed
  (fn [{:keys [db]} [_event-id api-name]]
-   ;;(println "api-name is " api-name)
+   ;; (println "api-name is " api-name (contains-val? all-modiying-api-calls api-name))
    (if (contains-val? all-modiying-api-calls api-name)
      {:db (assoc-in-key-db db [:db-modification :save-pending] true)}
      {})))

@@ -47,7 +47,7 @@
    camel-snake-kebab.core/->camelCase expects a non nil value;Otherwise an error 
    will be thrown resulting UI not showing!
   "
-  [txt-key] 
+  [txt-key]
   ;; (str nil) => "" 
   ;; This ensures that non nil value is given to ->camelCase
   (csk/->camelCase
@@ -58,7 +58,7 @@
 (defn lstr-dlg-title
   "Adds prefix 'dialog.titles' to the key before getting the translation"
   ([txt-key interpolation-args]
-   (-> (str "dialog.titles." (convert  txt-key)) (lstr interpolation-args)))
+   (-> (str "dialog.titles." (convert txt-key)) (lstr interpolation-args)))
   ([txt-key]
    (lstr-dlg-title txt-key nil)))
 
@@ -79,6 +79,9 @@
   ([txt-key]
    (lstr-l txt-key nil)))
 
+(defn lstr-bl [txt-key]
+  (-> (str "buttonLabels." (convert txt-key)) lstr))
+
 (defn lstr-ml
   "Adds 'menuLabels' prefix to the key and gets the translated text."
   [txt-key]
@@ -89,8 +92,8 @@
   The arg 'txt-key' are expected to be a symbol as passed in events call ':common/message-snackbar-open' 
    "
   ([txt-key interpolation-args]
-     ;; If string value is used, that means such text is 
-     ;; already translated or in some cases yet to be translated    
+   ;; If string value is used, that means such text is 
+   ;; already translated or in some cases yet to be translated    
    (if (symbol? txt-key)
      (lstr (str "snackbarMessages." txt-key) interpolation-args)
      txt-key))
@@ -199,8 +202,8 @@
             :fallbackLng "en"
             :compatibilityJSON "v4"
             :debug false}
-        ^js/i18nObj instance (.createInstance i18n-obj)]
-    (.use instance (clj->js back-end))
+        instance ^js/i18nInstanceObj (.createInstance i18n-obj)]
+    (.use ^js/i18nInstanceObj instance (clj->js back-end))
     (create-i18n-init instance m)))
 
 (comment

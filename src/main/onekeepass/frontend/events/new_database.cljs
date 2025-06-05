@@ -29,7 +29,7 @@
                          (when (not (str/blank? key-file-name))
                            (bg/generate-key-file key-file-name  (fn [api-response]
                                                                   (when-not (on-error api-response)
-                                                                    (dispatch [:new-database-field-update  
+                                                                    (dispatch [:new-database-field-update
                                                                                :key-file-name key-file-name]))))))))
 
 (defn next-on-click []
@@ -42,7 +42,7 @@
   (dispatch [:new-database-dialog-show]))
 
 (defn cancel-on-click []
-  (dispatch [:new-database-dialog-hide]))
+  (dispatch [:new-database-dialog-close]))
 
 (defn done-on-click []
   (dispatch [:new-database-create]))
@@ -53,6 +53,9 @@
 
 (defn database-field-update [kw-field-name value]
   (dispatch [:new-database-field-update kw-field-name value]))
+
+(defn new-database-kdf-algorithm-select [kdf-selection]
+  (dispatch [:new-database-kdf-algorithm-select kdf-selection]))
 
 (defn dialog-data []
   (subscribe [:new-database-dialog-data]))
@@ -81,8 +84,12 @@
                     :database-description nil
                     :password nil
                     :database-file-name nil
+
                     :cipher-id "Aes256"
-                    :kdf {:Argon2  {:iterations 10 :memory 64 :parallelism 2}}
+                    ;; algorithm and variant need to be set to these values so that 
+                    ;; kdf map is serialized to enum KdfAlgorithm::Argon2d
+                    :kdf {:algorithm "Argon2d" :iterations 10 :memory 64 :parallelism 2 :variant 0}
+
                     :key-file-name nil
 
                     ;; Extra UI related fields
@@ -95,7 +102,10 @@
                     :db-file-file-exists false
                     :error-fields {} ;; a map e.g {:id1 "some error text" :id2 "some error text" }
                     :panel :basic-info
-                    :call-to-create-status nil})
+                    :call-to-create-status nil
+
+                    ;; Indicates that new database will be created with imported data
+                    :imported-data false})
 
 (defn- init-new-database-data [app-db]
   (assoc app-db :new-database blank-new-db))
@@ -105,22 +115,27 @@
  (fn [db [_event-id key-file-name]]
    (assoc-in db [:new-database :key-file-name] key-file-name)))
 
-(reg-event-db
- :new-database-dialog-hide
- (fn [db [_event-id]]
-   (assoc-in  db [:new-database :dialog-show] false)))
+(reg-event-fx
+ :new-database-dialog-close
+ (fn [{:keys [db]} [_event-id]]
+   (let [import-data? (get-in db [:new-database :imported-data])]
+     {:db (-> db
+              (assoc-in [:new-database] {})
+              (assoc-in [:new-database :dialog-show] false))
+      :fx [(when import-data?
+             [:dispatch [:import-csv/clear]])]})))
 
 (defn- validate-security-fields
   [app-db]
-  (let [{:keys [iterations memory parallelism]} (-> app-db :new-database :kdf :Argon2)
+  (let [{:keys [iterations memory parallelism]} (-> app-db :new-database :kdf)
         [iterations memory parallelism] (mapv str->int [iterations memory parallelism])
-        errors (if (or (nil? iterations) (or (< iterations 5) (> iterations 100)))
+        errors (if (or (nil? iterations) (< iterations 5) (> iterations 100))
                  {:iterations "Valid values should be in the range 5 - 100"} {})
         errors (merge errors
-                      (if (or (nil? memory) (or (< memory 1) (> memory 1000)))
+                      (if (or (nil? memory) (< memory 1) (> memory 1000))
                         {:memory "Valid values should be in the range 1 - 1000"} {}))
         errors (merge errors
-                      (if (or (nil? parallelism) (or (< parallelism 1) (> parallelism 100)))
+                      (if (or (nil? parallelism) (< parallelism 1) (> parallelism 100))
                         {:parallelism "Valid values should be in the range 1 - 100"} {}))]
 
     errors))
@@ -137,7 +152,7 @@
           cp (get-in db [:new-database :password-confirm])
           visible  (get-in db [:new-database :password-visible])]
       (when (and (not visible) (not= p cp))
-            {:password-confirm "Password and Confirm password are not matching"}))
+        {:password-confirm "Password and Confirm password are not matching"}))
 
     ;; (= panel :security-info)
     ;; (validate-security-fields db)
@@ -180,6 +195,7 @@
                                    (dispatch [:new-database-field-update :db-file-file-exists result])
                                    (dispatch [:new-database-field-update :db-file-file-exists false])))))
 
+;; A common field update event except for kdf selection
 (reg-event-db
  :new-database-field-update
  ;; kw-field-name is single kw or a vec of kws
@@ -193,41 +209,56 @@
        ;; Hide any previous api-error-text
        (assoc-in [:new-database :api-error-text] nil))))
 
+(reg-event-db
+ :new-database-kdf-algorithm-select
+ (fn [db [_event-id kdf-selection]]
+   ;; Fields algorithm and variant need to be set to these values so that 
+   ;; kdf map is serialized to enum KdfAlgorithm::Argon2d or  KdfAlgorithm::Argon2id
+   ;; Also see in db-settings 
+   (-> db (assoc-in [:new-database :kdf :algorithm] kdf-selection)
+       (assoc-in [:new-database :kdf :variant] (if (= kdf-selection "Argon2d") 0 2)))))
+
+
 (defn- on-database-creation-completed [api-response]
   (when-let [kdbx-loaded (check-error api-response (fn [error]
                                                      (dispatch [:new-database-create-kdbx-error error])))]
     (dispatch [:new-database-created kdbx-loaded])))
+
+(defn- convert-kdf-value [new-db]
+  (-> new-db
+      (update-in [:kdf :iterations] str->int)
+      (update-in [:kdf :parallelism] str->int)
+      (update-in [:kdf :memory] str->int)
+      ;; Need to make sure memory value is in MB 
+      (update-in [:kdf :memory] * 1048576)))
 
 ;; Called when 'Done' is clicked
 (reg-event-fx
  :new-database-create
  (fn [{:keys [db]} [_event-id]]
    ;;(println "event new-database-create called") 
-   (let [errors (validate-security-fields db)]
+   (let [errors (validate-security-fields db)
+         imported-data? (get-in db [:new-database :imported-data])]
      (if (boolean (seq errors))
        {:db (assoc-in db [:new-database :error-fields] errors)}
        {:db (-> db (assoc-in [:new-database :call-to-create-status] :in-progress)
                 (assoc-in [:new-database :api-error-text] nil))
-        :fx [[:bg-create-kdbx (:new-database db)]]}))))
-
+        :fx [(if-not imported-data?
+               [:bg-create-kdbx (:new-database db)]
+               [:dispatch [:import-file/new-database (convert-kdf-value (:new-database db)) on-database-creation-completed]])]}))))
 (reg-fx
  :bg-create-kdbx
  (fn [new-db]
-   (bg/create-kdbx  (-> new-db
-                        (update-in [:kdf :Argon2 :iterations] str->int)
-                        (update-in [:kdf :Argon2 :parallelism] str->int)
-                        (update-in [:kdf :Argon2 :memory] str->int)
-                        ;; Need to make sure memory value is in MB 
-                        (update-in [:kdf :Argon2 :memory] * 1048576)) on-database-creation-completed)))
-
+   (bg/create-kdbx (convert-kdf-value new-db)  on-database-creation-completed)))
 
 (reg-event-fx
  :new-database-created
  (fn [{:keys [db]} [_event-id kdbx-loaded]]
    {:db (-> db (assoc-in [:new-database :api-error-text] nil)
             (assoc-in [:new-database :call-to-create-status] :completed))
-    :fx [[:dispatch [:new-database-dialog-hide]]
-         [:dispatch [:common/kdbx-database-opened kdbx-loaded]]]}))
+    :fx [[:dispatch [:new-database-dialog-close]]
+         [:dispatch [:common/kdbx-database-opened kdbx-loaded]]
+         #_[:dispatch [:import-csv/clear]]]}))
 
 (reg-event-db
  :new-database-create-kdbx-error
@@ -242,6 +273,13 @@
  :new-database-dialog-show
  (fn [db [_event-id]]
    (-> db init-new-database-data (assoc-in  [:new-database :dialog-show] true))))
+
+(reg-event-db
+ :new-database/dialog-show
+ (fn [db [_event-id imported-data?]]
+   ;; (println "new-database/dialog-show is called ")
+   (-> db init-new-database-data (assoc-in [:new-database :dialog-show] true)
+       (assoc-in [:new-database :imported-data] imported-data?))))
 
 (reg-sub
  :new-database-dialog-data

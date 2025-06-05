@@ -9,6 +9,8 @@
 ;; Standard Entry Type Names
 ;; These should match names used in 'standard_entry_types.rs'
 
+(def DATETIME_FORMAT "dd MMM yyyy pp")
+
 (def LOGIN_TYPE_NAME "Login")
 (def CREDIT_DEBIT_CARD_TYPE_NAME "Credit/Debit Card")
 (def WIRELESS_ROUTER_TYPE_NAME "Wireless Router")
@@ -52,6 +54,8 @@
 (def MENU_ID_OPEN_DATABASE "OpenDatabase")
 (def MENU_ID_LOCK_DATABASE "LockDatabase")
 (def MENU_ID_CLOSE_DATABASE "CloseDatabase")
+(def MENU_ID_MERGE_DATABASE "MergeDatabase")
+(def MENU_ID_IMPORT "Import")
 (def MENU_ID_PASSWORD_GENERATOR "PasswordGenerator")
 (def MENU_ID_NEW_ENTRY "NewEntry")
 (def MENU_ID_EDIT_ENTRY "EditEntry")
@@ -71,6 +75,8 @@
 
 (def MACOS "macos")
 
+(def GROUP "Group")
+
 ;; Some entry standard fields
 (def TITLE "Title")
 (def MODIFIED_TIME "Modified Time")
@@ -78,6 +84,8 @@
 (def USERNAME "UserName")
 (def PASSWORD "Password")
 (def URL "URL")
+(def NOTES "Notes")
+(def TAGS "Tags")
 (def IFDEVICE "IfDevice")
 
 (def ONE_TIME_PASSWORD_TYPE "Field type" "OneTimePassword")

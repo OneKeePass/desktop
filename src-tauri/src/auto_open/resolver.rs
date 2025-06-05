@@ -107,7 +107,7 @@ impl AutoOpenProperties {
 // https://stackoverflow.com/questions/50322817/how-do-i-remove-the-prefix-from-a-canonical-windows-path
 #[cfg(not(target_os = "windows"))]
 fn adjust_canonicalization<P: AsRef<Path>>(p: P) -> String {
-    p.as_ref().display().to_string()
+  p.as_ref().display().to_string()
 }
 
 // While checking auto open on windows, windows path are resolved with prefix \\?
@@ -117,13 +117,13 @@ fn adjust_canonicalization<P: AsRef<Path>>(p: P) -> String {
 // only before using as db-key
 #[cfg(target_os = "windows")]
 fn adjust_canonicalization<P: AsRef<Path>>(p: P) -> String {
-    const VERBATIM_PREFIX: &str = r#"\\?\"#;
-    let p = p.as_ref().display().to_string();
-    if p.starts_with(VERBATIM_PREFIX) {
-        p[VERBATIM_PREFIX.len()..].to_string()
-    } else {
-        p
-    }
+  const VERBATIM_PREFIX: &str = r#"\\?\"#;
+  let p = p.as_ref().display().to_string();
+  if p.starts_with(VERBATIM_PREFIX) {
+    p[VERBATIM_PREFIX.len()..].to_string()
+  } else {
+    p
+  }
 }
 
 fn resolved_path(parent_dir_path: &Path, in_path: &String) -> Result<String> {
@@ -144,11 +144,11 @@ fn resolved_path(parent_dir_path: &Path, in_path: &String) -> Result<String> {
     //   .to_string_lossy()
     //   .to_string()
 
-    let pf =   p.canonicalize()
+    let pf = p
+      .canonicalize()
       .map_err(|e| Error::AutoOpenError(format!("Error: Path {:?} : {}", &p, e)))?;
 
     adjust_canonicalization(pf)
-    
   };
 
   // let mut p = parent_dir_path.join(&parsed.full_path_part);

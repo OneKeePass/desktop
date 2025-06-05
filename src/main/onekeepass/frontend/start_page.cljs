@@ -1,10 +1,11 @@
 (ns ^:figwheel-always onekeepass.frontend.start-page
-  (:require [onekeepass.frontend.common-components :refer [message-dialog]]
+  (:require [onekeepass.frontend.common-components :as cc :refer [message-dialog]]
             [onekeepass.frontend.app-settings :refer [app-settings-dialog-main]]
             [onekeepass.frontend.custom-icons :as cust-icons]
             [onekeepass.frontend.events.common :as cmn-events]
             [onekeepass.frontend.events.new-database :as nd-events]
             [onekeepass.frontend.events.open-db-form :as od-events]
+            [onekeepass.frontend.events.password-generator :as gen-events]
             [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                               mui-box
                                                               mui-container
@@ -16,8 +17,10 @@
                                                               mui-tooltip
                                                               mui-typography
                                                               theme-color]]
+            [onekeepass.frontend.password-generator :as gen-form]
             [onekeepass.frontend.new-database :as nd-form]
             [onekeepass.frontend.open-db-form :as od-form]
+            [onekeepass.frontend.import-file.csv :as csv-form]
             [onekeepass.frontend.translation :refer-macros [tr tr-l tr-t]]
             [reagent.core :as r]))
 
@@ -51,10 +54,14 @@
          (tr-l newDatabase)]
         [nd-form/new-database-dialog-main]]
 
+       ;; Open a file explorer by clicking on a button or on a link
        [mui-stack {:direction "row" :gap 2 :alignItems "center"}
+        ;; Click on icon button to open a file explorer
         [mui-icon-button  {:edge "start" :color "inherit" :sx {:ml 0}
                            :onClick od-events/open-file-explorer-on-click}
          [mui-icon-folder-outlined {}]]
+        
+        ;; Click on a link to open a file explorer
         [mui-link {:variant "subtitle1"
                    :onClick od-events/open-file-explorer-on-click}
          (tr-l openDatabase)]
@@ -107,5 +114,8 @@
 
    ;; Dialogs that can be used in start page itself
    ;; See toll_bar.cljs for all other dialogs 
+   [gen-form/password-generator-dialog @(gen-events/generator-dialog-data)]
+   [csv-form/csv-columns-mapping-dialog]
+   [csv-form/csv-imoprt-start-dialog]
    [app-settings-dialog-main]
    [message-dialog]])

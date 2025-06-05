@@ -4,7 +4,7 @@
   "private": true,
   "devDependencies": {
     "@fontsource/roboto": "^4.5.7",
-    "@tauri-apps/cli": "1.6.3",
+    "@tauri-apps/cli": "^2.0.0",
     "trim-newlines": "^4.0.2",
     "webpack": "^5.97.1",
     "webpack-cli": "^5.1.4"
@@ -21,7 +21,12 @@
     "@mui/material": "^5.16.13",
     "@mui/x-date-pickers": "^6.20.2",
     "@mui/x-tree-view": "^6.17.0",
-    "@tauri-apps/api": "^1.6.0",
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-clipboard-manager": "~2",
+    "@tauri-apps/plugin-dialog": "~2",
+    "@tauri-apps/plugin-global-shortcut": "~2",
+    "@tauri-apps/plugin-process": "~2",
+    "@tauri-apps/plugin-shell": "~2",
     "date-fns": "^2.25.0",
     "i18next": "^23.11.2",
     "onekeepass-local": "file:./src-js",

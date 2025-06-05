@@ -126,7 +126,7 @@ fn to_num<'a>(default_val: i32) -> impl FnMut(&'a str) -> IResult<&'a str, i32> 
 // Gets any key name with any optional repeat value
 // Repeat a key  x times (e.g., {SPACE 5} inserts five spaces)
 fn key_name_opt_repeat_parser<'a>() -> impl FnMut(&'a str) -> IResult<&'a str, PlaceHolder<'a>> {
-  // map_parser takes the result of the first parser 'fenced_name()' and tries to apply the second parser to it. 
+  // map_parser takes the result of the first parser 'fenced_name()' and tries to apply the second parser to it.
   // If both parsers succeed, then it returns the value.
   map_parser(
     fenced_name(),
@@ -292,7 +292,7 @@ impl<'a> From<PlaceHolder<'_>> for ParsedPlaceHolderVal {
 pub fn parse_auto_type_sequence(
   // This is the string that needs to be parsed
   sequence: &str,
-  // This maps the field names to its values. 
+  // This maps the field names to its values.
   // The parsed field names will be replaced with the actual value
   entry_fields: &HashMap<String, String>,
 ) -> Result<Vec<ParsedPlaceHolderVal>, String> {
@@ -352,13 +352,13 @@ mod tests {
   fn verify_parsing_error() {
     // No place holder variable is found
     let sample1 = "Some random text";
-    
+
     let entry_fields = HashMap::default();
 
     let r = parse_auto_type_sequence(sample1, &entry_fields);
-    
+
     println!("Parsed output is {:?}", r);
-    
+
     assert!(r.is_err())
   }
 }

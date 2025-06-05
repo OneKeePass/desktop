@@ -101,7 +101,7 @@
 (defn delete-permanent-group-entry-dialog-data [kind-kw]
   (subscribe [:delete-permanent-group-entry kind-kw]))
 
-(defn delete-permanent-group-entry-dialog-show 
+(defn delete-permanent-group-entry-dialog-show
   "The arg kind-kw is either :entry or :group"
   [kind-kw show?] ;; show or hide
   (dispatch [:delete-permanent-group-entry-dialog-show kind-kw show?]))
@@ -174,3 +174,33 @@
                        (dispatch [:common/message-snackbar-open "Recycle bin is emptied"]))))
    {}))
 
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Uses generic dialogs based features. 
+
+(defn move-entry-or-group
+  "The arg id is either entry uuid or group uuid"
+  [kind-kw id group-selection-info]
+  (dispatch [:move-entry-or-group kind-kw id group-selection-info]))
+
+(reg-event-fx
+ :move-entry-or-group
+ (fn [{:keys [db]} [_event-id kind-kw id group-selection-info]]
+   {:fx [[:bg-move-entry-or-group [(active-db-key db) kind-kw id (:uuid group-selection-info)]]]}))
+
+(defn- call-on-move-complete [kind-kw api-response]
+  (when-not (on-error api-response)
+    ;; Ensure that the dialog is closed
+    (dispatch [:generic-dialog-close :move-group-or-entry-dialog])
+    (dispatch [:common/message-snackbar-open
+               (str (if (= kind-kw :group) "Group" "Entry") " is moved")])
+    (dispatch [:common/refresh-forms])))
+
+;; Called to move a group or an entry from one parent group to another parent group
+(reg-fx
+ :bg-move-entry-or-group
+ (fn [[db-key kind-kw id parent-group-uuid]]
+   (if (= kind-kw :group)
+     (bg/move-group db-key id parent-group-uuid #(call-on-move-complete kind-kw %))
+     (bg/move-entry db-key id parent-group-uuid #(call-on-move-complete kind-kw %)))))

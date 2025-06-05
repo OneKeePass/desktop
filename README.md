@@ -36,13 +36,13 @@ All created database files are encrypted using the best and most secure encrypti
 - Automatic Database Opening feature
 - Cloning/Copying entries
 - Diceware Passphrase generator
+- Merging of databases
+- CSV file import
 - Fully offline 
 
 ## Todo
 
-- [ ] Merge changed entries
 - [ ] Browser extension and integration
-- [ ] Synchronize the database between the devices 
 
 
 ## Installation and Quick start

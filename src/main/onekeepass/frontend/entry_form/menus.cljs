@@ -19,7 +19,8 @@
    [onekeepass.frontend.events.tauri-events :as tauri-events]
    [onekeepass.frontend.events.common :as ce]
    [onekeepass.frontend.events.entry-form-ex :as form-events]
-   [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]))
+   [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
+   [onekeepass.frontend.group-tree-content :as gt-content]))
 
 (defn- menu-action [anchor-el action & action-args]
   (fn [^js/Event e]
@@ -48,17 +49,26 @@
                      :divider false
                      :on-click (menu-action anchor-el form-events/edit-mode-menu-clicked)}
       [mui-list-item-text {:inset true} (tr-ml edit)]]
-     
+
      [mui-menu-item {:sx {:padding-left "1px"}
                      :divider false
                      :on-click (menu-action anchor-el dlg-events/clone-entry-options-dialog-show entry-uuid)}
       [mui-list-item-text {:inset true} "Clone"]]
-     
+
+     [mui-menu-item {:sx {:padding-left "1px"}
+                     :divider false
+                     :on-click (menu-action anchor-el gt-content/move-group-or-entry-dialog-show-with-state
+                                            :entry
+                                            "Move entry"
+                                            entry-uuid
+                                            @(form-events/entry-form-data-fields :group-uuid))}
+      [mui-list-item-text {:inset true} "Move"]]
+
      [mui-menu-item {:divider true
                      :sx {:padding-left "1px"}
                      :on-click (menu-action anchor-el form-events/entry-delete-start entry-uuid)}
       [mui-list-item-text {:inset true} (tr-ml delete)]]
-     
+
      (if favorites?
        [mui-menu-item {:sx {:padding-left "1px"}
                        :divider true

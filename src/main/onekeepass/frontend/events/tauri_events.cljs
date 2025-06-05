@@ -77,6 +77,12 @@
       
       (= menu-id const/APP_SETTINGS)
       (dispatch [:app-settings/read-start])
+      
+      (= menu-id const/MENU_ID_MERGE_DATABASE)
+      (dispatch [:merging/open-dbs-start])
+      
+      (= menu-id const/MENU_ID_IMPORT)
+      (dispatch [:import/import-csv-file-start])
 
       :else
       (dispatch [:common/message-box-show "Work In Progress" (str "Menu action for " menu-id " will be implemented soon")]))))
@@ -133,7 +139,7 @@
   (register-otp-token-update-events))
 
 (defn enable-app-menu [menu-id enable? & {:as menu-args}]
-  ;;(println "Going to call for menu-id " menu-id enable? menu-args)
+  ;; (println "Going to call for menu-id " menu-id enable? menu-args)
   
   ;; Stores any menu specific args and that is used when menu is selected in the menu bar
   ;; See as an example how the third arg (a map) is passed in entry-list/fn-entry-list-content

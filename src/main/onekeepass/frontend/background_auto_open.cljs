@@ -36,7 +36,7 @@
   "Called to auto open all child databases using entries found under AutoOpen group of this db"
   [db-key dispatch-fn]
   ;; The dispatch-fn is called with a map corresponding to struct 'AutoOpenDbsInfo'
-  ;; We need to take care of transformation of api response by custom transformer fn where  we 
+  ;; We need to take care of transformation of api response by custom transformer fn where we 
   ;; do 'keywordize-keys' all keys except "groups_tree" in the response
   (invoke-api "open_all_auto_open_dbs" {:db-key db-key}  dispatch-fn :convert-response-fn transform-ao-dbs-info))
 

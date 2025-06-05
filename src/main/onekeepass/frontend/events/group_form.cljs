@@ -86,7 +86,7 @@
 (defn- find-group-callback
   "Called by backend api when a group data is loaded"
   [mode api-response]
-  (when-let [group (check-error api-response)]
+  (when-let [group (check-error api-response)] 
     (dispatch [:update-find-group-by-id group])
     (dispatch [:set-group-form-mode mode])
     (dispatch [:set-new-group-flag false])))

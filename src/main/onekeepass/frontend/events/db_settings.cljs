@@ -4,15 +4,13 @@
    [re-frame.core :refer [reg-event-db reg-event-fx reg-fx reg-sub dispatch subscribe]]
    [clojure.string :as str]
    [onekeepass.frontend.translation  :refer-macros [tr-m]]
-   [onekeepass.frontend.utils :as utils :refer [str->int contains-val?]] 
+   [onekeepass.frontend.utils :as utils :refer [str->int contains-val?]]
    [onekeepass.frontend.events.common :as cmn-events :refer [on-error
                                                              check-error
                                                              assoc-in-key-db
                                                              get-in-key-db
                                                              active-db-key]]
    [onekeepass.frontend.background :as bg]))
-
-
 
 (def panels [:general-info :credentials-info  :security-info])
 
@@ -32,6 +30,9 @@
 
 (defn database-field-update [kw-field-name value]
   (dispatch [:db-settings-field-update kw-field-name value]))
+
+(defn db-settings-kdf-algorithm-select [kdf-selection]
+  (dispatch [:db-settings-kdf-algorithm-select kdf-selection]))
 
 (defn password-change-action [kw-action-name]
   (dispatch [:db-settings-password-change-action kw-action-name]))
@@ -65,17 +66,17 @@
 
 (defn- validate-security-fields
   [app-db]
-  (let [{:keys [iterations memory parallelism]} (get-in-key-db app-db [:db-settings :data :kdf :Argon2])
+  (let [{:keys [iterations memory parallelism]} (get-in-key-db app-db [:db-settings :data :kdf])
         ;; Need to convert incoming str values to the proper int values
         ;; [iterations memory parallelism] (mapv str->int [iterations memory parallelism])
 
-        errors (if (or (nil? iterations) (or (< iterations 5) (> iterations 100)))
+        errors (if (or (nil? iterations) (< iterations 5) (> iterations 100))
                  {:iterations (tr-m databaseSettings iterations)} {})
         errors (merge errors
-                      (if (or (nil? memory) (or (< memory 1) (> memory 1000)))
+                      (if (or (nil? memory) (< memory 1)  (> memory 1000) #_(or (< memory 1) (> memory 1000)))
                         {:memory (tr-m databaseSettings memory)} {}))
         errors (merge errors
-                      (if (or (nil? parallelism) (or (< parallelism 1) (> parallelism 100)))
+                      (if (or (nil? parallelism) (< parallelism 1) (> parallelism 100) #_(or (< parallelism 1) (> parallelism 100)))
                         {:parallelism (tr-m databaseSettings parallelism)} {}))]
 
     errors))
@@ -141,10 +142,7 @@
    ;; settings is from [:db-settings :data]
    ;; Need to do some str to int and blank str handling
    (let [settings  (-> settings
-                       #_(update-in [:kdf :Argon2 :iterations] str->int)
-                       #_(update-in [:kdf :Argon2 :parallelism] str->int)
-                       #_(update-in [:kdf :Argon2 :memory] str->int)
-                       (update-in [:kdf :Argon2 :memory] * 1048576)
+                       (update-in [:kdf :memory] * 1048576)
                        ;; Allow space only password
                        ;; (str/blank? "  ") true but (empty? "  ") is false
                        ;; (str/blank? "") true but (empty? "") is true
@@ -212,16 +210,22 @@
                                                                  #(dispatch [:db-settings-read-error %]))]
                                   (dispatch [:db-settings-read-completed settings]))))))
 
+;; Need to convert memory value from bytes to MB. 
+;; And we need to convert back bytes before saving to the backend
+;; See event ':bg-set-db-settings'
+(defn- kdf-adjustment-in-settings [settings]
+  ;; Currently only kdf algorithms supported are Argon2d and Argon2id
+  ;; See enum KdfAlgorithm
+  (-> settings (update-in [:kdf :memory] #(Math/floor (/ % 1048576)))))
+
 (reg-event-db
  :db-settings-read-completed
  (fn [db [_event-id {:keys [key-file-name] :as settings}]]
-   ;; Need to convert memory value from bytes to MB. 
-   ;; And we need to convert back bytes before saving back
-   ;; See event ':bg-set-db-settings'
+
    (let [data (-> settings
-                  (update-in [:kdf :Argon2 :memory] #(Math/floor (/ % 1048576)))
+                  kdf-adjustment-in-settings
                   (assoc-in [:org-key-file-name] key-file-name))]
-     ;;(println "Data is " data)
+
      (-> db (assoc-in-key-db  [:db-settings :data] data)
          (assoc-in-key-db  [:db-settings :undo-data] data)
          (assoc-in-key-db [:db-settings :status] :completed)
@@ -244,7 +248,7 @@
    (bg/save-file-dialog {:default-path (str database-name ".keyx")
                          :title "Save Key File"}
                         (fn [key-file-name]
-                         ;; key-file-name is not updated if user cancels the 'Save As' file exploreer 
+                          ;; key-file-name is not updated if user cancels the 'Save As' file exploreer 
                           (when (not (str/blank? key-file-name))
                             (bg/generate-key-file key-file-name
                                                   (fn [api-response]
@@ -258,9 +262,9 @@
   are 'int' type
   "
   [ks value]
-  (cond (or (= ks [:db-settings :data :kdf :Argon2 :iterations])
-            (= ks [:db-settings :data :kdf :Argon2 :parallelism])
-            (= ks [:db-settings :data :kdf :Argon2 :memory]))
+  (cond (or (= ks [:db-settings :data :kdf :iterations])
+            (= ks [:db-settings :data :kdf :parallelism])
+            (= ks [:db-settings :data :kdf :memory]))
         (str->int value)
 
         ;;
@@ -276,6 +280,17 @@
         value))
 
 (reg-event-db
+ :db-settings-kdf-algorithm-select
+ (fn [db [_event-id kdf-selection]]
+   ;; Fields algorithm and variant need to be set to these values so that 
+   ;; kdf map is serialized to enum KdfAlgorithm::Argon2d or  KdfAlgorithm::Argon2id
+   ;; Also see events in new-database.cljs
+   (-> db (assoc-in-key-db [:db-settings :data :kdf :algorithm] kdf-selection)
+       (assoc-in-key-db [:db-settings :data :kdf :variant] (if (= kdf-selection "Argon2d") 0 2)))))
+
+;; A common event that handles most of the update of fields in the map found in ':db-settings'
+;; May need to refactor to panel specific events (like crypto, kdf ,crdentials etc to its own events)
+(reg-event-db
  :db-settings-field-update
  ;; The incoming kw-field-name is single kw or a vec of kws  
  (fn [db [_event-id kw-field-name value]]
@@ -283,19 +298,25 @@
          ks (into [:db-settings] (if (vector? kw-field-name)
                                    kw-field-name
                                    [kw-field-name]))
+
          val (convert-value ks value)
+
          password-val? (contains-val? ks :password)
          key-file-name-val? (contains-val? ks :key-file-name)
 
+         ;; Determines the panel to show with any errors 
          current-panel (get-in-key-db db [:db-settings :panel])
+
          ;; Set the updated value 
          db (assoc-in-key-db db ks val)
+
          ;; Need to set additional flags for the password/key file case
          db (cond
               ;; password-val? indicates password field is updated
               (and password-val? (field-not-empty? val))
               (-> db (assoc-in-key-db [:db-settings :data :password-used] true)
                   (assoc-in-key-db [:db-settings :data :password-changed] true))
+
               ;; key-file-name-val? indicates key file name field is updated
               key-file-name-val?
               (if (field-not-empty? val)
@@ -340,7 +361,7 @@
               (= kw-action-name :change)
               (-> db (assoc-in-key-db [:db-settings :key-file-field-show] true))
 
-                      ;; Add may be called after Remove call in the same screen
+              ;; Add may be called after Remove call in the same screen
               (= kw-action-name :add)
               (let [existing-key-file-name (get-in-key-db db [:db-settings :undo-data :key-file-name])
                     k-used (if (field-not-empty? existing-key-file-name) true false)]
@@ -428,10 +449,4 @@
       :data (select-keys
              [:password-used :password-changed :password
               :key-file-used :key-file-changed :key-file-name]))
-
-  (def a1 (-> (get @re-frame.db/app-db db-key) :db-settings :data))
-  (def a2 (-> (get @re-frame.db/app-db db-key) :db-settings :undo-data))
-  (-> a1 :kdf)
-  (-> a2 :kdf)
-  (= a1 a2)
   (-> (get @re-frame.db/app-db db-key) :db-settings))

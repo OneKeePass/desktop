@@ -10,14 +10,14 @@
                                                              get-in-key-db
                                                              on-error]]
    ;; Do not remove. Required to register otp evets
-   [onekeepass.frontend.events.entry-form-otp] 
+   [onekeepass.frontend.events.entry-form-otp]
    [onekeepass.frontend.events.entry-form-common :as ef-events-cmn :refer [add-section-field
-                                                         entry-form-key
-                                                         extract-form-field-names-values
-                                                         extract-form-otp-fields
-                                                         get-form-data
-                                                         is-field-exist 
-                                                         merge-section-key-value]] 
+                                                                           entry-form-key
+                                                                           extract-form-field-names-values
+                                                                           extract-form-otp-fields
+                                                                           get-form-data
+                                                                           is-field-exist
+                                                                           merge-section-key-value]]
    ;; Need to be called here so that events are registered 
    [onekeepass.frontend.events.entry-form-auto-open :as ao-events]
    [onekeepass.frontend.translation :refer [lstr-sm]]
@@ -64,8 +64,8 @@
    "
   [form-data]
   (let [error-fields (validate-entry-form-data form-data)
-         ;; We get all fields across all sections
-         ;; Need to make a flattened sequence of all KV maps
+        ;; We get all fields across all sections
+        ;; Need to make a flattened sequence of all KV maps
         kvds (flatten (vals (:section-fields form-data)))
         error-fields (validate-required-fields error-fields kvds)]
     error-fields))
@@ -126,7 +126,7 @@
     ;; format as expected by backend api and call will fail 
     #_(let [d (cond
                 (= (str v) "Invalid Date")
-              ;; kb is nil if v is a valid date; 
+                ;; kb is nil if v is a valid date; 
                 kb
 
                 (instance? js/Date v)
@@ -209,7 +209,7 @@
     "Creates an event handler to handle an event when the date is changed in the date picker"
     [section key]
     (fn [date-val kb]
-    ;;(println "date-val is " date-val " and type is " (type date-val))
+      ;;(println "date-val is " date-val " and type is " (type date-val))
       (when-not (= (str date-val) "Invalid Date")
         (let [date-val-str (if (instance? js/Date date-val) (.toLocaleDateString date-val) date-val)]
           (dispatch [:entry-form-update-section-value section key date-val-str])))))
@@ -310,7 +310,7 @@
 
 (reg-event-fx
  :entry-form-data-load-completed-ok
- (fn [{:keys [db]} [_event-id  entry-data]] 
+ (fn [{:keys [db]} [_event-id  entry-data]]
    (let [otp-fields (extract-form-otp-fields entry-data)]
      {:db (-> db
               (assoc-in-key-db [entry-form-key :data] entry-data)
@@ -342,6 +342,7 @@
 
        (-> db (assoc-in-key-db [entry-form-key :api-error-text] result)))))
 
+;; "Updates a section's KeyValue map with the given key and value"
 (reg-event-fx
  :entry-form-update-section-value
  (fn [{:keys [db]} [_event-id section key value]]
@@ -536,14 +537,14 @@
          ;; We need not call any explicit resetting of Edit mode to false, as the call 
          ;; to :entry-list/entry-updated -> :entry-form/find-entry-by-id will put the form in read only mode
          #_[:dispatch [:entry-form-edit-ex false]]
-          ;; Call entry list update so that any 'primary title' (Title) value or
-          ;; the 'secondary title' (User Name) is changed in edit mode of entry form  
-          ;; This also in turn calls ':entry-form/find-entry-by-id' if the current entry form is  
-          ;; matches selected entry uuid in entry list and this updates the entry form to 
-          ;; sync with the backend update - This also ensures that we have correct history entries
+         ;; Call entry list update so that any 'primary title' (Title) value or
+         ;; the 'secondary title' (User Name) is changed in edit mode of entry form  
+         ;; This also in turn calls ':entry-form/find-entry-by-id' if the current entry form is  
+         ;; matches selected entry uuid in entry list and this updates the entry form to 
+         ;; sync with the backend update - This also ensures that we have correct history entries
          [:dispatch [:entry-list/entry-updated]]
-          ;; In case of this entry's marked as Favorites by adding a tag,  
-          ;; we need to refresh the entry-category view also
+         ;; In case of this entry's marked as Favorites by adding a tag,  
+         ;; we need to refresh the entry-category view also
          [:dispatch [:entry-category/reload-category-data]]]}))
 
 (reg-event-fx
@@ -1044,9 +1045,9 @@
        (to-section-field-data :dialog-show true
                               :section-name section-name
                               :popper-anchor-el popper-anchor-el)
-      ;;  (to-section-field-data :dialog-show true)
-      ;;  (to-section-field-data :section-name section-name)
-      ;;  (to-section-field-data :popper-anchor-el popper-anchor-el)
+       ;;  (to-section-field-data :dialog-show true)
+       ;;  (to-section-field-data :section-name section-name)
+       ;;  (to-section-field-data :popper-anchor-el popper-anchor-el)
        )))
 
 (reg-event-db
@@ -1062,13 +1063,13 @@
                               :protected protected
                               :required required
                               :dialog-show true)
-      ;;  (to-section-field-data :popper-anchor-el popper-anchor-el)
-      ;;  (to-section-field-data :section-name section-name)
-      ;;  (to-section-field-data :mode :modify)
-      ;;  (to-section-field-data :field-name key)
-      ;;  (to-section-field-data :current-field-name key)
-      ;;  (to-section-field-data :protected protected)
-      ;;  (to-section-field-data :dialog-show true)
+       ;;  (to-section-field-data :popper-anchor-el popper-anchor-el)
+       ;;  (to-section-field-data :section-name section-name)
+       ;;  (to-section-field-data :mode :modify)
+       ;;  (to-section-field-data :field-name key)
+       ;;  (to-section-field-data :current-field-name key)
+       ;;  (to-section-field-data :protected protected)
+       ;;  (to-section-field-data :dialog-show true)
        )))
 
 (reg-event-db
@@ -1242,11 +1243,11 @@
  :create-custom-entry-type-completed
  (fn [{:keys [db]} [_event-id entry-type-uuid]]
    ;; Need to first refresh entry type names list and we create a new form
-     ;; again with the new custom entry type as selected
+   ;; again with the new custom entry type as selected
    {:fx [[:dispatch [:common/load-entry-type-headers]]
-           ;; A New Entry form with the newly created entry name is shown 
+         ;; A New Entry form with the newly created entry name is shown 
          [:dispatch [:entry-form-entry-type-uuid-selected-ex entry-type-uuid]]
-           ;; Need to refresh entry-category as we have added a new custom entry type
+         ;; Need to refresh entry-category as we have added a new custom entry type
          [:dispatch [:entry-category/reload-category-data]]
          [:dispatch [:common/message-snackbar-open "New custom entry type is created"]]]}))
 
@@ -1347,7 +1348,7 @@
  :ok-new-entry-add-ex
  (fn [{:keys [db]} [_event-id]]
    (let [form-data (get-form-data db)
-         error-fields (validate-all form-data) 
+         error-fields (validate-all form-data)
          errors-found (boolean (seq error-fields))]
      (if errors-found
        {:db (assoc-in-key-db db [entry-form-key :error-fields] error-fields)}
@@ -1511,7 +1512,7 @@
    (bg/delete-history-entry-by-index (active-db-key db) entry-id index
                                      (fn [api-response]
                                        (when-not (on-error api-response)
-                                  ;; Reload summary list again
+                                         ;; Reload summary list again
                                          (dispatch [:load-history-entries-summary entry-id]))))
    {}))
 
@@ -1773,8 +1774,8 @@
                                   app-db
                                   [entry-form-key :data :section-fields])
                                  vals flatten) ;;all-section-fields is a list of maps for all sections
-       ;; _ (println "all-section-fields are " all-section-fields)
-        ;;found  (filter (fn [m] (= field-name (:key m))) all-section-fields)
+          ;; _ (println "all-section-fields are " all-section-fields)
+          ;;found  (filter (fn [m] (= field-name (:key m))) all-section-fields)
           ]
       (or (contains-val? standard-kv-fields field-name)
           (-> (filter (fn [m] (= field-name (:key m))) all-section-fields) seq boolean))))

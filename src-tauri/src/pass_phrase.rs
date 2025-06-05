@@ -1,5 +1,5 @@
 use onekeepass_core::db_service::WordListLoader;
-use onekeepass_core::error::{self, Error, Result};
+use onekeepass_core::error::{self, Result};
 use tauri::Manager;
 
 use crate::app_state::AppState;
@@ -40,8 +40,6 @@ impl WordListLoader for WordListLoaderImpl {
     Ok(std::fs::read_to_string(&full_path)?)
   }
 }
-
-
 
 // Previously the following was used in module callback_service_provider.rs so that
 // onekeepass_core we make use of the 'CoreCommonCallbackService' impl
@@ -91,7 +89,7 @@ impl CoreCommonCallbackService for CommonCallbackServiceImpl {
       return Err(error::Error::DataError("No app resource dir is found"));
     };
 
-    // IMPORTANT: 
+    // IMPORTANT:
     // We need to add "../resources/public/wordlists" src-tauri/tauri.conf.json
     // in order for the file reading. See also translation::load_language_translations and 'load_custom_svg_icons'
     // for other app level resources handling

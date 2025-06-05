@@ -15,6 +15,7 @@
                                 CssBaseline
                                 CircularProgress
                                 Checkbox
+                                Chip
                                 Container
                                 ClickAwayListener
                                 DesktopDatePicker
@@ -121,12 +122,18 @@
                                 LocalizationProvider
 
                                 ;; Dialogs related
+                                merge-result-dialog
+                                move-group-or-entry-dialog
                                 clone-entry-options-dialog
+                                csv-columns-mapping-dialog
                                 data
                                 on-ok
                                 show
                                 show-with-state
                                 state-m
+                                update-with-map
+                                set-api-error 
+                                error
 
                                 ;; Translations related
                                 entryForm
@@ -283,7 +290,11 @@
                                 txt5]}
 
   :unresolved-var {:exclude [onekeepass.frontend.mui-components
-                             onekeepass.frontend.background/go]}
+                             onekeepass.frontend.background/go
+                             onekeepass.frontend.events.generic-dialogs
+                             
+                             go
+                             ]}
 
 
   ;;Following is not working 
