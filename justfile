@@ -26,8 +26,9 @@ advanced-compile-start-server:
 advanced-compile:
     clojure -M:frontend:fw  -m figwheel.main -O advanced  -bo dev
 
-build-cljs-bundle:
-    clojure -M:frontend:fw  -m figwheel.main -O advanced  -bo dev
+build-cljs-bundle type="advanced":
+    rm -rf target
+    clojure -M:frontend:fw  -m figwheel.main -O {{type}} -bo dev
     mkdir  -p ./resources/public/cljs-out/dev
     cp  ./target/public/cljs-out/dev/main_bundle.js  ./resources/public/cljs-out/dev/main_bundle.js
 

@@ -1,7 +1,6 @@
 (ns onekeepass.frontend.background
   "All backend api calls. Few api calls are moved to the specific cljs ns"
-  (:require
-   [re-frame.core :refer [dispatch]]
+  (:require 
    [cljs.core.async :refer [go]]
    [cljs.core.async.interop :refer-macros [<p!]]
    [camel-snake-kebab.extras :as cske]
@@ -15,7 +14,10 @@
    ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/endpoints
    ;; The api implementation is in 
    ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/api 
-
+   
+   ;; All node package modules (npm) that are loaded by webpack bundler
+   ;; Also see src/main/onekeepass/frontend/mui_components.cljs for other npm packages
+   
    ["@tauri-apps/plugin-shell" :as tauri-shell]
    ["@tauri-apps/plugin-dialog" :refer (open,save)]
    ["@tauri-apps/plugin-clipboard-manager" :refer [writeText readText]]

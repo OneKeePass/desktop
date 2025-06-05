@@ -1,5 +1,6 @@
 {:deps  {;;org.clojure/clojure {:mvn/version "1.10.3"}
-         org.clojure/clojurescript   {:mvn/version "1.11.132"}}
+         ;; org.clojure/clojurescript   {:mvn/version "1.11.132"}
+         org.clojure/clojurescript   {:mvn/version "1.12.42"}}
 
  :paths ["src/main" "target" "resources"]
 

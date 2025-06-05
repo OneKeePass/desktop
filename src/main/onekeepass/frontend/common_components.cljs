@@ -4,7 +4,7 @@
    [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.constants :refer [ADD_TAG_PREFIX]]
    [onekeepass.frontend.events.common :as cmn-events]
-   [onekeepass.frontend.events.generic-dialogs :as gd-events]
+  ;;  [onekeepass.frontend.events.generic-dialogs :as gd-events]
    [onekeepass.frontend.mui-components :as m :refer [auto-sizer
                                                      fixed-size-list
                                                      is-light-theme? mui-alert
@@ -278,6 +278,7 @@
                    ;; (println "dims are " dims)
                    (r/as-element
                     [:div {:style {:min-width 200 :height (:height dims)}}
+                     ;; :> m/MyFixedSizeList 
                      [fixed-size-list {:style list-style ;;{:max-width 275} ;; Need to set this so that splitpane's left side  does not expand
                                        :height (:height dims)
                                        :width (:width dims)

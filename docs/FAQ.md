@@ -138,15 +138,18 @@ Key file path examples:
 
 ```
 
-
-
-
-
 When this main database is opened, all child databases will be opened automatically
 
 
+## How to do merging of two databases?
 
+After opening a database, you can use the application menu "Database -> Merge Database..." 
 
+Then choose any of a valid keepass database file to merge with the currently opened file
+
+## Does import of any exported passwords from another application ?
+
+Yes. But only a generic comma separated values can now be imported into OneKeePass. 
 
 
 

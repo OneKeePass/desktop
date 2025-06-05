@@ -34,15 +34,15 @@ tokio = { version = "1", features = [ "time" ] }
 
 
 ## Adding "devtools" to features list enables devtools in production; But in mac it uses private api 
-## Tauri rust features are listed in the doc home page https://docs.rs/tauri/1.5.4/tauri/
+## Tauri rust features are listed in the doc home page https://docs.rs/tauri/2.3.1/tauri/
 ## Also see 'allowlist' in tauri.conf.json where we need to enable some of these APIs
 tauri = { version = "2", features = [] }
 
 ## using from the local crate during development
-onekeepass-core = {path = "../../onekeepass-core", version = "0.18.0"} 
+## onekeepass-core = {path = "../../onekeepass-core", version = "0.18.0"} 
 
 ## Need to use the git ref for release 
-## onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.17.0" }
+onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.18.0" }
 
 tauri-plugin-shell = "2"
 tauri-plugin-process = "2"

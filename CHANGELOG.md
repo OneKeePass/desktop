@@ -1,3 +1,9 @@
+### 0.16.0
+- Merging of databases can now be done
+- Any previously exported passwords as CSV (comma separted values) file can be imported 
+- Both Argon2d and Argon2id Kdf algorithms are now supported
+- A group or an entriy can be moved from one parent group to another
+
 ### 0.15.0
 - Automatic Database Opening feature to open one or more databases automatically when you open a single database. For this, entries are to be created using the entry template **Auto Database Open** in a special group **AutoOpen**. See FAQ how to use this feature
 
