@@ -9,6 +9,7 @@ mod app_state;
 mod auto_open;
 mod auto_type;
 mod biometric;
+mod browser_service;
 mod commands;
 mod constants;
 mod file_util;
@@ -49,23 +50,6 @@ fn main() {
   // for the current prefered language from the resource dir in order to prepare Menus
   let context = tauri::generate_context!();
 
-  // TODO: Reuse this preference file content in Preference::read_toml
-  let pref_str = app_state::read_preference_file();
-  let lng = app_state::read_language_selection(&pref_str);
-
-  //println!("lng to use is {}", &lng);
-
-  // This loaded tranalation data is passed to menus creation call (builder.menu(..)) and there they are used
-  // in preparing the system menu names in the current prefered language.
-  // If user changes the prefered language the app needs to be restarted. This is because
-  // the system menus's titles can not be changed without restarting though all sub menus's titles
-  // can be changed dynamically.
-
-  // let menu_translation = translation::load_system_menu_translations(&lng, &context.config(), &context.package_info());
-
-  // let rc_dir = tauri::api::path::resource_dir(context.package_info(),&tauri::Env::default());
-  // println!("== Resource dir from context is {:?}",&rc_dir);
-
   // on_window_event - Registers a window event handler for all windows
   // Instead of using this, we register window events in App.run closure
   // See below
@@ -77,12 +61,10 @@ fn main() {
     .plugin(tauri_plugin_process::init())
     .plugin(tauri_plugin_shell::init())
     .manage(app_state::AppState::new())
-    .setup(|app|  {
+    .setup(|app| {
       app_state::init_app(app);
       Ok(menu::build_menus(app.app_handle())?)
     })
-    
-    
     // .on_window_event(|event| match event.event() {
     //   tauri::WindowEvent::Focused(focused) => {
     //     if !focused {
@@ -93,11 +75,11 @@ fn main() {
     // })
     // .menu(menu::get_app_menu(menu_translation))
     .on_menu_event(|app_handle, menu_event| {
-      let _ = menu::handle_menu_events(app_handle,&menu_event);
+      let _ = menu::handle_menu_events(app_handle, &menu_event);
     })
     .invoke_handler(tauri::generate_handler![
-      // dev test calll
-      // commands::test_call,
+      // This is a test command that may be used to experiment any backend call during dev time 
+      commands::test_call,
 
       // Sorted alphabetically
       commands::active_window_to_auto_type,
@@ -194,7 +176,7 @@ fn main() {
     .build(context)
     .expect("error while building tauri application");
 
-  // App is built
+  // App is built and now the app
   app.run(|app_handle, e| match e {
     tauri::RunEvent::Ready => {
       info!("Application is ready");

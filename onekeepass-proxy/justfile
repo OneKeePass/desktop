@@ -1,0 +1,19 @@
+
+# rustc -Vv | grep host | cut -f2 -d' '
+
+# aarch64-apple-darwin, x86_64-apple-darwin
+
+
+build-aarch64 release="":
+    cargo build --target aarch64-apple-darwin {{ if release == "true" {"--release" } else {""}  }}
+
+build-cp-aarch64 release="":(build-aarch64 release)
+    rm ./binaries/*
+    cp ./target/aarch64-apple-darwin/{{ if release == "true" {"release"} else {"debug"} }}/onekeepass-proxy ./binaries/onekeepass-proxy-aarch64-apple-darwin
+
+build-x86_64 release="":
+    cargo build --target x86_64-apple-darwin {{ if release == "true" {"--release" } else {""}  }}
+
+build-cp-x86_64 release="":(build-x86_64 release)
+    rm ./binaries/*
+    cp ./target/x86_64-apple-darwin/{{ if release == "true" {"release"} else {"debug"} }}/onekeepass-proxy ./binaries/onekeepass-proxy-x86_64-apple-darwin

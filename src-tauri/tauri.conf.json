@@ -19,7 +19,7 @@
       "../resources/public/translations",
       "../resources/public/wordlists"
     ],
-    "externalBin": [],
+    "externalBin": ["../onekeepass-proxy/binaries/onekeepass-proxy"],
     "copyright": "",
     "category": "Productivity",
     "shortDescription": "Password Manager",
@@ -46,7 +46,7 @@
   },
   "productName": "OneKeePass",
   "mainBinaryName": "OneKeePass",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "identifier": "com.onekeepass",
   "plugins": {},
   "app": {

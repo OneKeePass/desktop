@@ -15,10 +15,10 @@ edition = "2021"
 serde_json = "1.0"
 uuid = { version = "1.16.0", features = ["serde", "v4"] }
 serde = { version = "1.0", features = ["derive"] }
-chrono =  {version = "0.4.40", features = ["serde"] }
+chrono =  {version = "0.4.41", features = ["serde"] }
 log = "0.4.27"
 log4rs = "1.1.1"
-toml = "0.8.19"
+toml = "0.9.3"
 once_cell = "1.18.0"
 secstr = "0.5.1"
 hex = "0.4.3"
@@ -29,8 +29,12 @@ os_info = "3"
 sys-locale = "0.3.1"
 gethostname = "0.5.0"
 
-#tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
-tokio = { version = "1", features = [ "time" ] }
+tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "io-util", "time", "net" ] }
+
+tipsy = "0.6.1"
+futures-util = "0.3"
+data-encoding = "2.9.0"
+crypto_box = "0.9.1"
 
 
 ## Adding "devtools" to features list enables devtools in production; But in mac it uses private api 

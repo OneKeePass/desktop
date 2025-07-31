@@ -14,6 +14,7 @@ use uuid::Uuid;
 
 use crate::app_state::SystemInfoWithPreference;
 use crate::auto_open::{self, AutoOpenProperties, AutoOpenPropertiesResolved};
+use crate::browser_service;
 use crate::menu::MenuActionRequest;
 use crate::{app_preference, app_state};
 use crate::{auto_type, biometric, OTP_TOKEN_UPDATE_EVENT};
@@ -851,6 +852,12 @@ pub async fn send_sequence_to_winow_async(
 }
 
 // -------------- Test commands
+
+#[tauri::command]
+pub(crate) async fn test_call() -> Result<()> {
+  log::debug!("test_call is called and going to call browser_service::start_proxy_handler(");
+  Ok(browser_service::start_proxy_handler())
+}
 
 // #[tauri::command]
 // pub(crate) async fn test_call() -> Result<()> {

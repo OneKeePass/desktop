@@ -1,6 +1,6 @@
 (ns onekeepass.frontend.background
   "All backend api calls. Few api calls are moved to the specific cljs ns"
-  (:require 
+  (:require
    [cljs.core.async :refer [go]]
    [cljs.core.async.interop :refer-macros [<p!]]
    [camel-snake-kebab.extras :as cske]
@@ -14,10 +14,10 @@
    ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/endpoints
    ;; The api implementation is in 
    ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/api 
-   
+
    ;; All node package modules (npm) that are loaded by webpack bundler
    ;; Also see src/main/onekeepass/frontend/mui_components.cljs for other npm packages
-   
+
    ["@tauri-apps/plugin-shell" :as tauri-shell]
    ["@tauri-apps/plugin-dialog" :refer (open,save)]
    ["@tauri-apps/plugin-clipboard-manager" :refer [writeText readText]]
@@ -423,7 +423,7 @@
   "Called to create new database.
   The arg new-db is deserializable as json as expected by NewDatabase struct
   "
-  [new-db dispatch-fn] 
+  [new-db dispatch-fn]
   (invoke-api "create_kdbx" {:newDb new-db} dispatch-fn))
 
 (defn combined-category-details
@@ -472,7 +472,7 @@
   (invoke-api "clear_recent_files" {} dispatch-fn))
 
 
-(defn get-db-settings [db-key dispatch-fn] 
+(defn get-db-settings [db-key dispatch-fn]
   (invoke-api "get_db_settings" {:db-key db-key} dispatch-fn))
 
 (defn set-db-settings [db-key db-settings dispatch-fn]
@@ -623,10 +623,15 @@
 (defn export-as-xml [db-key xml-file-name]
   (invoke-api "export_as_xml"  {:db-key db-key :xml-file-name xml-file-name} #(println %)))
 
-(defn test-call [arg-m]
+#_(defn test-call [arg-m]
   ;; test_call is a tauri command function that accetps TestArg in "arg" parameter
   ;; Useful during development 
   (invoke-api "test_call" (clj->js {:arg arg-m}) #(println %)))
+
+(defn test-call []
+  ;; test_call is a tauri command function that does not use any parameter
+  ;; Useful during development 
+  (invoke-api "test_call" {} #(println %)))
 
 
 (comment
