@@ -7,7 +7,7 @@ pub enum Request {
 
     Associate {client_id:String,},
 
-    // Session pub key form client for the shared key encryption/decryption
+    // Session pub key from client for the shared key encryption/decryption
     InitSessionKey {association_id:String, client_session_pub_key:String,},
     
     // Get a list of databases that can be used

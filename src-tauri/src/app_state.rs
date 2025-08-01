@@ -7,15 +7,13 @@ use log4rs::encode::pattern::PatternEncoder;
 use serde::{Deserialize, Serialize};
 
 use log::info;
-use tauri::State;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use tauri::State;
 
-use tauri::{path::BaseDirectory,
-  App, Manager, Runtime,
-};
+use tauri::{path::BaseDirectory, App, Manager, Runtime};
 
 use crate::app_preference::{Preference, PreferenceData};
 use crate::biometric;
@@ -26,7 +24,7 @@ use crate::{app_paths, file_util};
 
 //////    App startup time Init call //////////
 
-pub fn init_app(app: &App) {
+pub(crate) fn init_app(app: &App) {
   // An example of using Short Cut Key (in v1) to use with menus and auto typing
   // use tauri::GlobalShortcutManager;
   // let _r = app
@@ -97,17 +95,17 @@ fn init_log(log_dir: &PathBuf) {
 // IMPORTANT:
 // Need to keep all state fields behind Mutex if we need to mutuate as
 // we cann't get &mut self of 'AppState'
-pub struct AppState {
+pub(crate) struct AppState {
   // Here we're using an Arc to share memory among threads,
   // and the data - Preference struct - inside the Arc is protected with a mutex.
-  pub preference: Arc<Mutex<Preference>>,
-  pub backup_files: Mutex<HashMap<String, String>>,
+  pub(crate) preference: Arc<Mutex<Preference>>,
+  backup_files: Mutex<HashMap<String, String>>,
   timers_init_completed: Mutex<bool>,
   resource_dir_path: Mutex<Option<PathBuf>>,
 }
 
 impl AppState {
-  pub fn new() -> Self {
+  pub(crate) fn new() -> Self {
     Self {
       preference: Arc::new(Mutex::new(Preference::default())),
       // We keep any previously determined backup file name for easy lookup and avoids
@@ -130,17 +128,17 @@ impl AppState {
     resource_dir_path.clone()
   }
 
-  pub fn timers_init_completed(&self) {
+  pub(crate) fn timers_init_completed(&self) {
     let mut init_status = self.timers_init_completed.lock().unwrap();
     *init_status = true;
   }
 
-  pub fn is_timers_init_completed(&self) -> bool {
+  pub(crate) fn is_timers_init_completed(&self) -> bool {
     let init_status = self.timers_init_completed.lock().unwrap();
     *init_status
   }
 
-  pub fn prefered_language(&self) -> String {
+  pub(crate) fn prefered_language(&self) -> String {
     let store_pref = self.preference.lock().unwrap();
     //store_pref.language.clone() will also works
     (*store_pref.language).to_string()
@@ -151,8 +149,8 @@ impl AppState {
     store_pref.default_entry_category_groupings.clone()
   }
 
-  /// Reads the preference from file system and store in state
-  pub fn read_preference(&self, app: &App) {
+  // Reads the preference from file system and store in state
+  fn read_preference(&self, app: &App) {
     let version = format!(
       "{}.{}.{}",
       app.package_info().version.major,
@@ -168,18 +166,18 @@ impl AppState {
     *store_pref = pref;
   }
 
-  pub fn update_preference(&self, preference_data: PreferenceData) {
+  pub(crate) fn update_preference(&self, preference_data: PreferenceData) {
     let mut store_pref = self.preference.lock().unwrap();
     store_pref.update(preference_data);
   }
 
-  pub fn clear_recent_files(&self) {
+  pub(crate) fn clear_recent_files(&self) {
     let mut store_pref = self.preference.lock().unwrap();
     store_pref.clear_recent_files();
   }
 
-  /// Gets the full backupfile name
-  pub fn get_backup_file(&self, db_file_name: &str) -> Option<String> {
+  // Gets the full backupfile name
+  pub(crate) fn get_backup_file(&self, db_file_name: &str) -> Option<String> {
     let store_pref = self.preference.lock().unwrap();
     if !store_pref.backup.enabled {
       return None;
@@ -216,30 +214,29 @@ impl AppState {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct StandardDirs {
-  pub document_dir: Option<String>,
+pub(crate) struct StandardDirs {
+   document_dir: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct SystemInfoWithPreference {
-  pub os_name: String,
-  pub os_version: String,
-  pub arch: String,
-  pub path_sep: String,
-  pub standard_dirs: StandardDirs,
-  pub biometric_type_available: String,
-  pub preference: Preference,
+pub(crate) struct SystemInfoWithPreference {
+  os_name: String,
+  os_version: String,
+  arch: String,
+  path_sep: String,
+  standard_dirs: StandardDirs,
+  biometric_type_available: String,
+  preference: Preference,
 }
 //app_state: State<'_, app_state::AppState>
 // app: tauri::AppHandle<R>,
 impl SystemInfoWithPreference {
   // pub fn init(app_state: &AppState) -> Self {
 
-  pub fn init<R:Runtime>(app: tauri::AppHandle<R>) -> Self {
-
+  pub fn init<R: Runtime>(app: tauri::AppHandle<R>) -> Self {
     let app_state: State<'_, AppState> = app.state();
 
-    let p = app_state.preference.lock().unwrap();
+    let pref = app_state.preference.lock().unwrap();
 
     let os_name = std::env::consts::OS.into();
     let os_version = os_info::get().version().to_string();
@@ -256,23 +253,34 @@ impl SystemInfoWithPreference {
       arch,
       path_sep: std::path::MAIN_SEPARATOR.to_string(),
       standard_dirs: StandardDirs {
-        document_dir: app.path().document_dir().map_or_else(|_| None, |d| Some(d.as_os_str().to_string_lossy().to_string())),
+        document_dir: app.path().document_dir().map_or_else(
+          |_| None,
+          |d| Some(d.as_os_str().to_string_lossy().to_string()),
+        ),
       },
       biometric_type_available: biometric::supported_biometric_type(),
       // document_dir().and_then(|d| Some(d.as_os_str().to_string_lossy().to_string())),
-      preference: p.clone(),
+      preference: pref.clone(),
     }
   }
 }
 
 // TODO Return Result<HashMap<>>
-pub fn load_custom_svg_icons<R: Runtime>(app: &tauri::AppHandle<R>) -> HashMap<String, String> {
+pub(crate) fn load_custom_svg_icons<R: Runtime>(
+  app: &tauri::AppHandle<R>,
+) -> HashMap<String, String> {
   //IMPORTANT:
   // "../resources/public/icons/custom-svg" should be included in "resources" key in  /desktop/src-tauri/tauri.conf.json
 
   // Note: ../ in path will add _up_
 
-  let path = app.path().resolve("../resources/public/icons/custom-svg", BaseDirectory::Resource).unwrap();
+  let path = app
+    .path()
+    .resolve(
+      "../resources/public/icons/custom-svg",
+      BaseDirectory::Resource,
+    )
+    .unwrap();
 
   info!("Resolved resource path is {:?}", path);
 
@@ -294,7 +302,7 @@ pub fn load_custom_svg_icons<R: Runtime>(app: &tauri::AppHandle<R>) -> HashMap<S
 
 // Find out the language preferecne before app is initiated so that
 // language specific translations can be used for system menu build ups
-pub fn read_language_selection(preference_file_content: &str) -> String {
+pub(crate) fn read_language_selection(preference_file_content: &str) -> String {
   let Some(s) = Preference::read_language_selection(preference_file_content) else {
     println!("No language preference is found and will use current locale language instead");
     return current_locale_language();
@@ -302,7 +310,7 @@ pub fn read_language_selection(preference_file_content: &str) -> String {
   s
 }
 
-pub fn read_preference_file() -> String {
+pub(crate) fn read_preference_file() -> String {
   let pref_file_name = app_paths::app_home_dir().join(APP_PREFERENCE_FILE);
   fs::read_to_string(pref_file_name).unwrap_or("".into())
 }

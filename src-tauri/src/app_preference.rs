@@ -12,7 +12,7 @@ use crate::app_paths::app_home_dir;
 use onekeepass_core::db_service as kp_service;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct BackupPreference {
+pub(crate) struct BackupPreference {
   pub(crate) enabled: bool,
   pub(crate) dir: Option<String>,
 }
@@ -27,13 +27,13 @@ impl Default for BackupPreference {
 }
 
 #[derive(Deserialize)]
-pub struct PreferenceData {
-  pub session_timeout: Option<u8>,
-  pub clipboard_timeout: Option<u16>,
-  pub default_entry_category_groupings: Option<String>,
-  pub theme: Option<String>,
-  pub language: Option<String>,
-  pub pass_phrase_options: Option<kp_service::PassphraseGenerationOptions>,
+pub(crate) struct PreferenceData {
+  session_timeout: Option<u8>,
+  clipboard_timeout: Option<u16>,
+  default_entry_category_groupings: Option<String>,
+  theme: Option<String>,
+  language: Option<String>,
+  pass_phrase_options: Option<kp_service::PassphraseGenerationOptions>,
 }
 // Old preference used before introduction of fields clipboard_timeout,theme ,language
 // Leaving it here for documentation purpose only
@@ -49,44 +49,49 @@ pub struct PreferenceData {
 
 // Old preference used in the earlier version v0.14.0
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct Preference1 {
-  pub version: String,
+pub(crate) struct Preference1 {
+  pub(crate) version: String,
   // In minutes
-  pub session_timeout: u8,
+  pub(crate) session_timeout: u8,
   // In seconds
-  pub clipboard_timeout: u16,
+  pub(crate) clipboard_timeout: u16,
   // Determines the theme colors etc
-  pub theme: String,
+  pub(crate) theme: String,
   // Should be a two letters language id
-  pub language: String,
+  pub(crate) language: String,
   //Valid values one of Types,Categories,Groups,Tags
-  pub default_entry_category_groupings: String,
+  pub(crate) default_entry_category_groupings: String,
 
-  pub recent_files: Vec<String>,
+  pub(crate) recent_files: Vec<String>,
 
-  pub backup: BackupPreference,
+  pub(crate) backup: BackupPreference,
 }
 
 // Introducing 'password_gen_preference' in v0.15.0
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct Preference {
-  pub version: String,
+pub(crate) struct Preference {
+  version: String,
+
   // In minutes
-  pub session_timeout: u8,
+  session_timeout: u8,
+
   // In seconds
-  pub clipboard_timeout: u16,
+  clipboard_timeout: u16,
+
   // Determines the theme colors etc
-  pub theme: String,
+  theme: String,
+
   // Should be a two letters language id
-  pub language: String,
-  //Valid values one of Types,Categories,Groups,Tags
-  pub default_entry_category_groupings: String,
+  pub(crate) language: String,
 
-  pub recent_files: Vec<String>,
+  // Valid values one of Types,Categories,Groups,Tags
+  pub(crate) default_entry_category_groupings: String,
 
-  pub backup: BackupPreference,
+  recent_files: Vec<String>,
 
-  pub password_gen_preference: PasswordGeneratorPreference,
+  pub(crate) backup: BackupPreference,
+
+  password_gen_preference: PasswordGeneratorPreference,
 }
 
 impl Default for Preference {
@@ -109,8 +114,9 @@ impl Default for Preference {
 }
 
 impl Preference {
-  /// Reads the previously stored preference if any and returns the newly created Preference instance
-  pub fn read_toml(version: String) -> Self {
+
+  // Reads the previously stored preference if any and returns the newly created Preference instance
+  pub(crate) fn read_toml(version: String) -> Self {
     // As read_toml is called before log setup, any log calls will not work.
     // May need to use println if we want to see any console output during development
 
@@ -195,7 +201,7 @@ impl Preference {
 
   // Extracts only the language field value from the prefernce file's content
   // The arg pref_file_content_str is the previously read preference.toml as string
-  pub fn read_language_selection(pref_file_content_str: &str) -> Option<String> {
+  pub(crate) fn read_language_selection(pref_file_content_str: &str) -> Option<String> {
     // let pref_file_name = app_home_dir().join(APP_PREFERENCE_FILE);
     // let pref_str = fs::read_to_string(pref_file_name).unwrap_or("".into());
     if let Ok(value) = pref_file_content_str.parse::<toml::Value>() {
@@ -211,8 +217,8 @@ impl Preference {
     }
   }
 
-  /// Writes the preference with any updates
-  pub fn write_toml(&mut self) {
+  // Writes the preference with any updates
+  fn write_toml(&mut self) {
     // Remove old file names from the list before writing
     self.remove_old_recent_files();
 
@@ -227,7 +233,7 @@ impl Preference {
   }
 
   // Update the preference with any non null values
-  pub fn update(&mut self, preference_data: PreferenceData) {
+  pub(crate) fn update(&mut self, preference_data: PreferenceData) {
     // debug!("Preference update is called {:?}",&preference_data);
     // debug!("Preference before {:?}",&self);
 
@@ -268,8 +274,8 @@ impl Preference {
     }
   }
 
-  /// Reads the previously stored preference if any and returns the newly created Preference instance
-  pub fn _read_json() -> Self {
+  // Reads the previously stored preference if any and returns the newly created Preference instance
+  fn _read_json() -> Self {
     let pref_file_name = app_home_dir().join(APP_PREFERENCE_FILE);
     let json_str = fs::read_to_string(pref_file_name).unwrap_or("".into());
     if json_str.is_empty() {
@@ -292,7 +298,7 @@ impl Preference {
     }
   }
 
-  pub fn add_recent_file(&mut self, file_name: &str) -> &mut Self {
+  pub(crate) fn add_recent_file(&mut self, file_name: &str) -> &mut Self {
     // First we need to remove any previously added if any
     self.recent_files.retain(|s| s != file_name);
     // most recent file goes to the top - 0 index
@@ -302,13 +308,13 @@ impl Preference {
     self
   }
 
-  pub fn remove_recent_file(&mut self, file_name: &str) -> &mut Self {
+  pub(crate) fn remove_recent_file(&mut self, file_name: &str) -> &mut Self {
     self.recent_files.retain(|s| s != file_name);
     self.write_toml();
     self
   }
 
-  pub fn clear_recent_files(&mut self) -> &mut Self {
+  pub(crate) fn clear_recent_files(&mut self) -> &mut Self {
     self.recent_files.clear();
     self
   }

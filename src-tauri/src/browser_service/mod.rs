@@ -1,5 +1,6 @@
 mod message;
 mod key_share;
+mod db_calls;
 
 use std::{fs::read, sync::{Arc, OnceLock}};
 
@@ -122,13 +123,10 @@ async fn run_server(path: String) {
                                 if len == 0 {
                                     // log::debug!("reader.read len is zero");
                                     continue;
-                                } else {
-                                    log::debug!(
-                                        "Geting message from extension through proxy size {}",
-                                        &len
-                                    );
-                                    log::debug!("Raw message array is {:?}", &buf[..20]);
-                                }
+                                } 
+                                 
+                                // log::debug!("Geting message from extension through proxy size {}",&len);
+
                                 let message_bytes = buf[..len].to_vec();
 
                                 match String::from_utf8(message_bytes) {
