@@ -4,7 +4,6 @@ mod key_share;
 use std::{fs::read, sync::{Arc, OnceLock}};
 
 use futures_util::StreamExt as _;
-use log::debug;
 use tipsy::{Endpoint, OnConflict, ServerId};
 use tokio::{io::{split, AsyncReadExt, AsyncWriteExt, WriteHalf}, runtime::{Builder, Runtime}};
 
@@ -64,12 +63,12 @@ async fn send_response(
     }
 }
 
-
-
 async fn run_server(path: String) {
     let endpoint = Endpoint::new(ServerId::new(path), OnConflict::Overwrite).unwrap();
 
     let incoming = endpoint.incoming().expect("failed to open new socket");
+
+    // pins a mutable reference to a value on the stack
     futures_util::pin_mut!(incoming);
 
     log::debug!("Browser Server started ...");
@@ -178,44 +177,3 @@ pub(crate) fn start_proxy_handler() {
         run_server("okp_browser_ipc".to_string()).await;
     });
 }
-
-
-/*
-async fn run_server(path: String) {
-    let endpoint = Endpoint::new(ServerId::new(path), OnConflict::Overwrite).unwrap();
-
-    let incoming = endpoint.incoming().expect("failed to open new socket");
-    futures_util::pin_mut!(incoming);
-
-    log::debug!("Going to listening loop...");
-
-    while let Some(result) = incoming.next().await {
-        match result {
-            Ok(stream) => {
-                let (mut reader, mut writer) = split(stream);
-
-                tokio::spawn(async move {
-                    loop {
-                        let mut buf = [0u8; 4];
-
-                        if reader.read_exact(&mut buf).await.is_err() {
-                            println!("Closing socket");
-                            break;
-                        }
-                        if let Ok("ping") = std::str::from_utf8(&buf[..]) {
-                            println!("RECEIVED: PING");
-                            writer
-                                .write_all(b"pong")
-                                .await
-                                .expect("unable to write to socket");
-                            println!("SEND: PONG");
-                        }
-                    }
-                });
-            }
-            _ => unreachable!("ideally"),
-        }
-    }
-}
-
-*/
