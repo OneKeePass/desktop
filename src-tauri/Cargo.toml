@@ -43,10 +43,10 @@ crypto_box = "0.9.1"
 tauri = { version = "2", features = [] }
 
 ## using from the local crate during development
-## onekeepass-core = {path = "../../onekeepass-core", version = "0.18.0"} 
+onekeepass-core = {path = "../../onekeepass-core", version = "0.19.0"} 
 
 ## Need to use the git ref for release 
-onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.18.0" }
+## onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.18.0" }
 
 tauri-plugin-shell = "2"
 tauri-plugin-process = "2"

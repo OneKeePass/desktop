@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::browser_service::key_share::Session;
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "action")]
 pub enum Request {
@@ -12,6 +14,16 @@ pub enum Request {
     
     // Get a list of databases that can be used
     GetEnabledDatabases {association_id:String, },
+
+    EnabledDatabaseMatchedEntryList {form_url:String,seq:usize}
+}
+
+impl Request {
+    async fn handle(session: &mut Session,  received_message_str: &String,) {
+        // match serde_json::from_str(&received_message_str) {
+
+        // }
+    }
 }
 
 
@@ -26,7 +38,12 @@ pub enum Response {
     
     // Response for the 'GetEnabledDatabases' request
     EnabledDatabases {message:String,nonce:String, }, // encrypted message names:Vec<String>
+
+    EnabledDatabaseMatchedEntryList {message:String,seq:usize}
 }
+
+
+
 
 // Convertable to a json string as
 // "{ok: 'a string value serialized from T', error: null }" or  "{ok: null, error: 'error string'}"

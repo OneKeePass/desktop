@@ -6,7 +6,6 @@ use std::{
 use tipsy::{Connection, Endpoint, ServerId};
 use tokio::io::{split, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf};
 
-
 use chrono::Local;
 use log::LevelFilter;
 use log4rs::{
@@ -106,7 +105,7 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
 
             let shared_writer_cloned = shared_writer.clone();
 
-            // log::debug!("++Going to call async writing...");
+            log::debug!("++Going to call async writing...");
 
             // Write to the app side asynchronously
             tokio::spawn(async move {

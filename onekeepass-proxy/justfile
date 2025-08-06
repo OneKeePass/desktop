@@ -21,3 +21,4 @@ build-cp-x86_64 release="":(build-x86_64 release)
 
 to-running-td release="":(build-aarch64 release)
     cp ./target/aarch64-apple-darwin/debug/onekeepass-proxy ../src-tauri/target/debug/onekeepass-proxy
+    cp ./target/aarch64-apple-darwin/{{ if release == "true" {"release"} else {"debug"} }}/onekeepass-proxy ./binaries/onekeepass-proxy-aarch64-apple-darwin
