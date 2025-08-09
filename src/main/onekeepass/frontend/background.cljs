@@ -21,6 +21,7 @@
    ["@tauri-apps/plugin-shell" :as tauri-shell]
    ["@tauri-apps/plugin-dialog" :refer (open,save)]
    ["@tauri-apps/plugin-clipboard-manager" :refer [writeText readText]]
+   ["@tauri-apps/api/window" :as win]
    ["@tauri-apps/api/event" :as tauri-event]))
 
 (set! *warn-on-infer* true)
@@ -35,10 +36,9 @@
   "This is a map where keys are the event name (kw) values tauri listeners" (atom {}))
 
 (defn register-event-listener
-  "Called to register an event handler to listen for a named event 
-   message emitted in the backend service 
-   event-name is the event name kw 
-   event-handler-fn is the handler function
+  "Called to register an event handler to listen for a named event message emitted in the backend service 
+   The arg event-name is the event name kw 
+   The arg event-handler-fn is the handler function
    "
   ([caller-name event-name event-handler-fn]
    (let [el (get @tauri-event-listeners [caller-name event-name])]
@@ -58,8 +58,21 @@
        (when-not (nil? el)
          (println "Tauri event listener for " event-name " is already registered"))
        #_(println "Tauri event listener for " event-name " is already registered"))))
+
   ([event-name event-handler-fn]
    (register-event-listener :common event-name event-handler-fn)))
+
+
+(defn set-window-focus []
+  #_(go
+    (try
+      (let [ window  (^js/TauriWindow win/getCurrentWindow)
+            _r (<p! (.setFocus window))
+            ;;_r (<p!  (.setAlwaysOnTop ^js/TauriWindow window true))
+            
+            ]
+        (println "Window is focused" _r))
+      (catch js/Error err (js/console.log "Error: " (ex-cause err))))))
 
 (defn open-file-dialog
   "Calls the tauri's 'open' command so that native file explorerer dialog is opened
@@ -624,15 +637,20 @@
   (invoke-api "export_as_xml"  {:db-key db-key :xml-file-name xml-file-name} #(println %)))
 
 #_(defn test-call [arg-m]
-  ;; test_call is a tauri command function that accetps TestArg in "arg" parameter
-  ;; Useful during development 
-  (invoke-api "test_call" (clj->js {:arg arg-m}) #(println %)))
+    ;; test_call is a tauri command function that accetps TestArg in "arg" parameter
+    ;; Useful during development 
+    (invoke-api "test_call" (clj->js {:arg arg-m}) #(println %)))
 
 (defn test-call []
   ;; test_call is a tauri command function that does not use any parameter
   ;; Useful during development 
   (invoke-api "test_call" {} #(println %)))
 
+(defn test-simulate-verified-flag-preference [confirmed]
+  (invoke-api "test_simulate_verified_flag_preference" {:confirmed confirmed} #(println %)))
+
+(defn test-simulate-run-verifier [confirmed]
+  (invoke-api "test_simulate_run_verifier" {:confirmed confirmed} #(println %)))
 
 (comment
   (def auto-open-properties {:source-db-key "/Users/jeyasankar/Documents/OneKeePass/TestAutoOpenXC.kdbx"

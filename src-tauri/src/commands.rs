@@ -859,6 +859,19 @@ pub(crate) async fn test_call() -> Result<()> {
   Ok(browser_service::start_proxy_handler())
 }
 
+#[tauri::command]
+pub(crate) async fn test_simulate_verified_flag_preference(confirmed: bool) -> Result<()> {
+  log::debug!("test_simulate_verified_flag_preference is called");
+  Ok(browser_service::simulate_verified_flag_preference(confirmed).await)
+}
+
+#[tauri::command]
+pub(crate) async fn test_simulate_run_verifier(confirmed: bool) -> Result<()> {
+  log::debug!("test_simulate_run_verifier is called");
+  Ok(browser_service::run_verifier(confirmed).await)
+}
+
+
 // #[tauri::command]
 // pub(crate) async fn test_call() -> Result<()> {
 //   Ok(onekeepass_core::async_service::start())

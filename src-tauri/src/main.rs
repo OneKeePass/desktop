@@ -78,9 +78,7 @@ fn main() {
       let _ = menu::handle_menu_events(app_handle, &menu_event);
     })
     .invoke_handler(tauri::generate_handler![
-      // This is a test command that may be used to experiment any backend call during dev time 
-      commands::test_call,
-
+  
       // Sorted alphabetically
       commands::active_window_to_auto_type,
       commands::analyzed_password,
@@ -172,6 +170,11 @@ fn main() {
       commands::update_group,
       commands::upload_entry_attachment,
       commands::update_preference,
+
+      // This is a test command that may be used to experiment any backend call during dev time 
+      commands::test_call,
+      commands::test_simulate_verified_flag_preference,
+      commands::test_simulate_run_verifier,
     ])
     .build(context)
     .expect("error while building tauri application");
@@ -179,6 +182,7 @@ fn main() {
   // App is built and now the app
   app.run(|app_handle, e| match e {
     tauri::RunEvent::Ready => {
+      info!("All webview windows are {:?}",app_handle.webview_windows().keys());
       info!("Application is ready");
     }
 

@@ -36,16 +36,41 @@ impl Request {
 
         match serde_json::from_str(&input_message) {
             Ok(Request::Associate { client_id }) => {
-                let association_id = &client_id.clone();
-                let resp = match SessionStore::session_start(association_id, sender).await {
-                    Ok(_) => InvokeResult::with_ok(Response::Associate {
-                        client_id,
-                        association_id: association_id.into(),
-                    }),
-                    Err(e) => InvokeResult::with_error(&format!("{}", e)),
-                };
+                // super::async_send_connection_request().await;
 
-                SessionStore::send_response(association_id, &resp.json_str()).await;
+                let verifier =
+                    super::ConnectionVerifier::new({
+                        move |confirmed: bool| {
+                            Box::pin({
+                                // let value = client_id.clone();
+                                // let sender1 = sender.clone();
+                                // async move {
+                                //     sender1.send("".into()).await.unwrap();
+                                //     println!("user={}", value);
+                                // }
+                                let client_id = client_id.clone();
+                                let association_id = client_id.clone();
+                                let sender = sender.clone();
+
+                                async move {
+                                    let resp =
+                                        match SessionStore::session_start(&association_id, sender)
+                                            .await
+                                        {
+                                            Ok(_) => InvokeResult::with_ok(Response::Associate {
+                                                client_id,
+                                                association_id: association_id.clone(),
+                                            }),
+                                            Err(e) => InvokeResult::with_error(&format!("{}", e)),
+                                        };
+                                    SessionStore::send_response(&association_id, &resp.json_str())
+                                        .await;
+                                }
+                            })
+                        }
+                    });
+
+                super::ConnectionVerifier::run_verifier(verifier).await;
             }
             Ok(Request::InitSessionKey {
                 association_id,

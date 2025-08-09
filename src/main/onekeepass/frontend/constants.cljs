@@ -94,9 +94,12 @@
 
 (def OTP_URL_PREFIX "otpauth://totp")
 
+;; See constants defined in src-tauri/src/constants.rs
 (def MAIN_WINDOW_EVENT "MainWindowEvent")
 (def OTP_TOKEN_UPDATE_EVENT "OtpTokenUpdateEvent")
 (def TAURI_MENU_EVENT "TauriMenuEvent")
+(def BROWSER_CONNECTION_REQUEST_EVENT "BrowserConnectionRequestEvent")
+
 (def WINDOW_FOCUS_CHANGED "WindowFocusChanged")
 (def CLOSE_REQUESTED  "CloseRequested")
 

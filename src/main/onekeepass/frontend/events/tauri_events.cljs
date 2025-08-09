@@ -1,14 +1,13 @@
 (ns onekeepass.frontend.events.tauri-events
   "Handlers for the backend tauri events"
   (:require
-   [re-frame.core :refer [dispatch]]
-   [onekeepass.frontend.constants :as const :refer
-    [TAURI_MENU_EVENT MAIN_WINDOW_EVENT
-     OTP_TOKEN_UPDATE_EVENT
-     CLOSE_REQUESTED,WINDOW_FOCUS_CHANGED]]
-   [onekeepass.frontend.background :as bg]
+   [camel-snake-kebab.core :as csk]
    [camel-snake-kebab.extras :as cske]
-   [camel-snake-kebab.core :as csk]))
+   [onekeepass.frontend.background :as bg]
+   [onekeepass.frontend.constants :as const :refer
+    [BROWSER_CONNECTION_REQUEST_EVENT CLOSE_REQUESTED MAIN_WINDOW_EVENT
+     OTP_TOKEN_UPDATE_EVENT TAURI_MENU_EVENT WINDOW_FOCUS_CHANGED]]
+   [re-frame.core :refer [dispatch]]))
 
 (defn- to-cljs [js-event-repsonse]
   (->> js-event-repsonse js->clj (cske/transform-keys csk/->kebab-case-keyword)))
@@ -74,13 +73,13 @@
 
       (= menu-id const/MENU_ID_SEARCH)
       (dispatch [:search/dialog-show])
-      
+
       (= menu-id const/APP_SETTINGS)
       (dispatch [:app-settings/read-start])
-      
+
       (= menu-id const/MENU_ID_MERGE_DATABASE)
       (dispatch [:merging/open-dbs-start])
-      
+
       (= menu-id const/MENU_ID_IMPORT)
       (dispatch [:import/import-csv-file-start])
 
@@ -94,7 +93,7 @@
   "The arg js-event-repsonse is js object of format -  
   #js {:event MainWindowEvent,:windowLabel main, :payload #js {:action CloseRequested}, :id 13571024511454513000}
   "
-  [js-event-repsonse] 
+  [js-event-repsonse]
   (let [cljs-response (to-cljs js-event-repsonse)
         {:keys [action focused]} (-> cljs-response :payload)]
     (cond
@@ -120,10 +119,10 @@
 ;; Only keys are keywordized but they are in snake_case
 ;; We are not using 'to-cljs' as it will convert all keys recursively to keyword
 ;; We do not want that as the field names are string. 
-;; A string key like "Field name1" will be :Filed name1 because of :keywordize-keys use
+;; A string key like "Field name1" will be :Field name1 because of :keywordize-keys use
 (defn handle-otp-token-update-event [js-event-repsonse]
   ;;(println "token  response " (js->clj js-event-repsonse :keywordize-keys true) )
-  (let [cljs-response (js->clj js-event-repsonse :keywordize-keys true) 
+  (let [cljs-response (js->clj js-event-repsonse :keywordize-keys true)
         reply (-> cljs-response :payload)
         {:keys [entry_uuid reply_field_tokens]} reply]
     ;; For now only entry form otp tokens are received
@@ -133,14 +132,24 @@
 (defn register-otp-token-update-events []
   (bg/register-event-listener OTP_TOKEN_UPDATE_EVENT handle-otp-token-update-event))
 
+(defn handle-browser-connection-request-event [js-event]
+  (println "handle-browser-connection-request " (js->clj js-event :keywordize-keys true))
+  (bg/set-window-focus)
+  )
+
+(defn register-browser-connection-request-event []
+  (bg/register-event-listener BROWSER_CONNECTION_REQUEST_EVENT handle-browser-connection-request-event))
+
 (defn register-tauri-events []
   (register-menu-events)
   (register-main-window-events)
-  (register-otp-token-update-events))
+  (register-otp-token-update-events)
+  (register-browser-connection-request-event)
+  )
 
 (defn enable-app-menu [menu-id enable? & {:as menu-args}]
   ;; (println "Going to call for menu-id " menu-id enable? menu-args)
-  
+
   ;; Stores any menu specific args and that is used when menu is selected in the menu bar
   ;; See as an example how the third arg (a map) is passed in entry-list/fn-entry-list-content
   ;; For now only this is used wrt const/MENU_ID_NEW_ENTRY
