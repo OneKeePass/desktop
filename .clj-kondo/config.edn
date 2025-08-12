@@ -132,7 +132,7 @@
                                 show-with-state
                                 state-m
                                 update-with-map
-                                set-api-error 
+                                set-api-error
                                 error
 
                                 ;; Translations related
@@ -292,8 +292,8 @@
   :unresolved-var {:exclude [onekeepass.frontend.mui-components
                              onekeepass.frontend.background/go
                              onekeepass.frontend.events.generic-dialogs
-                             
-                             go
+                             cljs.core.async
+                             cljs.core.async.interop
                              ]}
 
 

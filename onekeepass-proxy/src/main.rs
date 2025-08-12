@@ -1,4 +1,5 @@
 use std::{
+    fs,
     io::{Read, Write},
     path::Path,
     sync::Arc,
@@ -17,8 +18,8 @@ use log4rs::{
 };
 
 fn init_log(log_dir: &str) {
-    //let local_time = Local::now().format("Client-%Y-%m-%d-%H%M%S").to_string();
-    let local_time = Local::now().format("Client").to_string();
+    let local_time = Local::now().format("Client-%Y-%m-%d-%H%M%S").to_string();
+    // let local_time = Local::now().format("Client").to_string();
     let log_file = format!("{}.log", local_time);
     let log_file = Path::new(log_dir).join(log_file);
 
@@ -67,6 +68,8 @@ fn main_app_to_stdout(mut app_connection_reader: ReadHalf<Connection>) {
                     let response_length = len as u32;
                     std::io::stdout().write_all(&response_length.to_ne_bytes()).unwrap();
 
+                    log::debug!("Writing message to stdout for extension  {:?}", String::from_utf8(buf[..len].to_vec()));
+
                     // The message content is written. This should be parseable as json
                     std::io::stdout().write_all(&buf[..len]).unwrap();
                     std::io::stdout().flush().unwrap();
@@ -100,11 +103,10 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
 
             // std::io::stdin().read_exact(&mut length_bytes).expect("Prefixed length bytes read error");
 
-            if let Err(e) = std::io::stdin().read_exact(&mut length_bytes) {
-                log::error!("STDIN - Message length bytes read error {}", &e);
-                // The error may be 'failed to fill whole buffer' when the following 'message_length' will be zero 
+            if let Err(_e) = std::io::stdin().read_exact(&mut length_bytes) {
+                // log::error!("STDIN - Message length bytes read error {}", &e);
+                // The error may be 'failed to fill whole buffer' when the following 'message_length' will be zero
                 // when the extension is removed or the brower is closed
-                
             }
 
             // Gets the message length integer value from a Native Endidan bytes buf
@@ -116,18 +118,21 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
                 continue;
             }
 
-            log::debug!("Received message of size {} from extension", &message_length);
+            // log::debug!("Received message of size {} from extension", &message_length);
 
             // Read the message from the extension from stdin to this buffer
             let mut message_bytes_buf = vec![0; message_length];
 
             if let Err(e) = std::io::stdin().read_exact(&mut message_bytes_buf) {
-                log::error!("STDIN - Message content read error {}", &e);
+                // log::error!("STDIN - Message content read error {}", &e);
                 // What should we do instead of continuing?
                 continue;
             }
 
-            // log::debug!( "Sending stdin read mesage bytes {:?}, str {:?} to the main app", &message_bytes,String::from_utf8(message_bytes.to_vec()));
+            log::debug!(
+                "Sending stdin read  str {:?} to the main app",
+                String::from_utf8(message_bytes_buf.to_vec())
+            );
 
             let shared_writer_cloned = shared_writer.clone();
 
@@ -137,7 +142,7 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
             tokio::spawn(async move {
                 let mut app_connection_writer = shared_writer_cloned.lock().await;
 
-                // log::debug!("BEFORE async writing to app");
+                log::debug!("BEFORE async writing to app");
 
                 // Write extension message content to the main app
 

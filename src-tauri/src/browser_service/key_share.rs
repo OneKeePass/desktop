@@ -50,7 +50,9 @@ impl SessionStore {
             .and_then(|session| session.sender.as_ref())
         {
             let r = tx.send(message.to_string()).await;
-            // log::debug!("Sending response r {:?}", &r);
+            // log::debug!("Sending response result is {:?}", &r);
+        } else {
+            log::error!("No session is found for the association_id {}",association_id);
         }
     }
 

@@ -62,14 +62,12 @@
   ([event-name event-handler-fn]
    (register-event-listener :common event-name event-handler-fn)))
 
-
 (defn set-window-focus []
   #_(go
     (try
-      (let [ window  (^js/TauriWindow win/getCurrentWindow)
+      (let [window  (^js/TauriWindow win/getCurrentWindow)
             _r (<p! (.setFocus window))
             ;;_r (<p!  (.setAlwaysOnTop ^js/TauriWindow window true))
-            
             ]
         (println "Window is focused" _r))
       (catch js/Error err (js/console.log "Error: " (ex-cause err))))))
@@ -665,4 +663,8 @@
   (def entry-uuid (-> (get @re-frame.db/app-db db-key) :entry-form-data :data :uuid))
   (def m1 {"otp" {:period 30 :ttl 5}})
   (start-polling-entry-otp-fields db-key entry-uuid m1 #(println %))
-  (stop_polling_entry_otp_fields db-key entry-uuid #(println %)))
+  (stop_polling_entry_otp_fields db-key entry-uuid #(println %))
+
+  (-> "HelloWorld" csk/->SCREAMING_SNAKE_CASE)
+  ;; => "HELLO_WORLD"
+  )
