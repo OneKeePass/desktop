@@ -7,9 +7,9 @@ use serde::Serialize;
 #[derive(Serialize)]
 pub(crate) struct AllMatchedEntries {
     browser_enabled_db_available: bool,
+    url:String,
     matched_entries: Vec<kp_service::browser_extension::MatchedDbEntries>,
 }
-
 
 pub(crate) fn find_matching_in_enabled_db_entries(input_url: &str) -> Result<AllMatchedEntries> {
     // TODO: Need to get only the browser enabaled databases
@@ -24,6 +24,7 @@ pub(crate) fn find_matching_in_enabled_db_entries(input_url: &str) -> Result<All
 
     Ok(AllMatchedEntries {
         browser_enabled_db_available,
+        url:input_url.to_string(),
         matched_entries:entries,
     })
 }

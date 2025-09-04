@@ -20,7 +20,7 @@ type AsyncCallback = Arc<dyn Fn(bool) -> BoxFuture<'static, ()> + Send + Sync>;
 
 static VERIFIER: OnceLock<tokio::sync::Mutex<Option<Arc<ConnectionVerifier>>>> = OnceLock::new();
 
-///
+// TODO: Need to set this flag from app's prefernce. For now it is set or unset through 'simulate_verified_flag_preference' call
 static VERIFIED: OnceLock<std::sync::Mutex<bool>> = OnceLock::new();
 
 // Simulates the verified state preference storage
@@ -62,52 +62,69 @@ impl ConnectionVerifier {
         }
     }
 
+    // The verifier is stored so that it can be run later after user confirms or rejects extension
+    // connection request from UI
     async fn store_verifier(verifier: ConnectionVerifier) {
-    if let Some(ver) = VERIFIER.get() {
-        let mut guard = ver.lock().await;
-        *guard = Some(Arc::new(verifier));
-        log::debug!("The verifier is stored");
-    } else {
-        // Should be done once only
-        let r = VERIFIER.set(tokio::sync::Mutex::new(Some(Arc::new(verifier))));
+        if let Some(ver) = VERIFIER.get() {
+            let mut guard = ver.lock().await;
+            *guard = Some(Arc::new(verifier));
+            log::debug!("The verifier is stored");
+        } else {
+            // Should be done once only
+            let r = VERIFIER.set(tokio::sync::Mutex::new(Some(Arc::new(verifier))));
 
-        // Should not happen!
-        if let Err(_) = r {
-            log::debug!("VERIFIER.set is called multiple times");
-            panic!();
+            // Should not happen!
+            if let Err(_) = r {
+                log::debug!("VERIFIER.set is called multiple times");
+                panic!();
+            }
         }
     }
-}
 
+    // Check whether user has allowed the browser to connect using app level browser specific flag (enabled/disabled)
     async fn run_verifier(verifier: ConnectionVerifier) {
-        // Check whether user has allowed the browser to connect using
-        // app level browser specific flag (enabled/disabled)
-        // If enabled, then call the 'callback'
-        // Simulate the above condition
-
         log::debug!("In run_verifier...");
+
+        // If enabled, then call the 'callback' immediately
+        // For now 'verified_state' call simulates that as if either user has given permission or not
         if verified_state() {
             log::debug!("Verfied state is true");
+
+            // tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+
             // Already user has confirmed to use this browser connection at the app level
-            tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
             verifier.run(true).await;
         } else {
-            log::debug!("Verfied state is false. Storing the verifyer for later use");
-            // The verifyer is stored so that it can be run after user confirms or rejects
+            log::debug!("Verfied state is false. Storing the verifier for later use");
+            // The verifier is stored so that it can be run after user confirms or rejects
             Self::store_verifier(verifier).await;
+
+            // Should something like 'async_send_connection_request' be called here
+            // so that OneKeePass app is brought to the front and ask user to confirm extension use?
         }
     }
 
-    // Should be called from frontend after user confirms (true) or rejects (false)
+    // Should be called from frontend after user confirms (true) or rejects (false) and that choice is
+    // stored in app preference for later use - See 'VERIFIED' flag use above
     async fn run_verifier_and_remove(confirmed: bool) {
         // Take the verifier out under the lock, then drop the lock before await
 
         let verifier = {
-            let mut guard = VERIFIER
-                .get()
-                .expect("init_single_worker_store() must be called first")
-                .lock()
-                .await;
+            let g = VERIFIER.get();
+
+            if g.is_none() {
+                log::error!("Fn run_verifier_and_remove is called before VERIFIER is set ");
+                return;
+            }
+
+            let mut guard = VERIFIER.get().unwrap().lock().await;
+
+            // let mut guard = VERIFIER
+            //     .get()
+            //     .expect("init_single_worker_store() must be called first")
+            //     .lock()
+            //     .await;
+
             guard.take()
         };
 

@@ -18,8 +18,8 @@ use log4rs::{
 };
 
 fn init_log(log_dir: &str) {
-    let local_time = Local::now().format("Client-%Y-%m-%d-%H%M%S").to_string();
-    // let local_time = Local::now().format("Client").to_string();
+    // let local_time = Local::now().format("Client-%Y-%m-%d-%H%M%S").to_string();
+    let local_time = Local::now().format("Client").to_string();
     let log_file = format!("{}.log", local_time);
     let log_file = Path::new(log_dir).join(log_file);
 
@@ -144,8 +144,10 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
 
                 log::debug!("BEFORE async writing to app");
 
-                // Write extension message content to the main app
 
+
+                // Write extension message content to the main app
+                // TODO: Need to send an error to extension if there is a possibilty the application is closed.
                 if let Err(e) = app_connection_writer.write_all(&message_bytes_buf).await {
                     log::error!("Unable to write message to the main app connection. Error is {}", &e);
                 }
@@ -156,23 +158,87 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
     });
 }
 
+fn remove_dir_files<P: AsRef<Path>>(path: P) {
+    if let Ok(p) = fs::read_dir(path) {
+        for entry in p {
+            let _ = entry.and_then(|e| fs::remove_file(e.path()));
+        }
+    }
+}
+
+fn send_app_connection_not_available_error() {
+    let resp = r#"{"error" : {"action": "PROXY_APP_CONNECTION"}, "error_message": "App is not running"}"#;
+    let len = resp.as_bytes().len();
+    let response_length = len as u32;
+    
+    if let Err(e) = std::io::stdout().write_all(&response_length.to_ne_bytes()) {
+        log::error!("Writing PROXY_APP_CONNECTION error msg length to extension failed with error {}",e);
+        return;
+    }
+
+     if let Err(e) = std::io::stdout().write_all(resp.as_bytes()) {
+        log::error!("Writing PROXY_APP_CONNECTION error msg to extension failed with error {}",e);
+        return;
+     }
+
+    let _ = std::io::stdout().flush();
+
+    log::debug!("PROXY_APP_CONNECTION error message {} is send ", &resp);
+}
+
+fn send_app_connection_available_ok() {
+    let resp = r#"{"ok" : {"action": "PROXY_APP_CONNECTION"}}"#;
+    let len = resp.as_bytes().len();
+    let response_length = len as u32;
+    
+    if let Err(e) = std::io::stdout().write_all(&response_length.to_ne_bytes()) {
+        log::error!("Writing PROXY_APP_CONNECTION ok msg length to extension failed with error {}",e);
+        return;
+    }
+
+     if let Err(e) = std::io::stdout().write_all(resp.as_bytes()) {
+        log::error!("Writing PROXY_APP_CONNECTION ok msg to extension failed with error {}",e);
+        return;
+     }
+
+    let _ = std::io::stdout().flush();
+
+    log::debug!("PROXY_APP_CONNECTION ok message {} is send ", &resp);
+}
+
 //#[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 
 #[tokio::main]
 async fn main() {
     let path = "okp_browser_ipc";
 
-    init_log("/Users/jeyasankar/Development/repositories/github/OneKeePass-Organization/desktop/onekeepass-proxy/logs");
+    ////
+    let log_dir = "/Users/jeyasankar/Development/repositories/github/OneKeePass-Organization/desktop/onekeepass-proxy/logs";
+    let log_dir = Path::new(log_dir);
+    if !log_dir.exists() {
+        let _ = fs::create_dir_all(&log_dir);
+    } else {
+        // Each time we remove any old log file.
+        // TODO: Explore the use file rotation
+        let _r = remove_dir_files(&log_dir);
+    }
+    init_log(log_dir.to_path_buf().to_string_lossy().as_ref());
+
+    ////
 
     let Ok(connection_to_server) = Endpoint::connect(ServerId::new(path)).await else {
-        log::error!("Failed to connect to the server");
+        log::error!("Failed to connect to the server and sending error msg");
+        send_app_connection_not_available_error();
         return;
     };
 
     let (app_connection_reader, app_connection_writer) = split(connection_to_server);
 
     log::debug!("===============================");
-    log::debug!("Connected to server");
+    
+    log::debug!("Connected to server and sending initial ok message");
+
+    send_app_connection_available_ok();
 
     // let mut stdin_handle = std::io::stdin().lock();
     // let mut stdout_handle = std::io::stdout().lock();

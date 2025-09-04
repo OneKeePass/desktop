@@ -14,6 +14,8 @@ use crate::browser_service::{
 
 const BUFFER_SIZE: usize = 1024 * 1024;
 
+// Reads the bytes from the proxy app and sends to the request handler (Request::handle_input_message). 
+// The request handler after processing sends the response to a channel 'sender'
 fn handle_input(mut reader: ReadHalf<Connection>, sender: Arc<BrowserServiceTx>) {
     // log::debug!("handle_input is called  before spawn");
 
@@ -47,9 +49,10 @@ fn handle_input(mut reader: ReadHalf<Connection>, sender: Arc<BrowserServiceTx>)
 
         // log::debug!("In handle_input 'spawn'  and before loop");
 
-        // TODO: 
-        // Need to break this loop when connection to the proxy is no more available and the remove session data 
+        // TODO:
+        // Need to break this loop when connection to the proxy is no more available and the remove session data
         loop {
+            // Reads data from proxy app connection
             match reader.read(&mut buf).await {
                 Ok(len) => {
                     if len <= BUFFER_SIZE {
@@ -59,6 +62,7 @@ fn handle_input(mut reader: ReadHalf<Connection>, sender: Arc<BrowserServiceTx>)
                             let message_bytes = buf[..len].to_vec();
                             match String::from_utf8(message_bytes) {
                                 Ok(input_message) => {
+                                    // Handles the received proxy side message data and the handler will send the respnse in channel 'sender'
                                     Request::handle_input_message(input_message, sender.clone())
                                         .await;
                                 }
@@ -78,20 +82,22 @@ fn handle_input(mut reader: ReadHalf<Connection>, sender: Arc<BrowserServiceTx>)
     });
 }
 
+// Receives the request handler's reponse (see Request.handle_input_message) from the channel 'channel_receiver' and then 
+// writes that response to the proxy app connection writer 'proxy_connection_writer'
 fn handle_output(
-    mut receiver: BrowserServiceRx,
-    shared_writer: Arc<tokio::sync::Mutex<WriteHalf<Connection>>>,
+    mut channel_receiver: BrowserServiceRx,
+    proxy_connection_writer: Arc<tokio::sync::Mutex<WriteHalf<Connection>>>,
 ) {
     // log::debug!("handle_output is called  before spawn");
 
-    let writer = shared_writer.clone();
+    let writer = proxy_connection_writer.clone();
 
     tauri::async_runtime::spawn(async move {
         // log::debug!("In handle_output after spawn before loop");
 
-        // TODO: 
+        // TODO:
         // Need to break this loop when connection to the proxy is no more available and remove session data
-        while let Some(message) = receiver.recv().await {
+        while let Some(message) = channel_receiver.recv().await {
             // log::debug!(" Received message {}", &message);
 
             let mut writer_guard = writer.lock().await;
@@ -107,15 +113,17 @@ fn handle_output(
     });
 }
 
+// Called to connect to the browser native message proxy app endpoint and provides listeners to receive
+// messages( or send) messages from (or to) the proxy app
 async fn run_server(path: String) {
     let endpoint = Endpoint::new(ServerId::new(path), OnConflict::Overwrite).unwrap();
 
     let incoming = match endpoint.incoming() {
         Ok(incoming) => incoming,
-         Err(e) => {
+        Err(e) => {
             log::error!("Proxy handler failed to open new socket with error {}", &e);
             return;
-         }
+        }
     };
 
     // pins a mutable reference to a value on the stack
@@ -127,25 +135,29 @@ async fn run_server(path: String) {
         log::debug!("Incoming connections is made to native message proxy");
 
         match result {
-            Ok(stream) => {
-                
+            Ok(stream_to_browser_native_app) => {
                 // log::debug!("Connection is estabilished");
 
-                let (reader, writer) = split(stream);
+                // We get the separated proxy reader and writer
+                let (reader_from_browser_native_app, writer_to_browser_native_app) =
+                    split(stream_to_browser_native_app);
 
-                // Create the channel that is used for communication between reader and writer tasks of this connection
+                // Create the channel that is used for communication between 
+                // request handling task () and response sending task
                 let (tx, rx): (BrowserServiceTx, BrowserServiceRx) = mpsc::channel(32);
 
                 // Sending (message producing) side is shared in many async fns
-                let sender = Arc::new(tx);
+                let channel_sender = Arc::new(tx);
 
-                // Need to wrap the writer in Arc so that it can be moved to writing task's loop (see handle_output)
-                let shared_writer = Arc::new(tokio::sync::Mutex::new(writer));
+                // Need to wrap the channel writer in Arc so that it can be moved to writing task's loop (see handle_output)
+                let shared_writer = Arc::new(tokio::sync::Mutex::new(
+                    writer_to_browser_native_app,
+                ));
 
-                // Reads incoming message
-                handle_input(reader, sender);
+                // Reads incoming message 
+                handle_input(reader_from_browser_native_app, channel_sender);
 
-                // Handles the writing of final received message to native message proxy
+                // Handles the writing of final received message in 'rx' to native message proxy
                 handle_output(rx, shared_writer);
 
                 log::debug!("Created both read_loop and write_loop");

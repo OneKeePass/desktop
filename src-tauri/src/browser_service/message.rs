@@ -12,6 +12,7 @@ use crate::browser_service::{
 pub enum Request {
     CheckAppAvailability,
 
+    // Called first time when the extension app is about to use the OneKeePass app
     Associate {
         client_id: String,
     },
@@ -22,11 +23,7 @@ pub enum Request {
         client_session_pub_key: String,
     },
 
-    // Get a list of databases that can be used
-    EnabledDatabases {
-        association_id: String,
-    },
-
+    // The extension side request to get all entries that match an url
     EnabledDatabaseMatchedEntryList {
         association_id: String,
         form_url: String,
@@ -83,15 +80,38 @@ impl Request {
         SessionStore::send_response(&association_id, &resp.json_str()).await;
     }
 
+    // Called first time when the extension sends the associate message
+    // Need to check that either user has already enabled the browser extension use and if not we need to ask user
+    // confirm the extension use 
     async fn verify(client_id: String, sender: Arc<BrowserServiceTx>) {
+        // First we create a callback that will be called with 'confirmed' value after user confirms
         let verifier = super::ConnectionVerifier::new({
             move |confirmed: bool| {
+
+                // async functions generate Futures, which often contain self-referential data ( meaning they contain pointers to data within themselves)
+
+                // To safely interact with these self-referential Futures, especially when they are polled by an executor, 
+                // they need to be "pinned" to a stable memory location.
+
+                // The Pin type in Rust is a wrapper that guarantees a value 
+                // will not be moved or dropped in a way that would invalidate its internal pointers.
+
+                // When a Future needs to be kept at a stable memory address, it needs to be "pinned."
+
+                // Box::pin(value) is a common way to achieve this. It allocates value on the heap and then 
+                // returns a Pin<Box<value>>. This ensures that the value is 
+                // both heap-allocated (allowing for dynamic sizing) and pinned (preventing movement).
+
                 Box::pin({
                     let client_id = client_id.clone();
                     let association_id = client_id.clone();
                     let sender = sender.clone();
 
                     async move {
+                        // TODO: Need to send error response if 'confirmed' is false
+
+                        log::debug!("Confirmed by user {}", &confirmed);
+
                         let resp = match SessionStore::session_start(&association_id, sender).await
                         {
                             Ok(_) => ResponseResult::with_ok(Response::Associate {
@@ -104,12 +124,14 @@ impl Request {
                                 &format!("{}", e),
                             ),
                         };
+                        // Now send the response back to the extension
                         SessionStore::send_response(&association_id, &resp.json_str()).await;
                     }
                 })
             }
         });
 
+        // Needs user's previous confirmation  or wait for the user's confirmation from UI side
         super::ConnectionVerifier::run_verifier(verifier).await;
     }
 
@@ -133,16 +155,6 @@ impl Request {
                 Self::matched_entries_of_enabled_databases(association_id, form_url).await;
             }
 
-            Ok(Request::EnabledDatabases { association_id }) => {
-                log::debug!("Handling EnabledDatabases call");
-                let resp = ResponseResult::with_error(
-                    ResponseActionName::EnabledDatabases,
-                    &format!("Simulated error message "),
-                );
-                log::debug!("Sending test error message {}", &resp.json_str());
-                // Send using tx to output writer
-                SessionStore::send_response(&association_id, &resp.json_str()).await;
-            }
             Ok(x) => {
                 log::error!("Unhandled request enum variant {:?}", &x);
             }
@@ -166,18 +178,11 @@ pub enum Response {
         association_id: String,
     },
 
-    // App side pub key for the shared key encryption/decryption
+    // Provides the app side pub key for the shared key encryption/decryption for the 'InitSessionKey' request
     InitSessionKey {
         app_session_pub_key: String,
         nonce: String,
         test_message: String,
-    },
-
-    // Response for the 'GetEnabledDatabases' request
-    EnabledDatabases {
-        // The message is encrypted serialized string of Vec<String>
-        message: String,
-        nonce: String,
     },
 
     // Sends the encrypted the serialized json object as message
@@ -191,7 +196,6 @@ enum ResponseActionName {
     Associate,
     InitSessionKey,
     EnabledDatabaseMatchedEntryList,
-    EnabledDatabases,
 }
 
 impl ResponseActionName {
@@ -201,7 +205,6 @@ impl ResponseActionName {
             Associate => "Associate",
             InitSessionKey => "InitSessionKey",
             EnabledDatabaseMatchedEntryList => "EnabledDatabaseMatchedEntryList",
-            EnabledDatabases => "EnabledDatabases",
         }
     }
 
@@ -253,89 +256,3 @@ impl ResponseResult {
         json_str
     }
 }
-
-/*
-// Convertable to a json string as
-// "{ok: 'a string value serialized from T', error: null }" or  "{ok: null, error: 'error string'}"
-#[derive(Serialize)]
-pub struct InvokeResult<T> {
-    ok: Option<T>,
-    error: Option<String>,
-}
-
-impl<T: Serialize> InvokeResult<T> {
-    // Creates a ok part which can be converted to a ok response json string
-    pub fn with_ok(val: T) -> Self {
-        InvokeResult {
-            ok: Some(val),
-            error: None,
-        }
-    }
-
-    // Creates a error part which can be converted to an error response json string
-    pub fn with_error(val: &str) -> Self {
-        InvokeResult {
-            ok: None,
-            error: Some(val.into()),
-        }
-    }
-
-    // Converts OK to json string with "ok" key
-    fn ok_json_str(val: T) -> String {
-        Self::with_ok(val).json_str()
-    }
-
-    // Converts Err to json string with "error" key
-    pub fn json_str(&self) -> String {
-        let json_str = match serde_json::to_string_pretty(self) {
-            Ok(s) => s,
-            Err(e) => {
-                log::error!("InvokeResult conversion failed with error {}", &e);
-                r#"{"error" : "InvokeResult conversion failed"}"#.into()
-            }
-        };
-        json_str
-    }
-}
-
-*/
-
-// pub struct ResponseResult1<T> {
-//     action:String,
-//     ok: Option<T>,
-//     error: Option<String>,
-// }
-
-/*
-
-{:action "Associate" :ok {} :error {}}
-
-*/
-
-// impl Response {
-//     pub(crate) fn ok(&self) -> ResponseResult {
-//         match self {
-//             Response::Associate {
-//                 client_id,
-//                 association_id,
-//             } => ResponseResult::with_ok(self),
-//             Response::InitSessionKey {
-//                 app_session_pub_key,
-//                 nonce,
-//                 test_message,
-//             } => ResponseResult::with_ok(self),
-//             Response::EnabledDatabases { message, nonce } => todo!(),
-//             Response::EnabledDatabaseMatchedEntryList { message, seq } => todo!(),
-//         }
-//     }
-
-//     pub(crate) fn error(enum_name: String, error: String) -> ResponseResult {
-//         ResponseResult {
-//             ok: None,
-//             error: Some(ErrorInfo {
-//                 action: enum_name,
-//                 error_message: error,
-//             }),
-//         }
-//     }
-// }
