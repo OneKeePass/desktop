@@ -1,28 +1,29 @@
 (ns onekeepass.frontend.background
   "All backend api calls. Few api calls are moved to the specific cljs ns"
   (:require
-   [cljs.core.async :refer [go]]
-   [cljs.core.async.interop :refer-macros [<p!]]
-   [camel-snake-kebab.extras :as cske]
-   [camel-snake-kebab.core :as csk]
-   [onekeepass.frontend.utils :refer [contains-val?]]
-
-   [onekeepass.frontend.background-common :as bg-cmn]
-   [onekeepass.frontend.background-password :as bg-pwd]
+   ;; All node package modules (npm) that are loaded by webpack bundler
+   ;; Also see src/main/onekeepass/frontend/mui_components.cljs for other npm packages  
 
    ;; All tauri side corresponding endpoint command apis can be found in 
    ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/endpoints
-   ;; The api implementation is in 
    ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/api 
 
    ;; All node package modules (npm) that are loaded by webpack bundler
-   ;; Also see src/main/onekeepass/frontend/mui_components.cljs for other npm packages
-
-   ["@tauri-apps/plugin-shell" :as tauri-shell]
+   ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/endpoints
+   ;; The api implementation is in 
+   ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/api 
+   ["@tauri-apps/api/event" :as tauri-event]
+   ["@tauri-apps/plugin-clipboard-manager" :refer [readText writeText]]
    ["@tauri-apps/plugin-dialog" :refer (open,save)]
-   ["@tauri-apps/plugin-clipboard-manager" :refer [writeText readText]]
-   ["@tauri-apps/api/window" :as win]
-   ["@tauri-apps/api/event" :as tauri-event]))
+   ["@tauri-apps/plugin-shell" :as tauri-shell]
+
+   [camel-snake-kebab.core :as csk]
+   [camel-snake-kebab.extras :as cske]
+   [cljs.core.async :refer [go]]
+   [cljs.core.async.interop :refer-macros [<p!]]
+   [onekeepass.frontend.background-common :as bg-cmn :refer [to-snake-case]]
+   [onekeepass.frontend.background-password :as bg-pwd]
+   [onekeepass.frontend.utils :refer [contains-val?]]))
 
 (set! *warn-on-infer* true)
 
@@ -64,13 +65,13 @@
 
 (defn set-window-focus []
   #_(go
-    (try
-      (let [window  (^js/TauriWindow win/getCurrentWindow)
-            _r (<p! (.setFocus window))
-            ;;_r (<p!  (.setAlwaysOnTop ^js/TauriWindow window true))
-            ]
-        (println "Window is focused" _r))
-      (catch js/Error err (js/console.log "Error: " (ex-cause err))))))
+      (try
+        (let [window  (^js/TauriWindow win/getCurrentWindow)
+              _r (<p! (.setFocus window))
+              ;;_r (<p!  (.setAlwaysOnTop ^js/TauriWindow window true))
+              ]
+          (println "Window is focused" _r))
+        (catch js/Error err (js/console.log "Error: " (ex-cause err))))))
 
 (defn open-file-dialog
   "Calls the tauri's 'open' command so that native file explorerer dialog is opened
@@ -479,16 +480,24 @@
 (defn update-preference [preference-data dispatch-fn]
   (invoke-api "update_preference" {:preference-data  preference-data} dispatch-fn :convert-response false))
 
+(defn update-database-browser-ext-preference
+  [enabled-databases dispatch-fn]
+  (let [args (clj->js
+              {:preferenceData
+               {:database_browser_ext_support
+                {:enabled_databases
+                 (reduce (fn [acc [k v]]
+                           (assoc acc k (to-snake-case v))) {} enabled-databases)}}})]
+    (invoke-api "update_preference" args dispatch-fn :convert-request false :convert-response false)))
+
 (defn clear-recent-files [dispatch-fn]
   (invoke-api "clear_recent_files" {} dispatch-fn))
-
 
 (defn get-db-settings [db-key dispatch-fn]
   (invoke-api "get_db_settings" {:db-key db-key} dispatch-fn))
 
 (defn set-db-settings [db-key db-settings dispatch-fn]
   (invoke-api "set_db_settings" {:dbKey db-key :db-settings db-settings} dispatch-fn))
-
 
 (defn menu-action-requested
   "The args menu-id and action should match MenuActionRequest and action should match enum 'MenuAction'"

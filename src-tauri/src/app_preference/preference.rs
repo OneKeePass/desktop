@@ -1,40 +1,21 @@
-use serde::{Deserialize, Serialize};
 use std::fs;
+
+use crate::app_preference::password_gen_preference::PasswordGeneratorPreference;
+
+use crate::app_preference::{BackupPreference, PreferenceData};
+
+use crate::app_preference::browser_ext_preference::{BrowserExtSupport, DatabaseBrowserExtSupport};
 
 use crate::{
   app_paths::app_backup_dir,
   constants::{standard_file_names::APP_PREFERENCE_FILE, themes::LIGHT},
-  password_gen_preference::PasswordGeneratorPreference,
   translation,
 };
 
 use crate::app_paths::app_home_dir;
-use onekeepass_core::db_service as kp_service;
+use log::debug;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub(crate) struct BackupPreference {
-  pub(crate) enabled: bool,
-  pub(crate) dir: Option<String>,
-}
-
-impl Default for BackupPreference {
-  fn default() -> Self {
-    Self {
-      enabled: true,
-      dir: None,
-    }
-  }
-}
-
-#[derive(Deserialize)]
-pub(crate) struct PreferenceData {
-  session_timeout: Option<u8>,
-  clipboard_timeout: Option<u16>,
-  default_entry_category_groupings: Option<String>,
-  theme: Option<String>,
-  language: Option<String>,
-  pass_phrase_options: Option<kp_service::PassphraseGenerationOptions>,
-}
 // Old preference used before introduction of fields clipboard_timeout,theme ,language
 // Leaving it here for documentation purpose only
 // #[derive(Serialize, Deserialize)]
@@ -49,7 +30,7 @@ pub(crate) struct PreferenceData {
 
 // Old preference used in the earlier version v0.14.0
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub(crate) struct Preference1 {
+struct Preference1 {
   pub(crate) version: String,
   // In minutes
   pub(crate) session_timeout: u8,
@@ -92,6 +73,9 @@ pub(crate) struct Preference {
   pub(crate) backup: BackupPreference,
 
   password_gen_preference: PasswordGeneratorPreference,
+
+  browser_ext_support:Option<BrowserExtSupport>,
+  browser_ext_supported_databases:Option<DatabaseBrowserExtSupport>,
 }
 
 impl Default for Preference {
@@ -100,7 +84,7 @@ impl Default for Preference {
       // Same as in tauri.conf.json. This is for doc purpose only as
       // this will be reset to the latest version from tauri.conf.json
       // after parsing the toml pref file in read_toml and pref file is updated accordingly
-      version: "0.15.0".into(),
+      version: "0.18.0".into(),
       session_timeout: (15 as u8),
       clipboard_timeout: (30 as u16),
       theme: LIGHT.into(),
@@ -109,6 +93,10 @@ impl Default for Preference {
       recent_files: vec![],
       backup: BackupPreference::default(),
       password_gen_preference: PasswordGeneratorPreference::default(),
+
+      browser_ext_support:None,
+      browser_ext_supported_databases:None,
+    
     }
   }
 }
@@ -234,7 +222,7 @@ impl Preference {
 
   // Update the preference with any non null values
   pub(crate) fn update(&mut self, preference_data: PreferenceData) {
-    // debug!("Preference update is called {:?}",&preference_data);
+    debug!("Preference update is called {:?}",&preference_data);
     // debug!("Preference before {:?}",&self);
 
     // TODO: Need to have a 'macro' for this
@@ -268,6 +256,29 @@ impl Preference {
       self.password_gen_preference.update_pass_phrase_options(v);
       updated = true;
     }
+
+    if let Some(v) = preference_data.browser_ext_support_enabled  {
+
+        let mut e = self.browser_ext_support.take().unwrap_or_default();
+        e.set_extension_use_enabled(v);
+        self.browser_ext_support = Some(e);
+        updated = true;
+    }
+
+    if let Some(v) = preference_data.browser_ext_support_browser_permission  {
+        let mut e = self.browser_ext_support.take().unwrap_or_default();
+        e.set_browser_specific_permission(v);
+        self.browser_ext_support = Some(e);
+        updated = true;
+    }
+
+     if let Some(v) = preference_data.database_browser_ext_support {
+        debug!("Preference database_browser_ext_support received {:?}", &v);
+        self.browser_ext_supported_databases = Some(v);
+        updated = true;
+     } 
+
+
     // debug!("Preference after updated {}, {:?}",updated,&self);
     if updated {
       self.write_toml();

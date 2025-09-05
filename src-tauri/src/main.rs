@@ -16,7 +16,6 @@ mod file_util;
 mod key_secure;
 mod menu;
 mod pass_phrase;
-mod password_gen_preference;
 mod translation;
 // mod callback_service_provider;
 
