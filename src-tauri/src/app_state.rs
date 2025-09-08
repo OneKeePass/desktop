@@ -15,12 +15,14 @@ use tauri::{AppHandle, State};
 
 use tauri::{path::BaseDirectory, App, Manager, Runtime};
 
-use crate::app_preference::{Preference, PreferenceData};
+use crate::app_preference::{BrowserExtSupportData, Preference, PreferenceData};
 use crate::biometric;
 use crate::constants::standard_file_names::APP_PREFERENCE_FILE;
 use crate::key_secure;
 use crate::translation::current_locale_language;
 use crate::{app_paths, file_util};
+
+use onekeepass_core::error::Result;
 
 //////    App startup time Init call //////////
 
@@ -34,7 +36,6 @@ pub(crate) fn init_app(app: &App) {
     //     println!("⌥⇧R is pressed");
     //   });
     ////
-  
 
     AppState::set_global_app_handle(app);
 
@@ -42,6 +43,8 @@ pub(crate) fn init_app(app: &App) {
     app_paths::init_app_paths();
 
     let state = app.state::<AppState>();
+
+    // Reads the app preference from a toml config file
     // loggings still not yet setup
     state.read_preference(app);
 
@@ -60,6 +63,9 @@ pub(crate) fn init_app(app: &App) {
     // callback_service_provider::init_callback_service_provider(app.app_handle().clone());
 
     onekeepass_core::async_service::start_runtime();
+
+    // Start the browser extennion proxy listener if required
+    state.start_ext_proxy_service();
 
     info!("{}", "Intit app is done");
 }
@@ -124,7 +130,6 @@ impl AppState {
 
     // This should be called once in 'init_app' fn
     fn set_global_app_handle(app: &App) {
-
         let app_handle = app.handle().clone();
         GLOBAL_TAURI_APP_HANDLE
             .set(app_handle.clone())
@@ -135,6 +140,10 @@ impl AppState {
         GLOBAL_TAURI_APP_HANDLE
             .get()
             .expect("Global Tauri AppHandle is not yet initialized")
+    }
+
+    pub(crate) fn state_instance() -> State<'static, AppState> {
+        AppState::global_app_handle().state::<AppState>()
     }
 
     fn set_resource_dir_path(&self, resource_path: Option<PathBuf>) {
@@ -158,17 +167,6 @@ impl AppState {
         *init_status
     }
 
-    pub(crate) fn prefered_language(&self) -> String {
-        let store_pref = self.preference.lock().unwrap();
-        //store_pref.language.clone() will also works
-        (*store_pref.language).to_string()
-    }
-
-    pub(crate) fn default_entry_category_groupings(&self) -> String {
-        let store_pref = self.preference.lock().unwrap();
-        store_pref.default_entry_category_groupings.clone()
-    }
-
     // Reads the preference from file system and store in state
     fn read_preference(&self, app: &App) {
         let version = format!(
@@ -184,16 +182,6 @@ impl AppState {
         let mut store_pref = self.preference.lock().unwrap();
         //sets the preference struct value inside the MutexGuard by dereferencing
         *store_pref = pref;
-    }
-
-    pub(crate) fn update_preference(&self, preference_data: PreferenceData) {
-        let mut store_pref = self.preference.lock().unwrap();
-        store_pref.update(preference_data);
-    }
-
-    pub(crate) fn clear_recent_files(&self) {
-        let mut store_pref = self.preference.lock().unwrap();
-        store_pref.clear_recent_files();
     }
 
     // Gets the full backupfile name
@@ -232,6 +220,63 @@ impl AppState {
         }
     }
 }
+
+// All preference access fns are grouped under this impl
+
+impl AppState {
+
+    pub(crate) fn prefered_language(&self) -> String {
+        let store_pref = self.preference.lock().unwrap();
+        //store_pref.language.clone() will also works
+        (*store_pref.language).to_string()
+    }
+
+    pub(crate) fn default_entry_category_groupings(&self) -> String {
+        let store_pref = self.preference.lock().unwrap();
+        store_pref.default_entry_category_groupings.clone()
+    }
+
+    pub(crate) fn update_preference(&self, preference_data: PreferenceData) {
+        let mut store_pref = self.preference.lock().unwrap();
+        store_pref.update(preference_data);
+    }
+
+    pub(crate) fn update_browser_ext_support(
+        &self,
+        browser_ext_support: BrowserExtSupportData,
+    ) -> Result<()> {
+        let mut store_pref = self.preference.lock().unwrap();
+        store_pref.update_browser_ext_support(browser_ext_support)
+    }
+
+    // Called from the 'verifier' module
+    pub(crate) fn is_browser_extension_use_enabled(&self, browser_id: &str) -> bool {
+        let store_pref = self.preference.lock().unwrap();
+        store_pref
+            .browser_ext_support_preference()
+            .is_extension_use_enabled(browser_id)
+    }
+
+    // Called from frontend through Commands api when user allows a browser ext connection
+    pub(crate) fn browser_ext_use_user_permission(&self, browser_id: &str, confirmed: bool) {
+        let mut store_pref = self.preference.lock().unwrap();
+        store_pref.browser_ext_use_user_permission(browser_id, confirmed);
+    }
+
+    // Called onetime when the app starts 
+    fn start_ext_proxy_service(&self) {
+        let store_pref = self.preference.lock().unwrap();
+        store_pref
+            .browser_ext_support_preference()
+            .start_proxy_handling_service();
+    }
+
+    pub(crate) fn clear_recent_files(&self) {
+        let mut store_pref = self.preference.lock().unwrap();
+        store_pref.clear_recent_files();
+    }
+}
+
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct StandardDirs {

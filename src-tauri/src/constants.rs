@@ -25,6 +25,7 @@ pub mod standard_dirs {
     pub const BACKUP_DIR: &str = "";
 }
 
+#[allow(dead_code)]
 pub mod window_labels {
   // src-tauri/tauri.conf.json -> "app" -> "windows"  ( not "bundle" -> "windows" one)
   // 

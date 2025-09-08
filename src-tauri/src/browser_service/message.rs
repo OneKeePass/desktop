@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::browser_service::{
     db_calls,
     key_share::{BrowserServiceTx, SessionStore},
+    verifier,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -31,110 +32,7 @@ pub enum Request {
 }
 
 impl Request {
-    async fn init_session(association_id: &str, client_session_pub_key: &str) {
-        let resp = match SessionStore::init_session(association_id, client_session_pub_key).await {
-            Ok(app_session_pub_key) => {
-                let (nonce, enc_msg) = SessionStore::encrypt(
-                    association_id,
-                    r#"{"message":"Server ENCRYPTED test message"}"#,
-                )
-                .await
-                .unwrap();
-
-                ResponseResult::with_ok(Response::InitSessionKey {
-                    app_session_pub_key,
-                    nonce: nonce,
-                    test_message: enc_msg,
-                })
-            }
-            Err(e) => {
-                ResponseResult::with_error(ResponseActionName::InitSessionKey, &format!("{}", e))
-            }
-        };
-
-        // Send using tx to output writer
-        SessionStore::send_response(&association_id, &resp.json_str()).await;
-    }
-
-    async fn matched_entries_of_enabled_databases(association_id: &str, input_url: &str) {
-        let matched_entries = db_calls::find_matching_in_enabled_db_entries(input_url)
-            .and_then(|ref s| Ok(serde_json::to_string_pretty(s)?));
-
-        let resp = match matched_entries {
-            Ok(ref matched) => match SessionStore::encrypt(association_id, matched).await {
-                Ok((nonce, enc_msg)) => {
-                    ResponseResult::with_ok(Response::EnabledDatabaseMatchedEntryList {
-                        message: enc_msg,
-                        nonce: nonce,
-                    })
-                }
-                Err(error) => ResponseActionName::EnabledDatabaseMatchedEntryList.with_error(error),
-            },
-            Err(e) => ResponseResult::with_error(
-                ResponseActionName::EnabledDatabaseMatchedEntryList,
-                &format!("{}", e),
-            ),
-        };
-
-        // Send using tx to output writer
-        SessionStore::send_response(&association_id, &resp.json_str()).await;
-    }
-
-    // Called first time when the extension sends the associate message
-    // Need to check that either user has already enabled the browser extension use and if not we need to ask user
-    // confirm the extension use 
-    async fn verify(client_id: String, sender: Arc<BrowserServiceTx>) {
-        // First we create a callback that will be called with 'confirmed' value after user confirms
-        let verifier = super::ConnectionVerifier::new({
-            move |confirmed: bool| {
-
-                // async functions generate Futures, which often contain self-referential data ( meaning they contain pointers to data within themselves)
-
-                // To safely interact with these self-referential Futures, especially when they are polled by an executor, 
-                // they need to be "pinned" to a stable memory location.
-
-                // The Pin type in Rust is a wrapper that guarantees a value 
-                // will not be moved or dropped in a way that would invalidate its internal pointers.
-
-                // When a Future needs to be kept at a stable memory address, it needs to be "pinned."
-
-                // Box::pin(value) is a common way to achieve this. It allocates value on the heap and then 
-                // returns a Pin<Box<value>>. This ensures that the value is 
-                // both heap-allocated (allowing for dynamic sizing) and pinned (preventing movement).
-
-                Box::pin({
-                    let client_id = client_id.clone();
-                    let association_id = client_id.clone();
-                    let sender = sender.clone();
-
-                    async move {
-                        // TODO: Need to send error response if 'confirmed' is false
-
-                        log::debug!("Confirmed by user {}", &confirmed);
-
-                        let resp = match SessionStore::session_start(&association_id, sender).await
-                        {
-                            Ok(_) => ResponseResult::with_ok(Response::Associate {
-                                client_id,
-                                association_id: association_id.clone(),
-                            }),
-
-                            Err(e) => ResponseResult::with_error(
-                                ResponseActionName::Associate,
-                                &format!("{}", e),
-                            ),
-                        };
-                        // Now send the response back to the extension
-                        SessionStore::send_response(&association_id, &resp.json_str()).await;
-                    }
-                })
-            }
-        });
-
-        // Needs user's previous confirmation  or wait for the user's confirmation from UI side
-        super::ConnectionVerifier::run_verifier(verifier).await;
-    }
-
+    // Called when the app side proxy handler receives a native message json string from browser extension through okp proxy stdio app
     pub(crate) async fn handle_input_message(input_message: String, sender: Arc<BrowserServiceTx>) {
         // log::debug!("In handle_input_message ...");
 
@@ -166,6 +64,123 @@ impl Request {
                 );
             }
         }
+    }
+
+    // Called first time when the extension sends the associate message
+    // Need to check that either user has already enabled the browser extension use and if not we need to ask user
+    // confirm the extension use
+    async fn verify(client_id: String, sender: Arc<BrowserServiceTx>) {
+        let browser_id = client_id.clone();
+
+        // First we create a callback that will be called with 'confirmed' value after user confirms
+        let verifier = verifier::ConnectionVerifier::new({
+            move |confirmed: bool| {
+                // async functions generate Futures, which often contain self-referential data ( meaning they contain pointers to data within themselves)
+
+                // To safely interact with these self-referential Futures, especially when they are polled by an executor,
+                // they need to be "pinned" to a stable memory location.
+
+                // The Pin type in Rust is a wrapper that guarantees a value
+                // will not be moved or dropped in a way that would invalidate its internal pointers.
+
+                // When a Future needs to be kept at a stable memory address, it needs to be "pinned."
+
+                // Box::pin(value) is a common way to achieve this. It allocates value on the heap and then
+                // returns a Pin<Box<value>>. This ensures that the value is
+                // both heap-allocated (allowing for dynamic sizing) and pinned (preventing movement).
+
+                Box::pin({
+                    let client_id = client_id.clone();
+                    // TODO:  Instead of using 'client_id', Shoudle we generate a random name for each session?
+                    let association_id = client_id.clone();
+                    let sender = sender.clone();
+
+                    async move {
+                        // TODO: Need to send error response if 'confirmed' is false
+
+                        log::debug!("Confirmed by user {}", &confirmed);
+
+                        if !confirmed {
+                            let resp = ResponseResult::with_error(
+                                ResponseActionName::Associate,
+                                &format!("User rejected the browser extension connection"),
+                            );
+                            // No session is yet available and we send the responde directly
+                            let _r = sender.send(resp.json_str()).await;
+                            return;
+                        }
+
+                        // User has allowed the browser ext connection
+                        let resp = match SessionStore::session_start(&association_id, sender).await
+                        {
+                            Ok(_) => ResponseResult::with_ok(Response::Associate {
+                                client_id,
+                                association_id: association_id.clone(),
+                            }),
+
+                            Err(e) => ResponseResult::with_error(
+                                ResponseActionName::Associate,
+                                &format!("{}", e),
+                            ),
+                        };
+                        // Now send the response back to the extension
+                        SessionStore::send_session_response(&association_id, &resp.json_str()).await;
+                    }
+                })
+            }
+        });
+
+        // Needs user's previous confirmation  or wait for the user's confirmation from UI side
+        verifier.run_verifier(&browser_id).await;
+    }
+
+    async fn init_session(association_id: &str, client_session_pub_key: &str) {
+        let resp = match SessionStore::init_session(association_id, client_session_pub_key).await {
+            Ok(app_session_pub_key) => {
+                let (nonce, enc_msg) = SessionStore::encrypt(
+                    association_id,
+                    r#"{"message":"Server ENCRYPTED test message"}"#,
+                )
+                .await
+                .unwrap();
+
+                ResponseResult::with_ok(Response::InitSessionKey {
+                    app_session_pub_key,
+                    nonce: nonce,
+                    test_message: enc_msg,
+                })
+            }
+            Err(e) => {
+                ResponseResult::with_error(ResponseActionName::InitSessionKey, &format!("{}", e))
+            }
+        };
+
+        // Send using tx to output writer
+        SessionStore::send_session_response(&association_id, &resp.json_str()).await;
+    }
+
+    async fn matched_entries_of_enabled_databases(association_id: &str, input_url: &str) {
+        let matched_entries = db_calls::find_matching_in_enabled_db_entries(input_url)
+            .and_then(|ref s| Ok(serde_json::to_string_pretty(s)?));
+
+        let resp = match matched_entries {
+            Ok(ref matched) => match SessionStore::encrypt(association_id, matched).await {
+                Ok((nonce, enc_msg)) => {
+                    ResponseResult::with_ok(Response::EnabledDatabaseMatchedEntryList {
+                        message: enc_msg,
+                        nonce: nonce,
+                    })
+                }
+                Err(error) => ResponseActionName::EnabledDatabaseMatchedEntryList.with_error(error),
+            },
+            Err(e) => ResponseResult::with_error(
+                ResponseActionName::EnabledDatabaseMatchedEntryList,
+                &format!("{}", e),
+            ),
+        };
+
+        // Send using tx to output writer
+        SessionStore::send_session_response(&association_id, &resp.json_str()).await;
     }
 }
 

@@ -17,11 +17,14 @@
    ["@tauri-apps/plugin-dialog" :refer (open,save)]
    ["@tauri-apps/plugin-shell" :as tauri-shell]
 
+   ["@tauri-apps/api/window" :refer [getCurrentWindow]]
+
+   #_[applied-science.js-interop :as j]
    [camel-snake-kebab.core :as csk]
    [camel-snake-kebab.extras :as cske]
    [cljs.core.async :refer [go]]
    [cljs.core.async.interop :refer-macros [<p!]]
-   [onekeepass.frontend.background-common :as bg-cmn :refer [to-snake-case]]
+   [onekeepass.frontend.background-common :as bg-cmn]
    [onekeepass.frontend.background-password :as bg-pwd]
    [onekeepass.frontend.utils :refer [contains-val?]]))
 
@@ -64,14 +67,45 @@
    (register-event-listener :common event-name event-handler-fn)))
 
 (defn set-window-focus []
+  ;; Need to get the window before 'go' call to avoid something like "Warning - Cannot infer target type in expression...." 
+  (let [window ^js/TauriWindow (getCurrentWindow)]
+    (go
+      (try
+        ;; IMPORTANT: Need to set variuos permissions to use window methods and props
+        ;; in src-tauri/capabilities/desktop.json
+        ;; Ref: https://v2.tauri.app/reference/acl/core-permissions/
+
+        (<p!  (. window (setFocus)))
+        (<p!  (.unminimize  window))
+
+        ;; If we set 'setAlwaysOnTop' true, we need to reset to false when
+        ;; user completes the request action
+        ;; _r (<p!  (.setAlwaysOnTop window true)
+
+        #_(let [_r (<p!  (. window (setFocus)))
+                _r  (<p!  (.unminimize  window))
+
+                ;; If we set 'setAlwaysOnTop' true, we need to reset to false when
+                ;; user completes the request action
+                ;; _r (<p!  (.setAlwaysOnTop window true))
+                ]
+            (println "Window is focused and r is." _r))
+
+        (catch js/Error err
+          (js/console.log "Error: " (ex-cause err)  "err " err)))))
   #_(go
       (try
-        (let [window  (^js/TauriWindow win/getCurrentWindow)
-              _r (<p! (.setFocus window))
-              ;;_r (<p!  (.setAlwaysOnTop ^js/TauriWindow window true))
+        (let [;;^js/TauriWindow window  win/getCurrentWindow
+              ;; window ^js (getCurrentWindow)
+              window (get-current-window)
+              _ (println "(type window) is " (type window))
+              _r (<p!  (. window (setFocus))  #_(^js/TauriWindow .setFocus  w))
+              _r  (<p!  #_(j/call ^js window :unminimize) (.unminimize  window))
+              ;; _r (<p!  (.setAlwaysOnTop ^js/TauriWindow window true))
               ]
-          (println "Window is focused" _r))
-        (catch js/Error err (js/console.log "Error: " (ex-cause err))))))
+          (println "Window is focused and r is." _r))
+        (catch js/Error err
+          (js/console.log "Error: " (ex-cause err)  "err " err)))))
 
 (defn open-file-dialog
   "Calls the tauri's 'open' command so that native file explorerer dialog is opened
@@ -480,15 +514,17 @@
 (defn update-preference [preference-data dispatch-fn]
   (invoke-api "update_preference" {:preference-data  preference-data} dispatch-fn :convert-response false))
 
-(defn update-database-browser-ext-preference
-  [enabled-databases dispatch-fn]
-  (let [args (clj->js
-              {:preferenceData
-               {:database_browser_ext_support
-                {:enabled_databases
-                 (reduce (fn [acc [k v]]
-                           (assoc acc k (to-snake-case v))) {} enabled-databases)}}})]
-    (invoke-api "update_preference" args dispatch-fn :convert-request false :convert-response false)))
+;; browser-ext-support is a map for struct BrowserExtSupportData
+(defn update-browser-ext-support-preference 
+  "Brower extension support settings updates"
+  [browser-ext-support dispatch-fn]
+  (invoke-api "update_browser_ext_support_preference"
+              {:browser-ext-support browser-ext-support} dispatch-fn :convert-response false))
+
+(defn browser-ext-use-user-permission 
+  "Called when user accepts or rejects the browser extension connection"
+  [browser-id confirmed dispatch-fn]
+  (invoke-api "browser_ext_use_user_permission" {:browser-id browser-id :confirmed confirmed} dispatch-fn :convert-response false))
 
 (defn clear-recent-files [dispatch-fn]
   (invoke-api "clear_recent_files" {} dispatch-fn))

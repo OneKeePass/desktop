@@ -12,9 +12,11 @@ use crate::browser_service::{
     message::Request,
 };
 
+const NATIVE_MESSAGE_CONNECTION_NAME: &str = "okp_browser_ipc";
+
 const BUFFER_SIZE: usize = 1024 * 1024;
 
-// Reads the bytes from the proxy app and sends to the request handler (Request::handle_input_message). 
+// Reads the bytes from the proxy app and sends to the request handler (Request::handle_input_message).
 // The request handler after processing sends the response to a channel 'sender'
 fn handle_input(mut reader: ReadHalf<Connection>, sender: Arc<BrowserServiceTx>) {
     // log::debug!("handle_input is called  before spawn");
@@ -82,7 +84,7 @@ fn handle_input(mut reader: ReadHalf<Connection>, sender: Arc<BrowserServiceTx>)
     });
 }
 
-// Receives the request handler's reponse (see Request.handle_input_message) from the channel 'channel_receiver' and then 
+// Receives the request handler's reponse (see Request.handle_input_message) from the channel 'channel_receiver' and then
 // writes that response to the proxy app connection writer 'proxy_connection_writer'
 fn handle_output(
     mut channel_receiver: BrowserServiceRx,
@@ -113,8 +115,34 @@ fn handle_output(
     });
 }
 
+static ENDPOINT_SERVER_RUNNING: std::sync::OnceLock<std::sync::Mutex<bool>> =
+    std::sync::OnceLock::new();
+
+fn endpoint_server_started() {
+    if let Some(a) = ENDPOINT_SERVER_RUNNING.get() {
+        let mut b = a.lock().unwrap();
+        *b = true;
+    } else {
+        let r = ENDPOINT_SERVER_RUNNING.set(std::sync::Mutex::new(true));
+        if r.is_err() {
+            log::error!(
+                "ENDPOINT_SERVER_RUNNING is already set. Should not be called multiple times"
+            )
+        }
+    }
+}
+
+fn is_endpoint_server_running() -> bool {
+    if let Some(a) = ENDPOINT_SERVER_RUNNING.get() {
+        let b = a.lock().unwrap();
+        *b
+    } else {
+        false
+    }
+}
+
 // Called to connect to the browser native message proxy app endpoint and provides listeners to receive
-// messages( or send) messages from (or to) the proxy app
+// messages( or send) messages from (or to) the native message proxy app for all browser extensions
 async fn run_server(path: String) {
     let endpoint = Endpoint::new(ServerId::new(path), OnConflict::Overwrite).unwrap();
 
@@ -131,9 +159,18 @@ async fn run_server(path: String) {
 
     log::debug!("Listener to the Browser native message proxy is started ...");
 
+    // Set the flag saying that endpoint server is started 
+    endpoint_server_started();
+
+    // When each browser's native message proxy app is launched (Ext -> Native message -> Lauches the proxy),
+    // the 'next' call returns with the connection to that proxy
+
+    // For example when user uses browser extension of Firefox and Chrome at the same time, each browser extension would
+    // have launched its own proxy app and both connects to this endpoint.
     while let Some(result) = incoming.next().await {
         log::debug!("Incoming connections is made to native message proxy");
 
+        // Handles one browser's ext proxy conenction
         match result {
             Ok(stream_to_browser_native_app) => {
                 // log::debug!("Connection is estabilished");
@@ -142,7 +179,7 @@ async fn run_server(path: String) {
                 let (reader_from_browser_native_app, writer_to_browser_native_app) =
                     split(stream_to_browser_native_app);
 
-                // Create the channel that is used for communication between 
+                // Create the channel that is used for communication between
                 // request handling task () and response sending task
                 let (tx, rx): (BrowserServiceTx, BrowserServiceRx) = mpsc::channel(32);
 
@@ -150,11 +187,9 @@ async fn run_server(path: String) {
                 let channel_sender = Arc::new(tx);
 
                 // Need to wrap the channel writer in Arc so that it can be moved to writing task's loop (see handle_output)
-                let shared_writer = Arc::new(tokio::sync::Mutex::new(
-                    writer_to_browser_native_app,
-                ));
+                let shared_writer = Arc::new(tokio::sync::Mutex::new(writer_to_browser_native_app));
 
-                // Reads incoming message 
+                // Reads incoming message
                 handle_input(reader_from_browser_native_app, channel_sender);
 
                 // Handles the writing of final received message in 'rx' to native message proxy
@@ -169,6 +204,7 @@ async fn run_server(path: String) {
             }
         }
 
+        // Will look for the "next" connection from another browser proxy
         log::debug!("Going to wait for the next connection");
     }
 }
@@ -176,10 +212,14 @@ async fn run_server(path: String) {
 // This should be called to start the backend listener to receive messages / send messages from/to a browser native message proxy app
 pub(crate) fn start_proxy_handler() {
     log::debug!("In start_proxy_handler....");
-    tauri::async_runtime::spawn(async move {
-        log::debug!("Starting the app side proxy listening service");
-        run_server("okp_browser_ipc".to_string()).await;
-    });
+    if !is_endpoint_server_running() {
+        tauri::async_runtime::spawn(async move {
+            log::debug!("Starting the app side proxy listening service");
+            run_server(NATIVE_MESSAGE_CONNECTION_NAME.to_string()).await;
+        });
+    } else {
+        log::debug!("Enpoint server for proxy connetion listener is already running");
+    }
 }
 
 /*

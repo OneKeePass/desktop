@@ -1,60 +1,33 @@
-mod db_calls;
-mod key_share;
-mod message;
-mod proxy_handler;
-mod verifier;
+use std::{
+    collections::HashMap,
+    sync::{Arc, OnceLock},
+};
 
-mod native_messaging_config;
+use futures_util::future::BoxFuture;
+use tauri::{Emitter, Manager};
 
-pub(crate) use native_messaging_config::*;
-pub(crate) use proxy_handler::start_proxy_handler;
-pub(crate) use verifier::run_verifier;
+use crate::{app_state, constants};
 
-/* 
+// Called when user accepts or rejects the first time browser ext connection 
+pub(crate) fn run_verifier(confirmed: bool) {
+    tauri::async_runtime::spawn(async move {
+        ConnectionVerifier::run_verifier_and_remove(confirmed).await;
+    });
+}
+
+static VERIFIER: OnceLock<tokio::sync::Mutex<Option<Arc<ConnectionVerifier>>>> = OnceLock::new();
 
 // Async callback stored as trait object returning a boxed future
 type AsyncCallback = Arc<dyn Fn(bool) -> BoxFuture<'static, ()> + Send + Sync>;
 
-static VERIFIER: OnceLock<tokio::sync::Mutex<Option<Arc<ConnectionVerifier>>>> = OnceLock::new();
-
-// TODO: Need to set this flag from app's prefernce. For now it is set or unset through 'simulate_verified_flag_preference' call
-static VERIFIED: OnceLock<std::sync::Mutex<bool>> = OnceLock::new();
-
-// Simulates the verified state preference storage
-pub(crate) async fn simulate_verified_flag_preference(confirmed: bool) {
-    if let Some(a) = VERIFIED.get() {
-        let mut b = a.lock().unwrap();
-        *b = confirmed;
-    } else {
-        VERIFIED
-            .set(std::sync::Mutex::new(confirmed))
-            .expect("set_verified is called multiple time!");
-    }
-}
-
-// Simulates getting the preference stored verified state using a global flag for now.
-fn verified_state() -> bool {
-
-    if let Some(a) = VERIFIED.get() {
-        let b = a.lock().unwrap();
-        *b
-    } else {
-        false
-    }
-}
-
-///
-
-pub(crate) async fn run_verifier(confirmed: bool) {
-    ConnectionVerifier::run_verifier_and_remove(confirmed).await;
-}
-
-struct ConnectionVerifier {
+pub(crate) struct ConnectionVerifier {
     callback: AsyncCallback,
 }
 
 impl ConnectionVerifier {
-    fn new(callback: impl Fn(bool) -> BoxFuture<'static, ()> + Send + Sync + 'static) -> Self {
+    pub(crate) fn new(
+        callback: impl Fn(bool) -> BoxFuture<'static, ()> + Send + Sync + 'static,
+    ) -> Self {
         Self {
             callback: Arc::new(callback),
         }
@@ -62,14 +35,14 @@ impl ConnectionVerifier {
 
     // The verifier is stored so that it can be run later after user confirms or rejects extension
     // connection request from UI
-    async fn store_verifier(verifier: ConnectionVerifier) {
+    async fn store_verifier(self) {
         if let Some(ver) = VERIFIER.get() {
             let mut guard = ver.lock().await;
-            *guard = Some(Arc::new(verifier));
+            *guard = Some(Arc::new(self));
             log::debug!("The verifier is stored");
         } else {
             // Should be done once only
-            let r = VERIFIER.set(tokio::sync::Mutex::new(Some(Arc::new(verifier))));
+            let r = VERIFIER.set(tokio::sync::Mutex::new(Some(Arc::new(self))));
 
             // Should not happen!
             if let Err(_) = r {
@@ -80,25 +53,26 @@ impl ConnectionVerifier {
     }
 
     // Check whether user has allowed the browser to connect using app level browser specific flag (enabled/disabled)
-    async fn run_verifier(verifier: ConnectionVerifier) {
+    pub(crate) async fn run_verifier(self, browser_id: &str) {
         log::debug!("In run_verifier...");
 
         // If enabled, then call the 'callback' immediately
-        // For now 'verified_state' call simulates that as if either user has given permission or not
-        if verified_state() {
+        if app_state::AppState::state_instance().is_browser_extension_use_enabled(browser_id) {
             log::debug!("Verfied state is true");
 
             // tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
 
             // Already user has confirmed to use this browser connection at the app level
-            verifier.run(true).await;
+            self.run(true).await;
         } else {
             log::debug!("Verfied state is false. Storing the verifier for later use");
             // The verifier is stored so that it can be run after user confirms or rejects
-            Self::store_verifier(verifier).await;
+            self.store_verifier().await;
 
             // Should something like 'async_send_connection_request' be called here
             // so that OneKeePass app is brought to the front and ask user to confirm extension use?
+
+            send_browser_connection_request();
         }
     }
 
@@ -114,15 +88,7 @@ impl ConnectionVerifier {
                 log::error!("Fn run_verifier_and_remove is called before VERIFIER is set ");
                 return;
             }
-
             let mut guard = VERIFIER.get().unwrap().lock().await;
-
-            // let mut guard = VERIFIER
-            //     .get()
-            //     .expect("init_single_worker_store() must be called first")
-            //     .lock()
-            //     .await;
-
             guard.take()
         };
 
@@ -154,6 +120,22 @@ impl ConnectionVerifier {
     }
 }
 
+// Send an event to the front end which brigs the app to focus and expects user's input
+// to continue the next action
+fn send_browser_connection_request() {
+    let win = app_state::AppState::global_app_handle()
+            .get_webview_window(constants::window_labels::MAIN_WINDOW_LABEL)
+            .unwrap();
+    let _ = win.emit(
+            constants::event_names::BROWSER_CONNECTION_REQUEST_EVENT,
+            HashMap::<String, String>::new(),
+        );
+}
+
+/*
+
+// Showing to open a dialog from tauri and bring the app to focus
+
 fn send_connection_request() {
     use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
@@ -165,9 +147,7 @@ fn send_connection_request() {
         .blocking_show();
 }
 
-// fn send_connection_request_event() {
-//     app_state::AppState::global_app_handle().get_webview_window("main").unwrap().f
-// }
+// Another way of bringing the app to focus
 
 async fn async_send_connection_request() {
     tauri::async_runtime::spawn(async move {
@@ -179,6 +159,7 @@ async fn async_send_connection_request() {
 
         let _ = win.set_focus();
 
+        // Not sure the sending event to frontend is required or not
         let _ = win.emit(
             constants::event_names::BROWSER_CONNECTION_REQUEST_EVENT,
             HashMap::<String, String>::new(),
@@ -188,9 +169,12 @@ async fn async_send_connection_request() {
     });
 }
 
-// .buttons(MessageDialogButtons::OkCancelCustom(
-//     "Absolutely",
-//     "Totally",
-// )
+pub(crate) fn reset_main_window_always_on_top() {
+    let win = app_state::AppState::global_app_handle()
+        .get_webview_window(constants::window_labels::MAIN_WINDOW_LABEL)
+        .unwrap();
+
+    let _ = win.set_always_on_top(false);
+}
 
 */

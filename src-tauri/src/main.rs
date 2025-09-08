@@ -83,6 +83,7 @@ fn main() {
       commands::analyzed_password,
       commands::authenticate_with_biometric,
       commands::auto_open_group_uuid,
+      commands::browser_ext_use_user_permission,
       commands::clear_csv_data_cache,
       commands::clear_recent_files,
       commands::clone_entry,
@@ -164,16 +165,17 @@ fn main() {
       // commands::tokio_runtime_start,
       commands::unlock_kdbx,
       commands::unlock_kdbx_on_biometric_authentication,
+      commands::update_browser_ext_support_preference,
       commands::update_db_with_imported_csv,
       commands::update_entry_from_form_data,
       commands::update_group,
       commands::upload_entry_attachment,
       commands::update_preference,
-
+      
       // This is a test command that may be used to experiment any backend call during dev time 
-      commands::test_call,
-      commands::test_simulate_verified_flag_preference,
-      commands::test_simulate_run_verifier,
+      // commands::test_call,
+      // commands::test_simulate_verified_flag_preference,
+      // commands::test_simulate_run_verifier,
     ])
     .build(context)
     .expect("error while building tauri application");

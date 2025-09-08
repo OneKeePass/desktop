@@ -43,7 +43,7 @@ impl SessionStore {
     }
 
     // Called to send the response to the session specific channel
-    pub(crate) async fn send_response(association_id: &str, message: &str) {
+    pub(crate) async fn send_session_response(association_id: &str, message: &str) {
         let sessions = Self::shared().sessions.lock().await;
         if let Some(tx) = sessions
             .get(association_id)
@@ -55,7 +55,7 @@ impl SessionStore {
             log::error!("No session is found for the association_id {}",association_id);
         }
     }
-
+ 
     // Called to set up the crypto box for the session
     pub(crate) async fn init_session(
         association_id: &str,

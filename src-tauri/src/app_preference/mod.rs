@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use onekeepass_core::db_service as kp_service;
 
-use crate::app_preference::browser_ext_preference::{BrowserSpecificPermission, DatabaseBrowserExtSupport};
+pub(crate) use crate::app_preference::browser_ext_preference::{BrowserExtSupportData, DatabaseBrowserExtSupport};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub(crate) struct BackupPreference {
@@ -33,7 +33,5 @@ pub(crate) struct PreferenceData {
     theme: Option<String>,
     language: Option<String>,
     pass_phrase_options: Option<kp_service::PassphraseGenerationOptions>,
-    browser_ext_support_enabled:Option<bool>,
-    browser_ext_support_browser_permission: Option<BrowserSpecificPermission>,
-    database_browser_ext_support:Option<DatabaseBrowserExtSupport>,
+    browser_ext_supported_databases:Option<Vec<DatabaseBrowserExtSupport>>,
 }
