@@ -1,4 +1,6 @@
 use serde::Serialize;
+use std::env;
+use std::path::PathBuf;
 
 use onekeepass_core::error::{self, Result};
 
@@ -72,9 +74,6 @@ fn proxy_full_path() -> Result<PathBuf> {
 }
 
 
-use std::env;
-use std::path::{Path, PathBuf};
-
 const OKP_NATIVE_MESSAING_CONFIG_FILE_NAME: &str = "org.onekeepass.onekeepass_browser.json";
 
 // Ref: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_manifests#manifest_location
@@ -107,88 +106,4 @@ fn firefox_native_messaging_config_full_name() -> Result<String> {
     Ok(full_name)
 }
 
-/*
-pub(crate) fn write_native_app_config() {
-    let app_dir = std::env::current_exe()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .to_path_buf();
-    let bin = match std::env::consts::OS {
-        "windows" => "onekeepass-proxy.exe",
-        _ => "onekeepass-proxy",
-    };
-    let proxy_full_path = app_dir.join(bin);
 
-    log::debug!("The proxy_full_path is {:?}", proxy_full_path);
-}
-*/
-
-/*
-
-// Function to demonstrate how to iterate through potential locations
-// and find actual host manifest files.
-fn find_host_manifests() {
-    println!("Searching for Firefox Native Messaging hosts...");
-    let search_paths = get_firefox_native_messaging_paths();
-
-    for path in &search_paths {
-        if path.exists() && path.is_dir() {
-            println!("- Checking directory: {}", path.display());
-            match std::fs::read_dir(path) {
-                Ok(entries) => {
-                    for entry in entries.flatten() {
-                        if entry.path().extension().and_then(|s| s.to_str()) == Some("json") {
-                            println!("  Found manifest: {}", entry.path().display());
-                        }
-                    }
-                }
-                Err(e) => eprintln!("  Error reading directory {}: {}", path.display(), e),
-            }
-        }
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        use winreg::enums::*;
-        use winreg::RegKey;
-
-        println!("- Checking Windows Registry...");
-
-        let mut check_registry = |hkey: RegKey| {
-            let path = r"Software\Mozilla\NativeMessagingHosts";
-            if let Ok(nm_hosts_key) = hkey.open_subkey_with_flags(path, KEY_READ) {
-                for key_name in nm_hosts_key.enum_keys().flatten() {
-                    let full_key_path = format!("{}\\{}", path, key_name);
-                    println!("  Found registry key: {}", full_key_path);
-                    if let Ok(sub_key) = nm_hosts_key.open_subkey(&key_name) {
-                        if let Ok(manifest_path) = sub_key.get_value::<String, _>("") {
-                            println!("    Manifest Path: {}", manifest_path);
-                        }
-                    }
-                }
-            }
-        };
-
-        check_registry(RegKey::predef(HKEY_CURRENT_USER));
-        check_registry(RegKey::predef(HKEY_LOCAL_MACHINE));
-    }
-}
-
-fn main() {
-    find_host_manifests();
-}
-*/
-
-/*
-{
-    "allowed_extensions": [
-        "onekeepass@gmail.com"
-    ],
-    "description": "OneKeePass integration with native messaging support",
-    "name": "org.onekeepass.onekeepass_browser",
-    "path": "/Users/jeyasankar/Development/repositories/github/OneKeePass-Organization/desktop/src-tauri/target/debug/onekeepass-proxy",
-    "type": "stdio"
-}
-
-*/

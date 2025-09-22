@@ -2,7 +2,7 @@ use std::{
     fs,
     io::{Read, Write},
     path::Path,
-    sync::Arc,
+    sync::Arc, thread::sleep,
 };
 
 use tipsy::{Connection, Endpoint, ServerId};
@@ -59,6 +59,7 @@ fn main_app_to_stdout(mut app_connection_reader: ReadHalf<Connection>) {
                     log::debug!("Received zero byte from app and breaking");
                     // TODO: Should we write to stdout any message for this?
                     //       or Will 'onDisconnect' handler of  browser extension take care of this
+                    send_app_connection_not_available_error();
                     break;
                 }
                 if len <= BUFFER_SIZE {
@@ -91,15 +92,18 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
 
     let shared_writer = Arc::new(tokio::sync::Mutex::new(app_connection_writer));
 
+    let write_completed = Arc::new(std::sync::Mutex::new(true));
+
     // 'std::io::stdin().read_exact' blocks other tasks of tokio runtime
     // Because of that we need to make that call in a dedicated thread like using the 'spawn_blocking' call
 
     tokio::task::spawn_blocking(move || {
+        // 'stdin_outer: loop  and then use break 'stdin_outer;
         loop {
             // Read message size
             let mut length_bytes = [0; 4];
 
-            // log::debug!("1 stdin_to_main_app:WAITING to read the stdin...");
+            log::debug!("STD-IN-TO-APP: WAITING at loop top to read the stdin ...");
 
             // std::io::stdin().read_exact(&mut length_bytes).expect("Prefixed length bytes read error");
 
@@ -118,7 +122,7 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
                 continue;
             }
 
-            // log::debug!("Received message of size {} from extension", &message_length);
+            log::debug!("STD-IN-TO-APP: Received message of size {} from extension", &message_length);
 
             // Read the message from the extension from stdin to this buffer
             let mut message_bytes_buf = vec![0; message_length];
@@ -130,9 +134,18 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
             }
 
             log::debug!(
-                "Sending stdin read  str {:?} to the main app",
+                "STD-IN-TO-APP: Sending stdin read  str {:?} to the app",
                 String::from_utf8(message_bytes_buf.to_vec())
             );
+
+            
+            let mut val = write_completed.lock().unwrap();
+            while !(*val) {
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+            *val = false;
+
+            let write_completed_clone = write_completed.clone();
 
             let shared_writer_cloned = shared_writer.clone();
 
@@ -142,18 +155,32 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
             tokio::spawn(async move {
                 let mut app_connection_writer = shared_writer_cloned.lock().await;
 
-                log::debug!("BEFORE async writing to app");
-
-
+                log::debug!("STD-IN-TO-APP: In the spawned task BEFORE writing to the app");
 
                 // Write extension message content to the main app
-                // TODO: Need to send an error to extension if there is a possibilty the application is closed.
+                
                 if let Err(e) = app_connection_writer.write_all(&message_bytes_buf).await {
+                    // Seen this error if the main is closed - Error is Broken pipe (os error 32)
                     log::error!("Unable to write message to the main app connection. Error is {}", &e);
+                    // Need to send an error to extension if there is a possibilty the application is closed.
+                    send_app_connection_not_available_error();
+                    log::debug!("Exiting the proxy?");
+                    std::process::exit(32);
+                    // return;
+                    // Do we need to exit the loop and how ?
                 }
 
                 let _ = app_connection_writer.flush().await;
+
+                let mut flag = write_completed_clone.lock().unwrap();
+                *flag = true;
+
+                log::debug!("STD-IN-TO-APP: In the spawned task AFTER writing to app");
             });
+
+            // std::thread::sleep(std::time::Duration::from_millis(500));
+
+            log::debug!("STD-IN-TO-APP: Will go back to the top of the loop");
         }
     });
 }

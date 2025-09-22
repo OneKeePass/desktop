@@ -8,7 +8,7 @@ use tauri::{Emitter, Manager};
 
 use crate::{app_state, constants};
 
-// Called when user accepts or rejects the first time browser ext connection 
+// Called when user accepts or rejects the first time browser ext connection
 pub(crate) fn run_verifier(confirmed: bool) {
     tauri::async_runtime::spawn(async move {
         ConnectionVerifier::run_verifier_and_remove(confirmed).await;
@@ -95,28 +95,16 @@ impl ConnectionVerifier {
         if let Some(verifier) = verifier {
             verifier.run(confirmed).await;
         } else {
-            eprintln!("no verifier stored");
+            log::error!("No verifier is found when run_verifier_and_remove is called");
         }
     }
 
+    #[inline]
     async fn run(&self, confirmed: bool) {
         // Check whether user has allowed the browser to connect using
         // app level browser specific flag (enabled/disabled)
         // If enabled, then call the 'callback'
-
-        // Simulate the above condition
-        // tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
-
         (self.callback)(confirmed).await;
-
-        // If not
-        // 1. Store this 'ConnectionVerifier' to VERIFIER
-        // 2. Bring app to focus asking user to allow enabling
-        // If the user has enabled browser connection app level, then we will do the confirmation
-        // of a specific enabled browser connection one time
-        // 3. On user's confirmation, we will call 'callback'
-
-        // (self.callback)().await;
     }
 }
 
@@ -124,12 +112,12 @@ impl ConnectionVerifier {
 // to continue the next action
 fn send_browser_connection_request() {
     let win = app_state::AppState::global_app_handle()
-            .get_webview_window(constants::window_labels::MAIN_WINDOW_LABEL)
-            .unwrap();
+        .get_webview_window(constants::window_labels::MAIN_WINDOW_LABEL)
+        .unwrap();
     let _ = win.emit(
-            constants::event_names::BROWSER_CONNECTION_REQUEST_EVENT,
-            HashMap::<String, String>::new(),
-        );
+        constants::event_names::BROWSER_CONNECTION_REQUEST_EVENT,
+        HashMap::<String, String>::new(),
+    );
 }
 
 /*

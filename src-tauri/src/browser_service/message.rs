@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::browser_service::{
     db_calls,
@@ -27,7 +28,15 @@ pub enum Request {
     // The extension side request to get all entries that match an url
     EnabledDatabaseMatchedEntryList {
         association_id: String,
+        request_id: String,
         form_url: String,
+    },
+
+    SelectedEntry {
+        association_id: String,
+        request_id: String,
+        db_key: String,
+        entry_uuid: Uuid,
     },
 }
 
@@ -36,6 +45,9 @@ impl Request {
     pub(crate) async fn handle_input_message(input_message: String, sender: Arc<BrowserServiceTx>) {
         // log::debug!("In handle_input_message ...");
 
+        // TDDO: 
+        // Currently there is no request that has any sensitive data. So the extension side no encryption is done
+        // In the future we pass any sensitive data as "message_data", then we need to decrypt and then convert that json to rust struct
         match serde_json::from_str(&input_message) {
             Ok(Request::Associate { client_id }) => {
                 Self::verify(client_id, sender).await;
@@ -48,9 +60,20 @@ impl Request {
             }
             Ok(Request::EnabledDatabaseMatchedEntryList {
                 ref association_id,
+                ref request_id,
                 ref form_url,
             }) => {
-                Self::matched_entries_of_enabled_databases(association_id, form_url).await;
+                Self::matched_entries_of_enabled_databases(association_id, form_url, request_id)
+                    .await;
+            }
+
+            Ok(Request::SelectedEntry {
+                ref association_id,
+                ref request_id,
+                ref db_key,
+                ref entry_uuid,
+            }) => {
+                Self::entry_details_by_id(association_id, db_key, entry_uuid, request_id).await;
             }
 
             Ok(x) => {
@@ -58,7 +81,7 @@ impl Request {
             }
             Err(e) => {
                 log::error!(
-                    "Error {} in deserializing to json of received_message_str: {} ",
+                    "Error {} in deserializing the json of input_message: {} ",
                     e,
                     &input_message
                 );
@@ -124,7 +147,8 @@ impl Request {
                             ),
                         };
                         // Now send the response back to the extension
-                        SessionStore::send_session_response(&association_id, &resp.json_str()).await;
+                        SessionStore::send_session_response(&association_id, &resp.json_str())
+                            .await;
                     }
                 })
             }
@@ -159,7 +183,11 @@ impl Request {
         SessionStore::send_session_response(&association_id, &resp.json_str()).await;
     }
 
-    async fn matched_entries_of_enabled_databases(association_id: &str, input_url: &str) {
+    async fn matched_entries_of_enabled_databases(
+        association_id: &str,
+        input_url: &str,
+        request_id: &str,
+    ) {
         let matched_entries = db_calls::find_matching_in_enabled_db_entries(input_url)
             .and_then(|ref s| Ok(serde_json::to_string_pretty(s)?));
 
@@ -167,14 +195,48 @@ impl Request {
             Ok(ref matched) => match SessionStore::encrypt(association_id, matched).await {
                 Ok((nonce, enc_msg)) => {
                     ResponseResult::with_ok(Response::EnabledDatabaseMatchedEntryList {
-                        message: enc_msg,
+                        message_content: enc_msg,
+                        request_id: request_id.to_string(),
                         nonce: nonce,
                     })
                 }
                 Err(error) => ResponseActionName::EnabledDatabaseMatchedEntryList.with_error(error),
             },
-            Err(e) => ResponseResult::with_error(
+            Err(e) => ResponseResult::from_error(
                 ResponseActionName::EnabledDatabaseMatchedEntryList,
+                request_id,
+                &format!("{}", e),
+            ),
+        };
+
+        // Send using tx to output writer
+        SessionStore::send_session_response(&association_id, &resp.json_str()).await;
+    }
+
+    // Gets the entry detail data for a given db_key and entry uuid
+    async fn entry_details_by_id(
+        association_id: &str,
+        db_key: &str,
+        entry_uuid: &Uuid,
+        request_id: &str,
+    ) {
+        let json_converted_result = db_calls::entry_details_by_id(db_key, entry_uuid)
+            .and_then(|ref s| Ok(serde_json::to_string_pretty(s)?));
+
+        let resp = match json_converted_result {
+            Ok(ref json_converted) => {
+                match SessionStore::encrypt(association_id, json_converted).await {
+                    Ok((nonce, enc_msg)) => ResponseResult::with_ok(Response::SelectedEntry {
+                        message_content: enc_msg,
+                        request_id: request_id.to_string(),
+                        nonce: nonce,
+                    }),
+                    Err(error) => ResponseActionName::SelectedEntry.from_error(error, request_id),
+                }
+            }
+            Err(e) => ResponseResult::from_error(
+                ResponseActionName::SelectedEntry,
+                request_id,
                 &format!("{}", e),
             ),
         };
@@ -202,7 +264,14 @@ pub enum Response {
 
     // Sends the encrypted the serialized json object as message
     EnabledDatabaseMatchedEntryList {
-        message: String,
+        message_content: String,
+        request_id: String,
+        nonce: String,
+    },
+
+    SelectedEntry {
+        message_content: String,
+        request_id: String,
         nonce: String,
     },
 }
@@ -211,6 +280,7 @@ enum ResponseActionName {
     Associate,
     InitSessionKey,
     EnabledDatabaseMatchedEntryList,
+    SelectedEntry,
 }
 
 impl ResponseActionName {
@@ -220,17 +290,23 @@ impl ResponseActionName {
             Associate => "Associate",
             InitSessionKey => "InitSessionKey",
             EnabledDatabaseMatchedEntryList => "EnabledDatabaseMatchedEntryList",
+            SelectedEntry => "SelectedEntry",
         }
     }
 
     fn with_error(self, error: onekeepass_core::error::Error) -> ResponseResult {
         ResponseResult::with_error(self, &format!("{}", error))
     }
+
+    fn from_error(self, error: onekeepass_core::error::Error, request_id: &str) -> ResponseResult {
+        ResponseResult::from_error(self, &format!("{}", error,), request_id)
+    }
 }
 
 #[derive(Serialize)]
 struct ErrorInfo {
     action: String,
+    request_id: Option<String>,
     error_message: String,
 }
 
@@ -254,6 +330,18 @@ impl ResponseResult {
             ok: None,
             error: Some(ErrorInfo {
                 action: action.name().to_string(),
+                request_id: None,
+                error_message: error.to_string(),
+            }),
+        }
+    }
+
+    fn from_error(action: ResponseActionName, error: &str, request_id: &str) -> Self {
+        ResponseResult {
+            ok: None,
+            error: Some(ErrorInfo {
+                action: action.name().to_string(),
+                request_id: Some(request_id.to_string()),
                 error_message: error.to_string(),
             }),
         }
@@ -269,5 +357,44 @@ impl ResponseResult {
             }
         };
         json_str
+    }
+}
+
+/*
+
+Error trailing characters at line 1 column 146 in deserializing to json of received_message_str:
+{"action":"EnabledDatabaseMatchedEntryList","form_url":"https://www.expedia.com/login?&uurl=e3id%3Dredr%26rurl%3D%2F","association_id":"Firefox"}
+{"action":"EnabledDatabaseMatchedEntryList","form_url":"https://www.expedia.com/login?&uurl=e3id%3Dredr%26rurl%3D%2F","association_id":"Firefox"}
+*/
+
+#[cfg(test)]
+mod tests {
+    use crate::browser_service::message::Request;
+
+    #[test]
+    fn verify() {
+        println!("Some test here");
+
+        let input_message = r#"{"action":"EnabledDatabaseMatchedEntryList","form_url":"https://www.expedia.com/login?&uurl=e3id%3Dredr%26rurl%3D%2F","association_id":"Firefox"}"#;
+
+        match serde_json::from_str(&input_message) {
+            Ok(Request::EnabledDatabaseMatchedEntryList {
+                ref association_id,
+                ref request_id,
+                ref form_url,
+            }) => {
+                println!("Parsed correctly {}, {}", association_id, form_url);
+            }
+
+            Ok(x) => {
+                println!("Unhandled request enum variant {:?}", &x);
+            }
+            Err(e) => {
+                println!(
+                    "Error {} in deserializing to json of received_message_str: {} ",
+                    e, &input_message
+                );
+            }
+        }
     }
 }
