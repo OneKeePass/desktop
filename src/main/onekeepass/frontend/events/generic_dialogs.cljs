@@ -3,15 +3,11 @@
   (:require-macros [onekeepass.frontend.okp-macros
                     :refer  [defn-generic-dialog-disp-events
                              defn-generic-dialog-subs-events]])
-  (:require [re-frame.core :refer [reg-event-fx reg-sub dispatch subscribe]]
+  (:require [re-frame.core :refer [reg-event-fx reg-sub]]
             [onekeepass.frontend.utils :as u]))
 
 
-(def GENERIC-DIALOGS :generic-dialogs)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Copied from the impl used in mobile specific cljs file 'onekeepass/mobile/events/dialogs.cljs'
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def ^:private GENERIC-DIALOGS :generic-dialogs)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  merge-result-dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -44,6 +40,14 @@
 ;; a subscribe event wrapper
 (defn-generic-dialog-subs-events move-group-or-entry-dialog [[data nil]])
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; browser-extension-connection-permit-dialog-data 
+
+; dialog-identifier-kw :browser-extension-connection-permit-dialog
+(defn-generic-dialog-disp-events :browser-extension-connection-permit-dialog [[close nil]
+
+                                                                              [show-with-state state-m]])
+
+(defn-generic-dialog-subs-events :browser-extension-connection-permit-dialog [[data nil]])
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  csv-columns-mapping-dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -86,10 +90,9 @@
       (assoc-in [:title] nil)
       (assoc-in [:confirm-text] nil)
       (assoc-in [:actions] [])
-      ;; (assoc-in [:call-on-ok-fn] #())
-      ;; (assoc-in [:dispatch-on-ok] {})
       (assoc-in [:error-fields] {})
       (assoc-in [:api-error-text] nil)
+      ;; Some dialogs may add more fields directly to this map instead of having a nested :data map
       (assoc-in [:data] {})))
 
 ;; new-dialog-state is a map
@@ -178,24 +181,6 @@
    (let [dlg-data (get-in db [GENERIC-DIALOGS dialog-identifier-kw])
          dlg-data (if-not (nil? dlg-data) dlg-data (init-dialog-map))]
      dlg-data)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  id based dialog ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
-
-;; (defn dialog-with-id-show [dialog-id-kw]
-;;   (dispatch [:generic-dialog-show dialog-id-kw]))
-
-;; (defn dialog-with-id-close [dialog-id-kw]
-;;   (dispatch [:generic-dialog-close dialog-id-kw]))
-
-;; (defn dialog-with-id-update-with-map [dialog-id-kw state-m]
-;;   (dispatch [:generic-dialog-update-with-map dialog-id-kw state-m]))
-
-;; (defn dialog-with-id-show-with-state [dialog-id-kw state-m]
-;;   (dispatch [:generic-dialog-show-with-state dialog-id-kw state-m]))
-
-;; (defn dialog-with-id-data [dialog-id-kw]
-;;   (subscribe [:generic-dialog-data dialog-id-kw]))
-
 
 (comment
 

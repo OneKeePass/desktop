@@ -1,28 +1,27 @@
 (ns ^:figwheel-always onekeepass.frontend.start-page
-  (:require [onekeepass.frontend.common-components :as cc :refer [message-dialog]]
-            [onekeepass.frontend.app-settings :refer [app-settings-dialog-main]]
-            [onekeepass.frontend.custom-icons :as cust-icons]
-            [onekeepass.frontend.events.common :as cmn-events]
-            [onekeepass.frontend.events.new-database :as nd-events]
-            [onekeepass.frontend.events.open-db-form :as od-events]
-            [onekeepass.frontend.events.password-generator :as gen-events]
-            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
-                                                              mui-box
-                                                              mui-container
-                                                              mui-divider
-                                                              mui-icon-button
-                                                              mui-icon-folder-outlined
-                                                              mui-link
-                                                              mui-stack
-                                                              mui-tooltip
-                                                              mui-typography
-                                                              theme-color]]
-            [onekeepass.frontend.password-generator :as gen-form]
-            [onekeepass.frontend.new-database :as nd-form]
-            [onekeepass.frontend.open-db-form :as od-form]
-            [onekeepass.frontend.import-file.csv :as csv-form]
-            [onekeepass.frontend.translation :refer-macros [tr tr-l tr-t]]
-            [reagent.core :as r]))
+  (:require
+   [onekeepass.frontend.app-settings :refer [app-settings-dialog-main]]
+   [onekeepass.frontend.browser-integration :as browser-integration ]
+   [onekeepass.frontend.common-components :as cc :refer [message-dialog]]
+   [onekeepass.frontend.custom-icons :as cust-icons]
+   [onekeepass.frontend.events.common :as cmn-events]
+   [onekeepass.frontend.events.new-database :as nd-events]
+   [onekeepass.frontend.events.open-db-form :as od-events]
+   [onekeepass.frontend.events.password-generator :as gen-events]
+   [onekeepass.frontend.import-file.csv :as csv-form]
+   [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom mui-box
+                                                     mui-container mui-divider
+                                                     mui-icon-button
+                                                     mui-icon-folder-outlined
+                                                     mui-link mui-stack
+                                                     mui-tooltip
+                                                     mui-typography
+                                                     theme-color]]
+   [onekeepass.frontend.new-database :as nd-form]
+   [onekeepass.frontend.open-db-form :as od-form]
+   [onekeepass.frontend.password-generator :as gen-form]
+   [onekeepass.frontend.translation :refer-macros [tr tr-l tr-t]]
+   [reagent.core :as r]))
 
 (set! *warn-on-infer* true)
 
@@ -118,4 +117,5 @@
    [csv-form/csv-columns-mapping-dialog]
    [csv-form/csv-imoprt-start-dialog]
    [app-settings-dialog-main]
+   [browser-integration/browser-extension-connection-permit-dialog]
    [message-dialog]])

@@ -1,10 +1,8 @@
 (ns onekeepass.frontend.tool-bar
   (:require
-   [onekeepass.frontend.translation :as t :refer-macros [tr-bl tr-dlg-title tr-dlg-text]]
    [onekeepass.frontend.app-settings :refer [app-settings-dialog-main]]
    [onekeepass.frontend.auto-type :as at-form]
-   [onekeepass.frontend.merging :as merging]
-   [onekeepass.frontend.import-file.csv :as csv]
+   [onekeepass.frontend.browser-integration :as browser-integration]
    [onekeepass.frontend.common-components :refer [confirm-text-dialog
                                                   error-info-dialog
                                                   message-dialog
@@ -19,11 +17,11 @@
    [onekeepass.frontend.events.search :as srch-event]
    [onekeepass.frontend.events.tauri-events :as tauri-events]
    [onekeepass.frontend.events.tool-bar :as tb-events]
+   [onekeepass.frontend.import-file.csv :as csv]
+   [onekeepass.frontend.merging :as merging]
    [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
-                                                     mui-alert
-                                                     mui-app-bar
-                                                     mui-box
-                                                     mui-button
+                                                     mui-alert mui-app-bar
+                                                     mui-box mui-button
                                                      mui-dialog
                                                      mui-dialog-actions
                                                      mui-dialog-content
@@ -39,15 +37,15 @@
                                                      mui-icon-search
                                                      mui-icon-settings-outlined
                                                      mui-linear-progress
-                                                     mui-stack
-                                                     mui-toolbar
+                                                     mui-stack mui-toolbar
                                                      mui-tooltip
                                                      mui-typography
                                                      theme-color]]
    [onekeepass.frontend.new-database :as nd-form]
    [onekeepass.frontend.open-db-form :as od-form]
    [onekeepass.frontend.password-generator :as gen-form]
-   [onekeepass.frontend.search :as search]))
+   [onekeepass.frontend.search :as search]
+   [onekeepass.frontend.translation :as t :refer-macros [tr-bl tr-dlg-title tr-dlg-text]]))
 
 (set! *warn-on-infer* true)
 
@@ -253,6 +251,7 @@
        ;; These are used here and in start_page.cljs
        [message-dialog]
        [app-settings-dialog-main]
+       [browser-integration/browser-extension-connection-permit-dialog]
 
        [gen-form/password-generator-dialog @(gen-events/generator-dialog-data)]
 

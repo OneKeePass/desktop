@@ -78,6 +78,12 @@ impl Request {
 
             Ok(x) => {
                 log::error!("Unhandled request enum variant {:?}", &x);
+                let resp = ResponseResult::with_error(
+                    ResponseActionName::UnexpectedError,
+                    &format!("Unhandled request enum variant {:?}", &x),
+                );
+                // No session is yet available and we send the responde directly
+                let _r = sender.send(resp.json_str()).await;
             }
             Err(e) => {
                 log::error!(
@@ -85,6 +91,12 @@ impl Request {
                     e,
                     &input_message
                 );
+                let resp = ResponseResult::with_error(
+                    ResponseActionName::JsonParseError,
+                    &format!("Error {} in deserializing the json", e),
+                );
+                // No session is yet available and we send the responde directly
+                let _r = sender.send(resp.json_str()).await;
             }
         }
     }
@@ -126,7 +138,7 @@ impl Request {
                         if !confirmed {
                             let resp = ResponseResult::with_error(
                                 ResponseActionName::Associate,
-                                &format!("User rejected the browser extension connection"),
+                                &format!("ASSOCIATION_REJECTED"),
                             );
                             // No session is yet available and we send the responde directly
                             let _r = sender.send(resp.json_str()).await;
@@ -281,6 +293,8 @@ enum ResponseActionName {
     InitSessionKey,
     EnabledDatabaseMatchedEntryList,
     SelectedEntry,
+    JsonParseError,
+    UnexpectedError,
 }
 
 impl ResponseActionName {
@@ -291,6 +305,8 @@ impl ResponseActionName {
             InitSessionKey => "InitSessionKey",
             EnabledDatabaseMatchedEntryList => "EnabledDatabaseMatchedEntryList",
             SelectedEntry => "SelectedEntry",
+            JsonParseError => "JsonParseError",
+            UnexpectedError => "UnexpectedError",
         }
     }
 

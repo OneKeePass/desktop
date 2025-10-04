@@ -72,7 +72,7 @@ impl ConnectionVerifier {
             // Should something like 'async_send_connection_request' be called here
             // so that OneKeePass app is brought to the front and ask user to confirm extension use?
 
-            send_browser_connection_request();
+            send_browser_connection_request(browser_id);
         }
     }
 
@@ -80,7 +80,7 @@ impl ConnectionVerifier {
     // stored in app preference for later use - See 'VERIFIED' flag use above
     async fn run_verifier_and_remove(confirmed: bool) {
         // Take the verifier out under the lock, then drop the lock before await
-
+        log::debug!("In run_verifier_and_remove...");   
         let verifier = {
             let g = VERIFIER.get();
 
@@ -93,6 +93,7 @@ impl ConnectionVerifier {
         };
 
         if let Some(verifier) = verifier {
+            log::debug!("Running the stored verifier after user confirmation");
             verifier.run(confirmed).await;
         } else {
             log::error!("No verifier is found when run_verifier_and_remove is called");
@@ -110,13 +111,18 @@ impl ConnectionVerifier {
 
 // Send an event to the front end which brigs the app to focus and expects user's input
 // to continue the next action
-fn send_browser_connection_request() {
+fn send_browser_connection_request(browser_id: &str) {
     let win = app_state::AppState::global_app_handle()
         .get_webview_window(constants::window_labels::MAIN_WINDOW_LABEL)
         .unwrap();
+    let args = {
+        let mut m = HashMap::<String, String>::new();
+        m.insert("browser_id".to_string(), browser_id.to_string());
+        m
+    };
     let _ = win.emit(
         constants::event_names::BROWSER_CONNECTION_REQUEST_EVENT,
-        HashMap::<String, String>::new(),
+        args,
     );
 }
 

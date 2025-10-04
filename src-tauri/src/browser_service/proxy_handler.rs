@@ -64,7 +64,7 @@ fn handle_input(mut reader: ReadHalf<Connection>, sender: Arc<BrowserServiceTx>)
                             let message_bytes = buf[..len].to_vec();
                             match String::from_utf8(message_bytes) {
                                 Ok(input_message) => {
-                                    // Handles the received proxy side message data and the handler will send the respnse in channel 'sender'
+                                    // Handles the received proxy side message data and the handler will send the response in channel 'sender'
                                     Request::handle_input_message(input_message, sender.clone())
                                         .await;
                                 }
@@ -218,7 +218,7 @@ pub(crate) fn start_proxy_handler() {
             run_server(NATIVE_MESSAGE_CONNECTION_NAME.to_string()).await;
         });
     } else {
-        log::debug!("Enpoint server for proxy connetion listener is already running");
+        log::debug!("Endpoint server for proxy connetion listener is already running");
     }
 }
 

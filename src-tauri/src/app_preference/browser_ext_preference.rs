@@ -77,6 +77,11 @@ impl BrowserExtSupport {
                 // Extension is enabled at the app level and but browser Firefox ext support is disabled
                 // log::debug!("Removing the firefox config...");
                 let _ = FirefoxNativeMessagingConfig::remove();
+
+                // If firefox is removed from the allowed list, we need to remove it from user confirmed list also
+                // So that next time if user enables firefox in the allowed list, we will ask for permission again
+                // log::debug!("Removing the firefox from user confirmed list as it is removed from allowed list");
+                self.user_confirmed_browsers.remove(&FIREFOX.to_string());
             }
         } else {
             self.allowed_browsers = vec![];
@@ -105,10 +110,12 @@ impl BrowserExtSupport {
 
 }
 
+// For now this feature is not used in the UI
+
 // Browser permision for each individual database needs to be enabled or disabled
-#[derive(Default, Clone, Serialize, Deserialize, Debug)]
-pub(crate) struct DatabaseBrowserExtSupport {
-    db_key: String,
-    // List of browsers granted to use extension to connect to this database in 'db_key'
-    allowed_browsers: Vec<String>,
-}
+// #[derive(Default, Clone, Serialize, Deserialize, Debug)]
+// pub(crate) struct DatabaseBrowserExtSupport {
+//     db_key: String,
+//     // List of browsers granted to use extension to connect to this database in 'db_key'
+//     allowed_browsers: Vec<String>,
+// }

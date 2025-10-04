@@ -4,7 +4,9 @@ use crate::app_preference::password_gen_preference::PasswordGeneratorPreference;
 
 use crate::app_preference::{BackupPreference, PreferenceData};
 
-use crate::app_preference::browser_ext_preference::{BrowserExtSupport, BrowserExtSupportData, DatabaseBrowserExtSupport};
+use crate::app_preference::browser_ext_preference::{
+    BrowserExtSupport, BrowserExtSupportData,
+};
 
 use crate::{
     app_paths::app_backup_dir,
@@ -15,7 +17,6 @@ use crate::{
 use onekeepass_core::error::Result;
 
 use crate::app_paths::app_home_dir;
-use log::debug;
 use serde::{Deserialize, Serialize};
 
 /////
@@ -93,13 +94,17 @@ pub(crate) struct Preference {
 
     pub(crate) backup: BackupPreference,
 
-
     password_gen_preference: PasswordGeneratorPreference,
 
     // Introduced browser ext releated preference in v0.18.0
     browser_ext_support: BrowserExtSupport,
 
-    browser_ext_supported_databases: Vec<DatabaseBrowserExtSupport>,
+    // For now this feature is not used in the UI
+    // This will be used in future to allow user to select which database to use with browser extension
+    // Typically user will enable browser ext support for one or more databases in the database settings
+    // When user enables browser ext support for a database, we will add that database key to this list
+    // and remove when user disables the browser ext support for that database   
+    // browser_ext_supported_databases: Vec<DatabaseBrowserExtSupport>,
 }
 
 impl Default for Preference {
@@ -119,7 +124,9 @@ impl Default for Preference {
             password_gen_preference: PasswordGeneratorPreference::default(),
 
             browser_ext_support: BrowserExtSupport::default(),
-            browser_ext_supported_databases: vec![],
+
+            
+            // browser_ext_supported_databases: vec![],
         }
     }
 }
@@ -244,7 +251,7 @@ impl Preference {
     }
 
     // Update the preference with any non null values
-    pub(crate) fn update(&mut self, preference_data: PreferenceData) {
+    pub(crate) fn update(&mut self, preference_data: PreferenceData) -> Result<()> {
         // debug!("Preference update is called {:?}", &preference_data);
         // debug!("Preference before {:?}",&self);
 
@@ -280,21 +287,26 @@ impl Preference {
             updated = true;
         }
 
-        // if let Some(v) = preference_data.browser_ext_support {
-        //     crate::browser_service::write_native_app_config();
-        //     self.browser_ext_support = v;
-        //     updated = true;
-        // }
-
-        if let Some(v) = preference_data.browser_ext_supported_databases {
-            self.browser_ext_supported_databases = v;
+        if let Some(v) = preference_data.browser_ext_support {
+            self.browser_ext_support.update(v)?;
             updated = true;
         }
+
+        // For now this feature is not used in the UI
+        // This will be used in future to allow user to select which database to use with browser extension
+        
+
+        // if let Some(v) = preference_data.browser_ext_supported_databases {
+        //     self.browser_ext_supported_databases = v;
+        //     updated = true;
+        // }
 
         // debug!("Preference after updated {}, {:?}",updated,&self);
         if updated {
             self.write_toml();
         }
+
+        Ok(())
     }
 
     pub(crate) fn update_browser_ext_support(

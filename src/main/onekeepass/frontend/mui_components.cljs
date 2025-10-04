@@ -484,6 +484,7 @@
   LoginOutlined
   LockOpenOutlined
   LockOutlined
+  OpenInBrowser
   PostAddOutlined
   Search
   SettingsOutlined

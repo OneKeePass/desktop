@@ -2,7 +2,7 @@ use std::{
     fs,
     io::{Read, Write},
     path::Path,
-    sync::Arc, thread::sleep,
+    sync::Arc,
 };
 
 use tipsy::{Connection, Endpoint, ServerId};
@@ -44,23 +44,23 @@ fn init_log(log_dir: &str) {
 
 const BUFFER_SIZE: usize = 1024 * 1024;
 
-// Receive the response from okp main app and write to stdout
+// Receive the response from okp main app and write to stdout continuously in a spawned task loop
 fn main_app_to_stdout(mut app_connection_reader: ReadHalf<Connection>) {
     // log::debug!("2 In main_app_to_stdout before loop...");
 
     tokio::spawn(async move {
         let mut buf = [0u8; BUFFER_SIZE];
-        loop {
+
+        // 'main_app_to_stdout_outer: loop and then use break 'main_app_to_stdout_outer;
+        'main_app_to_stdout_outer: loop {
             // log::debug!("2 main_app_to_stdout: Waiting to read from the app...");
 
             if let Ok(len) = app_connection_reader.read(&mut buf).await {
                 // This happens when the map connection is closed
                 if len == 0 {
-                    log::debug!("Received zero byte from app and breaking");
-                    // TODO: Should we write to stdout any message for this?
-                    //       or Will 'onDisconnect' handler of  browser extension take care of this
+                    log::debug!("Received zero byte from app and breaking and exiting the proxy after sending error to extension");
                     send_app_connection_not_available_error();
-                    break;
+                    break 'main_app_to_stdout_outer;
                 }
                 if len <= BUFFER_SIZE {
                     // log::debug!("Sending server mesage {:?} of size {} to extension in proxy", &buf[..len], len);
@@ -76,13 +76,21 @@ fn main_app_to_stdout(mut app_connection_reader: ReadHalf<Connection>) {
                     std::io::stdout().flush().unwrap();
                 } else {
                     // Should not happen
-                    log::error!("Main app message size exceeded");
+                    log::error!("Main app message content response size exceeded the limit");
+                    send_proxy_error_message("Main app message content response size exceeded the limit");
+                    // Should we break or continue?
+                    break 'main_app_to_stdout_outer;
+
                 }
             } else {
                 log::debug!("Proxy error of reading reply mesage from  server");
-                // TODO: Write a error message to stdout accordingly
+                send_proxy_error_message("Reading reply message from main app failed");
+                break 'main_app_to_stdout_outer;
             }
         }
+
+        log::debug!("Exiting the main_app_to_stdout loop");
+        std::process::exit(0);
     });
 }
 
@@ -99,7 +107,7 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
 
     tokio::task::spawn_blocking(move || {
         // 'stdin_outer: loop  and then use break 'stdin_outer;
-        loop {
+        'stdin_outer: loop {
             // Read message size
             let mut length_bytes = [0; 4];
 
@@ -107,10 +115,12 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
 
             // std::io::stdin().read_exact(&mut length_bytes).expect("Prefixed length bytes read error");
 
-            if let Err(_e) = std::io::stdin().read_exact(&mut length_bytes) {
-                // log::error!("STDIN - Message length bytes read error {}", &e);
+            if let Err(e) = std::io::stdin().read_exact(&mut length_bytes) {
+                log::error!("STDIN - Message length bytes read error {}", &e);
                 // The error may be 'failed to fill whole buffer' when the following 'message_length' will be zero
-                // when the extension is removed or the brower is closed
+                // when the extension is removed or the browser is closed
+                send_proxy_error_message("Reading extension's message length from stdin failed");
+                break 'stdin_outer;
             }
 
             // Gets the message length integer value from a Native Endidan bytes buf
@@ -119,7 +129,11 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
                 // message_length is zero when the browser is closed. For now we continue
                 // and the browser will close this native app.
                 // TODO: Close the connection to the app by sending a message to 'app_connection_writer' and break instead of continuing
-                continue;
+                
+                // continue;
+                log::debug!("STD-IN-TO-APP: Message length is zero and exiting the proxy after sending error to extension");
+                send_proxy_error_message("Message length from stdin is zero");
+                break 'stdin_outer;
             }
 
             log::debug!("STD-IN-TO-APP: Received message of size {} from extension", &message_length);
@@ -128,9 +142,11 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
             let mut message_bytes_buf = vec![0; message_length];
 
             if let Err(e) = std::io::stdin().read_exact(&mut message_bytes_buf) {
-                // log::error!("STDIN - Message content read error {}", &e);
-                // What should we do instead of continuing?
-                continue;
+                log::error!("STDIN - Message content read error {}", &e);
+                // What should we do instead of continuing? Should we break and exit?
+                // continue;
+                send_proxy_error_message("Reading message content from stdin failed");
+                break 'stdin_outer;
             }
 
             log::debug!(
@@ -140,6 +156,7 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
 
             
             let mut val = write_completed.lock().unwrap();
+            // Wait until the previous write is completed in the spawned task below
             while !(*val) {
                 std::thread::sleep(std::time::Duration::from_millis(500));
             }
@@ -182,6 +199,8 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
 
             log::debug!("STD-IN-TO-APP: Will go back to the top of the loop");
         }
+        log::debug!("Exiting the stdin_to_main_app loop");
+        std::process::exit(0);
     });
 }
 
@@ -193,6 +212,29 @@ fn remove_dir_files<P: AsRef<Path>>(path: P) {
     }
 }
 
+// Send the proxy error message to the extension and this is not async fn so it completes before returning
+fn send_proxy_error_message(error_message: &str) {
+    let resp = format!(r#"{{"error" : {{"action": "PROXY_ERROR"}}, "error_message": "{}"}}"#, error_message);
+    let len = resp.as_bytes().len();
+    let response_length = len as u32;
+    
+    if let Err(e) = std::io::stdout().write_all(&response_length.to_ne_bytes()) {
+        log::error!("Writing PROXY_ERROR msg length to extension failed with error {}",e);
+        return;
+    }
+
+     if let Err(e) = std::io::stdout().write_all(resp.as_bytes()) {
+        log::error!("Writing PROXY_ERROR msg to extension failed with error {}",e);
+        return;
+     }
+
+    let _ = std::io::stdout().flush();
+
+    log::debug!("PROXY_ERROR message {} is send ", &resp);
+}
+
+
+// Send the app not available error to the extension and this is not async fn so it completes before returning
 fn send_app_connection_not_available_error() {
     let resp = r#"{"error" : {"action": "PROXY_APP_CONNECTION"}, "error_message": "App is not running"}"#;
     let len = resp.as_bytes().len();
@@ -246,7 +288,7 @@ async fn main() {
         let _ = fs::create_dir_all(&log_dir);
     } else {
         // Each time we remove any old log file.
-        // TODO: Explore the use file rotation
+        // IMPORTANT: TODO: Explore the use file rotation and size limit
         let _r = remove_dir_files(&log_dir);
     }
     init_log(log_dir.to_path_buf().to_string_lossy().as_ref());

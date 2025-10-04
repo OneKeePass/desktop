@@ -236,9 +236,9 @@ impl AppState {
         store_pref.default_entry_category_groupings.clone()
     }
 
-    pub(crate) fn update_preference(&self, preference_data: PreferenceData) {
+    pub(crate) fn update_preference(&self, preference_data: PreferenceData) -> Result<()> {
         let mut store_pref = self.preference.lock().unwrap();
-        store_pref.update(preference_data);
+        store_pref.update(preference_data)
     }
 
     pub(crate) fn update_browser_ext_support(

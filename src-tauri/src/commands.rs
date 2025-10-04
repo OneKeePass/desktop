@@ -195,7 +195,7 @@ pub(crate) async fn update_preference(
     app_state: State<'_, app_state::AppState>,
     preference_data: app_preference::PreferenceData,
 ) -> Result<()> {
-    Ok(app_state.update_preference(preference_data))
+    Ok(app_state.update_preference(preference_data)?)
 }
 
 #[tauri::command]
