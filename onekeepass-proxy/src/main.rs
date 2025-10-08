@@ -17,30 +17,12 @@ use log4rs::{
     Config,
 };
 
-fn init_log(log_dir: &str) {
-    // let local_time = Local::now().format("Client-%Y-%m-%d-%H%M%S").to_string();
-    let local_time = Local::now().format("Client").to_string();
-    let log_file = format!("{}.log", local_time);
-    let log_file = Path::new(log_dir).join(log_file);
-
-    let time_format = "{d(%Y-%m-%d %H:%M:%S)} - {m}{n}";
-
-    let tofile = FileAppender::builder()
-        .encoder(Box::new(PatternEncoder::new(time_format)))
-        .build(log_file)
-        .unwrap();
-
-    let level = LevelFilter::Debug;
-
-    let config = Config::builder()
-        //.appender(Appender::builder().build("stdout", Box::new(stdout)))
-        .appender(Appender::builder().build("file", Box::new(tofile)))
-        //.build(Root::builder().appenders(["stdout", "file"]).build(level))
-        .build(Root::builder().appenders(["file"]).build(level))
-        .unwrap();
-
-    log4rs::init_config(config).unwrap();
-}
+use log4rs::append::{
+    rolling_file::{
+        policy::compound::{roll::fixed_window::FixedWindowRoller, trigger::size::SizeTrigger, CompoundPolicy},
+        RollingFileAppender,
+    },
+};
 
 const BUFFER_SIZE: usize = 1024 * 1024;
 
@@ -80,7 +62,6 @@ fn main_app_to_stdout(mut app_connection_reader: ReadHalf<Connection>) {
                     send_proxy_error_message("Main app message content response size exceeded the limit");
                     // Should we break or continue?
                     break 'main_app_to_stdout_outer;
-
                 }
             } else {
                 log::debug!("Proxy error of reading reply mesage from  server");
@@ -129,7 +110,7 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
                 // message_length is zero when the browser is closed. For now we continue
                 // and the browser will close this native app.
                 // TODO: Close the connection to the app by sending a message to 'app_connection_writer' and break instead of continuing
-                
+
                 // continue;
                 log::debug!("STD-IN-TO-APP: Message length is zero and exiting the proxy after sending error to extension");
                 send_proxy_error_message("Message length from stdin is zero");
@@ -154,7 +135,6 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
                 String::from_utf8(message_bytes_buf.to_vec())
             );
 
-            
             let mut val = write_completed.lock().unwrap();
             // Wait until the previous write is completed in the spawned task below
             while !(*val) {
@@ -175,7 +155,7 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
                 log::debug!("STD-IN-TO-APP: In the spawned task BEFORE writing to the app");
 
                 // Write extension message content to the main app
-                
+
                 if let Err(e) = app_connection_writer.write_all(&message_bytes_buf).await {
                     // Seen this error if the main is closed - Error is Broken pipe (os error 32)
                     log::error!("Unable to write message to the main app connection. Error is {}", &e);
@@ -213,42 +193,43 @@ fn remove_dir_files<P: AsRef<Path>>(path: P) {
 }
 
 // Send the proxy error message to the extension and this is not async fn so it completes before returning
+// Also after sending this message the proxy exits
 fn send_proxy_error_message(error_message: &str) {
-    let resp = format!(r#"{{"error" : {{"action": "PROXY_ERROR"}}, "error_message": "{}"}}"#, error_message);
+    let resp = format!(r#"{{"error" : {{"action": "PROXY_ERROR", "error_message": "{}"}}}}"#, error_message);
     let len = resp.as_bytes().len();
     let response_length = len as u32;
-    
+
     if let Err(e) = std::io::stdout().write_all(&response_length.to_ne_bytes()) {
-        log::error!("Writing PROXY_ERROR msg length to extension failed with error {}",e);
+        log::error!("Writing PROXY_ERROR msg length to extension failed with error {}", e);
         return;
     }
 
-     if let Err(e) = std::io::stdout().write_all(resp.as_bytes()) {
-        log::error!("Writing PROXY_ERROR msg to extension failed with error {}",e);
+    if let Err(e) = std::io::stdout().write_all(resp.as_bytes()) {
+        log::error!("Writing PROXY_ERROR msg to extension failed with error {}", e);
         return;
-     }
+    }
 
     let _ = std::io::stdout().flush();
 
     log::debug!("PROXY_ERROR message {} is send ", &resp);
 }
 
-
 // Send the app not available error to the extension and this is not async fn so it completes before returning
+// Also after sending this message the proxy exits
 fn send_app_connection_not_available_error() {
-    let resp = r#"{"error" : {"action": "PROXY_APP_CONNECTION"}, "error_message": "App is not running"}"#;
+    let resp = r#"{"error" : {"action": "PROXY_APP_CONNECTION" , "error_message": "App is not running"}}"#;
     let len = resp.as_bytes().len();
     let response_length = len as u32;
-    
+
     if let Err(e) = std::io::stdout().write_all(&response_length.to_ne_bytes()) {
-        log::error!("Writing PROXY_APP_CONNECTION error msg length to extension failed with error {}",e);
+        log::error!("Writing PROXY_APP_CONNECTION error msg length to extension failed with error {}", e);
         return;
     }
 
-     if let Err(e) = std::io::stdout().write_all(resp.as_bytes()) {
-        log::error!("Writing PROXY_APP_CONNECTION error msg to extension failed with error {}",e);
+    if let Err(e) = std::io::stdout().write_all(resp.as_bytes()) {
+        log::error!("Writing PROXY_APP_CONNECTION error msg to extension failed with error {}", e);
         return;
-     }
+    }
 
     let _ = std::io::stdout().flush();
 
@@ -259,20 +240,125 @@ fn send_app_connection_available_ok() {
     let resp = r#"{"ok" : {"action": "PROXY_APP_CONNECTION"}}"#;
     let len = resp.as_bytes().len();
     let response_length = len as u32;
-    
+
     if let Err(e) = std::io::stdout().write_all(&response_length.to_ne_bytes()) {
-        log::error!("Writing PROXY_APP_CONNECTION ok msg length to extension failed with error {}",e);
+        log::error!("Writing PROXY_APP_CONNECTION ok msg length to extension failed with error {}", e);
         return;
     }
 
-     if let Err(e) = std::io::stdout().write_all(resp.as_bytes()) {
-        log::error!("Writing PROXY_APP_CONNECTION ok msg to extension failed with error {}",e);
+    if let Err(e) = std::io::stdout().write_all(resp.as_bytes()) {
+        log::error!("Writing PROXY_APP_CONNECTION ok msg to extension failed with error {}", e);
         return;
-     }
+    }
 
     let _ = std::io::stdout().flush();
 
     log::debug!("PROXY_APP_CONNECTION ok message {} is send ", &resp);
+}
+
+fn init_log2() -> Result<(), Box<dyn std::error::Error>> {
+
+    let max_file_size_mb: u64 = 5;
+    let backup_count: u32 = 2;
+    let log_file_name = "onekeepass-proxy.log";
+
+    // Log directory in the system temp directory
+    let log_dir = std::env::temp_dir().join("okp");
+    let log_dir = Path::new(&log_dir);
+
+    // Ensure the log directory exists
+    if !log_dir.exists() { 
+        fs::create_dir_all(&log_dir)?;
+    } 
+    
+    // fs::create_dir_all(&log_dir)?;
+    
+    let log_file_path = Path::new(log_dir).join(log_file_name);
+
+    // --- Pattern Encoder ---
+    // Defines the format for each log entry.
+    // {d} - timestamp
+    // {l} - log level
+    // {t} - target (module path)
+    // {m} - message
+    // {n} - newline
+    // let pattern = "{d(%Y-%m-%d %H:%M:%S%.3f %Z)} [{l}] {t} - {m}{n}";
+    let pattern = "{d(%Y-%m-%d %H:%M:%S)} - {m}{n}";
+    let encoder = PatternEncoder::new(pattern);
+
+    // --- Size Trigger ---
+    // This triggers the rotation when the log file reaches the specified size.
+    let size_limit = max_file_size_mb * 1024 * 1024; // Convert MB to bytes
+    let size_trigger = Box::new(SizeTrigger::new(size_limit));
+
+    // --- Fixed Window Roller ---
+    // This defines the naming scheme for the rotated log files.
+    // It will create files like `app.1.log`, `app.2.log`, etc.
+    // The `{}` is a placeholder for the backup number.
+    let roller_pattern = format!("{}.{{}}.log", log_file_path.to_str().unwrap().replace(".log", ""));
+    let roller = Box::new(FixedWindowRoller::builder().build(&roller_pattern, backup_count)?);
+
+    // --- Compound Policy ---
+    // Combines the trigger (when to roll) and the roller (how to roll).
+    let policy = Box::new(CompoundPolicy::new(size_trigger, roller));
+
+    // --- Rolling File Appender ---
+    // The actual appender that writes to the file and uses the policy for rotation.
+    let file_appender = RollingFileAppender::builder()
+        .encoder(Box::new(encoder.clone()))
+        .build(log_file_path, policy)?;
+
+    // We should not have console appender for native messaging app
+    // as it will interfere with the communication protocol.
+    // Following is just for reference if needed in future for other apps.
+
+    // --- Console Appender (for stdout) ---
+    // Useful for seeing logs in the console during development.
+    // let stdout_appender = ConsoleAppender::builder()
+    //     .encoder(Box::new(encoder))
+    //     .build();
+
+    // --- Configuration ---
+    // Puts all the appenders together. We can log to multiple places at once.
+    let config = Config::builder()
+        //.appender(Appender::builder().build("stdout", Box::new(stdout_appender)))
+        .appender(Appender::builder().build("file_roller", Box::new(file_appender)))
+        .build(
+            Root::builder()
+                //.appenders(["stdout", "file_roller"]) // Log to both console and file
+                .appenders(["file_roller"]) // Log only to file
+                .build(LevelFilter::Debug), // Set the minimum log level
+        )?;
+
+    // Initialize the logger with the configuration.
+    log4rs::init_config(config)?;
+
+    Ok(())
+}
+
+fn init_log(log_dir: &str) {
+    // let local_time = Local::now().format("Client-%Y-%m-%d-%H%M%S").to_string();
+    let local_time = Local::now().format("onekeepass-proxy").to_string();
+    let log_file = format!("{}.log", local_time);
+    let log_file = Path::new(log_dir).join(log_file);
+
+    let time_format = "{d(%Y-%m-%d %H:%M:%S)} - {m}{n}";
+
+    let tofile = FileAppender::builder()
+        .encoder(Box::new(PatternEncoder::new(time_format)))
+        .build(log_file)
+        .unwrap();
+
+    let level = LevelFilter::Debug;
+
+    let config = Config::builder()
+        //.appender(Appender::builder().build("stdout", Box::new(stdout)))
+        .appender(Appender::builder().build("file", Box::new(tofile)))
+        //.build(Root::builder().appenders(["stdout", "file"]).build(level))
+        .build(Root::builder().appenders(["file"]).build(level))
+        .unwrap();
+
+    log4rs::init_config(config).unwrap();
 }
 
 //#[tokio::main(flavor = "multi_thread", worker_threads = 10)]
@@ -281,9 +367,11 @@ fn send_app_connection_available_ok() {
 async fn main() {
     let path = "okp_browser_ipc";
 
+    /* 
     ////
-    let log_dir = "/Users/jeyasankar/Development/repositories/github/OneKeePass-Organization/desktop/onekeepass-proxy/logs";
-    let log_dir = Path::new(log_dir);
+    // let log_dir = "/Users/jeyasankar/Development/repositories/github/OneKeePass-Organization/desktop/onekeepass-proxy/logs";
+    let log_dir = std::env::temp_dir().join("okp");
+    let log_dir = Path::new(&log_dir);
     if !log_dir.exists() {
         let _ = fs::create_dir_all(&log_dir);
     } else {
@@ -292,8 +380,15 @@ async fn main() {
         let _r = remove_dir_files(&log_dir);
     }
     init_log(log_dir.to_path_buf().to_string_lossy().as_ref());
-
     ////
+    */
+
+    if let Err(e) = init_log2() {
+        // eprintln!("Logging initialization failed with error {}", e);
+        // send_proxy_error_message(format!("Logging initialization failed with error {}", e).as_ref());
+        send_proxy_error_message(&format!("Logging initialization failed with error {}", e));
+        return;
+    }
 
     let Ok(connection_to_server) = Endpoint::connect(ServerId::new(path)).await else {
         log::error!("Failed to connect to the server and sending error msg");
@@ -304,7 +399,7 @@ async fn main() {
     let (app_connection_reader, app_connection_writer) = split(connection_to_server);
 
     log::debug!("===============================");
-    
+
     log::debug!("Connected to server and sending initial ok message");
 
     send_app_connection_available_ok();

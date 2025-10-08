@@ -317,6 +317,7 @@
               (assoc-in-key-db [entry-form-key :edit] false)
               (init-expiry-duration-selection entry-data)
               (assoc-in-key-db [entry-form-key :showing] :selected)
+              (assoc-in-key-db [entry-form-key :multiline-fields] {})
               (assoc-in-key-db [entry-form-key :visibility-list] nil)
               ;; otp-fields is map with otp field name as key and token info (map) as value
               ;; This map is updated periodically when polling is started
@@ -1719,6 +1720,41 @@
 
 (defn otp-currrent-token [opt-field-name]
   (subscribe [:otp-currrent-token opt-field-name]))
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Single or Multiline field toggle ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn entry-form-multiline-field-toggle 
+  "Toggles a field to be multiline or single line
+  key is the field name (string)
+  flag is boolean - true for multiline, false for single line"
+  [key flag]
+  (dispatch [:entry-form-multiline-field-update key flag]))
+
+(defn multiline? 
+  "Checks if a field is multiline or not
+  key is the field name (string)
+  Returns true if the field is multiline, false or nil otherwise"
+  [key]
+  (subscribe [:entry-form-field-in-multiline-fields key]))
+
+;; A map of field names (string) to boolean indicating if that field is multiline or not
+;; e.g. {"URL" true, "Additional URLs" true ....}
+;; This is stored in the entry form db only and not in the backend
+;; so that it is not persistent across sessions
+(reg-event-db
+ :entry-form-multiline-field-update
+ (fn [db [_event-id key flag]]
+   ;;  (println "entry-form-multiline-field-update called for key " key " and flag " flag)
+   (assoc-in-key-db db [entry-form-key :multiline-fields key] flag)))
+
+(reg-sub
+ :entry-form-field-in-multiline-fields
+ (fn [db [_query-id key]]
+   (get-in-key-db db [entry-form-key :multiline-fields key])))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (comment
   (keys @re-frame.db/app-db)

@@ -87,6 +87,7 @@
 (def NOTES "Notes")
 (def TAGS "Tags")
 (def IFDEVICE "IfDevice")
+(def ADDITIONAL_URLS "Additional URLs")
 
 (def ONE_TIME_PASSWORD_TYPE "Field type" "OneTimePassword")
 

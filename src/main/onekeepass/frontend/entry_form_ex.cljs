@@ -29,9 +29,9 @@
                                                            restore-confirm-dialog
                                                            set-up-totp-dialog
                                                            show-icons-dialog]]
-   [onekeepass.frontend.entry-form.fields :refer [datetime-field otp-field
-                                                  simple-selection-field
-                                                  text-area-field text-field]]
+   [onekeepass.frontend.entry-form.fields :as fields :refer [datetime-field otp-field
+                                                             simple-selection-field
+                                                             text-area-field text-field]]
    [onekeepass.frontend.entry-form.menus :as menus]
    [onekeepass.frontend.events.common :as ce]
    [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
@@ -139,8 +139,7 @@
         creation-time @(form-events/entry-form-data-fields :creation-time)
         last-modification-time @(form-events/entry-form-data-fields :last-modification-time)
         parent-group-uuid @(form-events/entry-form-data-fields :group-uuid)
-        {:keys [name]} @(dlg-events/selected-group-info parent-group-uuid)
-        ]
+        {:keys [name]} @(dlg-events/selected-group-info parent-group-uuid)]
     (when-not edit
       [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
 
@@ -155,7 +154,7 @@
        [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
         [mui-typography (str (tr-l "lastModified") ":")]
         [mui-typography (u/to-local-datetime-str last-modification-time ENTRY_DATETIME_FORMAT)]]
-       
+
        [mui-stack {:direction "row" :sx {:justify-content "space-between"}}
         [mui-typography (str (tr-l "group") ":")]
         [mui-typography name]]
@@ -184,7 +183,7 @@
         comp-ref (atom nil)]
     [mui-stack {:direction "row"
                 :ref (fn [e]
-                         ;;(println "ref is called " e)
+                       ;;(println "ref is called " e)
                        (reset! comp-ref e))}
      [mui-stack {:direction "row" :sx {:width "85%"}}
       [box-caption  (if standard-section? (tr-entry-section-name-cv section-name) section-name)]]
@@ -213,7 +212,7 @@
 ;; Note translations for field names (labels) are done in 'text-field' defined in fields.cljs
 (defn section-content
   "This is called for each section of an entry"
-  [{:keys [edit section-name section-data group-uuid]}]
+  [{:keys [edit section-name section-data group-uuid entry-uuid]}]
   (let [errors @(form-events/entry-form-field :error-fields)]
     ;; Show a section in edit mode irrespective of its contents; In non edit mode a section is shown only 
     ;; if it has some fields with non blank value. 
@@ -235,52 +234,58 @@
                         standard-field] :as kv} section-data]
             ;; All fields of this section is shown in edit mode. In case of non edit mode, only the  
             ;; fields with values are shown 
-            (when (or edit (not (str/blank? value))) #_(or edit (or required (not (str/blank? value))))
-                  ^{:key key}
-                  [mui-stack {:direction "row"
-                              ;; We keep a ref to the underlying HtmlElememnt - #object[HTMLDivElement [object HTMLDivElement]] 
-                              ;; The ref is kept for each field's enclosing container 'Stack' component so that we can position the Popper.
-                              ;; Sometimes the value of e is nil as react redraws the node
-                              :ref (fn [e] (swap! refs assoc key e))}
-                   [mui-stack {:direction "row" :sx {:width (if edit "92%" "100%")}}
-                    (cond
-                      ;; select-field-options is vec of strings and gets data from 
-                      ;; field 'select_field_options' in struct KeyValueData 
-                      (not (nil? select-field-options))
-                      [simple-selection-field (assoc kv
-                                                     :edit edit
-                                                     :error-text (get errors key)
-                                                     :on-change-handler #(form-events/update-section-value-on-change
-                                                                          section-name key (-> % .-target  .-value)))]
+            (when (or edit (not (str/blank? value)))
+              ;; Need to use [entry-uuid key] as React key as it is unique within a section for each field 
+              ;; We require entry-uuid as section may remain same from an earlier entry form and in that case the form content 
+              ;; will not re-render properly if only key is used
+              ^{:key [entry-uuid key]}
+              [mui-stack {:direction "row"
+                          ;; We keep a ref to the underlying HtmlElememnt - #object[HTMLDivElement [object HTMLDivElement]] 
+                          ;; The ref is kept for each field's enclosing container 'Stack' component so that we can position the Popper.
+                          ;; Sometimes the value of e is nil as react redraws the node
+                          :ref (fn [e] (swap! refs assoc key e))}
+               [mui-stack {:direction "row" :sx {:width (if edit "92%" "100%")}}
+                (cond
+                  ;; select-field-options is vec of strings and gets data from 
+                  ;; field 'select_field_options' in struct KeyValueData 
+                  (not (nil? select-field-options))
+                  [simple-selection-field (assoc kv
+                                                 :edit edit
+                                                 :error-text (get errors key)
+                                                 :on-change-handler #(form-events/update-section-value-on-change
+                                                                      section-name key (-> % .-target  .-value)))]
 
-                      (= data-type ONE_TIME_PASSWORD_TYPE)
-                      [otp-field (assoc kv :edit edit
-                                        :section-name section-name
-                                        :group-uuid group-uuid)]
+                  (= data-type ONE_TIME_PASSWORD_TYPE)
+                  [otp-field (assoc kv :edit edit
+                                    :section-name section-name
+                                    :group-uuid group-uuid)]
 
-                      :else
-                      [text-field (assoc kv
-                                         :edit edit
-                                         :error-text (get errors key)
-                                         :visible @(form-events/visible? key)
-                                         :on-change-handler #(form-events/update-section-value-on-change
-                                                              section-name key (-> % .-target  .-value)))])]
+                  ;; we are now using 'single-or-multiline-text-field' instead of earlier 'text-field'
+                  ;; All text-fields are now either single line or multiline text area fields
+                  :else
+                  [fields/single-or-multiline-text-field
+                   (assoc kv
+                          :edit edit
+                          :error-text (get errors key)
+                          :visible @(form-events/visible? key)
+                          :on-change-handler #(form-events/update-section-value-on-change
+                                               section-name key (-> % .-target  .-value)))])]
 
-                   (when (and edit (not standard-field) (not= data-type ONE_TIME_PASSWORD_TYPE))
-                     [mui-stack {:direction "row" :sx {:width "8%" :align-items "flex-end"}}
-                      [mui-tooltip  {:title "Modify Field" :enterDelay 2500}
-                       [mui-icon-button {:edge "end"
-                                         :on-click  #(form-events/open-section-field-modify-dialog
-                                                      {:key key
-                                                       :protected protected
-                                                       :required required
-                                                       :popper-anchor-el (get @refs key)
-                                                       :section-name section-name})}
-                        [mui-icon-edit-outlined]]]
-                      [mui-tooltip  {:title "Delete Field" :enterDelay 2500}
-                       [mui-icon-button {:edge "end"
-                                         :on-click #(form-events/field-delete section-name key)}
-                        [mui-icon-delete-outline]]]])])))
+               (when (and edit (not standard-field) (not= data-type ONE_TIME_PASSWORD_TYPE))
+                 [mui-stack {:direction "row" :sx {:width "8%" :align-items "flex-end"}}
+                  [mui-tooltip  {:title "Modify Field" :enterDelay 2500}
+                   [mui-icon-button {:edge "end"
+                                     :on-click  #(form-events/open-section-field-modify-dialog
+                                                  {:key key
+                                                   :protected protected
+                                                   :required required
+                                                   :popper-anchor-el (get @refs key)
+                                                   :section-name section-name})}
+                    [mui-icon-edit-outlined]]]
+                  [mui-tooltip  {:title "Delete Field" :enterDelay 2500}
+                   [mui-icon-button {:edge "end"
+                                     :on-click #(form-events/field-delete section-name key)}
+                    [mui-icon-delete-outline]]]])])))
          #_[custom-field-delete-confirm @(form-events/field-delete-dialog-data)]
          #_[custom-section-delete-confirm @(form-events/section-delete-dialog-data)]]))))
 
@@ -296,7 +301,7 @@
                                  (assoc m :read-value (place-holder-resolved-value parsed-fields key)))
                                section-data)
 
-        adjusted-section-data  (if (not= entry-type-uuid const/UUID_OF_ENTRY_TYPE_AUTO_OPEN) 
+        adjusted-section-data  (if (not= entry-type-uuid const/UUID_OF_ENTRY_TYPE_AUTO_OPEN)
                                  adjusted-section-data
                                  (mapv
                                   (fn [{:keys [key] :as m}]
@@ -326,6 +331,7 @@
 (defn all-sections-content
   "Component for all sections of an entry"
   []
+  ;; (println "all-sections-content called")
   (let [{:keys [edit showing]
          {:keys [entry-type-uuid section-names section-fields uuid group-uuid]} :data}
         @(form-events/entry-form-all)
@@ -342,13 +348,14 @@
          ;;(println "cleanup - uuid showing edit deleted? : \n" uuid showing edit deleted?))
          (form-events/entry-form-otp-stop-polling uuid)))
 
-         ;; Need to pass the list of all reactive values (dependencies) referenced inside of the setup code or empty list
+     ;; Need to pass the list of all reactive values (dependencies) referenced inside of the setup code or empty list
      (clj->js [uuid showing edit deleted?]))
 
     [mui-stack
      (doall
       (for [section-name section-names]
         ^{:key section-name} [section-content {:entry-type-uuid entry-type-uuid
+                                               :entry-uuid uuid
                                                :edit edit
                                                :parsed-fields parsed-fields
                                                :section-name section-name
@@ -517,6 +524,7 @@
      [expiry-content]]))
 
 (defn entry-content []
+  (println "entry-content called")
   (fn []
     (let [title @(form-events/entry-form-data-fields :title)
           parsed-fields @(form-events/entry-form-data-fields :parsed-fields)
@@ -632,7 +640,7 @@
 
        ;; Used to move one parent group to another (based on the generic dialogs concept)
        [gt-content/move-group-or-entry-dialog]
-       
+
        ;; Used to move the entry to recycle bin
        [gt-content/move-dialog
         {:dialog-data @(move-events/move-group-entry-dialog-data :entry)
@@ -700,7 +708,7 @@
                                :error-text field-error-text}]]]))
 
 (defn entry-content-new []
-  ;;(println "entry-content-new called")
+  (println "entry-content-new called")
   (let [title @(form-events/entry-form-data-fields :title)
         form-title-tr (tr-t "newEntry")
         form-title (if (str/blank? title) form-title-tr (str form-title-tr "-" title))]
@@ -758,6 +766,7 @@
 (declare custom-entry-type-new-content)
 
 (defn entry-content-core []
+  ;; (println "entry-content-core called")
   (let [s (form-events/entry-form-field :showing)]
     (condp = @s
       :welcome
@@ -1054,14 +1063,14 @@
          [mui-dialog-content {:dividers true}
           [mui-stack
            [m/text-field {:label "Field Name"
-                     ;; If we set ':value key', the dialog refreshes when on change fires for each key press in this input
-                     ;; Not sure why. Using different name like 'field-name' works fine
+                          ;; If we set ':value key', the dialog refreshes when on change fires for each key press in this input
+                          ;; Not sure why. Using different name like 'field-name' works fine
                           :value field-name
                           :error (boolean (seq error-fields))
                           :helperText (get error-fields field-name)
                           :on-key-press (enter-key-pressed-factory ok-fn)
 
-                        ;; Needs some tweaking as the input remains focus till the error is cleared
+                          ;; Needs some tweaking as the input remains focus till the error is cleared
                           :inputRef (fn [comp-ref]
                                       (when (and (boolean (seq error-fields)) (not (nil? comp-ref)))
                                         (when-let [comp-id (some-> comp-ref .-props .-id)]
@@ -1100,7 +1109,7 @@
                                      mode
                                      add-more] :as m}]
     [mui-dialog {:open dialog-show :on-click #(.stopPropagation ^js/Event %)
-               ;; This will set the Paper width in all child components 
+                 ;; This will set the Paper width in all child components 
                  :sx {"& .MuiPaper-root" {:width "60%"}} ;; equivalent to :classes {:paper "pwd-dlg-root"}
                  }
      [mui-dialog-title (if (= mode :add) "Add Custom Field" "Modify Custom Field")]
@@ -1108,8 +1117,8 @@
       [mui-stack
        [:<>
         [m/text-field {:label "Field Name"
-                     ;; If we set ':value key', the dialog refreshes when on change fires for each key press in this input
-                     ;; Not sure why. Using different name like 'field-name' works fine
+                       ;; If we set ':value key', the dialog refreshes when on change fires for each key press in this input
+                       ;; Not sure why. Using different name like 'field-name' works fine
                        :value field-name
                        :error (boolean (seq error-fields))
                        :helperText (get error-fields field-name)
@@ -1184,7 +1193,7 @@
 ;; deprecate
 #_(defn add-section-popper [anchor-el]
     (let [{:keys [section-name error-fields]} @(form-events/section-add-data)]
-    ;;(println "section-name " section-name "anchor-el is " @anchor-el)
+      ;;(println "section-name " section-name "anchor-el is " @anchor-el)
       [mui-popper {:anchorEl @anchor-el
                    :open (if @anchor-el true false)
                    :sx {:z-index 2 :min-width "400px"}}

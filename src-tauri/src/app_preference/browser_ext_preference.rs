@@ -30,6 +30,7 @@ pub(crate) struct BrowserExtSupport {
 
     // We do not get this value from frontend when we update this preference through 'update' fn
     // We update this field through 'user_confirmation' fn separately
+    #[serde(skip)]
     user_confirmed_browsers: HashSet<String>,
 }
 

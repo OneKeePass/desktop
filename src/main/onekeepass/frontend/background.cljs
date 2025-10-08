@@ -66,6 +66,20 @@
   ([event-name event-handler-fn]
    (register-event-listener :common event-name event-handler-fn)))
 
+(defn minimize-window []
+  (let [window ^js/TauriWindow (getCurrentWindow)]
+    (go
+      (try
+        ;; IMPORTANT: Need to set variuos permissions to use window methods and props
+        ;; in src-tauri/capabilities/desktop.json
+        ;; Ref: https://v2.tauri.app/reference/acl/core-permissions/
+
+        (<p!  (. window (minimize)))
+        #_(let [_r (<p!  (. window (minimize)))]
+            (println "Window is minimized and r is." _r))
+        (catch js/Error err
+          (js/console.log "Error: " (ex-cause err)  "err " err))))))
+
 (defn set-window-focus []
   ;; Need to get the window before 'go' call to avoid something like "Warning - Cannot infer target type in expression...." 
   (let [window ^js/TauriWindow (getCurrentWindow)]
@@ -515,13 +529,13 @@
   (invoke-api "update_preference" {:preference-data  preference-data} dispatch-fn :convert-response false))
 
 ;; browser-ext-support is a map for struct BrowserExtSupportData
-(defn update-browser-ext-support-preference 
+(defn update-browser-ext-support-preference
   "Brower extension support settings updates"
   [browser-ext-support dispatch-fn]
   (invoke-api "update_browser_ext_support_preference"
               {:browser-ext-support browser-ext-support} dispatch-fn :convert-response false))
 
-(defn browser-ext-use-user-permission 
+(defn browser-ext-use-user-permission
   "Called when user accepts or rejects the browser extension connection"
   [browser-id confirmed dispatch-fn]
   (invoke-api "browser_ext_use_user_permission" {:browser-id browser-id :confirmed confirmed} dispatch-fn :convert-response false))

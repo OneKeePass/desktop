@@ -22,14 +22,16 @@
                                                      mui-text-field
                                                      mui-tooltip
                                                      mui-typography]]
-   #_[onekeepass.frontend.okp-macros :refer [as-map]]
    [onekeepass.frontend.translation :as t :refer [lstr-l-cv] :refer-macros [tr-h
                                                                             tr-l
                                                                             tr-l-cv
                                                                             tr-entry-field-name-cv]]
    [reagent.core :as r]))
 
-(defn- to-value [{:keys [value read-value edit]}]
+(defn- to-value
+  "Gets the value to be shown in the field
+   based on whether it is in edit mode or read mode"
+  [{:keys [value read-value edit]}]
   (cond
     edit
     value
@@ -40,7 +42,33 @@
     :else
     value))
 
-(defn- end-icons [{:keys [key protected visible edit] :as kv}] 
+(defn translated-label [{:keys [key field-name standard-field]}]
+  (cond
+    (not (nil? field-name))
+    ;; It is assumed translation is done already
+    field-name
+
+    standard-field
+    (tr-entry-field-name-cv key)
+
+    :else
+    ;; It is assumed translation is done already
+    key))
+
+(defn- helper-or-error-text
+  "Gets the helper text to be shown in the field"
+  [{:keys [helper-text error-text password-score]}]
+  (cond
+    (and (nil? error-text) (not (nil? password-score)))
+    (-> password-score :name lstr-l-cv)
+
+    (nil? error-text)
+    helper-text
+
+    :else
+    error-text))
+
+(defn- end-icons [{:keys [key protected visible edit] :as kv}]
   (let [val (to-value kv)]
     [:<>
      (when protected
@@ -53,19 +81,19 @@
                            :edge "end"
                            :on-click #(form-events/entry-form-field-visibility-toggle key)}
           [mui-icon-visibility-off]]))
-       ;; Open with the url
+     ;; Open with the url
      (when (and (not edit) (= key URL))
        [mui-icon-button {:sx {:margin-right "-8px"}
                          :edge "end"
                          :on-click #(form-events/entry-form-open-url val)}
         [m/mui-icon-launch]])
-       ;; Password generator 
+     ;; Password generator 
      (when (and edit protected (= key PASSWORD))
        [mui-icon-button {:sx {:margin-right "-8px"}
                          :edge "end"
                          :on-click form-events/password-generator-show}
         [mui-icon-autorenew]])
-       ;; Copy 
+     ;; Copy 
      [(cc/copy-icon-factory) val {:sx {:mr "-1px"}}]]))
 
 (defn simple-selection-field [{:keys [key
@@ -96,11 +124,11 @@
 
 ;; Added field-name and read-value 
 ;; as additional fields to get the label and value
-;; Initially tried with auto open field.
+;; See fn to-value how final value is determined using value and read-value
+
 (defn text-field [{:keys [key
-                          field-name
-                          value
-                          read-value
+                          _field-name
+                          _read-value
                           protected
                           visible
                           edit
@@ -110,28 +138,18 @@
                           placeholder
                           helper-text
                           error-text
-                          standard-field
+                          _standard-field
                           no-end-icons]
                    :or {visible true
                         edit false
                         no-end-icons false
                         protected false
                         disabled false
-                        on-change-handler #(println (str "No on change handler yet registered for the key"))}
+                        on-change-handler #(println "No on change handler yet registered for the key")}
                    :as kv}]
 
   ;;:margin-top "16px" here is equivalent to the one used by "entry-cnt-field"
-  (let [label (cond
-                (not (nil? field-name))
-                ;; It is assumed translation is done already
-                field-name
-
-                standard-field
-                (tr-entry-field-name-cv key)
-
-                :else
-                ;; It is assumed translation is done already
-                key)
+  (let [label (translated-label kv)
         val  (to-value kv)]
     [m/text-field {:sx   (merge {:margin-top "16px"} (cc/password-helper-text-sx (:name password-score)))
                    :fullWidth true
@@ -140,15 +158,7 @@
                    :value val
                    :placeholder placeholder
                    :error  (not (nil? error-text))
-                   :helperText (cond
-                                 (and (nil? error-text) (not (nil? password-score)))
-                                 (-> password-score :name lstr-l-cv)
-
-                                 (nil? error-text)
-                                 helper-text
-
-                                 :else
-                                 error-text)
+                   :helperText (helper-or-error-text kv)
                    :onChange  on-change-handler
                    :required false
                    :disabled disabled
@@ -158,15 +168,12 @@
                                 :endAdornment (if no-end-icons nil
                                                   (r/as-element
                                                    [mui-input-adornment {:position "end"}
-                                                    [end-icons kv]
-                                                    #_(seq icons)]))
+                                                    [end-icons kv]]))
                                 :type (if (or (not protected) visible) "text" "password")}
-                     ;;attributes for 'input' tag can be added here
-                     ;;It seems adding these 'InputProps' also works
-                     ;;We need to use 'readOnly' and not 'readonly'        
-                   :inputProps  {:readOnly (not edit)
-                                   ;;:sx (if edit sx2 sx1) ;;:readonly "readonly"
-                                 }}]))
+                   ;;attributes for 'input' tag can be added here
+                   ;;It seems adding these 'InputProps' also works
+                   ;;We need to use 'readOnly' and not 'readonly'        
+                   :inputProps  {:readOnly (not edit)}}]))
 
 ;; Both works
 ;;"& .MuiInputBase-input" 
@@ -242,11 +249,11 @@
                                      :sx (theme-text-field-sx edit @custom-theme-atom)
                                      :endAdornment (if (or (not valid-token-found) no-end-icons) nil
                                                        (r/as-element
-                                                        [mui-input-adornment {:position "end"} 
-                                                         [end-icons (assoc kv 
-                                                                             :value token
-                                                                             :read-value nil
-                                                                             :protected false)]]))
+                                                        [mui-input-adornment {:position "end"}
+                                                         [end-icons (assoc kv
+                                                                           :value token
+                                                                           :read-value nil
+                                                                           :protected false)]]))
                                      :type "text"}
 
                         :inputProps  {:readOnly true}}]
@@ -338,21 +345,279 @@
                  ;;:minRows 3 
                  ;;:maxRows 10 
                  :InputLabelProps {:shrink true}
+                 :InputProps {:id key}
+
+                 :inputProps  {:readOnly (not edit)
+                               :sx {:ml ".5em" :mr ".5em"}
+                               :style {:resize "vertical"}}}])
+
+(defn- single-line-text-field
+  "A single line text field"
+  [{:keys [key
+           label
+           val
+           protected
+           visible
+           edit
+           on-change-handler
+           disabled
+           password-score
+           placeholder
+           helper-text
+           error-text
+           no-end-icons]
+    :or {visible true
+         edit false
+         no-end-icons false
+         protected false
+         disabled false
+         on-change-handler #(println "No on change handler yet registered for the key")}
+    :as kv}]
+  [m/text-field {:sx   (merge {:margin-top "16px"} (cc/password-helper-text-sx (:name password-score)))
+                 :fullWidth true
+                 :label label
+                 :variant "standard"
+                 :value val
+                 :placeholder placeholder
+                 :error  (not (nil? error-text))
+                 :helperText helper-text
+                 :onChange  (fn [e]
+                              ;; IMPORTANT: We need to have a valid id is set for the input element
+                              ;; so that getElementById works
+                              ;; We are setting id in InputProps below
+                              ;; We are checking here whether the text is overflowing the field width
+                              ;; and if so, we set the multiline flag for this field to true
+                              ;; This will cause the field to be rendered as a text area field
+                              ;; We are using the 'inputRef' below to check the scrollWidth and clientWidth
+                              ;; of the input element when it is rendered
+                              ;; We cannot use the ref callback here as it is called only once when the component is
+                              (let [fld (js/document.getElementById key)]
+                                (if  (> (.-scrollWidth fld) (.-clientWidth fld))
+                                  (form-events/entry-form-multiline-field-toggle key true)
+                                  (form-events/entry-form-multiline-field-toggle key false)))
+                              (on-change-handler e))
+                 :required false
+                 :disabled disabled
+                 :inputRef (fn [ref-val]
+                             (when ref-val
+                               #_(js/console.log "scrollWidth: " (.-scrollWidth ref-val) " clientWidth: " (.-clientWidth ref-val) "for ref-val"  ref-val)
+                               (if  (> (.-scrollWidth ref-val) (.-clientWidth ref-val))
+                                 (form-events/entry-form-multiline-field-toggle key true)
+                                 (form-events/entry-form-multiline-field-toggle key false))))
+                 :InputLabelProps {}
                  :InputProps {:id key
-                                  ;; This did not fix the cursor jumping
-                                  ;;  :inputComponent
-                                  ;;  (r/reactify-component
-                                  ;;   (fn [props]
-                                  ;;     ;;(println "props are" props)
-                                  ;;     [:input (-> props
-                                  ;;                    (assoc :ref (:inputRef props))
-                                  ;;                    (dissoc :inputRef))]))
-                              }
+                              :sx (theme-text-field-sx edit @custom-theme-atom)
+                              :endAdornment (if no-end-icons nil
+                                                (r/as-element
+                                                 [mui-input-adornment {:position "end"}
+                                                  [end-icons kv]]))
+                              :type (if (or (not protected) visible) "text" "password")}
+                 ;;attributes for 'input' tag can be added here
+                 ;;It seems adding these 'InputProps' also works
+                 ;;We need to use 'readOnly' and not 'readonly'        
+                 :inputProps  {:readOnly (not edit)}}])
+
+
+
+(defn- multiline-text-field
+  "A text area field with label on top"
+  [{:keys [key
+           label
+           val
+           helper-text
+           error-text
+           password-score
+           no-end-icons
+           edit on-change-handler]
+    :or {edit false
+         no-end-icons false
+         on-change-handler #()}
+    :as kv}]
+  [m/text-field {:sx (merge {:margin-top "16px"} (cc/password-helper-text-sx (:name password-score)))
+                 :fullWidth true
+                 :id key
+                 ;; Label is already translated
+                 :label label
+                 :variant "standard"
+                 :value val
+                 :error  (not (nil? error-text))
+                 :helperText helper-text
+                 :onChange on-change-handler
+                 :multiline true
+                 :rows (if (= key const/ADDITIONAL_URLS) 4 2)
+                 ;;minRows and maxRows should not be used with the fixed 'm/text-field'
+                 ;;:minRows 3 
+                 ;;:maxRows 10 
+                 :InputLabelProps {:shrink true}
+
+                 :InputProps {:id key
+                              :endAdornment (if no-end-icons nil
+                                                (r/as-element
+                                                 ;; Need to position the input adornment 'absolute' to override the default position style of mui
+                                                 ;; so that it is aligned properly when there are multiple lines and not pusing the text area to left
+                                                 [mui-input-adornment
+                                                  {:sx {:position "absolute"
+                                                        :right "5px"}
+                                                   :position "end"}
+                                                  [end-icons kv]]))}
 
                  :inputProps  {:readOnly (not edit)
                                :sx {:ml ".5em" :mr ".5em"}
                                :style {:resize "vertical"}}}])
 
 
+(defn single-or-multiline-text-field
+  "Decides whether to use text-field or text-area-field based on the 
+   length of the value."
+  [{:keys [key
+           _field-name
+           _error-text
+           _helper-text
+           _password-score
+           _standard-field]
+    :as kv}]
+  (let [label (translated-label kv)
+        val  (to-value kv)
+
+        helper-text  (helper-or-error-text kv)
+
+        multiline-field @(form-events/multiline? key)]
+    ;; (println "Helper text: " helper-text " for key: " key)
+    (if-not multiline-field
+      [single-line-text-field (assoc kv :label label :val val :helper-text helper-text)]
+      [multiline-text-field (assoc kv :label label :val val :helper-text helper-text)])))
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+#_(defn text-area-field-1 [{:keys [key value edit on-change-handler]
+                            :or {edit false
+                                 on-change-handler #()}
+                            :as kv}]
+    [m/text-field {;;:classes {:root "entry-cnt-field"}
+                   :sx {:margin-top "4px"}
+                   :fullWidth true
+                   :id key
+                   :label "Additional URLs";;name
+                   :variant "standard"
+                   :value value
+                   :onChange on-change-handler
+                   :multiline true
+                   :rows 4
+                   ;;minRows and maxRows should not be used with the fixed 'm/text-field'
+                   ;;:minRows 3 
+                   ;;:maxRows 10 
+                   :InputLabelProps {:shrink true}
+                   :inputRef (fn [ref-val]
+                               #_(when ref-val
+                                   (js/console.log "scrollWidth: " (.-scrollWidth ref-val) " clientWidth: " (.-clientWidth ref-val) "for ref-val"  ref-val)
+                                   #_(when (> (.-scrollWidth ref-val) (.-clientWidth ref-val))
+                                       (println "Setting multiline true for key: " key)
+                                       (set! (.-multiline ref-val) true))))
+                   :InputProps {:id key
+                                :endAdornment (if false nil
+                                                  (r/as-element
+                                                   [mui-input-adornment  {:sx {:position "absolute"
+                                                                               :right "5px"}
+                                                                          :position "end"}
+                                                    [end-icons kv]
+                                                    #_(seq icons)]))}
+
+                   :inputProps  {:readOnly (not edit)
+                                 :sx {:ml ".5em" :mr ".5em"}
+                                 :style {:resize "vertical"}}}])
+
+#_(defn text-field-1 [{:keys [key
+                              field-name
+                              value
+                              read-value
+                              protected
+                              visible
+                              edit
+                              on-change-handler
+                              disabled
+                              password-score
+                              placeholder
+                              helper-text
+                              error-text
+                              standard-field
+                              no-end-icons]
+                       :or {visible true
+                            edit false
+                            no-end-icons false
+                            protected false
+                            disabled false
+                            on-change-handler #(println (str "No on change handler yet registered for the key"))}
+                       :as kv}]
+
+    ;;:margin-top "16px" here is equivalent to the one used by "entry-cnt-field"
+    (let [label (cond
+                  (not (nil? field-name))
+                  ;; It is assumed translation is done already
+                  field-name
+
+                  standard-field
+                  (tr-entry-field-name-cv key)
+
+                  :else
+                  ;; It is assumed translation is done already
+                  key)
+          val  (to-value kv)
+          multiline-field @(form-events/multiline? key)]
+      (println "Rendering text-field-1 for key: " key " multiline-field: " multiline-field)
+
+      (if-not multiline-field
+        [m/text-field {:sx   (merge {:margin-top "16px"} (cc/password-helper-text-sx (:name password-score)))
+                       :fullWidth true
+                       :label label
+                       :variant "standard"
+                       :value val
+                       :placeholder placeholder
+                       :error  (not (nil? error-text))
+                       :helperText (cond
+                                     (and (nil? error-text) (not (nil? password-score)))
+                                     (-> password-score :name lstr-l-cv)
+
+                                     (nil? error-text)
+                                     helper-text
+
+                                     :else
+                                     error-text)
+                       :onChange  (fn [e]
+                                    (let [fld (js/document.getElementById key)]
+                                      (js/console.log "getElementById field is "  fld)
+                                      (if  (> (.-scrollWidth fld) (.-clientWidth fld))
+                                        (form-events/entry-form-multiline-field-toggle key true)
+                                        (form-events/entry-form-multiline-field-toggle key false)))
+
+                                    (on-change-handler e))
+                       :required false
+                       :disabled disabled
+                       ::inputRef (fn [ref-val]
+                                    (when ref-val
+                                      (js/console.log "scrollWidth: " (.-scrollWidth ref-val) " clientWidth: " (.-clientWidth ref-val) "for ref-val"  ref-val)
+                                      (if  (> (.-scrollWidth ref-val) (.-clientWidth ref-val))
+                                        (form-events/entry-form-multiline-field-toggle key true)
+                                        (form-events/entry-form-multiline-field-toggle key false))))
+                       :InputLabelProps {}
+                       :InputProps {:id key
+                                    :sx (theme-text-field-sx edit @custom-theme-atom)
+                                    :endAdornment (if no-end-icons nil
+                                                      (r/as-element
+                                                       [mui-input-adornment {:position "end"}
+                                                        [end-icons kv]
+                                                        #_(seq icons)]))
+                                    :type (if (or (not protected) visible) "text" "password")}
+                       ;;attributes for 'input' tag can be added here
+                       ;;It seems adding these 'InputProps' also works
+                       ;;We need to use 'readOnly' and not 'readonly'        
+                       :inputProps  {:readOnly (not edit)
+                                     ;;:sx (if edit sx2 sx1) ;;:readonly "readonly"
+                                     }}]
+
+        [text-area-field-1 kv])))
+
+
+  
 
 

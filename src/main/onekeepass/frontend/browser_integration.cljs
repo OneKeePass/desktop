@@ -18,7 +18,7 @@
 (defn- browser-extension-connection-permit-dialog-content
   "Dialog to show browser integration related info"
   [{:keys [dialog-show browser-id] :as args}]
-  (println "browser-extension-connection-permit-dialog-content args: " args)
+  ;; (println "browser-extension-connection-permit-dialog-content args: " args)
   (when dialog-show
     [mui-dialog {:open dialog-show
                  :maxWidth "sm"

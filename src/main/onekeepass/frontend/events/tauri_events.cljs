@@ -133,7 +133,7 @@
   (bg/register-event-listener OTP_TOKEN_UPDATE_EVENT handle-otp-token-update-event))
 
 (defn- handle-browser-connection-request-event [js-event]
-  (println "handle-browser-connection-request " (js->clj js-event :keywordize-keys true))
+  ;; (println "handle-browser-connection-request " (js->clj js-event :keywordize-keys true))
   (let [cljs-response (js->clj js-event :keywordize-keys true)
         ;; The browser_id is a string that uniquely identifies the browser extension instance
         ;; Note the key is in snake_case insead of kebab-case as we are not using to-cljs
