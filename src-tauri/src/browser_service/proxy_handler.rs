@@ -49,7 +49,7 @@ fn handle_input(mut reader: ReadHalf<Connection>, sender: Arc<BrowserServiceTx>)
 
         let mut buf = vec![0u8; BUFFER_SIZE];
 
-        // log::debug!("In handle_input 'spawn'  and before loop");
+        // log::debug!("In handle_input 'spawn' and before loop");
 
         // TODO:
         // Need to break this loop when connection to the proxy is no more available and the remove session data
@@ -100,7 +100,7 @@ fn handle_output(
         // TODO:
         // Need to break this loop when connection to the proxy is no more available and remove session data
         while let Some(message) = channel_receiver.recv().await {
-            // log::debug!(" Received message {}", &message);
+            log::debug!(" Received message {}", &message);
 
             let mut writer_guard = writer.lock().await;
 
@@ -144,6 +144,8 @@ fn is_endpoint_server_running() -> bool {
 // Called to connect to the browser native message proxy app endpoint and provides listeners to receive
 // messages( or send) messages from (or to) the native message proxy app for all browser extensions
 async fn run_server(path: String) {
+    log::debug!("Proxy listener - Run server is called with path {}, ", &path);
+
     let endpoint = Endpoint::new(ServerId::new(path), OnConflict::Overwrite).unwrap();
 
     let incoming = match endpoint.incoming() {
@@ -168,7 +170,7 @@ async fn run_server(path: String) {
     // For example when user uses browser extension of Firefox and Chrome at the same time, each browser extension would
     // have launched its own proxy app and both connects to this endpoint.
     while let Some(result) = incoming.next().await {
-        log::debug!("Incoming connections is made to native message proxy");
+        log::debug!("Incoming connections is made to native message proxy of a browser");
 
         // Handles one browser's ext proxy conenction
         match result {
@@ -205,7 +207,7 @@ async fn run_server(path: String) {
         }
 
         // Will look for the "next" connection from another browser proxy
-        log::debug!("Going to wait for the next connection");
+        log::debug!("Going to wait for the next browser connection");
     }
 }
 

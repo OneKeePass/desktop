@@ -708,7 +708,7 @@
                                :error-text field-error-text}]]]))
 
 (defn entry-content-new []
-  (println "entry-content-new called")
+  ;; (println "entry-content-new called")
   (let [title @(form-events/entry-form-data-fields :title)
         form-title-tr (tr-t "newEntry")
         form-title (if (str/blank? title) form-title-tr (str form-title-tr "-" title))]

@@ -73,8 +73,9 @@
         ;; IMPORTANT: Need to set variuos permissions to use window methods and props
         ;; in src-tauri/capabilities/desktop.json
         ;; Ref: https://v2.tauri.app/reference/acl/core-permissions/
-
+        
         (<p!  (. window (minimize)))
+        #_(<p!  (.setAlwaysOnTop window false))
         #_(let [_r (<p!  (. window (minimize)))]
             (println "Window is minimized and r is." _r))
         (catch js/Error err
@@ -88,14 +89,25 @@
         ;; IMPORTANT: Need to set variuos permissions to use window methods and props
         ;; in src-tauri/capabilities/desktop.json
         ;; Ref: https://v2.tauri.app/reference/acl/core-permissions/
-
+        
         (<p!  (. window (setFocus)))
         (<p!  (.unminimize  window))
+
+        ;; This is needed to bring the window to front in Linux
+        ;; It seems setFocus and unminimize are not sufficient to bring the window to front in linux
+        ;; This is not yet resolved 
+        ;; See somewhat old https://github.com/tauri-apps/tauri/issues/5620
+        ;; The following show and hide seems to work for gnome desktop environment
+        ;; This is based on a comment in the above issue link
+        ;; We may exclude these calls for non-linux os later if needed
+        (<p!  (.hide  window))
+        (<p!  (.show  window))
+        #_(<p!  (.setAlwaysOnTop window true))
 
         ;; If we set 'setAlwaysOnTop' true, we need to reset to false when
         ;; user completes the request action
         ;; _r (<p!  (.setAlwaysOnTop window true)
-
+        
         #_(let [_r (<p!  (. window (setFocus)))
                 _r  (<p!  (.unminimize  window))
 

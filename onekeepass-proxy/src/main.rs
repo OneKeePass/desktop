@@ -1,43 +1,163 @@
-use std::{
-    fs,
-    io::{Read, Write},
-    path::Path,
-    sync::Arc,
-};
+mod proxy_client;
 
-use tipsy::{Connection, Endpoint, ServerId};
-use tokio::io::{split, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf};
+use std::{fs, path::Path};
 
-use chrono::Local;
 use log::LevelFilter;
 use log4rs::{
-    append::file::FileAppender,
     config::{Appender, Root},
     encode::pattern::PatternEncoder,
     Config,
 };
 
-use log4rs::append::{
-    rolling_file::{
-        policy::compound::{roll::fixed_window::FixedWindowRoller, trigger::size::SizeTrigger, CompoundPolicy},
-        RollingFileAppender,
-    },
+use log4rs::append::rolling_file::{
+    policy::compound::{roll::fixed_window::FixedWindowRoller, trigger::size::SizeTrigger, CompoundPolicy},
+    RollingFileAppender,
+};
+use tipsy::{Endpoint, ServerId};
+use tokio::io::split;
+
+use crate::proxy_client::{
+    main_app_to_stdout, send_app_connection_available_ok, send_app_connection_not_available_error, send_proxy_error_message, stdin_to_main_app,
 };
 
-const BUFFER_SIZE: usize = 1024 * 1024;
+fn init_log() -> Result<(), Box<dyn std::error::Error>> {
+    let max_file_size_mb: u64 = 5;
+    let backup_count: u32 = 2;
+    let log_file_name = "onekeepass-proxy.log";
+
+    // Log directory in the system temp directory
+    let log_dir = std::env::temp_dir().join("okp");
+    let log_dir = Path::new(&log_dir);
+
+    // Ensure the log directory exists
+    if !log_dir.exists() {
+        fs::create_dir_all(&log_dir)?;
+    }
+
+    let log_file_path = Path::new(log_dir).join(log_file_name);
+
+    // --- Pattern Encoder ---
+    // Defines the format for each log entry.
+    // {d} - timestamp
+    // {l} - log level
+    // {t} - target (module path)
+    // {m} - message
+    // {n} - newline
+    // let pattern = "{d(%Y-%m-%d %H:%M:%S%.3f %Z)} [{l}] {t} - {m}{n}";
+    let pattern = "{d(%Y-%m-%d %H:%M:%S)} [{l}] {t} - {m}{n}";
+    let encoder = PatternEncoder::new(pattern);
+
+    // --- Size Trigger ---
+    // This triggers the rotation when the log file reaches the specified size.
+    let size_limit = max_file_size_mb * 1024 * 1024; // Convert MB to bytes
+    let size_trigger = Box::new(SizeTrigger::new(size_limit));
+
+    // --- Fixed Window Roller ---
+    // This defines the naming scheme for the rotated log files.
+    // It will create files like `app.1.log`, `app.2.log`, etc.
+    // The `{}` is a placeholder for the backup number.
+    let roller_pattern = format!("{}.{{}}.log", log_file_path.to_str().unwrap().replace(".log", ""));
+    let roller = Box::new(FixedWindowRoller::builder().build(&roller_pattern, backup_count)?);
+
+    // Combines the trigger (when to roll) and the roller (how to roll).
+    let policy = Box::new(CompoundPolicy::new(size_trigger, roller));
+
+    // The actual appender that writes to the file and uses the policy for rotation.
+    let file_appender = RollingFileAppender::builder()
+        .encoder(Box::new(encoder.clone()))
+        .build(log_file_path, policy)?;
+
+    // We should not have console appender for native messaging app
+    // as it will interfere with the communication protocol.
+    // Following is just for reference if needed in future for other apps.
+
+    // let stdout_appender = ConsoleAppender::builder()
+    //     .encoder(Box::new(encoder))
+    //     .build();
+
+    // TODO: 
+    // Need to determine the loginng level dev vs prod mode
+    // May use env variable to determine the mode 
+    
+    // Puts all the appenders together. We can log to multiple places at once.
+    let config = Config::builder()
+        //.appender(Appender::builder().build("stdout", Box::new(stdout_appender)))
+        .appender(Appender::builder().build("file_roller", Box::new(file_appender)))
+        .build(
+            Root::builder()
+                //.appenders(["stdout", "file_roller"]) // Log to both console and file
+                .appenders(["file_roller"]) // Log only to file
+                .build(LevelFilter::Debug), // Set the minimum log level
+        )?;
+
+    // Initialize the logger with the configuration.
+    log4rs::init_config(config)?;
+
+    Ok(())
+}
+
+// IMPORTANT: Same path should be used in the app side proxy handler of the main app
+const NATIVE_MESSAGE_CONNECTION_NAME: &str = "okp_browser_ipc";
+
+//#[tokio::main(flavor = "multi_thread", worker_threads = 10)]
+#[tokio::main]
+async fn main() {
+    if let Err(e) = init_log() {
+        // eprintln!("Logging initialization failed with error {}", e);
+        // send_proxy_error_message(format!("Logging initialization failed with error {}", e).as_ref());
+        send_proxy_error_message(&format!("Logging initialization failed with error {}", e));
+        return;
+    }
+
+    let Ok(connection_to_server) = Endpoint::connect(ServerId::new(NATIVE_MESSAGE_CONNECTION_NAME)).await else {
+        log::error!("Failed to connect to the server and sending error msg");
+        send_app_connection_not_available_error();
+        return;
+    };
+
+    let (app_connection_reader, app_connection_writer) = split(connection_to_server);
+
+    log::debug!("===============================");
+
+    log::debug!("Connected to server and sending initial ok message");
+
+    send_app_connection_available_ok();
+
+    log::debug!("Going to call stdin_to_main_app");
+    // Reads the messages from stdin and writes to the main app
+    stdin_to_main_app(app_connection_writer);
+
+    log::debug!("Going to call main_app_to_stdout");
+    // Receive the response from okp main app and write to stdout continuously in a spawned task loop
+    main_app_to_stdout(app_connection_reader);
+
+    log::debug!("++ Both spawn calls are done++");
+
+    // Keep the main thread alive
+    loop {}
+}
+
+/*
+
+// Using 1024 * 1024 = 1,048,576 worked on both Mac and Linux, it crashed the Windows impl
+// Using a separate testing client, the reason is found to be "thread 'main' has overflowed its stack"
+// It appears on Windows the default stack size 1MB. Using a buf size well below that worked
+const BUFFER_SIZE: usize = 1_000_000;
 
 // Receive the response from okp main app and write to stdout continuously in a spawned task loop
 fn main_app_to_stdout(mut app_connection_reader: ReadHalf<Connection>) {
-    // log::debug!("2 In main_app_to_stdout before loop...");
+    log::debug!("2 In main_app_to_stdout before loop...");
 
     tokio::spawn(async move {
-        let mut buf = [0u8; BUFFER_SIZE];
+        // let mut buf = [0u8; BUFFER_SIZE];
+
+        let mut buf = Box::new([0u8; BUFFER_SIZE]);
 
         // 'main_app_to_stdout_outer: loop and then use break 'main_app_to_stdout_outer;
         'main_app_to_stdout_outer: loop {
-            // log::debug!("2 main_app_to_stdout: Waiting to read from the app...");
-
-            if let Ok(len) = app_connection_reader.read(&mut buf).await {
+            log::debug!("2 main_app_to_stdout: Waiting to read from the app...");
+            // &mut *buf or buf.as_mut() will work
+            if let Ok(len) = app_connection_reader.read(&mut *buf).await {
                 // This happens when the map connection is closed
                 if len == 0 {
                     log::debug!("Received zero byte from app and breaking and exiting the proxy after sending error to extension");
@@ -87,6 +207,10 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
     // Because of that we need to make that call in a dedicated thread like using the 'spawn_blocking' call
 
     tokio::task::spawn_blocking(move || {
+        // let mut locked_stdin = std::io::stdin().lock(); // Lock stdin once for this thread.
+
+        log::debug!("STD-IN-TO-APP: In spawn_blocking but before loop");
+
         // 'stdin_outer: loop  and then use break 'stdin_outer;
         'stdin_outer: loop {
             // Read message size
@@ -95,6 +219,7 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
             log::debug!("STD-IN-TO-APP: WAITING at loop top to read the stdin ...");
 
             // std::io::stdin().read_exact(&mut length_bytes).expect("Prefixed length bytes read error");
+            // if let Err(e) = std::io::stdin().read_exact(&mut length_bytes)
 
             if let Err(e) = std::io::stdin().read_exact(&mut length_bytes) {
                 log::error!("STDIN - Message length bytes read error {}", &e);
@@ -103,6 +228,8 @@ fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
                 send_proxy_error_message("Reading extension's message length from stdin failed");
                 break 'stdin_outer;
             }
+
+            log::debug!("STD-IN-TO-APP:Reading of stdin message length is done");
 
             // Gets the message length integer value from a Native Endidan bytes buf
             let message_length = u32::from_ne_bytes(length_bytes) as usize;
@@ -257,7 +384,6 @@ fn send_app_connection_available_ok() {
 }
 
 fn init_log2() -> Result<(), Box<dyn std::error::Error>> {
-
     let max_file_size_mb: u64 = 5;
     let backup_count: u32 = 2;
     let log_file_name = "onekeepass-proxy.log";
@@ -267,12 +393,12 @@ fn init_log2() -> Result<(), Box<dyn std::error::Error>> {
     let log_dir = Path::new(&log_dir);
 
     // Ensure the log directory exists
-    if !log_dir.exists() { 
+    if !log_dir.exists() {
         fs::create_dir_all(&log_dir)?;
-    } 
-    
+    }
+
     // fs::create_dir_all(&log_dir)?;
-    
+
     let log_file_path = Path::new(log_dir).join(log_file_name);
 
     // --- Pattern Encoder ---
@@ -365,9 +491,33 @@ fn init_log(log_dir: &str) {
 
 #[tokio::main]
 async fn main() {
+
+    // ================== START: FIX FOR WINDOWS NATIVE MESSAGING ==================
+    // On Windows, stdin and stdout default to text mode, which can corrupt the
+    // binary data stream used by the native messaging protocol. This block
+    // ensures that on Windows, we set stdin (file descriptor 0) and stdout
+    // (file descriptor 1) to binary mode to prevent this corruption.
+    #[cfg(windows)]
+    {
+        // The `_setmode` function is part of the C runtime library on Windows.
+        // We declare its signature here so Rust can call it.
+        extern "C" {
+            fn _setmode(fd: i32, mode: i32) -> i32;
+        }
+        // `_O_BINARY` is the constant for binary mode.
+        const O_BINARY: i32 = 0x8000;
+        unsafe {
+            _setmode(0, O_BINARY); // Set stdin to binary mode
+            _setmode(1, O_BINARY); // Set stdout to binary mode
+        }
+
+        log::debug!("Windows specific binary mode is set.....")
+    }
+    // =================== END: FIX FOR WINDOWS NATIVE MESSAGING ===================
+
     let path = "okp_browser_ipc";
 
-    /* 
+    /*
     ////
     // let log_dir = "/Users/jeyasankar/Development/repositories/github/OneKeePass-Organization/desktop/onekeepass-proxy/logs";
     let log_dir = std::env::temp_dir().join("okp");
@@ -407,7 +557,11 @@ async fn main() {
     // let mut stdin_handle = std::io::stdin().lock();
     // let mut stdout_handle = std::io::stdout().lock();
 
+    log::debug!("Going to call stdin_to_main_app");
+
     stdin_to_main_app(app_connection_writer);
+
+    log::debug!("Going to call main_app_to_stdout");
 
     main_app_to_stdout(app_connection_reader);
 
@@ -416,6 +570,8 @@ async fn main() {
     // Keep the main thread alive
     loop {}
 }
+
+*/
 
 /*
 /Users/jeyasankar/Development/repositories/github/OneKeePass-Organization/desktop/src-tauri/target/debug

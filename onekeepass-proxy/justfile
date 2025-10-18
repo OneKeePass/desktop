@@ -1,24 +1,76 @@
+####################  Mac ####################
 
+
+## https://v2.tauri.app/develop/sidecar/
+
+# To get target triple
 # rustc -Vv | grep host | cut -f2 -d' '
 
 # aarch64-apple-darwin, x86_64-apple-darwin
 
-
-build-aarch64 release="":
+build-mac-aarch64 release="":
     cargo build --target aarch64-apple-darwin {{ if release == "true" {"--release" } else {""}  }}
 
-build-cp-aarch64 release="":(build-aarch64 release)
+build-cp-mac-aarch64 release="":(build-mac-aarch64 release)
     rm ./binaries/*
     cp ./target/aarch64-apple-darwin/{{ if release == "true" {"release"} else {"debug"} }}/onekeepass-proxy ./binaries/onekeepass-proxy-aarch64-apple-darwin
 
-build-x86_64 release="":
+build-mac-x86_64 release="":
     cargo build --target x86_64-apple-darwin {{ if release == "true" {"--release" } else {""}  }}
 
-build-cp-x86_64 release="":(build-x86_64 release)
+build-cp-mac-x86_64 release="":(build-mac-x86_64 release)
     rm ./binaries/*
     cp ./target/x86_64-apple-darwin/{{ if release == "true" {"release"} else {"debug"} }}/onekeepass-proxy ./binaries/onekeepass-proxy-x86_64-apple-darwin
 
-
-to-running-td release="":(build-aarch64 release)
+to-running-td release="":(build-mac-aarch64 release)
     cp ./target/aarch64-apple-darwin/debug/onekeepass-proxy ../src-tauri/target/debug/onekeepass-proxy
     cp ./target/aarch64-apple-darwin/{{ if release == "true" {"release"} else {"debug"} }}/onekeepass-proxy ./binaries/onekeepass-proxy-aarch64-apple-darwin
+
+
+#################### Linux ###########################
+
+# x86_64-unknown-linux-gnu
+
+build-linux-x86_64 release="":
+    cargo build --target x86_64-unknown-linux-gnu {{ if release == "true" {"--release" } else {""}  }}
+
+build-cp-linux-x86_64 release="":(build-linux-x86_64 release)
+    rm -f ./binaries/*
+    mkdir -p ./binaries
+    cp ./target/x86_64-unknown-linux-gnu/{{ if release == "true" {"release"} else {"debug"} }}/onekeepass-proxy ./binaries/onekeepass-proxy-x86_64-unknown-linux-gnu
+
+
+####################  Windows ############################
+## https://v2.tauri.app/develop/sidecar/
+
+# On windows powershell
+# rustc -Vv | Select-String "host:" | ForEach-Object {$_.Line.split(" ")[1]}
+
+# x86_64-pc-windows-msvc
+
+## https://github.com/casey/just?tab=readme-ov-file#windows
+
+# Set shell either for PowerShell or cmd
+
+# To use window's PowerShell instead of sh:
+# set shell := ["powershell.exe", "-c"]
+
+# To use window's cmd.exe instead of sh:
+# set shell := ["cmd.exe", "/c"]
+
+# We can use the following instead of setting shell as done above 
+
+# just --shell powershell.exe --shell-arg -c  build-cp-windows-x86_64  (This worked in cmd window also)
+
+
+build-windows-x86_64 release="":
+    cargo build --target x86_64-pc-windows-msvc {{ if release == "true" {"--release" } else {""}  }}
+
+## This requires we set the shell cmd.exe as above 
+build-cmd-cp-windows-x86_64 release="":(build-windows-x86_64 release)
+    del /q .\binaries\*
+    copy .\target\x86_64-pc-windows-msvc\{{ if release == "true" {"release"} else {"debug"} }}\onekeepass-proxy.exe .\binaries\onekeepass-proxy-x86_64-pc-windows-msvc.exe
+
+build-cp-windows-x86_64 release="":(build-windows-x86_64 release)
+    rm -r -force  .\binaries\*
+    copy -Path .\target\x86_64-pc-windows-msvc\{{ if release == "true" {"release"} else {"debug"} }}\onekeepass-proxy.exe -Destination .\binaries\onekeepass-proxy-x86_64-pc-windows-msvc.exe

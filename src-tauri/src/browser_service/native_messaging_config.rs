@@ -4,6 +4,8 @@ use std::path::PathBuf;
 
 use onekeepass_core::error::{self, Result};
 
+const OKP_NATIVE_MESSAING_CONFIG_FILE_NAME: &str = "org.onekeepass.onekeepass_browser.json";
+
 #[derive(Serialize)]
 pub(crate) struct FirefoxNativeMessagingConfig<'a> {
     allowed_extensions: Vec<&'a str>,
@@ -37,17 +39,23 @@ impl<'a> FirefoxNativeMessagingConfig<'a> {
 
         log::info!("Wrote the config file {} ", &config_file_full_name);
 
+        #[cfg(target_os = "windows")]
+        write_win_reg_value(&config_file_full_name)?;
+
         Ok(())
     }
 
-    // Called to delete the native messaging config file 
-    pub(crate) fn remove() -> Result<()>  {
+    // Called to delete the native messaging config file
+    pub(crate) fn remove() -> Result<()> {
         let config_file_full_name = firefox_native_messaging_config_full_name()?;
         std::fs::remove_file(&config_file_full_name)?;
         log::debug!("Removed the config file {} ", &config_file_full_name);
+
+        #[cfg(target_os = "windows")]
+        delete_win_reg_key()?;
+
         Ok(())
     }
-
 }
 
 // Based on https://www.reddit.com/r/tauri/comments/1l29c29/getting_absolute_path_of_sidecar_binary/
@@ -72,10 +80,7 @@ fn proxy_full_path() -> Result<PathBuf> {
 
     Ok(full_path)
 }
-
-
-const OKP_NATIVE_MESSAING_CONFIG_FILE_NAME: &str = "org.onekeepass.onekeepass_browser.json";
-
+// Determines the full path of the firefox native messaging config file for all platforms
 // Ref: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_manifests#manifest_location
 fn firefox_native_messaging_config_full_name() -> Result<String> {
     // #[allow(unused_mut)]
@@ -94,16 +99,66 @@ fn firefox_native_messaging_config_full_name() -> Result<String> {
         } else if #[cfg(target_os = "linux")] {
             if let Some(mut home) = env::home_dir() {
                 home.push(".mozilla/native-messaging-hosts");
+                if !home.exists() {
+                    let r = std::fs::create_dir_all(&home);
+                    log::debug!("Created mozilla proxy location dir {:?} with result {:?}",&home,&r);
+                }
                 let path = home.join(OKP_NATIVE_MESSAING_CONFIG_FILE_NAME);
                 full_name = path.to_string_lossy().to_string();
             }
         }
         else if #[cfg(target_os = "windows")] {
-            full_name = format!(r#"HKEY_CURRENT_USER\SOFTWARE\Mozilla\NativeMessagingHosts\{}"#, OKP_NATIVE_MESSAING_CONFIG_FILE_NAME);
+            if let Some(home ) = dirs::config_local_dir() {
+                let okp_dir = home.join("OneKeePass");
+                if !okp_dir.exists() {
+                    let _r = std::fs::create_dir_all(&okp_dir);
+                    log::debug!("Created dir {:?}",&okp_dir);
+                }
+                let path = okp_dir.join(OKP_NATIVE_MESSAING_CONFIG_FILE_NAME);
+                full_name = path.to_string_lossy().to_string();
+            }
         }
     }
 
     Ok(full_name)
 }
 
+#[cfg(target_os = "windows")]
+use winreg::{enums::HKEY_CURRENT_USER, RegKey};
 
+#[cfg(target_os = "windows")]
+const OKP_NATIVE_APP_NAME: &str = "org.onekeepass.onekeepass_browser";
+
+#[cfg(target_os = "windows")]
+fn write_win_reg_value(manifest_path_str: &str) -> Result<()> {
+    let hkey_current_user = RegKey::predef(HKEY_CURRENT_USER);
+    let reg_path = format!(
+        "Software\\Mozilla\\NativeMessagingHosts\\{}",
+        OKP_NATIVE_APP_NAME
+    );
+
+    let (key, disposition) = hkey_current_user.create_subkey(&reg_path)?;
+
+    println!(
+        "Key {:?} is created with disposition {:?}",
+        &key, &disposition
+    );
+
+    key.set_value("", &manifest_path_str)?;
+    println!("Created registry key at HKCU\\{}", reg_path);
+
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn delete_win_reg_key() -> Result<()> {
+    let hkey_current_user = RegKey::predef(HKEY_CURRENT_USER);
+    let reg_path = format!(
+        "Software\\Mozilla\\NativeMessagingHosts\\{}",
+        OKP_NATIVE_APP_NAME
+    );
+
+    hkey_current_user.delete_subkey(&reg_path)?;
+    println!("Sub key {} is deleted ", &reg_path);
+    Ok(())
+}
