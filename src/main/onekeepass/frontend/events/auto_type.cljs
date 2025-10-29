@@ -16,6 +16,7 @@
 (def DEFAULT_SEQUENCE "{USERNAME}{TAB}{PASSWORD}{ENTER}")
 
 (defn is-custom-sequence [sequence]
+  #_(println "is-custom-sequence called with sequence:" sequence  "check val" (not= sequence DEFAULT_SEQUENCE))
   (not= sequence DEFAULT_SEQUENCE)
   #_(not= (str/upper-case sequence) DEFAULT_SEQUENCE))
 
@@ -83,7 +84,7 @@
 
 (reg-fx
  :bg-send-sequence-to-winow
- (fn [[db-key entry-uuid window-info sequence ]]
+ (fn [[db-key entry-uuid window-info sequence]]
    (bg/send-sequence-to-winow db-key
                               entry-uuid
                               window-info
@@ -134,9 +135,21 @@
 (defn auto-type-modified []
   (subscribe [:auto-type-modified]))
 
+;; Currently only DefaultSequence field is updated
+;; In the future if we use this to update other fields,
+;; we need to modify the handling of updating the :default-sequence only when it is passed in kws
+
 (defn- update-auto-type-data [db & {:as kws}]
-  ;;(println "kws are " kws)
-  (let [data (get-in-key-db db [:auto-type-edit-dialog :auto-type])
+  #_(println "kws are " kws)
+  (let [;; Need to set to nil if not custom sequence as we do not store default sequence in that case
+        updated-default-sequence (get kws :default-sequence)
+        updated-default-sequence (if (is-custom-sequence updated-default-sequence)
+                                   updated-default-sequence
+                                   ;; We don't store default sequence if it is standard one
+                                   nil)
+        kws (assoc kws :default-sequence updated-default-sequence)
+
+        data (get-in-key-db db [:auto-type-edit-dialog :auto-type])
         data (merge data kws)]
     (assoc-in-key-db db [:auto-type-edit-dialog :auto-type] data)))
 
@@ -158,6 +171,7 @@
  (fn [{:keys [db]} [_event-id]]
    (let [{:keys [auto-type entry-form-fields]} (get-in-key-db db [:auto-type-edit-dialog])
          sequence-val (:default-sequence auto-type)]
+     ;;  (println "Entry form fields in auto-type-edit-dialog-ok are " entry-form-fields)
      (if-not (empty? (str/trim (str sequence-val)))
        {:fx [[:bg-parse-auto-type-sequence [(:default-sequence auto-type) entry-form-fields]]]}
        {:fx [[:dispatch [:auto-type-edit-complete]]]}
@@ -166,13 +180,18 @@
 (reg-fx
  :bg-parse-auto-type-sequence
  (fn [[sequence entry-form-fields]]
-   ;; Check sequence parsing error. If no error call entry form events to save 
-   (bg/parse-auto-type-sequence sequence entry-form-fields
-                                (fn [api-response]
-                                  (when-not (on-error api-response
-                                                      (fn [e]
-                                                        (dispatch [:parse-sequence-error e])))
-                                    (dispatch [:auto-type-edit-complete]))))))
+   (let [;; Need to ensure that entry form fields do not have nil values. Otherwise the backend api will fail with error:
+         ;; 'invalid args "entryFields" for command "parse_auto_type_sequence": invalid type: null, expected a string'
+         ;; This is because we use HashMap<String, String> for entryFields in the backend api
+         ;; So we convert nil to empty string here
+         entry-form-fields (into {} (map (fn [[k v]]  [k (if (nil? v) "", v)]) entry-form-fields))]
+     (bg/parse-auto-type-sequence sequence entry-form-fields
+                                  ;; Check sequence parsing error. If no error call entry form events to save 
+                                  (fn [api-response]
+                                    (when-not (on-error api-response
+                                                        (fn [e]
+                                                          (dispatch [:parse-sequence-error e])))
+                                      (dispatch [:auto-type-edit-complete])))))))
 
 (reg-event-fx
  :parse-sequence-error
@@ -185,13 +204,22 @@
  :auto-type-edit-complete
  (fn [{:keys [db]} [_event-id]]
    (let [auto-type (get-in-key-db db [:auto-type-edit-dialog :auto-type])
-         sequence-val (:default-sequence auto-type)]
-     (if (is-custom-sequence sequence-val)
-       {:fx [;; dispatch to  entry form update first
-             [:dispatch [:entry-form/auto-type-updated auto-type]]
-             ;; Close the dialog
-             [:dispatch [:auto-type-edit-dialog-close]]]}
-       {:fx [[:dispatch [:auto-type-edit-dialog-close]]]}))))
+         _sequence-val (:default-sequence auto-type)]
+     #_(println "auto-type-edit-complete called with sequence-val:" sequence-val "check val" (is-custom-sequence sequence-val))
+     
+     {:fx [;; dispatch to entry form update first
+           ;; auto-type is a map from struct AutoType which may have 
+           ;; :default-sequence nil for default sequence or a string for custom sequence
+           [:dispatch [:entry-form/auto-type-updated auto-type]]
+           ;; Close the dialog
+           [:dispatch [:auto-type-edit-dialog-close]]]}
+     
+     #_(if (is-custom-sequence sequence-val)
+         {:fx [;; dispatch to  entry form update first
+               [:dispatch [:entry-form/auto-type-updated auto-type]]
+               ;; Close the dialog
+               [:dispatch [:auto-type-edit-dialog-close]]]}
+         {:fx [[:dispatch [:auto-type-edit-dialog-close]]]}))))
 
 ;; Called to start the auto type add/modify dialog
 (reg-event-fx
@@ -233,38 +261,4 @@
 (comment
   (def db-key (:current-db-file-name @re-frame.db/app-db))
   (-> (get @re-frame.db/app-db db-key) :auto-type-edit-dialog))
-
-
-#_(reg-sub
-   :auto-type-modified
-   (fn [db _query-vec]
-     (let [sequence-undo-val (get-in-key-db db [:auto-type-edit-dialog  :sequence-undo])
-           sequence-val  (get-in-key-db db [:auto-type-edit-dialog :auto-type :default-sequence])]
-       (if (or (and (nil? sequence-val) (= sequence-undo-val DEFAULT_SEQUENCE))
-               (= sequence-val sequence-undo-val))
-         false
-         true))))
-
-#_(reg-event-fx
-   :auto-type/edit-init
-   (fn [{:keys [db]} [_event-id entry-uuid auto-type-m entry-form-fields]]
-     {:db (-> db
-              (assoc-in-key-db [:auto-type-edit-dialog :dialog-show] true)
-              (assoc-in-key-db [:auto-type-edit-dialog :entry-uuid] entry-uuid)
-              (assoc-in-key-db [:auto-type-edit-dialog :auto-type]  auto-type-m)
-            ;; Keep a copy of existing value of DefaultSequence to monitor changes
-              (assoc-in-key-db [:auto-type-edit-dialog :sequence-undo] (get-sequence auto-type-m))
-              (assoc-in-key-db [:auto-type-edit-dialog :entry-form-fields] entry-form-fields)
-              (assoc-in-key-db [:auto-type-edit-dialog :api-error-text] nil))}))
-
-
-#_(reg-sub
-   :auto-type-modified
-   (fn [db _query-vec]
-     (let [sequence-undo-val (get-in-key-db db [:auto-type-edit-dialog  :sequence-undo])
-           sequence-val  (get-in-key-db db [:auto-type-edit-dialog :auto-type :default-sequence])]
-       (if (or (and (nil? sequence-val) (= sequence-undo-val DEFAULT_SEQUENCE))
-               (= sequence-val sequence-undo-val))
-         false
-         true))))
 

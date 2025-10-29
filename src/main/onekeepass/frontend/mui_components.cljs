@@ -25,6 +25,8 @@
    ;; See src-js/README.md for details. For now we are not using
    #_["onekeepass-local" :as okp-local]
 
+   #_[applied-science.js-interop :as j]
+
    ["react-split-pane" :as sp]
    ["react-window" :as react-window]
    ["react-virtualized-auto-sizer" :as vas]))
@@ -82,14 +84,17 @@
 
 (def ^js/FixedSizeListObj my-fix-list ^js/FixedSizeList (.-FixedSizeList react-window))
 
+#_(def ^js/FixedSizeListObj my-fix-list (j/get react-window :FixedSizeList))
+
 #_(js/console.log "my-fix-list is " my-fix-list)
 
 ;;rw is #js{:VariableSizeGrid #object[Grid], :VariableSizeList #object[List], :FixedSizeGrid #object[Grid], :FixedSizeList #object[List], :areEqual #object[areEqual], :shouldComponentUpdate #object[shouldComponentUpdate]}
 (def fixed-size-list
   "A reagent component formed from react componet FixedSizeList"
-  (reagent.core/adapt-react-class my-fix-list #_(gobj/get react-window "FixedSizeList") #_(.-FixedSizeList react-window)))
+  (reagent.core/adapt-react-class my-fix-list))
 
-#_(def MyFixedSizeList (-> (js->clj react-window :keywordize-keys true) :FixedSizeList))
+#_(js/console.log "fixed-size-list is " fixed-size-list)
+
 
 ;;;;;;;;;;;;;
 

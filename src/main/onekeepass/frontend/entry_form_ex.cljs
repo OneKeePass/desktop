@@ -524,7 +524,6 @@
      [expiry-content]]))
 
 (defn entry-content []
-  (println "entry-content called")
   (fn []
     (let [title @(form-events/entry-form-data-fields :title)
           parsed-fields @(form-events/entry-form-data-fields :parsed-fields)

@@ -610,11 +610,13 @@
 (defn parse-auto-type-sequence [sequence entry-fields dispatch-fn]
   (let [api-args {:sequence sequence
                   :entryFields entry-fields}]
+    #_(println "Entry fields in parse-auto-type-sequence are " entry-fields)
+    
     ;; We need to use convert-request as false to ensure that 'keys' in entry-fields map 
     ;; are not converted to camelCase by the default converter and should remain as string key
-
+    
     ;; Otherwise the map (entry-fields) keys like "Customer Name" will get converted to "customerName" 
-
+    
     ;; api-args map's keys are now in a format as expected tauri serde
     (invoke-api "parse_auto_type_sequence"  (clj->js api-args) dispatch-fn :convert-request false)))
 

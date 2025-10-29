@@ -15,7 +15,7 @@
                            org.clojure/core.async {:mvn/version "1.5.648"}
                            hickory/hickory {:mvn/version "0.7.1"}
                            org.clojure/data.xml {:mvn/version "0.0.8"}
-                           applied-science/js-interop {:mvn/version "0.4.2"}
+                           ;; applied-science/js-interop {:mvn/version "0.4.2"}
                            ;;org.clojure/data.xml {:mvn/version "0.2.0-alpha6"} ;; preview
                            }}
   ;; Figwheel dependencies

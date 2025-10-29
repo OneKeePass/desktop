@@ -524,11 +524,19 @@
 (reg-event-fx
  :entry-form/auto-type-updated
  (fn [{:keys [db]} [_event-id auto-type-m]]
-   {;; First set the changed incoming auto-type map to entry form data
-    :db (-> db (assoc-in-key-db [entry-form-key :data :auto-type] auto-type-m))
-    ;; For now, the 'ok-entry-edit-ex' event is reused for this save. It is assumed there will not 
-    ;; be any validation error!
-    :fx [[:dispatch [:ok-entry-edit-ex]]]}))
+   (let [current-auto-type (get-in-key-db db [entry-form-key :data :auto-type])]
+     {;; First set the changed incoming auto-type map to entry form data
+      :db (-> db (assoc-in-key-db [entry-form-key :data :auto-type] auto-type-m))
+      ;; For now, the 'ok-entry-edit-ex' event is reused for this save. It is assumed there will not 
+      ;; be any validation error!
+      :fx [(when (not= current-auto-type auto-type-m)
+             [:dispatch [:ok-entry-edit-ex]])]})
+   
+   #_{;; First set the changed incoming auto-type map to entry form data
+      :db (-> db (assoc-in-key-db [entry-form-key :data :auto-type] auto-type-m))
+      ;; For now, the 'ok-entry-edit-ex' event is reused for this save. It is assumed there will not 
+      ;; be any validation error!
+      :fx [[:dispatch [:ok-entry-edit-ex]]]}))
 
 ;; :entry-form/find-entry-by-id is called indirectly 
 (reg-event-fx
@@ -1725,14 +1733,14 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Single or Multiline field toggle ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn entry-form-multiline-field-toggle 
+(defn entry-form-multiline-field-toggle
   "Toggles a field to be multiline or single line
   key is the field name (string)
   flag is boolean - true for multiline, false for single line"
   [key flag]
   (dispatch [:entry-form-multiline-field-update key flag]))
 
-(defn multiline? 
+(defn multiline?
   "Checks if a field is multiline or not
   key is the field name (string)
   Returns true if the field is multiline, false or nil otherwise"
