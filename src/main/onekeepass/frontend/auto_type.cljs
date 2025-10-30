@@ -13,6 +13,7 @@
                                                               mui-stack
                                                               mui-typography
                                                               theme-color]]
+            [onekeepass.frontend.translation :as t]
             [onekeepass.frontend.utils :refer [contains-val?]]))
 
 
@@ -27,6 +28,7 @@
 
 (defn perform-auto-type-dialog [{:keys [dialog-show window-info auto-type] :as _dialog-data}]
   [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
+               :dir (t/dir)
                :on-click #(.stopPropagation %)
                :sx {:min-width "600px"
                     "& .MuiDialog-paper" {:max-width "650px" :width "90%"}}}
@@ -72,6 +74,7 @@
 
 (defn auto-type-edit-dialog [{:keys [dialog-show api-error-text auto-type entry-form-fields]}]
   [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
+               :dir (t/dir)
                :on-click #(.stopPropagation %)
                :sx {:min-width "600px"
                     "& .MuiDialog-paper" {:max-width "650px" :width "90%"}}}

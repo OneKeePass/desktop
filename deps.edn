@@ -2,7 +2,7 @@
          ;; org.clojure/clojurescript   {:mvn/version "1.11.132"}
          org.clojure/clojurescript   {:mvn/version "1.12.42"}}
 
- :paths ["src/main" "target" "resources"]
+ :paths ["src/main" "target" "target/public" "resources"]
 
  :aliases
  {;;Application dependencies

@@ -29,7 +29,8 @@
 
    ["react-split-pane" :as sp]
    ["react-window" :as react-window]
-   ["react-virtualized-auto-sizer" :as vas]))
+   ["react-virtualized-auto-sizer" :as vas]
+   #_[onekeepass.frontend.translation :as t]))
 
 (set! *warn-on-infer* true)
 
@@ -300,7 +301,7 @@
                               :MuiInputLabel {:defaultProps {:shrink true}}
                               :MuiTooltip {:defaultProps {:arrow true}}}})
 
-        ;; Thme2 which use theme1 created earlier in 'theme-data'  
+        ;; Theme2 which use theme1 created earlier in 'theme-data'  
         theme (create-theme theme1 theme-data)]
     (reset! custom-theme-atom theme)
     #_(set-colors theme)
@@ -531,7 +532,8 @@
 ;; letting Material-UI to create input element directly using React.
 ;; Create-element + convert-props-value is the same as what adapt-react-class does.
 (defn text-field [props & children]
-  (let [props (-> props
+  (let [;; props (assoc props :dir (t/dir))
+        props (-> props
                   (assoc-in [:InputProps :inputComponent] (cond
                                                             (and (:multiline props) (:rows props) (not (:maxRows props)))
                                                             textarea-component

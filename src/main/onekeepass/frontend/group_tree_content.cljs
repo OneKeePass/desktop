@@ -1,13 +1,13 @@
 (ns onekeepass.frontend.group-tree-content
   (:require
    [reagent.core :as r]
-   [onekeepass.frontend.translation  :refer-macros [tr-l
-                                                    tr-t
-                                                    tr-ml
-                                                    tr-h
-                                                    tr-bl
-                                                    tr-dlg-title
-                                                    tr-dlg-text]]
+   [onekeepass.frontend.translation :as t :refer-macros [tr-l
+                                                         tr-t
+                                                         tr-ml
+                                                         tr-h
+                                                         tr-bl
+                                                         tr-dlg-title
+                                                         tr-dlg-text]]
    [onekeepass.frontend.db-icons :refer [group-icon]]
    [onekeepass.frontend.group-form :as gf]
    [onekeepass.frontend.common-components :refer [selection-autocomplete
@@ -121,13 +121,14 @@
    (when dialog-show
      (let [groups-listing @(gt-events/groups-listing)
            ;; Need to exlude few groups showing in the list 
-           groups-listing (filter (fn [g] 
+           groups-listing (filter (fn [g]
                                     ;; Note: In case of entry 'uuid-selected-to-move' is the entry-uuid and stricly not 
                                     ;; required to be excluded vec
                                     (not (u/contains-val? [uuid-selected-to-move current-parent-group-uuid] (:uuid g))))
                                   groups-listing)]
 
        [mui-dialog {:open dialog-show
+                    :dir (t/dir)
                     :on-click #(.stopPropagation ^js/Event %)
                     :sx {"& .MuiPaper-root" {:width "60%"}}}
         [mui-dialog-title title]
@@ -145,9 +146,9 @@
                                     :error nil  ;; field-error
                                     :error-text nil #_(when field-error (tr-h selectAValidGroup))}]]
           #_(when api-error-text
-            [mui-alert {:severity "error" :style {:width "100%"} :sx {:mt 1}} api-error-text])
+              [mui-alert {:severity "error" :style {:width "100%"} :sx {:mt 1}} api-error-text])
           #_(when (and (nil? api-error-text) (= status :in-progress))
-            [mui-linear-progress {:sx {:mt 2}}])]]
+              [mui-linear-progress {:sx {:mt 2}}])]]
         [mui-dialog-actions
          [mui-button {:on-click gd-events/move-group-or-entry-dialog-close} (tr-bl "cancel")]
          [mui-button {:on-click  (fn []

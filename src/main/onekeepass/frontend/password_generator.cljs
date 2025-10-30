@@ -9,7 +9,7 @@
             mui-icon-visibility mui-icon-visibility-off mui-input
             mui-input-adornment mui-slider mui-stack mui-tab mui-tabs
             mui-text-field mui-typography]]
-   [onekeepass.frontend.translation :refer-macros [tr-l tr-h tr-bl] :refer [lstr-l lstr-l-cv]]
+   [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-h tr-bl] :refer [lstr-l lstr-l-cv]]
    [reagent.core :as r]))
 
 (defn- end-icons [visibile?]
@@ -284,9 +284,11 @@
 
 (defn password-generator-dialog
   [{:keys [dialog-show panel-shown] :as pass-options}]
-  [mui-dialog {:open dialog-show :on-click #(.stopPropagation ^js/Event %)
-                     ;; This will set the Paper width in all child components 
-                     ;; and is equivalent to :classes {:paper "pwd-dlg-root"}
+  [mui-dialog {:open dialog-show 
+               :dir (t/dir)
+               :on-click #(.stopPropagation ^js/Event %)
+               ;; This will set the Paper width in all child components 
+               ;; and is equivalent to :classes {:paper "pwd-dlg-root"}
                :sx {"& .MuiPaper-root" {:width "80%"}}}
 
    [mui-dialog-title  [tab-panel-selection panel-shown]]

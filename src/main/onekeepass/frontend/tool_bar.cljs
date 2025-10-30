@@ -182,7 +182,7 @@
                               (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js [locked?]))
 
       [:div {:style {:flex-grow 1}}
-       [mui-app-bar {:position "static" :color "primary"}
+       [mui-app-bar {:position "static" :color "primary" :dir (t/dir)}  ;; 
         [mui-toolbar {:style {:min-height 32}}
          ;; Using box to provide common styles - left margin -  for all its children - buttons 
          ;; Using "&.MuiIconButton-root" etc did not work

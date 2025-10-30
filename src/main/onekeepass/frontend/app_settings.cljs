@@ -19,7 +19,7 @@
                                                      mui-menu-item mui-stack
                                                      mui-typography
                                                      theme-color]]
-   [onekeepass.frontend.translation  :refer-macros [tr-l tr-bl tr-h] :refer [lstr-l-cv
+   [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-bl tr-h] :refer [lstr-l-cv
                                                                              tr-dlg-title
                                                                              tr-t]]
    [reagent.core :as r]))
@@ -61,6 +61,8 @@
                 {:name "es - Español" :value "es"}
                 {:name "de - Deutsch" :value "de"}
                 {:name "zh - 中文" :value "zh"}
+                {:name "ar - العربية" :value "ar"}
+                
                 #_{:name "fr - Français" :value "fr"}])
 
 (defn- user-interface
@@ -222,6 +224,7 @@
                                    panel
                                    error-fields] :as dialog-data}]
   [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
+               :dir (t/dir)
                ;;:fullScreen true
                ;;:scroll "paper" 
                :on-click #(.stopPropagation %)

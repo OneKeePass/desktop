@@ -20,7 +20,7 @@
    [onekeepass.frontend.new-database :as nd-form]
    [onekeepass.frontend.open-db-form :as od-form]
    [onekeepass.frontend.password-generator :as gen-form]
-   [onekeepass.frontend.translation :refer-macros [tr tr-l tr-t]]
+   [onekeepass.frontend.translation :as t :refer-macros [tr tr-l tr-t] ]
    [reagent.core :as r]))
 
 (set! *warn-on-infer* true)
@@ -28,8 +28,9 @@
 (defn main-content []
   (let [recent-files-list @(cmn-events/recent-files)
         app-version @(cmn-events/app-version)]
-    [mui-container {:sx {:height "100%"
-                           ;;:bgcolor "text.disabled" 
+    [mui-container {:dir (t/dir)
+                    :sx {:height "100%"
+                         ;;:bgcolor "text.disabled" 
                          :bgcolor "background.default"
                          :color "primary.main"}} ;;:mt 10
      [mui-stack {:direction "row" :gap 2 :alignItems "center"
@@ -89,8 +90,8 @@
                      :justify-content "flex-start"
                      :flexDirection "column"}}
 
-         ;; The 'example-comp' is based on the react component 
-         ;; defined in a local package js file. 
+       ;; The 'example-comp' is based on the react component 
+       ;; defined in a local package js file. 
        #_[mui-stack [m/example-comp]]
 
        [mui-stack {:direction "row" :align-self "center"} ;;:sx {:mt "25%"}
@@ -100,8 +101,11 @@
         [mui-typography {:variant "h7" :sx {:color "text.primary"}} app-version #_(str "Version " app-version)]]]]]))
 
 (defn welcome-content []
-  [:div {:class "box" :style {:overflow "hidden" ;; hidden used so to avoid showing scrollbar 
-                              :background-color (theme-color @custom-theme-atom :bg-default)}}
+  ;; (println "Will set the dir as " (t/dir))
+  [:div {:class "box" 
+         :style {:style {:direction (t/dir)}
+                 :overflow "hidden" ;; hidden used so to avoid showing scrollbar 
+                 :background-color (theme-color @custom-theme-atom :bg-default)}}
    [:div {:class "cust_row header" :style {:text-align "center"}}
     ;; Another way of getting color from theme (fn [^js/Mui.Theme theme] (-> theme .-status .-danger))
     [mui-stack {:direction "row" :justify-content "center"  :sx {:bgcolor "secondary.main"}}

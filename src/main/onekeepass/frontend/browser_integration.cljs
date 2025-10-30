@@ -11,7 +11,8 @@
                                                      mui-stack
                                                      mui-divider
                                                      mui-typography
-                                                     get-theme-color]]))
+                                                     get-theme-color]]
+   [onekeepass.frontend.translation :as t]))
 
 (set! *warn-on-infer* true)
 
@@ -21,6 +22,7 @@
   ;; (println "browser-extension-connection-permit-dialog-content args: " args)
   (when dialog-show
     [mui-dialog {:open dialog-show
+                 :dir (t/dir)
                  :maxWidth "sm"
                  :fullWidth true}
      [mui-dialog-title {}
@@ -30,8 +32,8 @@
                           :sx {:p 2}}
       [mui-box {}
        [mui-typography {:sx {:mb 2}} (str "A browser extension is requesting permission to connect to OneKeepass. "
-                                        "If you trust this extension, please click 'Allow'. "
-                                        "Otherwise, click 'Reject'.")]]]
+                                          "If you trust this extension, please click 'Allow'. "
+                                          "Otherwise, click 'Reject'.")]]]
      [mui-divider {:sx {:border-color (get-theme-color :divider-color1)}}]
      [mui-dialog-actions {}
       [mui-button {:onClick

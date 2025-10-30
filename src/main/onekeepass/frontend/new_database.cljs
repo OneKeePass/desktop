@@ -227,6 +227,7 @@
 (defn new-database-dialog [{:keys [dialog-show panel call-to-create-status api-error-text] :as m}]
   (let [in-progress? (= :in-progress call-to-create-status)]
     [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
+                 :dir (t/dir)
                  :on-click #(.stopPropagation ^js/Event %)
                  :classes {:paper "pwd-dlg-root"}}
 

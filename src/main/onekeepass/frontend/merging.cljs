@@ -8,7 +8,7 @@
                                                      mui-dialog-title
                                                      mui-divider mui-stack
                                                      mui-typography]]
-   [onekeepass.frontend.translation  :refer-macros [tr-bl] :refer [lstr-dlg-title]]))
+   [onekeepass.frontend.translation :as t :refer-macros [tr-bl] :refer [lstr-dlg-title]]))
 
 
 (defn merge-result-dialog
@@ -24,6 +24,7 @@
              permanently-deleted-groups]
       :as _data} :data}]
    [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
+                :dir (t/dir)
                 :on-click #(.stopPropagation %)
                 :sx {:min-width "600px"
                      "& .MuiDialog-paper" {:max-width "650px" :width "90%"}}}
