@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 /////
 // To be Removed
 // Old preference used in the earlier version v0.14.0
+/* 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 struct Preference2 {
     pub(crate) version: String,
@@ -40,6 +41,7 @@ struct Preference2 {
 
     pub(crate) backup: BackupPreference,
 }
+*/
 /////
 
 // Old preference used in the earlier version v0.17.0

@@ -13,7 +13,6 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf};
 // when using 1024 * 1024.
 // Final solution is to use a heap allocated buffer using Box::new. But need to use a size below 1_048_576 to work on windows
 
-// Should we use different sizes for different OS? Or use the 1_000_000 for all OS?
 cfg_if::cfg_if! {
     if #[cfg(target_os = "windows")] {
         const BUFFER_SIZE: usize = 1_000_000; // Windows to avoid stack overflow
@@ -71,7 +70,7 @@ pub(crate) fn main_app_to_stdout(mut app_connection_reader: ReadHalf<Connection>
             }
         }
 
-        log::debug!("Exiting the main_app_to_stdout loop");
+        log::info!("Exiting the main_app_to_stdout loop");
         std::process::exit(0);
     });
 }
@@ -166,7 +165,7 @@ pub(crate) fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
 
             log::debug!("STD-IN-TO-APP: Will go back to the top of the loop");
         }
-        log::debug!("Exiting the stdin_to_main_app loop");
+        log::info!("Exiting the stdin_to_main_app loop");
         std::process::exit(0);
     });
 }

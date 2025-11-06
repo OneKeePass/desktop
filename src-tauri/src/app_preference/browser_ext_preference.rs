@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use crypto_box::aead::rand_core::le;
 use serde::{Deserialize, Serialize};
 
 use onekeepass_core::error::Result;

@@ -21,6 +21,7 @@ use crate::{menu, pass_phrase, translation};
 use onekeepass_core::async_service as kp_async_service;
 use onekeepass_core::db_service as kp_service;
 
+/* 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum UpdateType {
@@ -32,6 +33,7 @@ pub enum UpdateType {
 pub struct UpdatePayload {
     pub update_type: UpdateType,
 }
+*/
 
 // IMPORTANT:
 // All the internal errors (onekeepass_core::error::Error ) are converted to String

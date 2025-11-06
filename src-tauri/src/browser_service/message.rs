@@ -411,6 +411,7 @@ mod tests {
         match serde_json::from_str(&input_message) {
             Ok(Request::EnabledDatabaseMatchedEntryList {
                 ref association_id,
+                #[allow(unused)]
                 ref request_id,
                 ref form_url,
             }) => {

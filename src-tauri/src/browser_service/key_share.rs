@@ -49,7 +49,7 @@ impl SessionStore {
             .get(association_id)
             .and_then(|session| session.sender.as_ref())
         {
-            let r = tx.send(message.to_string()).await;
+            let _r = tx.send(message.to_string()).await;
             // log::debug!("Sending response result is {:?}", &r);
         } else {
             log::error!("No session is found for the association_id {}",association_id);
@@ -69,7 +69,9 @@ impl SessionStore {
         )
     }
 
+
     // Session specific message decryption
+    #[allow(unused)]
     pub(crate) async fn decrypt(
         association_id: &str,
         encoded_nonce: &str,
