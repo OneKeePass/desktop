@@ -20,8 +20,8 @@
                                                      mui-typography
                                                      theme-color]]
    [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-bl tr-h] :refer [lstr-l-cv
-                                                                             tr-dlg-title
-                                                                             tr-t]]
+                                                                                  tr-dlg-title
+                                                                                  tr-t]]
    [reagent.core :as r]))
 
 
@@ -62,7 +62,7 @@
                 {:name "de - Deutsch" :value "de"}
                 {:name "zh - 中文" :value "zh"}
                 {:name "ar - العربية" :value "ar"}
-                
+
                 #_{:name "fr - Français" :value "fr"}])
 
 (defn- user-interface
@@ -183,7 +183,7 @@
         :label "Enable browser Integration"}]]]]])
 
 (def ^:private FIREFOX "Firefox")
-;; (def ^:private CHROME "Chrome")
+(def ^:private CHROME "Chrome")
 ;; (def ^:private EDGE "Edge")
 ;; (def ^:private BRAVE "Brave")
 
@@ -217,7 +217,18 @@
                                    (app-settings-events/field-update
                                     [:preference-data :browser-ext-support :allowed-browsers]
                                     (toggle-browser-enabled (-> e .-target  .-checked) FIREFOX allowed-browsers)))}])
-          :label "Firefox"}]]]]]))
+          :label "Firefox"}]
+
+        [mui-form-control-label
+         {:control (r/as-element
+                    [mui-checkbox
+                     {:disabled (not extension-use-enabled)
+                      :checked (named-browser-enabled? CHROME allowed-browsers)
+                      :on-change (fn [^js/CheckedEvent e]
+                                   (app-settings-events/field-update
+                                    [:preference-data :browser-ext-support :allowed-browsers]
+                                    (toggle-browser-enabled (-> e .-target  .-checked) CHROME allowed-browsers)))}])
+          :label "Chrome"}]]]]]))
 
 
 (defn app-settings-dialog [{:keys [dialog-show

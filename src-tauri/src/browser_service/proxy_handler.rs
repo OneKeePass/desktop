@@ -100,7 +100,7 @@ fn handle_output(
         // TODO:
         // Need to break this loop when connection to the proxy is no more available and remove session data
         while let Some(message) = channel_receiver.recv().await {
-            log::debug!(" Received message {}", &message);
+            // log::debug!(" Received message {}", &message);
 
             let mut writer_guard = writer.lock().await;
 

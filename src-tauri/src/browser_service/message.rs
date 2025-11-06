@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::browser_service::{
     db_calls,
     key_share::{BrowserServiceTx, SessionStore},
-    verifier,
+    verifier, SUPPORTED_BROWSERS,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -45,7 +45,7 @@ impl Request {
     pub(crate) async fn handle_input_message(input_message: String, sender: Arc<BrowserServiceTx>) {
         // log::debug!("In handle_input_message ...");
 
-        // TDDO: 
+        // TDDO:
         // Currently there is no request that has any sensitive data. So the extension side no encryption is done
         // In the future we pass any sensitive data as "message_data", then we need to decrypt and then convert that json to rust struct
         match serde_json::from_str(&input_message) {
@@ -106,6 +106,21 @@ impl Request {
     // confirm the extension use
     async fn verify(client_id: String, sender: Arc<BrowserServiceTx>) {
         let browser_id = client_id.clone();
+
+        // log::debug!("In verify for browser id {}, FIREFOX {}, CHROME {}",&client_id,&client_id != FIREFOX,&client_id != CHROME);
+
+        // Ensure that the browser is supported. This should not happen as we write native messaging config file only for supported browsers
+        // but just in case
+        if !SUPPORTED_BROWSERS.contains(&client_id.as_str()) {
+            log::error!("Browser id {} is not supported ", &client_id);
+            let resp = ResponseResult::with_error(
+                ResponseActionName::Associate,
+                &format!("BROWSER_NOT_SUPPORTED"),
+            );
+            // No session is yet available and we send the error responde directly
+            let _r = sender.send(resp.json_str()).await;
+            return;
+        }
 
         // First we create a callback that will be called with 'confirmed' value after user confirms
         let verifier = verifier::ConnectionVerifier::new({
@@ -414,3 +429,14 @@ mod tests {
         }
     }
 }
+
+// if !supported_browsers().contains(&client_id.as_str()) {
+//     log::error!("Browser id {} is not supported ", &client_id);
+//     let resp = ResponseResult::with_error(
+//         ResponseActionName::Associate,
+//         &format!("BROWSER_NOT_SUPPORTED"),
+//     );
+//     // No session is yet available and we send the responde directly
+//     let _r = sender.send(resp.json_str()).await;
+//     return;
+// }
