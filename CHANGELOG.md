@@ -2,12 +2,12 @@
 
 #### Changes
 - Browser extension backend support added for Firefox and Chrome browser extensions
-- Multi line fields display/editing #48 - Thanks [WolfganP](https://github.com/WolfganP)
+- Multi line fields display/editing [#48](https://github.com/OneKeePass/desktop/issues/48) - Thanks [WolfganP](https://github.com/WolfganP)
 - Additional translations of texts 
     - Arabic  - Thanks [AhmedGamal](https://github.com/AhmedGamal)
 
 #### Fixed
-- Auto Type not working #52 - Thanks [starwars1999](https://github.com/starwars1999)
+- Auto Type not working [#52](https://github.com/OneKeePass/desktop/issues/52) - Thanks [starwars1999](https://github.com/starwars1999)
 
 ### 0.16.0
 #### Changes
