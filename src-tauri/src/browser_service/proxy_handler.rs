@@ -144,7 +144,7 @@ fn is_endpoint_server_running() -> bool {
 // Called to connect to the browser native message proxy app endpoint and provides listeners to receive
 // messages( or send) messages from (or to) the native message proxy app for all browser extensions
 async fn run_server(path: String) {
-    log::debug!("Proxy listener - Run server is called with path {}, ", &path);
+    log::info!("Proxy listener - Run server is called with path {}, ", &path);
 
     let endpoint = Endpoint::new(ServerId::new(path), OnConflict::Overwrite).unwrap();
 
@@ -159,7 +159,7 @@ async fn run_server(path: String) {
     // pins a mutable reference to a value on the stack
     futures_util::pin_mut!(incoming);
 
-    log::debug!("Listener to the Browser native message proxy is started ...");
+    log::info!("Listener to the Browser native message proxy is started ...");
 
     // Set the flag saying that endpoint server is started 
     endpoint_server_started();
@@ -170,7 +170,7 @@ async fn run_server(path: String) {
     // For example when user uses browser extension of Firefox and Chrome at the same time, each browser extension would
     // have launched its own proxy app and both connects to this endpoint.
     while let Some(result) = incoming.next().await {
-        log::debug!("Incoming connections is made to native message proxy of a browser");
+        log::info!("Incoming connections is made to native message proxy of a browser");
 
         // Handles one browser's ext proxy conenction
         match result {

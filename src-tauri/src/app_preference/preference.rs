@@ -98,7 +98,7 @@ pub(crate) struct Preference {
 
     password_gen_preference: PasswordGeneratorPreference,
 
-    // Introduced browser ext releated preference in v0.18.0
+    // Introduced browser ext releated preference in v0.17.0
     browser_ext_support: BrowserExtSupport,
 
     // For now this feature is not used in the UI
@@ -115,7 +115,7 @@ impl Default for Preference {
             // Same as in tauri.conf.json. This is for doc purpose only as
             // this will be reset to the latest version from tauri.conf.json
             // after parsing the toml pref file in read_toml and pref file is updated accordingly
-            version: "0.18.0".into(),
+            version: "0.17.0".into(),
             session_timeout: (15 as u8),
             clipboard_timeout: (30 as u16),
             theme: LIGHT.into(),
