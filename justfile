@@ -43,6 +43,9 @@ mac-aarch64-bundle-build-only:
     
     #cargo tauri build --verbose --target aarch64-apple-darwin
 
+    # Need to do releae build of sidecar onekeepass-proxy executable
+    just -f ./onekeepass-proxy/justfile build-cp-mac-aarch64 true
+
     # This will build "release"
     cargo tauri build --target aarch64-apple-darwin
 
@@ -54,6 +57,9 @@ mac-x86_64-bundle-build-only:
     export BOTAN_CONFIGURE_CC='clang'
     export BOTAN_CONFIGURE_CPU='x86_64'
     export BOTAN_CONFIGURE_DISABLE_MODULES='"tls,pkcs11,sodium,filters"'
+
+    # Need to do releae build of sidecar onekeepass-proxy executable
+    just -f ./onekeepass-proxy/justfile build-cp-mac-x86_64 true
     
     # This will build "release"
     cargo tauri build --target x86_64-apple-darwin
