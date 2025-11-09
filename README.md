@@ -39,10 +39,7 @@ All created database files are encrypted using the best and most secure encrypti
 - Merging of databases
 - CSV file import
 - Fully offline 
-
-## Todo
-
-- [ ] Browser extension and integration
+- Browser extension and integration (alpha version)
 
 
 ## Installation and Quick start

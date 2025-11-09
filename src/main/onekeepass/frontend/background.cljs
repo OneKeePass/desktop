@@ -1,27 +1,32 @@
 (ns onekeepass.frontend.background
   "All backend api calls. Few api calls are moved to the specific cljs ns"
-  (:require 
-   [cljs.core.async :refer [go]]
-   [cljs.core.async.interop :refer-macros [<p!]]
-   [camel-snake-kebab.extras :as cske]
-   [camel-snake-kebab.core :as csk]
-   [onekeepass.frontend.utils :refer [contains-val?]]
-
-   [onekeepass.frontend.background-common :as bg-cmn]
-   [onekeepass.frontend.background-password :as bg-pwd]
+  (:require
+   ;; All node package modules (npm) that are loaded by webpack bundler
+   ;; Also see src/main/onekeepass/frontend/mui_components.cljs for other npm packages  
 
    ;; All tauri side corresponding endpoint command apis can be found in 
    ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/endpoints
+   ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/api 
+
+   ;; All node package modules (npm) that are loaded by webpack bundler
+   ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/endpoints
    ;; The api implementation is in 
    ;; https://github.com/tauri-apps/tauri/tree/tauri-v1.8.1/core/tauri/src/api 
-   
-   ;; All node package modules (npm) that are loaded by webpack bundler
-   ;; Also see src/main/onekeepass/frontend/mui_components.cljs for other npm packages
-   
-   ["@tauri-apps/plugin-shell" :as tauri-shell]
+   ["@tauri-apps/api/event" :as tauri-event]
+   ["@tauri-apps/plugin-clipboard-manager" :refer [readText writeText]]
    ["@tauri-apps/plugin-dialog" :refer (open,save)]
-   ["@tauri-apps/plugin-clipboard-manager" :refer [writeText readText]]
-   ["@tauri-apps/api/event" :as tauri-event]))
+   ["@tauri-apps/plugin-shell" :as tauri-shell]
+
+   ["@tauri-apps/api/window" :refer [getCurrentWindow]]
+
+   #_[applied-science.js-interop :as j]
+   [camel-snake-kebab.core :as csk]
+   [camel-snake-kebab.extras :as cske]
+   [cljs.core.async :refer [go]]
+   [cljs.core.async.interop :refer-macros [<p!]]
+   [onekeepass.frontend.background-common :as bg-cmn]
+   [onekeepass.frontend.background-password :as bg-pwd]
+   [onekeepass.frontend.utils :refer [contains-val?]]))
 
 (set! *warn-on-infer* true)
 
@@ -35,10 +40,9 @@
   "This is a map where keys are the event name (kw) values tauri listeners" (atom {}))
 
 (defn register-event-listener
-  "Called to register an event handler to listen for a named event 
-   message emitted in the backend service 
-   event-name is the event name kw 
-   event-handler-fn is the handler function
+  "Called to register an event handler to listen for a named event message emitted in the backend service 
+   The arg event-name is the event name kw 
+   The arg event-handler-fn is the handler function
    "
   ([caller-name event-name event-handler-fn]
    (let [el (get @tauri-event-listeners [caller-name event-name])]
@@ -58,8 +62,76 @@
        (when-not (nil? el)
          (println "Tauri event listener for " event-name " is already registered"))
        #_(println "Tauri event listener for " event-name " is already registered"))))
+
   ([event-name event-handler-fn]
    (register-event-listener :common event-name event-handler-fn)))
+
+(defn minimize-window []
+  (let [window ^js/TauriWindow (getCurrentWindow)]
+    (go
+      (try
+        ;; IMPORTANT: Need to set variuos permissions to use window methods and props
+        ;; in src-tauri/capabilities/desktop.json
+        ;; Ref: https://v2.tauri.app/reference/acl/core-permissions/
+        
+        (<p!  (. window (minimize)))
+        #_(<p!  (.setAlwaysOnTop window false))
+        #_(let [_r (<p!  (. window (minimize)))]
+            (println "Window is minimized and r is." _r))
+        (catch js/Error err
+          (js/console.log "Error: " (ex-cause err)  "err " err))))))
+
+(defn set-window-focus []
+  ;; Need to get the window before 'go' call to avoid something like "Warning - Cannot infer target type in expression...." 
+  (let [window ^js/TauriWindow (getCurrentWindow)]
+    (go
+      (try
+        ;; IMPORTANT: Need to set variuos permissions to use window methods and props
+        ;; in src-tauri/capabilities/desktop.json
+        ;; Ref: https://v2.tauri.app/reference/acl/core-permissions/
+        
+        (<p!  (. window (setFocus)))
+        (<p!  (.unminimize  window))
+
+        ;; This is needed to bring the window to front in Linux
+        ;; It seems setFocus and unminimize are not sufficient to bring the window to front in linux
+        ;; This is not yet resolved 
+        ;; See somewhat old https://github.com/tauri-apps/tauri/issues/5620
+        ;; The following show and hide seems to work for gnome desktop environment
+        ;; This is based on a comment in the above issue link
+        ;; We may exclude these calls for non-linux os later if needed
+        (<p!  (.hide  window))
+        (<p!  (.show  window))
+        #_(<p!  (.setAlwaysOnTop window true))
+
+        ;; If we set 'setAlwaysOnTop' true, we need to reset to false when
+        ;; user completes the request action
+        ;; _r (<p!  (.setAlwaysOnTop window true)
+        
+        #_(let [_r (<p!  (. window (setFocus)))
+                _r  (<p!  (.unminimize  window))
+
+                ;; If we set 'setAlwaysOnTop' true, we need to reset to false when
+                ;; user completes the request action
+                ;; _r (<p!  (.setAlwaysOnTop window true))
+                ]
+            (println "Window is focused and r is." _r))
+
+        (catch js/Error err
+          (js/console.log "Error: " (ex-cause err)  "err " err)))))
+  #_(go
+      (try
+        (let [;;^js/TauriWindow window  win/getCurrentWindow
+              ;; window ^js (getCurrentWindow)
+              window (get-current-window)
+              _ (println "(type window) is " (type window))
+              _r (<p!  (. window (setFocus))  #_(^js/TauriWindow .setFocus  w))
+              _r  (<p!  #_(j/call ^js window :unminimize) (.unminimize  window))
+              ;; _r (<p!  (.setAlwaysOnTop ^js/TauriWindow window true))
+              ]
+          (println "Window is focused and r is." _r))
+        (catch js/Error err
+          (js/console.log "Error: " (ex-cause err)  "err " err)))))
 
 (defn open-file-dialog
   "Calls the tauri's 'open' command so that native file explorerer dialog is opened
@@ -423,7 +495,7 @@
   "Called to create new database.
   The arg new-db is deserializable as json as expected by NewDatabase struct
   "
-  [new-db dispatch-fn] 
+  [new-db dispatch-fn]
   (invoke-api "create_kdbx" {:newDb new-db} dispatch-fn))
 
 (defn combined-category-details
@@ -468,16 +540,26 @@
 (defn update-preference [preference-data dispatch-fn]
   (invoke-api "update_preference" {:preference-data  preference-data} dispatch-fn :convert-response false))
 
+;; browser-ext-support is a map for struct BrowserExtSupportData
+(defn update-browser-ext-support-preference
+  "Brower extension support settings updates"
+  [browser-ext-support dispatch-fn]
+  (invoke-api "update_browser_ext_support_preference"
+              {:browser-ext-support browser-ext-support} dispatch-fn :convert-response false))
+
+(defn browser-ext-use-user-permission
+  "Called when user accepts or rejects the browser extension connection"
+  [browser-id confirmed dispatch-fn]
+  (invoke-api "browser_ext_use_user_permission" {:browser-id browser-id :confirmed confirmed} dispatch-fn :convert-response false))
+
 (defn clear-recent-files [dispatch-fn]
   (invoke-api "clear_recent_files" {} dispatch-fn))
 
-
-(defn get-db-settings [db-key dispatch-fn] 
+(defn get-db-settings [db-key dispatch-fn]
   (invoke-api "get_db_settings" {:db-key db-key} dispatch-fn))
 
 (defn set-db-settings [db-key db-settings dispatch-fn]
   (invoke-api "set_db_settings" {:dbKey db-key :db-settings db-settings} dispatch-fn))
-
 
 (defn menu-action-requested
   "The args menu-id and action should match MenuActionRequest and action should match enum 'MenuAction'"
@@ -528,11 +610,13 @@
 (defn parse-auto-type-sequence [sequence entry-fields dispatch-fn]
   (let [api-args {:sequence sequence
                   :entryFields entry-fields}]
+    #_(println "Entry fields in parse-auto-type-sequence are " entry-fields)
+    
     ;; We need to use convert-request as false to ensure that 'keys' in entry-fields map 
     ;; are not converted to camelCase by the default converter and should remain as string key
-
+    
     ;; Otherwise the map (entry-fields) keys like "Customer Name" will get converted to "customerName" 
-
+    
     ;; api-args map's keys are now in a format as expected tauri serde
     (invoke-api "parse_auto_type_sequence"  (clj->js api-args) dispatch-fn :convert-request false)))
 
@@ -623,11 +707,21 @@
 (defn export-as-xml [db-key xml-file-name]
   (invoke-api "export_as_xml"  {:db-key db-key :xml-file-name xml-file-name} #(println %)))
 
-(defn test-call [arg-m]
-  ;; test_call is a tauri command function that accetps TestArg in "arg" parameter
-  ;; Useful during development 
-  (invoke-api "test_call" (clj->js {:arg arg-m}) #(println %)))
+#_(defn test-call [arg-m]
+    ;; test_call is a tauri command function that accetps TestArg in "arg" parameter
+    ;; Useful during development 
+    (invoke-api "test_call" (clj->js {:arg arg-m}) #(println %)))
 
+(defn test-call []
+  ;; test_call is a tauri command function that does not use any parameter
+  ;; Useful during development 
+  (invoke-api "test_call" {} #(println %)))
+
+(defn test-simulate-verified-flag-preference [confirmed]
+  (invoke-api "test_simulate_verified_flag_preference" {:confirmed confirmed} #(println %)))
+
+(defn test-simulate-run-verifier [confirmed]
+  (invoke-api "test_simulate_run_verifier" {:confirmed confirmed} #(println %)))
 
 (comment
   (def auto-open-properties {:source-db-key "/Users/jeyasankar/Documents/OneKeePass/TestAutoOpenXC.kdbx"
@@ -642,4 +736,8 @@
   (def entry-uuid (-> (get @re-frame.db/app-db db-key) :entry-form-data :data :uuid))
   (def m1 {"otp" {:period 30 :ttl 5}})
   (start-polling-entry-otp-fields db-key entry-uuid m1 #(println %))
-  (stop_polling_entry_otp_fields db-key entry-uuid #(println %)))
+  (stop_polling_entry_otp_fields db-key entry-uuid #(println %))
+
+  (-> "HelloWorld" csk/->SCREAMING_SNAKE_CASE)
+  ;; => "HELLO_WORLD"
+  )

@@ -24,7 +24,7 @@
                                                      mui-tooltip
                                                      mui-typography
                                                      react-use-state]]
-   [onekeepass.frontend.translation :refer-macros [tr-bl] :refer [lstr-sm]]
+   [onekeepass.frontend.translation :as t :refer-macros [tr-bl] :refer [lstr-sm]]
    [onekeepass.frontend.utils :refer [contains-val? str->int]]
    [reagent.core :as r]
    [reagent.ratom]))
@@ -315,6 +315,7 @@
   ;; Form 2 reagent component that expects a map in the argument
   (fn [{:keys [dialog-show status]}]
     [mui-dialog {:open dialog-show
+                 :dir (t/dir)
                  :on-click #(.stopPropagation ^js/Event %)
                  :sx {"& .MuiPaper-root" {:width "60%"}}}
      [mui-dialog-title title]
@@ -341,9 +342,10 @@
   (fn
     [{{:keys [dialog-show status]} :dialog-data :as all-data}]
     [mui-dialog {:open dialog-show
+                 :dir (t/dir)
                  :on-click #(.stopPropagation ^js/Event %)
                  :sx {"& .MuiPaper-root" {:width "60%"}}} ;; sx props is equivalent to :classes {:paper "pwd-dlg-root"}
-
+     
      [mui-dialog-title title]
      [mui-dialog-content [content-comp all-data]]
      [mui-dialog-actions
@@ -366,7 +368,9 @@
   closed on completting the work requested or shows any error 
   "
   [title content-component actions {:keys [dialog-show status api-error-text] :as dialog-data}]
-  [mui-dialog {:open dialog-show :on-click #(.stopPropagation ^js/Event %)}
+  [mui-dialog {:open dialog-show 
+               :dir (t/dir)
+               :on-click #(.stopPropagation ^js/Event %)}
    [mui-dialog-title title]
    [mui-dialog-content {:dividers true :style {:min-height "100px"}}
     [mui-stack
@@ -447,6 +451,7 @@
 (defn progress-message-dialog
   ([{:keys [title dialog-show message]}]
    [mui-dialog {:classes {:paper "pwd-dlg-root"}
+                :dir (t/dir)
                 :open dialog-show
                 :on-click #(.stopPropagation ^js/Event %)}
     [mui-dialog-title title]

@@ -23,7 +23,7 @@
                                                               mui-stack
                                                               mui-tooltip
                                                               get-theme-color]]
-            [onekeepass.frontend.translation :refer [tr-dlg-title tr-l tr-h]]
+            [onekeepass.frontend.translation :as t :refer [tr-dlg-title tr-l tr-h]]
             [reagent.core :as r]))
 
 #_(set! *warn-on-infer* true)
@@ -83,6 +83,7 @@
         matched-entries (:entry-items result)
         matched-count (count matched-entries)]
     [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
+                 :dir (t/dir)
                  :on-click #(.stopPropagation %)
                  :classes {:paper "pwd-dlg-root"}}
      [mui-dialog-title (tr-dlg-title "search")]

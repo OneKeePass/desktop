@@ -27,7 +27,7 @@
                                                               mui-tooltip
                                                               mui-typography
                                                               theme-color]] 
-            [onekeepass.frontend.translation  :refer-macros [tr-l
+            [onekeepass.frontend.translation :as t :refer-macros [tr-l
                                                              tr-t
                                                              tr-h
                                                              tr-bl
@@ -297,11 +297,12 @@
   (let [in-progress? (= :in-progress status)
         modified @(settings-events/db-settings-modified)]
     [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
+                 :dir (t/dir)
                  :on-click #(.stopPropagation ^js/Event %)
                  :sx {:min-width "600px"
                       "& .MuiDialog-paper" {:max-width "650px" :width "90%"}}}
      [mui-dialog-title (tr-dlg-title databaseSettings)]
-     [mui-dialog-content {:sx {:padding-left "10px"}}
+     [mui-dialog-content {:sx {:padding-left "10px"} :dir (t/dir)}
       [mui-stack
        [mui-stack {:direction "row" :sx {:height "350px " :min-height "300px"}}
         ;; Left side list

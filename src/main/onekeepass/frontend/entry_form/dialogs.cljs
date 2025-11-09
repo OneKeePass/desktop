@@ -192,7 +192,9 @@
                    (select-keys m [:field-name :protected :required :section-name :data-type]))
                   (form-events/section-field-modify
                    (select-keys m [:field-name :current-field-name :data-type :protected :required :section-name]))))]
-    [mui-dialog {:open dialog-show :on-click #(.stopPropagation ^js/Event %)
+    [mui-dialog {:open dialog-show 
+                 :dir (t/dir)
+                 :on-click #(.stopPropagation ^js/Event %)
                  ;; This will set the Paper width in all child components 
                  ;; equivalent to :classes {:paper "pwd-dlg-root"}
                  :sx {"& .MuiPaper-root" {:width "60%"}}}
@@ -204,8 +206,8 @@
      [mui-dialog-content {:dividers true}
       [mui-stack
        [m/text-field {:label (tr-l fieldName)
-                       ;; If we set ':value key', the dialog refreshes when on change fires for each key press in this input
-                       ;; Not sure why. Using different name like 'field-name' works fine
+                      ;; If we set ':value key', the dialog refreshes when on change fires for each key press in this input
+                      ;; Not sure why. Using different name like 'field-name' works fine
                       :value field-name
                       :error (boolean (seq error-fields))
                       :helperText (get error-fields field-name)

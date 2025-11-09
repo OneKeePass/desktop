@@ -1,36 +1,36 @@
 (ns ^:figwheel-always onekeepass.frontend.start-page
-  (:require [onekeepass.frontend.common-components :as cc :refer [message-dialog]]
-            [onekeepass.frontend.app-settings :refer [app-settings-dialog-main]]
-            [onekeepass.frontend.custom-icons :as cust-icons]
-            [onekeepass.frontend.events.common :as cmn-events]
-            [onekeepass.frontend.events.new-database :as nd-events]
-            [onekeepass.frontend.events.open-db-form :as od-events]
-            [onekeepass.frontend.events.password-generator :as gen-events]
-            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
-                                                              mui-box
-                                                              mui-container
-                                                              mui-divider
-                                                              mui-icon-button
-                                                              mui-icon-folder-outlined
-                                                              mui-link
-                                                              mui-stack
-                                                              mui-tooltip
-                                                              mui-typography
-                                                              theme-color]]
-            [onekeepass.frontend.password-generator :as gen-form]
-            [onekeepass.frontend.new-database :as nd-form]
-            [onekeepass.frontend.open-db-form :as od-form]
-            [onekeepass.frontend.import-file.csv :as csv-form]
-            [onekeepass.frontend.translation :refer-macros [tr tr-l tr-t]]
-            [reagent.core :as r]))
+  (:require
+   [onekeepass.frontend.app-settings :refer [app-settings-dialog-main]]
+   [onekeepass.frontend.browser-integration :as browser-integration ]
+   [onekeepass.frontend.common-components :as cc :refer [message-dialog]]
+   [onekeepass.frontend.custom-icons :as cust-icons]
+   [onekeepass.frontend.events.common :as cmn-events]
+   [onekeepass.frontend.events.new-database :as nd-events]
+   [onekeepass.frontend.events.open-db-form :as od-events]
+   [onekeepass.frontend.events.password-generator :as gen-events]
+   [onekeepass.frontend.import-file.csv :as csv-form]
+   [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom mui-box
+                                                     mui-container mui-divider
+                                                     mui-icon-button
+                                                     mui-icon-folder-outlined
+                                                     mui-link mui-stack
+                                                     mui-tooltip
+                                                     mui-typography
+                                                     theme-color]]
+   [onekeepass.frontend.new-database :as nd-form]
+   [onekeepass.frontend.open-db-form :as od-form]
+   [onekeepass.frontend.password-generator :as gen-form]
+   [onekeepass.frontend.translation :as t :refer-macros [tr tr-l tr-t] ]
+   [reagent.core :as r]))
 
 (set! *warn-on-infer* true)
 
 (defn main-content []
   (let [recent-files-list @(cmn-events/recent-files)
         app-version @(cmn-events/app-version)]
-    [mui-container {:sx {:height "100%"
-                           ;;:bgcolor "text.disabled" 
+    [mui-container {:dir (t/dir)
+                    :sx {:height "100%"
+                         ;;:bgcolor "text.disabled" 
                          :bgcolor "background.default"
                          :color "primary.main"}} ;;:mt 10
      [mui-stack {:direction "row" :gap 2 :alignItems "center"
@@ -90,8 +90,8 @@
                      :justify-content "flex-start"
                      :flexDirection "column"}}
 
-         ;; The 'example-comp' is based on the react component 
-         ;; defined in a local package js file. 
+       ;; The 'example-comp' is based on the react component 
+       ;; defined in a local package js file. 
        #_[mui-stack [m/example-comp]]
 
        [mui-stack {:direction "row" :align-self "center"} ;;:sx {:mt "25%"}
@@ -101,8 +101,11 @@
         [mui-typography {:variant "h7" :sx {:color "text.primary"}} app-version #_(str "Version " app-version)]]]]]))
 
 (defn welcome-content []
-  [:div {:class "box" :style {:overflow "hidden" ;; hidden used so to avoid showing scrollbar 
-                              :background-color (theme-color @custom-theme-atom :bg-default)}}
+  ;; (println "Will set the dir as " (t/dir))
+  [:div {:class "box" 
+         :style {:style {:direction (t/dir)}
+                 :overflow "hidden" ;; hidden used so to avoid showing scrollbar 
+                 :background-color (theme-color @custom-theme-atom :bg-default)}}
    [:div {:class "cust_row header" :style {:text-align "center"}}
     ;; Another way of getting color from theme (fn [^js/Mui.Theme theme] (-> theme .-status .-danger))
     [mui-stack {:direction "row" :justify-content "center"  :sx {:bgcolor "secondary.main"}}
@@ -118,4 +121,5 @@
    [csv-form/csv-columns-mapping-dialog]
    [csv-form/csv-imoprt-start-dialog]
    [app-settings-dialog-main]
+   [browser-integration/browser-extension-connection-permit-dialog]
    [message-dialog]])

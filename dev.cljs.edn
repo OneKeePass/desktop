@@ -4,7 +4,20 @@
   ;; {:none ["npx" "webpack" "--mode=development" :output-to "-o" :final-output-to]
   ;; :default ["npx" "webpack" :output-to "-o" :final-output-to]}
   ;; See https://figwheel.org/config-options#auto-bundle, 
-  ;; https://clojurescript.org/guides/webpack, https://clojurescript.org/reference/compiler-options
+  ;; https://clojurescript.org/guides/webpack, 
+  ;; https://clojurescript.org/reference/compiler-options
+  ;; https://clojure.org/reference/clojure_cli
+
+  ;; Use clj --help  to see all clojure cli options
+
+  ;; Use clj -M -m cljs.main --help to see all cljs compiler options
+
+  ;; Use clojure -M -m figwheel.main --help to see all figwheel-main options
+
+
+  ;; 'clj' and 'clojure' differ in that 'clj' has extra support for use as a REPL
+  ;; in a terminal, and should be preferred unless you don't want that support,
+  ;; then use 'clojure'
 
   :auto-bundle :webpack
   :open-url false
@@ -22,5 +35,4 @@
  ;;:bundle-freq  :smart ;;:always
  ;;:rename-prefix "okp"
  :pseudo-names true
- :pretty-print true
-}
+ :pretty-print true}

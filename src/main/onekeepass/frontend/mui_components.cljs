@@ -25,9 +25,12 @@
    ;; See src-js/README.md for details. For now we are not using
    #_["onekeepass-local" :as okp-local]
 
+   #_[applied-science.js-interop :as j]
+
    ["react-split-pane" :as sp]
    ["react-window" :as react-window]
-   ["react-virtualized-auto-sizer" :as vas]))
+   ["react-virtualized-auto-sizer" :as vas]
+   #_[onekeepass.frontend.translation :as t]))
 
 (set! *warn-on-infer* true)
 
@@ -82,14 +85,17 @@
 
 (def ^js/FixedSizeListObj my-fix-list ^js/FixedSizeList (.-FixedSizeList react-window))
 
+#_(def ^js/FixedSizeListObj my-fix-list (j/get react-window :FixedSizeList))
+
 #_(js/console.log "my-fix-list is " my-fix-list)
 
 ;;rw is #js{:VariableSizeGrid #object[Grid], :VariableSizeList #object[List], :FixedSizeGrid #object[Grid], :FixedSizeList #object[List], :areEqual #object[areEqual], :shouldComponentUpdate #object[shouldComponentUpdate]}
 (def fixed-size-list
   "A reagent component formed from react componet FixedSizeList"
-  (reagent.core/adapt-react-class my-fix-list #_(gobj/get react-window "FixedSizeList") #_(.-FixedSizeList react-window)))
+  (reagent.core/adapt-react-class my-fix-list))
 
-#_(def MyFixedSizeList (-> (js->clj react-window :keywordize-keys true) :FixedSizeList))
+#_(js/console.log "fixed-size-list is " fixed-size-list)
+
 
 ;;;;;;;;;;;;;
 
@@ -295,7 +301,7 @@
                               :MuiInputLabel {:defaultProps {:shrink true}}
                               :MuiTooltip {:defaultProps {:arrow true}}}})
 
-        ;; Thme2 which use theme1 created earlier in 'theme-data'  
+        ;; Theme2 which use theme1 created earlier in 'theme-data'  
         theme (create-theme theme1 theme-data)]
     (reset! custom-theme-atom theme)
     #_(set-colors theme)
@@ -484,6 +490,7 @@
   LoginOutlined
   LockOpenOutlined
   LockOutlined
+  OpenInBrowser
   PostAddOutlined
   Search
   SettingsOutlined
@@ -525,7 +532,8 @@
 ;; letting Material-UI to create input element directly using React.
 ;; Create-element + convert-props-value is the same as what adapt-react-class does.
 (defn text-field [props & children]
-  (let [props (-> props
+  (let [;; props (assoc props :dir (t/dir))
+        props (-> props
                   (assoc-in [:InputProps :inputComponent] (cond
                                                             (and (:multiline props) (:rows props) (not (:maxRows props)))
                                                             textarea-component

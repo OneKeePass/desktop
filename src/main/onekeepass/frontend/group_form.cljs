@@ -20,7 +20,7 @@
                                                               mui-stack
                                                               mui-tooltip
                                                               mui-typography]]
-            [onekeepass.frontend.translation  :refer-macros [tr-l tr-bl tr-dlg-title]]
+            [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-bl tr-dlg-title]]
             [onekeepass.frontend.utils :as u :refer [vec->tags]]
             [onekeepass.frontend.constants :refer [DATETIME_FORMAT]]
             [reagent.core :as r]))
@@ -141,6 +141,7 @@
 (defn icons-dialog []
   (fn [dialog-open?]
     [:div [mui-dialog {:open (if (nil? dialog-open?) false dialog-open?)
+                       :dir (t/dir)
                        :on-click #(.stopPropagation ^js/Event %) ;;prevents on click for any parent components to avoid closing dialog by external clicking
                        :classes {:paper "group-form-flg-root"}}
            [mui-dialog-title (tr-dlg-title "icons")]
@@ -206,6 +207,7 @@
 (defn- group-content-dialog [flag form-data mode new-group]
   [:div
    [mui-dialog {:open (if (nil? flag) false flag)
+                :dir (t/dir)
                 :on-click #(.stopPropagation ^js/Event %) ;;prevents on click for any parent components to avoid closing dialog by external clicking
                 :classes {:paper "group-form-flg-root"}}
     [mui-dialog-title (tr-dlg-title "groupDetails")]

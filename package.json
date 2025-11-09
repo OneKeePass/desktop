@@ -1,6 +1,6 @@
 {
   "name": "onekeepass-frontend",
-  "version": "0.15.0",
+  "version": "0.18.0",
   "private": true,
   "devDependencies": {
     "@fontsource/roboto": "^4.5.7",

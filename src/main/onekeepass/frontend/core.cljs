@@ -129,6 +129,7 @@
           db-list @(cmn-events/opened-db-list)]
 
       [mui-stack {:sx {:height "100%"}
+                  :dir (t/dir)
                   ;; Tracks the user activity so that session timeout can be initiated if no activity is seen beyond a limit 
                   :on-click cmn-events/user-action-detected}
        ;; Tabs are shown only when there are more than 1 databases are open
@@ -172,7 +173,7 @@
       [:<>
        [sp/welcome-content]
        [common-snackbars]]
-      [:div {:class "box"}  ;;:style {:height "100vh"}
+      [:div {:class "box" :dir (t/dir) }  ;;:style {:height "100vh"}
        [:div {:class "cust_row header"}
         [header-bar]
         [common-snackbars]]

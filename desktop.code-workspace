@@ -20,6 +20,8 @@
 			"./src-tauri/Cargo.toml",
 			"./src-tauri/Cargo.toml"
 		],
-		"editor.foldingStrategy": "indentation"
+		"editor.foldingStrategy": "indentation",
+		"editor.hover.delay": 600,
+		"editor.hover.hidingDelay": 600
     }
 }

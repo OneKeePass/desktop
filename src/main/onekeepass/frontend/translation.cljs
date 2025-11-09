@@ -18,7 +18,9 @@
 ;; This should be a problem for other pages
 (def trans-defaults {"titles.getStarted" "Get Started"})
 
-(def i18n-instance (atom nil))
+(def ^:private i18n-instance (atom nil))
+
+(def ^:private prefered-language-val (atom nil))
 
 ;; https://www.i18next.com/translation-function/plurals#singular-plural
 
@@ -131,7 +133,9 @@
         ;; of the parsed value is a js object - #object[Object]
         parsed-translations (reduce (fn [m [k v]] (assoc m k (parse-json v)))  {} translations)]
     ;; (println "res is  " res)
-    #_(println "current_locale_language prefered_language are " current_locale_language prefered_language)
+    ;; (println "current_locale_language prefered_language are " current_locale_language prefered_language)
+
+    (reset! prefered-language-val prefered_language)
 
     ;; Type of 'parsed-translations' is  cljs.core/PersistentArrayMap
     #_(println "Type of 'parsed-translations' is " (type parsed-translations))
@@ -169,6 +173,9 @@
     (try
       (let [_f (<p! (.init instance (clj->js options)))]
         (reset! i18n-instance instance)
+        
+        #_(js/body.setAttribute "direction" (.dir i18n-obj @prefered-language-val))
+        
         (js/console.log  "i18n init is done successfully")
         ;; Need to dispatch on successful loading of data 
         (tr-events/load-language-data-complete))
@@ -205,6 +212,16 @@
         instance ^js/i18nInstanceObj (.createInstance i18n-obj)]
     (.use ^js/i18nInstanceObj instance (clj->js back-end))
     (create-i18n-init instance m)))
+
+(defn dir
+  ([language-id]
+   ^js/String  (.dir i18n-obj language-id))
+
+  ([]
+   (dir @prefered-language-val)))
+
+;; (defn prefered-language []
+;;   @prefered-language-val)
 
 (comment
   (in-ns 'onekeepass.frontend.translation)  

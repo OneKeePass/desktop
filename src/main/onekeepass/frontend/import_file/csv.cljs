@@ -17,12 +17,13 @@
                                                      mui-checkbox
                                                      get-theme-color]]
    [onekeepass.frontend.common-components :as cc :refer [confirm-text-dialog]]
-   [onekeepass.frontend.translation  
-    :refer-macros [tr-bl] 
-    :refer [lstr-l-cv 
+   [onekeepass.frontend.translation
+    :as t
+    :refer-macros [tr-bl]
+    :refer [lstr-l-cv
             lstr-bl
-            lstr-dlg-title 
-            lstr-field-name 
+            lstr-dlg-title
+            lstr-field-name
             lstr-l]]
    [reagent.core :as r]
    [onekeepass.frontend.constants :as const]))
@@ -42,8 +43,8 @@
    [{:label (tr-bl cancel) :on-click (fn []
                                        (gd-events/csv-imoprt-start-dialog-close))}
     {:label (lstr-bl 'openCsvFile) :on-click (fn []
-                                        (gd-events/csv-imoprt-start-dialog-close)
-                                        (csv-events/open-file-explorer-on-click))}]
+                                               (gd-events/csv-imoprt-start-dialog-close)
+                                               (csv-events/open-file-explorer-on-click))}]
    @(gd-events/csv-imoprt-start-dialog-data)])
 
 (defn stop-propagation [^js/Event e]
@@ -55,8 +56,9 @@
      (let [{:keys [mapped-headers not-mapped-headers unmapped-custom-field current-db-file-name]} @(csv-events/import-csv-mapping-result)
            ;;matched not-matched
            matched-count (count mapped-headers)
-           not-matched-count (count not-mapped-headers)] 
+           not-matched-count (count not-mapped-headers)]
        [mui-dialog {:open dialog-show
+                    :dir (t/dir)
                     :on-click stop-propagation
                     :sx {:min-width "600px"
                          "& .MuiDialog-paper" {:max-width "650px" :width "90%"}}}
@@ -168,6 +170,7 @@
      {:keys [csv-headers mapping-options]} :data}]
    [:<>
     [mui-dialog {:open dialog-show
+                 :dir (t/dir)
                  :on-click stop-propagation
                  :sx {:min-width "600px"
                       "& .MuiDialog-paper" {:max-width "650px" :width "90%"
@@ -186,7 +189,7 @@
       [mui-button {:on-click (fn []
                                (csv-events/import-csv-clear)
                                (gd-events/csv-columns-mapping-dialog-close))} (tr-bl "cancel")]
-      [mui-button {:on-click  (fn [] 
+      [mui-button {:on-click  (fn []
                                 (csv-events/import-csv-mapped mapping-options))} (tr-bl "ok")]]]
     [csv-mapping-completed-dialog]])
   ([]

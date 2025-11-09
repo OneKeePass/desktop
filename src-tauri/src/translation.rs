@@ -38,7 +38,7 @@ pub struct TranslationResource {
 const TRANSLATION_RESOURCE_DIR: &str = "../resources/public/translations";
 
 // Loads language translation strings for the passed language ids
-// Typically it should be en and the preferedd or the locale language
+// Typically it should be 'en' and the preferred language id or the locale language id
 pub fn load_language_translations<R: Runtime>(
   app: &tauri::AppHandle<R>,
   language_ids: Vec<String>,

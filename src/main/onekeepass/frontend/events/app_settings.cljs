@@ -10,9 +10,20 @@
 
 (def panels [:general-info  :security-info])
 
-(defn field-update-factory [kw-field-name]
+(defn field-update-factory
+  "Creates a function that can be used as on-change handler for text fields
+  The kw-field-name can be a single keyword or a vector of keywords
+  depending on where the field value needs to be updated in the app-settings data
+  For example, to update the 'theme' field in preference-data map, we need to
+  pass [:preference-data :theme] as the kw-field-name argument
+  "
+  [kw-field-name]
   (fn [^js/Event e]
     (dispatch [:app-settings-field-update kw-field-name (->  e .-target .-value)])))
+
+(defn field-update [kw-field-name value]
+  ;; (println "field-update: " kw-field-name value)
+  (dispatch [:app-settings-field-update kw-field-name value]))
 
 #_(defn app-settings-dialog-read-start []
     (dispatch [:app-settings/read-start]))
@@ -28,6 +39,9 @@
 
 (defn app-settings-dialog-data []
   (subscribe [:app-settings-dialog-data]))
+
+(defn app-settings-modified []
+  (subscribe [:app-settings-modified]))
 
 #_(def field-not-empty? (comp not empty?))
 
@@ -50,10 +64,10 @@
   (let [{:keys [clipboard-timeout session-timeout]} (get-in app-db [:app-settings :preference-data])
         ;; Need to convert incoming str values to the proper int values 
         errors (cond-> {}
-                 (or (nil? session-timeout) (or (< session-timeout 1) (> session-timeout 1440)))
+                 (or (nil? session-timeout) (< session-timeout 1)  (> session-timeout 1440))
                  (assoc :session-timeout (tr-m  appSettings "sessionValidVal"))
 
-                 (or (nil? clipboard-timeout) (or (< clipboard-timeout 10) (> clipboard-timeout 300)))
+                 (or (nil? clipboard-timeout) (< clipboard-timeout 10)  (> clipboard-timeout 300) #_(or (< clipboard-timeout 10) (> clipboard-timeout 300)))
                  (assoc :clipboard-timeout (tr-m  appSettings "clipboardValidVal")))]
 
     errors))
@@ -69,17 +83,18 @@
     {}))
 
 #_(defn- validate-all-panels [db]
-  (reduce (fn [v panel]
-            (let [errors (validate-required-fields db panel)]
-              (if (boolean (seq errors))
-                ;; early return when the first panel has some errors
-                (reduced [panel errors])
-                v))) [] panels))
+    (reduce (fn [v panel]
+              (let [errors (validate-required-fields db panel)]
+                (if (boolean (seq errors))
+                  ;; early return when the first panel has some errors
+                  (reduced [panel errors])
+                  v))) [] panels))
 
 (def settings-default-data {:dialog-show false
                             :panel :general-info
                             :api-error-text nil
                             :error-fields nil
+                            :undo-data nil
                             :preference-data {}})
 
 #_(defn init-dialog-data [app-db])
@@ -87,9 +102,17 @@
 (reg-event-fx
  :app-settings/read-start
  (fn [{:keys [db]} [_event-id]]
-   {:db (-> db (assoc-in [:app-settings] settings-default-data)
-            (assoc-in  [:app-settings :dialog-show] true)
-            (assoc-in  [:app-settings :preference-data] (:app-preference db)))}))
+   (let [pd (:app-preference db)]
+     {:db (-> db (assoc-in [:app-settings] settings-default-data)
+              (assoc-in  [:app-settings :dialog-show] true)
+              (assoc-in [:app-settings :undo-data]
+                        (select-keys pd [:theme
+                                         :language
+                                         :session-timeout
+                                         :clipboard-timeout
+                                         :browser-ext-support
+                                         :default-entry-category-groupings]))
+              (assoc-in  [:app-settings :preference-data] pd))})))
 
 (reg-event-fx
  :app-settings-dialog-close
@@ -128,11 +151,13 @@
                  language
                  session-timeout
                  clipboard-timeout
+                 browser-ext-support
                  default-entry-category-groupings]} (-> db :app-settings :preference-data)]
      {:fx [[:bg-update-preference (as-map [theme
                                            language
                                            session-timeout
                                            clipboard-timeout
+                                           browser-ext-support
                                            default-entry-category-groupings])]]})))
 
 (reg-fx
@@ -149,6 +174,12 @@
  (fn [db _query-vec]
    (get-in db [:app-settings])))
 
+(reg-sub
+ :app-settings-modified
+ (fn [db _query-vec]
+   (let [undo-data (get-in db [:app-settings :undo-data])
+         current-data (get-in db [:app-settings :preference-data])]
+     (not= undo-data (select-keys current-data (keys undo-data))))))
 
 (comment
   (-> @re-frame.db/app-db keys))
