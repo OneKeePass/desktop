@@ -36,7 +36,6 @@ fn proxy_full_path() -> Result<PathBuf> {
     Ok(full_path)
 }
 
-
 #[derive(Serialize)]
 pub(crate) struct FirefoxNativeMessagingConfig<'a> {
     allowed_extensions: Vec<&'a str>,
@@ -66,9 +65,11 @@ impl<'a> FirefoxNativeMessagingConfig<'a> {
         // log::debug!("Config json is {}", json_str);
         // log::debug!("Will write to the file {}", &config_file_full_name);
 
+        log::info!("Going to write mozilla native messaging the config file {} ", &config_file_full_name);
+
         std::fs::write(&config_file_full_name, json_str)?;
 
-        log::info!("Wrote the config file {} ", &config_file_full_name);
+        log::info!("Wrote the mozilla native messaging config file {} ", &config_file_full_name);
 
         #[cfg(target_os = "windows")]
         Self::write_win_reg_value(&config_file_full_name)?;
@@ -101,6 +102,13 @@ impl<'a> FirefoxNativeMessagingConfig<'a> {
             if #[cfg(target_os = "macos")] {
                 if let Some(mut home) = env::home_dir() {
                     home.push("Library/Application Support/Mozilla/NativeMessagingHosts");
+                    // It is seen that when the firefox installation does not have
+                    // any NativeMessagingHosts sub dir, the config writting failed
+                    // We need to create the sub dir it does not exist
+                    if !home.exists() {
+                        let r = std::fs::create_dir_all(&home);
+                        log::info!("Created mozilla native messaging config dir {:?} with result {:?}",&home,&r);
+                    }
                     let path  = home.join(OKP_NATIVE_MESSAING_CONFIG_FILE_NAME);
                     full_name = path.to_string_lossy().to_string();
                 }
@@ -166,7 +174,6 @@ impl<'a> FirefoxNativeMessagingConfig<'a> {
     }
 }
 
-
 const CHROME_EXTENSION_ID1: &str = "ijkbdjdmmmbkjbdmmlcejonhmjnkhkka";
 const CHROME_EXTENSION_ID2: &str = "cmdmojmbfcpkloflnjkkdjcflaidangh";
 
@@ -195,12 +202,14 @@ impl<'a> ChromeNativeMessagingConfig<'a> {
         };
         let json_str = serde_json::to_string_pretty(&config)?;
 
+        log::info!("Going to write chrome native messaging the config file {} ", &config_file_full_name);
+
         std::fs::write(&config_file_full_name, json_str)?;
 
         #[cfg(target_os = "windows")]
         Self::write_win_reg_value(&config_file_full_name)?;
 
-        log::info!("Wrote the config file {} ", &config_file_full_name);
+        log::info!("Wrote the native messaging config file {} ", &config_file_full_name);
 
         Ok(())
     }
@@ -223,11 +232,17 @@ impl<'a> ChromeNativeMessagingConfig<'a> {
     fn chrome_native_messaging_config_full_name() -> Result<String> {
         #[allow(unused_mut)]
         let mut full_name = String::default();
-        
+
         cfg_if::cfg_if! {
             if #[cfg(target_os = "macos")] {
                 if let Some(mut home) = env::home_dir() {
                     home.push("Library/Application Support/Google/Chrome/NativeMessagingHosts");
+                    
+                    if !home.exists() {
+                        let r = std::fs::create_dir_all(&home);
+                        log::info!("Created chrome native messaging config dir {:?} with result {:?}",&home,&r);
+                    }
+
                     let path  = home.join(OKP_NATIVE_MESSAING_CONFIG_FILE_NAME);
                     full_name = path.to_string_lossy().to_string();
                 }
