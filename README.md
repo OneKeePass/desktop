@@ -48,9 +48,12 @@ You can start using OneKeePass on your Windows, macOS, or Linux computer using t
 
 OneKeePass is also available for iOS and Android platforms. See [here](https://github.com/OneKeePass/mobile) for details
 
-<br>
 
 Common **FAQ** about the application can be found [here](./docs/FAQ.md)
+
+### OneKeePass-Browser
+
+Browser extensions is available for [Firefox](https://addons.mozilla.org/en-US/firefox/addon/onekeepass-browser/) and [Chrome](https://chromewebstore.google.com/detail/onekeepass-browser/cmdmojmbfcpkloflnjkkdjcflaidangh) at this time
 
 ## How to build
 
