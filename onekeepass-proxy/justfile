@@ -12,14 +12,16 @@ build-mac-aarch64 release="":
     cargo build --target aarch64-apple-darwin {{ if release == "true" {"--release" } else {""}  }}
 
 build-cp-mac-aarch64 release="":(build-mac-aarch64 release)
-    rm ./binaries/onekeepass-proxy-aarch64-apple-darwin
+    rm -rf ./binaries/onekeepass-proxy-aarch64-apple-darwin
+    mkdir -p ./binaries/onekeepass-proxy-aarch64-apple-darwin
     cp ./target/aarch64-apple-darwin/{{ if release == "true" {"release"} else {"debug"} }}/onekeepass-proxy ./binaries/onekeepass-proxy-aarch64-apple-darwin
 
 build-mac-x86_64 release="":
     cargo build --target x86_64-apple-darwin {{ if release == "true" {"--release" } else {""}  }}
 
 build-cp-mac-x86_64 release="":(build-mac-x86_64 release)
-    rm ./binaries/onekeepass-proxy-x86_64-apple-darwin
+    rm -rf ./binaries/onekeepass-proxy-x86_64-apple-darwin
+    mkdir -p ./binaries/onekeepass-proxy-x86_64-apple-darwin
     cp ./target/x86_64-apple-darwin/{{ if release == "true" {"release"} else {"debug"} }}/onekeepass-proxy ./binaries/onekeepass-proxy-x86_64-apple-darwin
 
 to-running-td release="":(build-mac-aarch64 release)
