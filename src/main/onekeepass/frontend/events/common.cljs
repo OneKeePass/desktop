@@ -75,6 +75,9 @@
 (defn app-version []
   (subscribe [:app-version]))
 
+(defn is-dev-mode? []
+  (subscribe [:dev-mode]))
+
 (defn biometric-type-available []
   (subscribe [:biometric-type-available]))
 
@@ -96,6 +99,7 @@
    (bg/system-info-with-preference
     (fn [api-response]
       (when-let [sys-info (check-error api-response)]
+        #_(println "System info with preference loaded is " sys-info)
         (dispatch [:load-system-info-with-preference-complete sys-info]))))))
 
 (reg-fx
@@ -111,6 +115,7 @@
                                       arch
                                       path-sep
                                       biometric-type-available
+                                      dev-mode
                                       preference]}]]
    (set-session-timeout (:session-timeout preference))
    ;;(println "os-name os-version arch path-sep preference -- " os-name os-version arch path-sep preference)
@@ -122,6 +127,7 @@
             (assoc :os-name os-name)
             (assoc :os-version os-version)
             (assoc :arch arch)
+            (assoc :dev-mode dev-mode)
             (assoc-in [:background-loading-statuses :app-preference] true))}))
 
 (reg-event-db
@@ -205,6 +211,11 @@
  :os-name
  (fn [db _query-vec]
    (:os-name db)))
+
+(reg-sub
+ :dev-mode
+ (fn [db _query-vec]
+   (:dev-mode db)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

@@ -21,12 +21,20 @@ use crate::proxy_client::{
 };
 
 fn init_log() -> Result<(), Box<dyn std::error::Error>> {
-
-    let log_filter_level:LevelFilter = LevelFilter::Info;
-
     let max_file_size_mb: u64 = 5;
     let backup_count: u32 = 2;
-    let log_file_name = "onekeepass-proxy.log";
+    cfg_if::cfg_if! {
+        if #[cfg(debug_assertions)] {
+            // Debug mode
+            // Set lower log level for debug mode
+            let log_filter_level = LevelFilter::Debug;
+            let log_file_name = "onekeepass-proxy-dev.log";
+        } else {
+            // Release mode
+            let log_filter_level: LevelFilter = LevelFilter::Info;
+            let log_file_name = "onekeepass-proxy.log";
+        }
+    }
 
     // Log directory in the system temp directory
     let log_dir = std::env::temp_dir().join("okp");
@@ -78,10 +86,10 @@ fn init_log() -> Result<(), Box<dyn std::error::Error>> {
     //     .encoder(Box::new(encoder))
     //     .build();
 
-    // TODO: 
+    // TODO:
     // Need to determine the loginng level dev vs prod mode
-    // May use env variable to determine the mode 
-    
+    // May use env variable to determine the mode
+
     // Puts all the appenders together. We can log to multiple places at once.
     let config = Config::builder()
         //.appender(Appender::builder().build("stdout", Box::new(stdout_appender)))
@@ -100,7 +108,15 @@ fn init_log() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 // IMPORTANT: Same path should be used in the app side proxy handler of the main app
-const NATIVE_MESSAGE_CONNECTION_NAME: &str = "okp_browser_ipc";
+cfg_if::cfg_if! {
+    if #[cfg(debug_assertions)] {
+        // Debug mode
+        const NATIVE_MESSAGE_CONNECTION_NAME: &str = "okp_browser_ipc_dev";
+    } else {
+        // Release mode
+        const NATIVE_MESSAGE_CONNECTION_NAME: &str = "okp_browser_ipc";
+    }
+}
 
 //#[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 #[tokio::main]

@@ -12,7 +12,13 @@ use crate::browser_service::{
     message::Request,
 };
 
-const NATIVE_MESSAGE_CONNECTION_NAME: &str = "okp_browser_ipc";
+cfg_if::cfg_if! {
+    if #[cfg(feature = "onekeepass-dev")] {
+        const NATIVE_MESSAGE_CONNECTION_NAME: &str = "okp_browser_ipc_dev";
+    } else {
+        const NATIVE_MESSAGE_CONNECTION_NAME: &str = "okp_browser_ipc";
+    }
+}
 
 const BUFFER_SIZE: usize = 1024 * 1024;
 
@@ -216,7 +222,7 @@ pub(crate) fn start_proxy_handler() {
     log::debug!("In start_proxy_handler....");
     if !is_endpoint_server_running() {
         tauri::async_runtime::spawn(async move {
-            log::debug!("Starting the app side proxy listening service");
+            log::debug!("Starting the app side proxy listening service with IPC name {} ", NATIVE_MESSAGE_CONNECTION_NAME);
             run_server(NATIVE_MESSAGE_CONNECTION_NAME.to_string()).await;
         });
     } else {

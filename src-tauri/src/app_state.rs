@@ -292,6 +292,7 @@ pub(crate) struct SystemInfoWithPreference {
     standard_dirs: StandardDirs,
     biometric_type_available: String,
     preference: Preference,
+    dev_mode: bool,
 }
 //app_state: State<'_, app_state::AppState>
 // app: tauri::AppHandle<R>,
@@ -326,6 +327,7 @@ impl SystemInfoWithPreference {
             biometric_type_available: biometric::supported_biometric_type(),
             // document_dir().and_then(|d| Some(d.as_os_str().to_string_lossy().to_string())),
             preference: pref.clone(),
+            dev_mode: cfg!(feature = "onekeepass-dev"),
         }
     }
 }
