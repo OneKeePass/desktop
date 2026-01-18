@@ -41,6 +41,14 @@ impl BrowserExtSupport {
             && self.user_confirmed_browsers.contains(&val)
     }
 
+    pub(crate) fn _extension_use_enabled(&self,) -> bool {
+        self.extension_use_enabled
+    }
+
+    pub(crate) fn _is_allowed_browser(&self, browser_id: &str) -> bool  {
+        self.allowed_browsers.contains(&browser_id.to_string())
+    }
+
     // Need user's permission first time the browser extension tries to connect
     // It is assumed that the user has already checked the browsers to use with app after enabling the ap level extension use
     pub(super) fn user_confirmation(&mut self, browser_id: &str, confirmed: bool) {
@@ -62,10 +70,12 @@ impl BrowserExtSupport {
 
         self.extension_use_enabled = other.extension_use_enabled;
 
+        let allowed_browsers = self.allowed_browsers.clone();
+
         if self.extension_use_enabled {
             // We call browser specific config file writing/removal first
-            self.firefox_ext_add_or_remove(&self.allowed_browsers, &other.allowed_browsers)?;
-            self.chrome_ext_add_or_remove(&self.allowed_browsers, &other.allowed_browsers)?;
+            self.firefox_ext_add_or_remove(&allowed_browsers, &other.allowed_browsers)?;
+            self.chrome_ext_add_or_remove(&allowed_browsers, &other.allowed_browsers)?;
 
             // Finally update the allowed browsers list. This is done assuming the above calls are successful
             self.allowed_browsers = other.allowed_browsers;
@@ -97,7 +107,7 @@ impl BrowserExtSupport {
     }
 
     fn firefox_ext_add_or_remove(
-        &self,
+        &mut self,
         existing_allowed_browsers: &Vec<String>,
         new_allowed_browsers: &Vec<String>,
     ) -> Result<()> {
@@ -120,6 +130,9 @@ impl BrowserExtSupport {
             // Then we remove the any previous config written so that next time
             // if user enables firefox in the allowed list, the config is written again
 
+            // Need to remove any previous user confirmations
+            self.user_confirmed_browsers.remove(FIREFOX);
+
             log::debug!("Removing the firefox config...");
             let r = FirefoxNativeMessagingConfig::remove();
             log::debug!(
@@ -132,7 +145,7 @@ impl BrowserExtSupport {
     }
 
     fn chrome_ext_add_or_remove(
-        &self,
+        &mut self,
         existing_allowed_browsers: &Vec<String>,
         new_allowed_browsers: &Vec<String>,
     ) -> Result<()> {
@@ -154,6 +167,10 @@ impl BrowserExtSupport {
             // This means browser Chrome ext support is disabled and the allowed list does not have Chrome
             // Then we remove the any previous config written so that next time
             // if user enables Chrome in the allowed list, the config is written again
+
+            // Need to remove any previous user confirmations
+            self.user_confirmed_browsers.remove(CHROME);
+
             log::debug!("Removing the chrome config...");
             let r = ChromeNativeMessagingConfig::remove();
             log::debug!(

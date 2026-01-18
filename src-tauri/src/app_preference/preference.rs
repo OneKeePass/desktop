@@ -357,6 +357,10 @@ impl Preference {
         &self.browser_ext_support
     }
 
+    pub(crate) fn version(&self) -> &str {
+        &self.version
+    }
+
     fn remove_old_recent_files(&mut self) -> &mut Self {
         // Keeps the most recent 8 entries
         self.recent_files.truncate(8);

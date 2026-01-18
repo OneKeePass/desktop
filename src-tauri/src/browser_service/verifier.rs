@@ -109,7 +109,7 @@ impl ConnectionVerifier {
     }
 }
 
-// Send an event to the front end which brigs the app to focus and expects user's input
+// Send an event to the front end which brings the app to focus and expects user's input
 // to continue the next action
 fn send_browser_connection_request(browser_id: &str) {
     let win = app_state::AppState::global_app_handle()

@@ -7,6 +7,8 @@ use onekeepass_core::error::{self, Result};
 #[cfg(target_os = "windows")]
 use winreg::{enums::HKEY_CURRENT_USER, RegKey};
 
+use crate::browser_service::{CHROME, FIREFOX, message::Response};
+
 cfg_if::cfg_if! {
     if #[cfg(feature = "onekeepass-dev")] {
         const OKP_NATIVE_APP_NAME: &str = "org.onekeepass.onekeepass_browser_dev";
@@ -109,6 +111,10 @@ impl<'a> FirefoxNativeMessagingConfig<'a> {
         #[cfg(target_os = "windows")]
         Self::delete_win_reg_key()?;
 
+        // Send this message to the browser extension to disconnect any existing 
+        // connection as user has diabled this browser use
+        Response::disconnect(FIREFOX);
+
         Ok(())
     }
 
@@ -147,8 +153,13 @@ impl<'a> FirefoxNativeMessagingConfig<'a> {
                 }
             }
             else if #[cfg(target_os = "windows")] {
-                if let Some(home ) = dirs::config_local_dir() {
-                    let okp_dir = home.join("OneKeePass");
+                if let Some(mut okp_dir) = dirs::config_local_dir() {
+                    // Need to use Firefox specific folder where the Firefox native messaging config file is created
+                    okp_dir.push(FIREFOX);
+                    okp_dir.push("OneKeePass");
+                    
+                    // let okp_dir = home.join("OneKeePass");
+
                     if !okp_dir.exists() {
                         let _r = std::fs::create_dir_all(&okp_dir);
                         log::debug!("Created dir {:?}",&okp_dir);
@@ -258,6 +269,10 @@ impl<'a> ChromeNativeMessagingConfig<'a> {
         #[cfg(target_os = "windows")]
         Self::delete_win_reg_key()?;
 
+        // Send this message to the browser extension to disconnect any existing 
+        // connection as user has diabled this browser use
+        Response::disconnect(CHROME);
+
         Ok(())
     }
 
@@ -294,8 +309,11 @@ impl<'a> ChromeNativeMessagingConfig<'a> {
                 }
             }
             else if #[cfg(target_os = "windows")] {
-                if let Some(home ) = dirs::config_local_dir() {
-                    let okp_dir = home.join("OneKeePass");
+                if let Some(mut okp_dir) = dirs::config_local_dir() {
+                    // Need to use Chrome specific folder where the Chrome native messaging config file is created
+                    okp_dir.push(CHROME);
+                    okp_dir.push("OneKeePass");
+                    // let okp_dir = home.join("OneKeePass");
                     if !okp_dir.exists() {
                         let _r = std::fs::create_dir_all(&okp_dir);
                         log::debug!("Created dir {:?}",&okp_dir);
