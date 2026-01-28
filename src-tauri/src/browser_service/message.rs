@@ -287,6 +287,7 @@ pub enum Response {
     Associate {
         client_id: String,
         association_id: String,
+        // Introduced in OKP 0.18.0 and extension 
         app_version: String,
     },
 
