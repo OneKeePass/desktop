@@ -62,6 +62,7 @@
                 {:name "de - Deutsch" :value "de"}
                 {:name "zh - 中文" :value "zh"}
                 {:name "ar - العربية" :value "ar"}
+                {:name "fi - suomi" :value "fi"}
 
                 #_{:name "fr - Français" :value "fr"}])
 

@@ -7,10 +7,23 @@ use onekeepass_core::error::{self, Result};
 #[cfg(target_os = "windows")]
 use winreg::{enums::HKEY_CURRENT_USER, RegKey};
 
-#[cfg(target_os = "windows")]
-const OKP_NATIVE_APP_NAME: &str = "org.onekeepass.onekeepass_browser";
+use crate::browser_service::{CHROME, FIREFOX, message::Response};
 
-const OKP_NATIVE_MESSAING_CONFIG_FILE_NAME: &str = "org.onekeepass.onekeepass_browser.json";
+cfg_if::cfg_if! {
+    if #[cfg(feature = "onekeepass-dev")] {
+        const OKP_NATIVE_APP_NAME: &str = "org.onekeepass.onekeepass_browser_dev";
+    } else {
+        const OKP_NATIVE_APP_NAME: &str = "org.onekeepass.onekeepass_browser";
+    }
+}
+
+cfg_if::cfg_if! {
+    if #[cfg(feature = "onekeepass-dev")] {
+        const OKP_NATIVE_MESSAING_CONFIG_FILE_NAME: &str = "org.onekeepass.onekeepass_browser_dev.json";
+    } else {
+        const OKP_NATIVE_MESSAING_CONFIG_FILE_NAME: &str = "org.onekeepass.onekeepass_browser.json";
+    }
+}
 
 // Based on https://www.reddit.com/r/tauri/comments/1l29c29/getting_absolute_path_of_sidecar_binary/
 // Other refs:
@@ -19,7 +32,7 @@ const OKP_NATIVE_MESSAING_CONFIG_FILE_NAME: &str = "org.onekeepass.onekeepass_br
 // https://github.com/tauri-apps/plugins-workspace/issues/2151
 // https://www.reddit.com/r/tauri/comments/11adbst/path_to_current_executables_directory/
 
-// Determines the full path of the proxy binary
+// Determine the full path of the proxy binary
 fn proxy_full_path() -> Result<PathBuf> {
     let app_dir = std::env::current_exe()?;
 
@@ -51,12 +64,18 @@ impl<'a> FirefoxNativeMessagingConfig<'a> {
 
     pub(crate) fn write() -> Result<()> {
         let config_file_full_name = Self::firefox_native_messaging_config_full_name()?;
-        let p = proxy_full_path()?.to_string_lossy().to_string();
+        
+        let proxy_executable_path = proxy_full_path()?.to_string_lossy().to_string();
+        log::debug!(
+            "Firefox proxy executable path is {} ",
+            &proxy_executable_path
+        );
+
         let config = FirefoxNativeMessagingConfig {
             allowed_extensions: vec!["onekeepass@gmail.com"],
             description: "OneKeePass integration with native messaging support",
-            name: "org.onekeepass.onekeepass_browser",
-            path: &p,
+            name: OKP_NATIVE_APP_NAME,
+            path: &proxy_executable_path,
             type_of_app: "stdio",
         };
 
@@ -65,11 +84,17 @@ impl<'a> FirefoxNativeMessagingConfig<'a> {
         // log::debug!("Config json is {}", json_str);
         // log::debug!("Will write to the file {}", &config_file_full_name);
 
-        log::info!("Going to write mozilla native messaging the config file {} ", &config_file_full_name);
+        log::info!(
+            "Going to write mozilla native messaging the config file {} ",
+            &config_file_full_name
+        );
 
         std::fs::write(&config_file_full_name, json_str)?;
 
-        log::info!("Wrote the mozilla native messaging config file {} ", &config_file_full_name);
+        log::info!(
+            "Wrote the mozilla native messaging config file {} ",
+            &config_file_full_name
+        );
 
         #[cfg(target_os = "windows")]
         Self::write_win_reg_value(&config_file_full_name)?;
@@ -85,6 +110,10 @@ impl<'a> FirefoxNativeMessagingConfig<'a> {
 
         #[cfg(target_os = "windows")]
         Self::delete_win_reg_key()?;
+
+        // Send this message to the browser extension to disconnect any existing 
+        // connection as user has diabled this browser use
+        Response::disconnect(FIREFOX);
 
         Ok(())
     }
@@ -124,8 +153,13 @@ impl<'a> FirefoxNativeMessagingConfig<'a> {
                 }
             }
             else if #[cfg(target_os = "windows")] {
-                if let Some(home ) = dirs::config_local_dir() {
-                    let okp_dir = home.join("OneKeePass");
+                if let Some(mut okp_dir) = dirs::config_local_dir() {
+                    // Need to use Firefox specific folder where the Firefox native messaging config file is created
+                    okp_dir.push("OneKeePass");
+                    okp_dir.push(FIREFOX);
+                    
+                    // let okp_dir = home.join("OneKeePass");
+
                     if !okp_dir.exists() {
                         let _r = std::fs::create_dir_all(&okp_dir);
                         log::debug!("Created dir {:?}",&okp_dir);
@@ -190,26 +224,39 @@ pub(crate) struct ChromeNativeMessagingConfig<'a> {
 impl<'a> ChromeNativeMessagingConfig<'a> {
     pub(crate) fn write() -> Result<()> {
         let config_file_full_name = Self::chrome_native_messaging_config_full_name()?;
-        let p = proxy_full_path()?.to_string_lossy().to_string();
+        
+        let proxy_executable_path = proxy_full_path()?.to_string_lossy().to_string();
+
+        log::debug!(
+            "Chrome proxy executable path is {} ",
+            &proxy_executable_path
+        );
+
         let cid1 = format!("chrome-extension://{}/", CHROME_EXTENSION_ID1);
         let cid2 = format!("chrome-extension://{}/", CHROME_EXTENSION_ID2);
         let config = ChromeNativeMessagingConfig {
             allowed_origins: vec![&cid1, &cid2],
             description: "OneKeePass integration with native messaging support",
-            name: "org.onekeepass.onekeepass_browser",
-            path: &p,
+            name: OKP_NATIVE_APP_NAME,
+            path: &proxy_executable_path,
             type_of_app: "stdio",
         };
         let json_str = serde_json::to_string_pretty(&config)?;
 
-        log::info!("Going to write chrome native messaging the config file {} ", &config_file_full_name);
+        log::info!(
+            "Going to write chrome native messaging the config file {} ",
+            &config_file_full_name
+        );
 
         std::fs::write(&config_file_full_name, json_str)?;
 
         #[cfg(target_os = "windows")]
         Self::write_win_reg_value(&config_file_full_name)?;
 
-        log::info!("Wrote the native messaging config file {} ", &config_file_full_name);
+        log::info!(
+            "Wrote the native messaging config file {} ",
+            &config_file_full_name
+        );
 
         Ok(())
     }
@@ -221,6 +268,10 @@ impl<'a> ChromeNativeMessagingConfig<'a> {
 
         #[cfg(target_os = "windows")]
         Self::delete_win_reg_key()?;
+
+        // Send this message to the browser extension to disconnect any existing 
+        // connection as user has diabled this browser use
+        Response::disconnect(CHROME);
 
         Ok(())
     }
@@ -237,7 +288,7 @@ impl<'a> ChromeNativeMessagingConfig<'a> {
             if #[cfg(target_os = "macos")] {
                 if let Some(mut home) = env::home_dir() {
                     home.push("Library/Application Support/Google/Chrome/NativeMessagingHosts");
-                    
+
                     if !home.exists() {
                         let r = std::fs::create_dir_all(&home);
                         log::info!("Created chrome native messaging config dir {:?} with result {:?}",&home,&r);
@@ -258,8 +309,12 @@ impl<'a> ChromeNativeMessagingConfig<'a> {
                 }
             }
             else if #[cfg(target_os = "windows")] {
-                if let Some(home ) = dirs::config_local_dir() {
-                    let okp_dir = home.join("OneKeePass");
+                if let Some(mut okp_dir) = dirs::config_local_dir() {
+                    // Need to use Chrome specific folder where the Chrome native messaging config file is created
+                    okp_dir.push("OneKeePass");
+                    okp_dir.push(CHROME);
+                    
+                    // let okp_dir = home.join("OneKeePass");
                     if !okp_dir.exists() {
                         let _r = std::fs::create_dir_all(&okp_dir);
                         log::debug!("Created dir {:?}",&okp_dir);

@@ -1,7 +1,7 @@
 (ns ^:figwheel-always onekeepass.frontend.start-page
   (:require
    [onekeepass.frontend.app-settings :refer [app-settings-dialog-main]]
-   [onekeepass.frontend.browser-integration :as browser-integration ]
+   [onekeepass.frontend.browser-integration :as browser-integration]
    [onekeepass.frontend.common-components :as cc :refer [message-dialog]]
    [onekeepass.frontend.custom-icons :as cust-icons]
    [onekeepass.frontend.events.common :as cmn-events]
@@ -20,7 +20,7 @@
    [onekeepass.frontend.new-database :as nd-form]
    [onekeepass.frontend.open-db-form :as od-form]
    [onekeepass.frontend.password-generator :as gen-form]
-   [onekeepass.frontend.translation :as t :refer-macros [tr tr-l tr-t] ]
+   [onekeepass.frontend.translation :as t :refer-macros [tr tr-l tr-t]]
    [reagent.core :as r]))
 
 (set! *warn-on-infer* true)
@@ -60,7 +60,7 @@
         [mui-icon-button  {:edge "start" :color "inherit" :sx {:ml 0}
                            :onClick od-events/open-file-explorer-on-click}
          [mui-icon-folder-outlined {}]]
-        
+
         ;; Click on a link to open a file explorer
         [mui-link {:variant "subtitle1"
                    :onClick od-events/open-file-explorer-on-click}
@@ -98,11 +98,15 @@
         [mui-typography {:variant "h4" :sx {:color "text.primary"}} "OneKeePass"]]
 
        [mui-stack {:direction "row" :align-self "center"} ;;:sx {:mt "25%"}
-        [mui-typography {:variant "h7" :sx {:color "text.primary"}} app-version #_(str "Version " app-version)]]]]]))
+        [mui-typography {:variant "h7" :sx {:color "text.primary"}} app-version #_(str "Version " app-version)]]
+
+       (when @(cmn-events/is-dev-mode?)
+         [mui-stack {:direction "row" :align-self "center"} ;;:sx {:mt "25%"}
+          [mui-typography {:variant "h7" :sx {:color "error.main"}} "(Development)"]])]]]))
 
 (defn welcome-content []
   ;; (println "Will set the dir as " (t/dir))
-  [:div {:class "box" 
+  [:div {:class "box"
          :style {:style {:direction (t/dir)}
                  :overflow "hidden" ;; hidden used so to avoid showing scrollbar 
                  :background-color (theme-color @custom-theme-atom :bg-default)}}

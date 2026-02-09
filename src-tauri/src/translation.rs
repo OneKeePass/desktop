@@ -113,8 +113,13 @@ pub struct SystemMenuTranslation {
 impl SystemMenuTranslation {
   // Gets the translated string for a main menu from "main" map
   pub fn main_menu(&self, name: &str) -> String {
+    // log::debug!("In SystemMenuTranslation::main_menu getting translation string for menu {}", name);
     let d = HashMap::default();
     let s = self.system_menus.get("main").map_or_else(|| &d, |n| n);
+
+    // let menu_name:String = s.get(name).map_or_else(|| name.into(), |v| v.into());
+    // log::debug!("In SystemMenuTranslation::main_menu getting translation string for menu {} with value {}", name, &menu_name);
+
     s.get(name).map_or_else(|| name.into(), |v| v.into())
   }
 
@@ -155,10 +160,13 @@ pub(crate) fn load_system_menu_translations<R:Runtime>(
   // As SystemMenuTranslation struct has only "system_menus" field, serde json deserialization
   // will parse only that part of data from the file translation.json
 
+
+  // log::debug!("The language of system menus are in {} and acccording loading system menus {:?}", &language,serde_json::from_str::<SystemMenuTranslation>(&data));
+
   system_menu_tr =
     serde_json::from_str::<SystemMenuTranslation>(&data).map_or(system_menu_tr, |v| v);
 
-  //println!("Loaded system menus {:?}", system_menu_tr);
+  // log::debug!("Loaded system menus {:?}", serde_json::from_str::<SystemMenuTranslation>(&data));
 
   system_menu_tr
 }

@@ -62,8 +62,8 @@ pub(crate) fn build_menus<R: Runtime>(app_handle: &AppHandle<R>) -> Result<(), t
     .accelerator("CmdOrControl+Q")
     .build(app_handle)?;
 
-  let mut ab = AboutMetadata::default();
-  ab.name = Some(app_name.to_string());
+  // let mut ab = AboutMetadata::default();
+  // ab.name = Some(app_name.to_string());
 
   let app_submenu = SubmenuBuilder::with_id(app_handle, app_name, app_name)
     .about_with_text(about_name, Some(AboutMetadata::default()))

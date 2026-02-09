@@ -47,12 +47,25 @@ pub(crate) fn main_app_to_stdout(mut app_connection_reader: ReadHalf<Connection>
                 if len <= BUFFER_SIZE {
                     // log::debug!("Sending server mesage {:?} of size {} to extension in proxy", &buf[..len], len);
 
+                    // The main app sends "DISCONNECT" string when user disables a previously connected browser
+                    // Here the utf-8 bytes length of this string is 10
+                    if len == 10 && String::from_utf8(buf[..len].to_vec()).is_ok() {
+                        let s = String::from_utf8(buf[..len].to_vec()).unwrap();
+                        // Check to ensure that string is DISCONNECT and if so exit the native program launched by the browser
+                        // When this native app exits, the extension side the onDisconnect callback of 'port' will be called 
+                        if s == "DISCONNECT" {
+                            send_app_connection_disconnected();
+                            log::debug!("Received disconnect message from app and breaking and exiting the proxy");
+                            break 'main_app_to_stdout_outer;
+                        }
+                    }
+
                     // Write response length first
                     let response_length = len as u32;
                     std::io::stdout().write_all(&response_length.to_ne_bytes()).unwrap();
 
                     log::debug!("Writing message to stdout for extension  {:?}", String::from_utf8(buf[..len].to_vec()));
-
+                    
                     // The message content is written. This should be parseable as json
                     std::io::stdout().write_all(&buf[..len]).unwrap();
                     std::io::stdout().flush().unwrap();
@@ -212,6 +225,27 @@ pub(crate) fn send_app_connection_not_available_error() {
     let _ = std::io::stdout().flush();
 
     log::debug!("PROXY_APP_CONNECTION error message {} is send ", &resp);
+}
+
+// Sends the disconnect message to the browser extension.
+pub(crate) fn send_app_connection_disconnected() {
+    let resp = r#"{"ok" : {"action": "DISCONNECT"}}"#;
+    let len = resp.as_bytes().len();
+    let response_length = len as u32;
+
+    if let Err(e) = std::io::stdout().write_all(&response_length.to_ne_bytes()) {
+        log::error!("Writing DISCONNECT ok msg length to extension failed with error {}", e);
+        return;
+    }
+
+    if let Err(e) = std::io::stdout().write_all(resp.as_bytes()) {
+        log::error!("Writing DISCONNECT ok msg to extension failed with error {}", e);
+        return;
+    }
+
+    let _ = std::io::stdout().flush();
+
+    log::debug!("DISCONNECT ok message {} is send ", &resp);
 }
 
 pub(crate) fn send_app_connection_available_ok() {

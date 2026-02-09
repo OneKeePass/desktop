@@ -26,7 +26,9 @@ advanced-compile-start-server:
 advanced-compile:
     clojure -M:frontend:fw  -m figwheel.main -O advanced  -bo dev
 
-build-cljs-bundle type="advanced":
+## Default is now "simple" instead of "advanced", because of issue with compiling of the package 'react-window'
+## See the comments in src/main/onekeepass/frontend/mui_components.cljs
+build-cljs-bundle type="simple":
     rm -rf target
     clojure -M:frontend:fw  -m figwheel.main -O {{type}} -bo dev
     mkdir  -p ./resources/public/cljs-out/dev
@@ -74,4 +76,12 @@ build-mac-x86_64-bundle:build-cljs-bundle
 
 build-mac-aarch64-bundle:build-cljs-bundle
     just mac-aarch64-bundle-build-only 
+
+
+################
+
+# This will build linux "release" bundle when called in a Linux terminal
+build-linux-x86_64:
+    just -f ./onekeepass-proxy/justfile build-cp-linux-x86_64 true
+    cargo tauri build
 

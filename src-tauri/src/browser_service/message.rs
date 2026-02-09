@@ -3,6 +3,8 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::app_state;
+
 use crate::browser_service::{
     db_calls,
     key_share::{BrowserServiceTx, SessionStore},
@@ -12,8 +14,6 @@ use crate::browser_service::{
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "action")]
 pub enum Request {
-    CheckAppAvailability,
-
     // Called first time when the extension app is about to use the OneKeePass app
     Associate {
         client_id: String,
@@ -32,6 +32,7 @@ pub enum Request {
         form_url: String,
     },
 
+    // This is a request to get an entry details for user selected entry from the previous matched entries
     SelectedEntry {
         association_id: String,
         request_id: String,
@@ -52,12 +53,14 @@ impl Request {
             Ok(Request::Associate { client_id }) => {
                 Self::verify(client_id, sender).await;
             }
+
             Ok(Request::InitSessionKey {
                 association_id,
                 client_session_pub_key,
             }) => {
                 Self::init_session(&association_id, &client_session_pub_key).await;
             }
+
             Ok(Request::EnabledDatabaseMatchedEntryList {
                 ref association_id,
                 ref request_id,
@@ -76,15 +79,15 @@ impl Request {
                 Self::entry_details_by_id(association_id, db_key, entry_uuid, request_id).await;
             }
 
-            Ok(x) => {
-                log::error!("Unhandled request enum variant {:?}", &x);
-                let resp = ResponseResult::with_error(
-                    ResponseActionName::UnexpectedError,
-                    &format!("Unhandled request enum variant {:?}", &x),
-                );
-                // No session is yet available and we send the responde directly
-                let _r = sender.send(resp.json_str()).await;
-            }
+            // Ok(x) => {
+            //     log::error!("Unhandled request enum variant {:?}", &x);
+            //     let resp = ResponseResult::with_error(
+            //         ResponseActionName::UnexpectedError,
+            //         &format!("Unhandled request enum variant {:?}", &x),
+            //     );
+            //     // No session is yet available and we send the responde directly
+            //     let _r = sender.send(resp.json_str()).await;
+            // }
             Err(e) => {
                 log::error!(
                     "Error {} in deserializing the json of input_message: {} ",
@@ -105,6 +108,9 @@ impl Request {
     // Need to check that either user has already enabled the browser extension use and if not we need to ask user
     // confirm the extension use
     async fn verify(client_id: String, sender: Arc<BrowserServiceTx>) {
+        // Incoming client_id is the same as browser_id (e.g Firefox,Chrome)
+        // At this time client_id, browser_id and association_id are the same
+
         let browser_id = client_id.clone();
 
         // log::debug!("In verify for browser id {}, FIREFOX {}, CHROME {}",&client_id,&client_id != FIREFOX,&client_id != CHROME);
@@ -141,7 +147,7 @@ impl Request {
 
                 Box::pin({
                     let client_id = client_id.clone();
-                    // TODO:  Instead of using 'client_id', Shoudle we generate a random name for each session?
+                    // TODO:  Instead of using 'client_id', Shoud we generate a random name for each session 'association_id' returned?
                     let association_id = client_id.clone();
                     let sender = sender.clone();
 
@@ -166,6 +172,7 @@ impl Request {
                             Ok(_) => ResponseResult::with_ok(Response::Associate {
                                 client_id,
                                 association_id: association_id.clone(),
+                                app_version: app_state::AppState::state_instance().app_version(),
                             }),
 
                             Err(e) => ResponseResult::with_error(
@@ -280,6 +287,8 @@ pub enum Response {
     Associate {
         client_id: String,
         association_id: String,
+        // Introduced in OKP 0.18.0 and extension 
+        app_version: String,
     },
 
     // Provides the app side pub key for the shared key encryption/decryption for the 'InitSessionKey' request
@@ -303,13 +312,27 @@ pub enum Response {
     },
 }
 
+impl Response {
+
+    pub(crate) fn disconnect(browser_id: &'static str) {
+        log::info!("Disonnecting from the browser extension as it is disabled");
+
+        // browser_id is association_id
+        // Async call
+        tauri::async_runtime::spawn(async move {
+            // This special DISCONNECT string is sent to the proxy instead of Json string
+            SessionStore::send_session_response(browser_id, "DISCONNECT").await;
+        });
+    }
+}
+
 enum ResponseActionName {
     Associate,
     InitSessionKey,
     EnabledDatabaseMatchedEntryList,
     SelectedEntry,
     JsonParseError,
-    UnexpectedError,
+    // UnexpectedError,
 }
 
 impl ResponseActionName {
@@ -321,7 +344,7 @@ impl ResponseActionName {
             EnabledDatabaseMatchedEntryList => "EnabledDatabaseMatchedEntryList",
             SelectedEntry => "SelectedEntry",
             JsonParseError => "JsonParseError",
-            UnexpectedError => "UnexpectedError",
+            // UnexpectedError => "UnexpectedError",
         }
     }
 

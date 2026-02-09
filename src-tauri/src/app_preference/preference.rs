@@ -115,7 +115,7 @@ impl Default for Preference {
             // Same as in tauri.conf.json. This is for doc purpose only as
             // this will be reset to the latest version from tauri.conf.json
             // after parsing the toml pref file in read_toml and pref file is updated accordingly
-            version: "0.17.0".into(),
+            version: "0.18.0".into(),
             session_timeout: (15 as u8),
             clipboard_timeout: (30 as u16),
             theme: LIGHT.into(),
@@ -222,17 +222,28 @@ impl Preference {
     // Extracts only the language field value from the prefernce file's content
     // The arg pref_file_content_str is the previously read preference.toml as string
     pub(crate) fn read_language_selection(pref_file_content_str: &str) -> Option<String> {
-        // let pref_file_name = app_home_dir().join(APP_PREFERENCE_FILE);
-        // let pref_str = fs::read_to_string(pref_file_name).unwrap_or("".into());
-        if let Ok(value) = pref_file_content_str.parse::<toml::Value>() {
+        // log::debug!("In read_language_selection: pref_file_content_str {}",pref_file_content_str);
+        
+        // let tvalue = pref_file_content_str.parse::<toml::Table>().unwrap();
+        // log::debug!("In read_language_selection: toml value {:?}", &tvalue);
+
+        // let lv = tvalue["language"].as_str();
+
+        // log::debug!("In read_language_selection: language {:?}", &lv);
+
+        // Parsing with toml::Value and extracting 'language' from preference did not work
+        // However, using toml::Table worked 
+        // Ref https://docs.rs/toml/latest/toml/#parsing-toml
+        if let Ok(value) = pref_file_content_str.parse::<toml::Table>() {
             if let Some(s) = value.get("language") {
-                println!("Language preference is found and it is {:#?}", s.as_str());
+                log::info!("Language preference is found and it is {:#?}", s.as_str());
                 s.as_str().map(|s| s.into())
             } else {
-                println!("Language preference is not found");
+                log::info!("Language preference is not found");
                 None
             }
         } else {
+            log::error!("TOML Parsing of pref_file_content_str failed and language preference is not extracted");
             None
         }
     }
@@ -355,6 +366,10 @@ impl Preference {
 
     pub(crate) fn browser_ext_support_preference(&self) -> &BrowserExtSupport {
         &self.browser_ext_support
+    }
+
+    pub(crate) fn version(&self) -> &str {
+        &self.version
     }
 
     fn remove_old_recent_files(&mut self) -> &mut Self {

@@ -224,7 +224,6 @@ impl AppState {
 // All preference access fns are grouped under this impl
 
 impl AppState {
-
     pub(crate) fn prefered_language(&self) -> String {
         let store_pref = self.preference.lock().unwrap();
         //store_pref.language.clone() will also works
@@ -257,13 +256,20 @@ impl AppState {
             .is_extension_use_enabled(browser_id)
     }
 
+    // pub(crate) fn is_allowed_browser(&self, browser_id: &str) -> bool {
+    //     let store_pref = self.preference.lock().unwrap();
+    //     store_pref
+    //         .browser_ext_support_preference()
+    //         .is_allowed_browser(browser_id)
+    // }
+
     // Called from frontend through Commands api when user allows a browser ext connection
     pub(crate) fn browser_ext_use_user_permission(&self, browser_id: &str, confirmed: bool) {
         let mut store_pref = self.preference.lock().unwrap();
         store_pref.browser_ext_use_user_permission(browser_id, confirmed);
     }
 
-    // Called onetime when the app starts 
+    // Called onetime when the app starts
     fn start_ext_proxy_service(&self) {
         let store_pref = self.preference.lock().unwrap();
         store_pref
@@ -275,8 +281,12 @@ impl AppState {
         let mut store_pref = self.preference.lock().unwrap();
         store_pref.clear_recent_files();
     }
-}
 
+    pub(crate) fn app_version(&self) -> String {
+        let store_pref = self.preference.lock().unwrap();
+        store_pref.version().to_string()
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct StandardDirs {
@@ -292,6 +302,7 @@ pub(crate) struct SystemInfoWithPreference {
     standard_dirs: StandardDirs,
     biometric_type_available: String,
     preference: Preference,
+    dev_mode: bool,
 }
 //app_state: State<'_, app_state::AppState>
 // app: tauri::AppHandle<R>,
@@ -326,6 +337,7 @@ impl SystemInfoWithPreference {
             biometric_type_available: biometric::supported_biometric_type(),
             // document_dir().and_then(|d| Some(d.as_os_str().to_string_lossy().to_string())),
             preference: pref.clone(),
+            dev_mode: cfg!(feature = "onekeepass-dev"),
         }
     }
 }
