@@ -1,3 +1,14 @@
+### 0.18.0
+
+#### Changes
+- Browser extension backend support enhancement
+- Additional translations of texts 
+    - Finnish  - Thanks [JTi65](https://github.com/JTi65)
+
+#### Fixed
+- Firefox browser extension not connecting [#61](https://github.com/OneKeePass/desktop/issues/61) - Thanks [alinmesser](https://github.com/alinmesser)
+- System menus now uses the language specific translations which failed to do so in 0.17.0
+
 ### 0.17.0
 
 #### Changes
