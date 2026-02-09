@@ -155,8 +155,8 @@ impl<'a> FirefoxNativeMessagingConfig<'a> {
             else if #[cfg(target_os = "windows")] {
                 if let Some(mut okp_dir) = dirs::config_local_dir() {
                     // Need to use Firefox specific folder where the Firefox native messaging config file is created
-                    okp_dir.push(FIREFOX);
                     okp_dir.push("OneKeePass");
+                    okp_dir.push(FIREFOX);
                     
                     // let okp_dir = home.join("OneKeePass");
 
@@ -311,8 +311,9 @@ impl<'a> ChromeNativeMessagingConfig<'a> {
             else if #[cfg(target_os = "windows")] {
                 if let Some(mut okp_dir) = dirs::config_local_dir() {
                     // Need to use Chrome specific folder where the Chrome native messaging config file is created
-                    okp_dir.push(CHROME);
                     okp_dir.push("OneKeePass");
+                    okp_dir.push(CHROME);
+                    
                     // let okp_dir = home.join("OneKeePass");
                     if !okp_dir.exists() {
                         let _r = std::fs::create_dir_all(&okp_dir);

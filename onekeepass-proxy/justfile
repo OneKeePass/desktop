@@ -13,6 +13,7 @@ build-mac-aarch64 release="":
 
 build-cp-mac-aarch64 release="":(build-mac-aarch64 release)
     rm ./binaries/onekeepass-proxy-aarch64-apple-darwin
+    mkdir -p ./binaries
     cp ./target/aarch64-apple-darwin/{{ if release == "true" {"release"} else {"debug"} }}/onekeepass-proxy ./binaries/onekeepass-proxy-aarch64-apple-darwin
 
 build-mac-x86_64 release="":
@@ -20,6 +21,7 @@ build-mac-x86_64 release="":
 
 build-cp-mac-x86_64 release="":(build-mac-x86_64 release)
     rm ./binaries/onekeepass-proxy-x86_64-apple-darwin
+    mkdir -p ./binaries
     cp ./target/x86_64-apple-darwin/{{ if release == "true" {"release"} else {"debug"} }}/onekeepass-proxy ./binaries/onekeepass-proxy-x86_64-apple-darwin
 
 to-running-td release="":(build-mac-aarch64 release)
@@ -72,5 +74,6 @@ build-cmd-cp-windows-x86_64 release="":(build-windows-x86_64 release)
     copy .\target\x86_64-pc-windows-msvc\{{ if release == "true" {"release"} else {"debug"} }}\onekeepass-proxy.exe .\binaries\onekeepass-proxy-x86_64-pc-windows-msvc.exe
 
 build-cp-windows-x86_64 release="":(build-windows-x86_64 release)
+    mkdir .\binaries
     rm -r -force  .\binaries\*
     copy -Path .\target\x86_64-pc-windows-msvc\{{ if release == "true" {"release"} else {"debug"} }}\onekeepass-proxy.exe -Destination .\binaries\onekeepass-proxy-x86_64-pc-windows-msvc.exe
