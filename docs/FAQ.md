@@ -154,7 +154,7 @@ Yes. But only a generic comma separated values can now be imported into OneKeePa
 
 ## Does OneKeePass provide any Browser Extension?
 
-Yes, a basic version is supported from version OneKeePass 0.17.0 onwards. 
+Yes, a basic version is supported from OneKeePass 0.17.0 onwards. 
 
 You can get the extension for [Firefox](https://addons.mozilla.org/en-US/firefox/addon/onekeepass-browser/) or [Chrome](https://chromewebstore.google.com/detail/onekeepass-browser/cmdmojmbfcpkloflnjkkdjcflaidangh)
 
