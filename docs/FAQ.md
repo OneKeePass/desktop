@@ -152,4 +152,26 @@ Then choose any of a valid keepass database file to merge with the currently ope
 Yes. But only a generic comma separated values can now be imported into OneKeePass. 
 
 
+## Does OneKeePass provide any Browser Extension?
+
+Yes, a basic version is supported from version OneKeePass 0.17.0 onwards. 
+
+You can get the extension for [Firefox](https://addons.mozilla.org/en-US/firefox/addon/onekeepass-browser/) or [Chrome](https://chromewebstore.google.com/detail/onekeepass-browser/cmdmojmbfcpkloflnjkkdjcflaidangh)
+
+After installing the extension in your browser, you also need to enable the browser extension use in OneKeePass's **Application Settings**
+
+Application Settings -> Browser Integration -> Enable browser Integration -> Enable Firefox and Chrome
+
+<details>
+<summary>See the settings screen here</summary>
+<h1 align="center">
+  <img src="../screenshots/Browser-Integration-Enable.jpg" alt=""  />
+  <br>
+</h1>
+</details>
+
+
+
+
+
 
