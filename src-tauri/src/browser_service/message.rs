@@ -8,6 +8,7 @@ use crate::app_state;
 use crate::browser_service::{
     db_calls,
     key_share::{BrowserServiceTx, SessionStore},
+    passkey_db,
     verifier, SUPPORTED_BROWSERS,
 };
 
@@ -38,6 +39,57 @@ pub enum Request {
         request_id: String,
         db_key: String,
         entry_uuid: Uuid,
+    },
+
+    // ── Passkey: pre-creation queries ────────────────────────────────────────
+
+    /// Step A of passkey creation: fetch the list of open, browser-enabled
+    /// databases so the user can choose where to store the new passkey.
+    GetOpenedDatabasesForPasskey {
+        association_id: String,
+        request_id: String,
+    },
+
+    // ── Passkey: registration ─────────────────────────────────────────────────
+
+    /// Final passkey creation step. User has selected a database and an entry
+    /// target; the desktop generates the key pair, builds WebAuthn structures,
+    /// stores the key material in KDBX, and returns the credential JSON.
+    CreatePasskey {
+        association_id: String,
+        request_id: String,
+        db_key: String,
+        /// JSON of `PublicKeyCredentialCreationOptions` from the website.
+        options_json: String,
+        /// Page origin (e.g. `"https://example.com"`).
+        origin: String,
+        /// UUID of an existing entry to attach the passkey to (optional).
+        entry_uuid: Option<String>,
+        /// Title for a brand-new entry (used when `entry_uuid` is absent).
+        new_entry_name: Option<String>,
+        /// Group UUID for a new entry. Defaults to root group when absent.
+        group_uuid: Option<String>,
+    },
+
+    // ── Passkey: authentication ───────────────────────────────────────────────
+
+    /// Step 1 of authentication: fetch passkeys matching the site's RP ID.
+    GetPasskeyList {
+        association_id: String,
+        request_id: String,
+        /// JSON of `PublicKeyCredentialRequestOptions` from the website.
+        options_json: String,
+        origin: String,
+    },
+
+    /// Step 2 of authentication: user has chosen a passkey; sign the assertion.
+    CompletePasskeyAssertion {
+        association_id: String,
+        request_id: String,
+        db_key: String,
+        entry_uuid: Uuid,
+        options_json: String,
+        origin: String,
     },
 }
 
@@ -77,6 +129,66 @@ impl Request {
                 ref entry_uuid,
             }) => {
                 Self::entry_details_by_id(association_id, db_key, entry_uuid, request_id).await;
+            }
+
+            // ── Passkey handlers ─────────────────────────────────────────────
+
+            Ok(Request::GetOpenedDatabasesForPasskey {
+                ref association_id,
+                ref request_id,
+            }) => {
+                Self::get_opened_databases_for_passkey(association_id, request_id).await;
+            }
+
+            Ok(Request::CreatePasskey {
+                ref association_id,
+                ref request_id,
+                ref db_key,
+                ref options_json,
+                ref origin,
+                ref entry_uuid,
+                ref new_entry_name,
+                ref group_uuid,
+            }) => {
+                Self::create_passkey(
+                    association_id,
+                    request_id,
+                    db_key,
+                    options_json,
+                    origin,
+                    entry_uuid.clone(),
+                    new_entry_name.clone(),
+                    group_uuid.clone(),
+                )
+                .await;
+            }
+
+            Ok(Request::GetPasskeyList {
+                ref association_id,
+                ref request_id,
+                ref options_json,
+                ref origin,
+            }) => {
+                Self::get_passkey_list(association_id, request_id, options_json, origin).await;
+            }
+
+            Ok(Request::CompletePasskeyAssertion {
+                ref association_id,
+                ref request_id,
+                ref db_key,
+                ref entry_uuid,
+                ref options_json,
+                ref origin,
+            }) => {
+                Self::complete_passkey_assertion(
+                    association_id,
+                    request_id,
+                    db_key,
+                    entry_uuid,
+                    options_json,
+                    origin,
+                )
+                .await;
             }
 
             // Ok(x) => {
@@ -247,6 +359,164 @@ impl Request {
         SessionStore::send_session_response(&association_id, &resp.json_str()).await;
     }
 
+    // ── Passkey handler implementations ──────────────────────────────────────
+
+    async fn get_opened_databases_for_passkey(association_id: &str, request_id: &str) {
+        let json_result = db_calls::get_opened_databases_for_passkey()
+            .and_then(|ref dbs| Ok(serde_json::to_string_pretty(dbs)?));
+
+        let resp = match json_result {
+            Ok(ref json) => match SessionStore::encrypt(association_id, json).await {
+                Ok((nonce, enc_msg)) => {
+                    ResponseResult::with_ok(Response::OpenedDatabasesForPasskey {
+                        message_content: enc_msg,
+                        request_id: request_id.to_string(),
+                        nonce,
+                    })
+                }
+                Err(error) => {
+                    ResponseActionName::GetOpenedDatabasesForPasskey.with_error(error)
+                }
+            },
+            Err(e) => ResponseResult::from_error(
+                ResponseActionName::GetOpenedDatabasesForPasskey,
+                request_id,
+                &format!("{}", e),
+            ),
+        };
+
+        SessionStore::send_session_response(association_id, &resp.json_str()).await;
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn create_passkey(
+        association_id: &str,
+        request_id: &str,
+        db_key: &str,
+        options_json: &str,
+        origin: &str,
+        entry_uuid: Option<String>,
+        new_entry_name: Option<String>,
+        group_uuid: Option<String>,
+    ) {
+        let credential_result = passkey_db::create_and_store_passkey(
+            db_key,
+            options_json,
+            origin,
+            entry_uuid,
+            new_entry_name,
+            group_uuid,
+        );
+
+        let resp = match credential_result {
+            Ok(ref credential_json) => {
+                match SessionStore::encrypt(association_id, credential_json).await {
+                    Ok((nonce, enc_msg)) => ResponseResult::with_ok(Response::PasskeyCreated {
+                        message_content: enc_msg,
+                        request_id: request_id.to_string(),
+                        nonce,
+                    }),
+                    Err(error) => ResponseActionName::CreatePasskey.with_error(error),
+                }
+            }
+            Err(e) => ResponseResult::from_error(
+                ResponseActionName::CreatePasskey,
+                request_id,
+                &format!("{}", e),
+            ),
+        };
+
+        SessionStore::send_session_response(association_id, &resp.json_str()).await;
+    }
+
+    async fn get_passkey_list(
+        association_id: &str,
+        request_id: &str,
+        options_json: &str,
+        _origin: &str,
+    ) {
+        // Extract rpId and allowCredentials from the options JSON
+        let parse_result: Result<serde_json::Value, _> = serde_json::from_str(options_json);
+
+        let resp = match parse_result {
+            Err(e) => ResponseResult::from_error(
+                ResponseActionName::GetPasskeyList,
+                request_id,
+                &format!("Invalid options_json: {}", e),
+            ),
+            Ok(opts) => {
+                let rp_id = opts["rpId"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string();
+
+                let allow_ids: Vec<String> = opts["allowCredentials"]
+                    .as_array()
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v["id"].as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
+                let list_result = db_calls::find_matching_passkeys(&rp_id, allow_ids)
+                    .and_then(|ref list| Ok(serde_json::to_string_pretty(list)?));
+
+                match list_result {
+                    Ok(ref json) => match SessionStore::encrypt(association_id, json).await {
+                        Ok((nonce, enc_msg)) => {
+                            ResponseResult::with_ok(Response::PasskeyList {
+                                message_content: enc_msg,
+                                request_id: request_id.to_string(),
+                                nonce,
+                            })
+                        }
+                        Err(error) => ResponseActionName::GetPasskeyList.with_error(error),
+                    },
+                    Err(e) => ResponseResult::from_error(
+                        ResponseActionName::GetPasskeyList,
+                        request_id,
+                        &format!("{}", e),
+                    ),
+                }
+            }
+        };
+
+        SessionStore::send_session_response(association_id, &resp.json_str()).await;
+    }
+
+    async fn complete_passkey_assertion(
+        association_id: &str,
+        request_id: &str,
+        db_key: &str,
+        entry_uuid: &Uuid,
+        options_json: &str,
+        origin: &str,
+    ) {
+        // sign_passkey_assertion already returns a JSON string — no re-serialization needed.
+        let result = db_calls::sign_passkey_assertion(db_key, entry_uuid, options_json, origin);
+
+        let resp = match result {
+            Ok(ref json) => match SessionStore::encrypt(association_id, json).await {
+                Ok((nonce, enc_msg)) => {
+                    ResponseResult::with_ok(Response::PasskeyAssertionComplete {
+                        message_content: enc_msg,
+                        request_id: request_id.to_string(),
+                        nonce,
+                    })
+                }
+                Err(error) => ResponseActionName::CompletePasskeyAssertion.with_error(error),
+            },
+            Err(e) => ResponseResult::from_error(
+                ResponseActionName::CompletePasskeyAssertion,
+                request_id,
+                &format!("{}", e),
+            ),
+        };
+
+        SessionStore::send_session_response(association_id, &resp.json_str()).await;
+    }
+
     // Gets the entry detail data for a given db_key and entry uuid
     async fn entry_details_by_id(
         association_id: &str,
@@ -310,6 +580,39 @@ pub enum Response {
         request_id: String,
         nonce: String,
     },
+
+    // ── Passkey responses ─────────────────────────────────────────────────────
+
+    /// Response to `GetOpenedDatabasesForPasskey`: encrypted JSON array of
+    /// `{ db_key, db_name }` objects.
+    OpenedDatabasesForPasskey {
+        message_content: String,
+        request_id: String,
+        nonce: String,
+    },
+
+    /// Registration complete: encrypted `PublicKeyCredential` JSON ready to
+    /// be returned by the extension to the website.
+    PasskeyCreated {
+        message_content: String,
+        request_id: String,
+        nonce: String,
+    },
+
+    /// Authentication: encrypted JSON array of `PasskeySummary` objects
+    /// matching the site's RP ID.
+    PasskeyList {
+        message_content: String,
+        request_id: String,
+        nonce: String,
+    },
+
+    /// Authentication signed: encrypted `PublicKeyCredential` assertion JSON.
+    PasskeyAssertionComplete {
+        message_content: String,
+        request_id: String,
+        nonce: String,
+    },
 }
 
 impl Response {
@@ -332,6 +635,11 @@ enum ResponseActionName {
     EnabledDatabaseMatchedEntryList,
     SelectedEntry,
     JsonParseError,
+    // Passkey
+    GetOpenedDatabasesForPasskey,
+    CreatePasskey,
+    GetPasskeyList,
+    CompletePasskeyAssertion,
     // UnexpectedError,
 }
 
@@ -344,6 +652,11 @@ impl ResponseActionName {
             EnabledDatabaseMatchedEntryList => "EnabledDatabaseMatchedEntryList",
             SelectedEntry => "SelectedEntry",
             JsonParseError => "JsonParseError",
+            // Passkey
+            GetOpenedDatabasesForPasskey => "GetOpenedDatabasesForPasskey",
+            CreatePasskey => "CreatePasskey",
+            GetPasskeyList => "GetPasskeyList",
+            CompletePasskeyAssertion => "CompletePasskeyAssertion",
             // UnexpectedError => "UnexpectedError",
         }
     }
@@ -451,6 +764,211 @@ mod tests {
                 );
             }
         }
+    }
+
+    // ── Passkey Request deserialization ───────────────────────────────────────
+
+    #[test]
+    fn parse_get_opened_databases_for_passkey_request() {
+        let json = r#"{"action":"GetOpenedDatabasesForPasskey","association_id":"Firefox","request_id":"req-1"}"#;
+        match serde_json::from_str(json).unwrap() {
+            Request::GetOpenedDatabasesForPasskey {
+                association_id,
+                request_id,
+            } => {
+                assert_eq!(association_id, "Firefox");
+                assert_eq!(request_id, "req-1");
+            }
+            other => panic!("Unexpected variant: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_create_passkey_request_with_optional_fields() {
+        // With entry_uuid, new_entry_name, group_uuid present
+        let json = r#"{
+            "action": "CreatePasskey",
+            "association_id": "Chrome",
+            "request_id": "req-2",
+            "db_key": "/path/to/db.kdbx",
+            "options_json": "{}",
+            "origin": "https://example.com",
+            "entry_uuid": "11111111-1111-1111-1111-111111111111",
+            "new_entry_name": "My Login",
+            "group_uuid": "22222222-2222-2222-2222-222222222222"
+        }"#;
+        match serde_json::from_str(json).unwrap() {
+            Request::CreatePasskey {
+                association_id,
+                db_key,
+                origin,
+                entry_uuid,
+                new_entry_name,
+                group_uuid,
+                ..
+            } => {
+                assert_eq!(association_id, "Chrome");
+                assert_eq!(db_key, "/path/to/db.kdbx");
+                assert_eq!(origin, "https://example.com");
+                assert_eq!(entry_uuid.as_deref(), Some("11111111-1111-1111-1111-111111111111"));
+                assert_eq!(new_entry_name.as_deref(), Some("My Login"));
+                assert_eq!(group_uuid.as_deref(), Some("22222222-2222-2222-2222-222222222222"));
+            }
+            other => panic!("Unexpected variant: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_create_passkey_request_without_optional_fields() {
+        let json = r#"{
+            "action": "CreatePasskey",
+            "association_id": "Chrome",
+            "request_id": "req-3",
+            "db_key": "/path/db.kdbx",
+            "options_json": "{}",
+            "origin": "https://example.com"
+        }"#;
+        match serde_json::from_str(json).unwrap() {
+            Request::CreatePasskey {
+                entry_uuid,
+                new_entry_name,
+                group_uuid,
+                ..
+            } => {
+                assert!(entry_uuid.is_none());
+                assert!(new_entry_name.is_none());
+                assert!(group_uuid.is_none());
+            }
+            other => panic!("Unexpected variant: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_get_passkey_list_request() {
+        let opts = serde_json::json!({
+            "rpId": "example.com",
+            "challenge": "abc",
+            "allowCredentials": [{"type":"public-key","id":"cred-1"},{"type":"public-key","id":"cred-2"}]
+        });
+        let json = serde_json::json!({
+            "action": "GetPasskeyList",
+            "association_id": "Firefox",
+            "request_id": "req-4",
+            "options_json": opts.to_string(),
+            "origin": "https://example.com"
+        })
+        .to_string();
+
+        match serde_json::from_str(&json).unwrap() {
+            Request::GetPasskeyList {
+                association_id,
+                options_json,
+                origin,
+                ..
+            } => {
+                assert_eq!(association_id, "Firefox");
+                assert_eq!(origin, "https://example.com");
+
+                // Verify the options_json parses as expected by the handler
+                let parsed: serde_json::Value = serde_json::from_str(&options_json).unwrap();
+                assert_eq!(parsed["rpId"].as_str().unwrap(), "example.com");
+                let ids: Vec<&str> = parsed["allowCredentials"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|v| v["id"].as_str())
+                    .collect();
+                assert_eq!(ids, vec!["cred-1", "cred-2"]);
+            }
+            other => panic!("Unexpected variant: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_complete_passkey_assertion_request() {
+        let json = r#"{
+            "action": "CompletePasskeyAssertion",
+            "association_id": "Firefox",
+            "request_id": "req-5",
+            "db_key": "/db.kdbx",
+            "entry_uuid": "33333333-3333-3333-3333-333333333333",
+            "options_json": "{}",
+            "origin": "https://example.com"
+        }"#;
+        match serde_json::from_str(json).unwrap() {
+            Request::CompletePasskeyAssertion {
+                association_id,
+                db_key,
+                entry_uuid,
+                origin,
+                ..
+            } => {
+                assert_eq!(association_id, "Firefox");
+                assert_eq!(db_key, "/db.kdbx");
+                assert_eq!(
+                    entry_uuid.to_string(),
+                    "33333333-3333-3333-3333-333333333333"
+                );
+                assert_eq!(origin, "https://example.com");
+            }
+            other => panic!("Unexpected variant: {:?}", other),
+        }
+    }
+
+    // ── get_passkey_list options parsing logic ────────────────────────────────
+    //
+    // This mirrors the extraction logic inside `Request::get_passkey_list` so
+    // that edge cases can be verified without spinning up the full async handler.
+
+    fn extract_rp_id_and_creds(options_json: &str) -> (String, Vec<String>) {
+        let opts: serde_json::Value = serde_json::from_str(options_json).unwrap();
+        let rp_id = opts["rpId"].as_str().unwrap_or("").to_string();
+        let allow_ids: Vec<String> = opts["allowCredentials"]
+            .as_array()
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v["id"].as_str().map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default();
+        (rp_id, allow_ids)
+    }
+
+    #[test]
+    fn options_parsing_with_allow_credentials() {
+        let opts = serde_json::json!({
+            "rpId": "mysite.com",
+            "challenge": "AAAA",
+            "allowCredentials": [
+                {"type": "public-key", "id": "cred-aaa"},
+                {"type": "public-key", "id": "cred-bbb"}
+            ]
+        })
+        .to_string();
+
+        let (rp_id, allow_ids) = extract_rp_id_and_creds(&opts);
+        assert_eq!(rp_id, "mysite.com");
+        assert_eq!(allow_ids, vec!["cred-aaa", "cred-bbb"]);
+    }
+
+    #[test]
+    fn options_parsing_without_allow_credentials() {
+        let opts = serde_json::json!({
+            "rpId": "opensite.com",
+            "challenge": "BBBB"
+        })
+        .to_string();
+
+        let (rp_id, allow_ids) = extract_rp_id_and_creds(&opts);
+        assert_eq!(rp_id, "opensite.com");
+        assert!(allow_ids.is_empty(), "no allowCredentials means empty list");
+    }
+
+    #[test]
+    fn options_parsing_missing_rp_id_falls_back_to_empty_string() {
+        let opts = serde_json::json!({ "challenge": "CCCC" }).to_string();
+        let (rp_id, _) = extract_rp_id_and_creds(&opts);
+        assert_eq!(rp_id, "", "missing rpId should produce empty string");
     }
 }
 

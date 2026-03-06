@@ -37,6 +37,12 @@ futures-util = "0.3"
 data-encoding = "2.9.0"
 crypto_box = "0.9.1"
 
+# Passkey / WebAuthn cryptography
+p256 = { version = "0.13", features = ["ecdsa", "pkcs8", "pem"] }
+sha2 = "0.10"
+ciborium = "0.2"
+rand_core = { version = "0.6", features = ["getrandom"] }
+
 
 ## Adding "devtools" to features list enables devtools in production; But in mac it uses private api 
 ## Tauri rust features are listed in the doc home page https://docs.rs/tauri/2.3.1/tauri/
@@ -44,10 +50,10 @@ crypto_box = "0.9.1"
 tauri = { version = "2", features = [] }
 
 ## using from the local crate during development
-## onekeepass-core = {path = "../../onekeepass-core", version = "0.19.0"} 
+onekeepass-core = {path = "../../onekeepass-core", version = "0.20.0"}
 
-## Need to use the git ref for release 
-onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.19.0" }
+## Need to use the git ref for release
+## onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.19.0" }
 
 tauri-plugin-shell = "2"
 tauri-plugin-process = "2"

@@ -1,8 +1,11 @@
 use onekeepass_core::db_service as kp_service;
 
 use onekeepass_core::error::Result;
+use onekeepass_core::db_service::browser_extension::PasskeySummary;
 use serde::Serialize;
 use uuid::Uuid;
+
+use crate::browser_service::{passkey_db, passkey_db::OpenedDbInfo};
 
 #[derive(Serialize)]
 pub(crate) struct AllMatchedEntries {
@@ -45,3 +48,32 @@ pub(crate) fn entry_details_by_id(
 // pub(crate) fn entry_details_by_id(db_key: &str, entry_uuid: &Uuid) -> Result<kp_service::EntryFormData>  {
 //     kp_service::get_entry_form_data_by_id(db_key, entry_uuid)
 // }
+
+// ── Passkey wrappers ──────────────────────────────────────────────────────────
+
+/// Returns all currently open databases so the user can choose where to store
+/// the new passkey.
+#[inline]
+pub(crate) fn get_opened_databases_for_passkey() -> Result<Vec<OpenedDbInfo>> {
+    passkey_db::get_opened_databases_for_passkey()
+}
+
+/// Searches all open databases for passkeys matching the given RP ID.
+#[inline]
+pub(crate) fn find_matching_passkeys(
+    rp_id: &str,
+    allow_credential_ids: Vec<String>,
+) -> Result<Vec<PasskeySummary>> {
+    passkey_db::find_matching_passkeys(rp_id, allow_credential_ids)
+}
+
+/// Signs a WebAuthn assertion using the passkey stored in the given entry.
+#[inline]
+pub(crate) fn sign_passkey_assertion(
+    db_key: &str,
+    entry_uuid: &Uuid,
+    options_json: &str,
+    origin: &str,
+) -> Result<String> {
+    passkey_db::sign_passkey_assertion(db_key, entry_uuid, options_json, origin)
+}
