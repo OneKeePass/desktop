@@ -1,7 +1,9 @@
 use onekeepass_core::db_service as kp_service;
 
 use onekeepass_core::error::Result;
-use onekeepass_core::db_service::browser_extension::PasskeySummary;
+use onekeepass_core::db_service::browser_extension::{
+    EntryBasicInfo, GroupInfo, PasskeySummary,
+};
 use serde::Serialize;
 use uuid::Uuid;
 
@@ -56,6 +58,21 @@ pub(crate) fn entry_details_by_id(
 #[inline]
 pub(crate) fn get_opened_databases_for_passkey() -> Result<Vec<OpenedDbInfo>> {
     passkey_db::get_opened_databases_for_passkey()
+}
+
+/// Returns all user-visible groups in the database for the passkey group picker.
+#[inline]
+pub(crate) fn get_db_groups_for_passkey(db_key: &str) -> Result<Vec<GroupInfo>> {
+    kp_service::browser_extension::get_db_groups(db_key)
+}
+
+/// Returns all entries in the given group for the passkey entry picker.
+#[inline]
+pub(crate) fn get_group_entries_for_passkey(
+    db_key: &str,
+    group_uuid: &Uuid,
+) -> Result<Vec<EntryBasicInfo>> {
+    kp_service::browser_extension::get_group_entries(db_key, group_uuid)
 }
 
 /// Searches all open databases for passkeys matching the given RP ID.

@@ -60,21 +60,22 @@ pub(crate) fn create_and_store_passkey(
     db_key: &str,
     options_json: &str,
     origin: &str,
-    entry_uuid: Option<String>,
+    existing_entry_uuid: Option<String>,
     new_entry_name: Option<String>,
     group_uuid: Option<String>,
+    new_group_name: Option<String>,
 ) -> Result<String> {
     // 1. Crypto: generate key, build WebAuthn structures
     let creation_result: PasskeyCreationResult =
         passkey_crypto::create_passkey(options_json, origin)?;
 
     // 2. Convert the optional UUIDs from strings
-    let entry_uuid_parsed = entry_uuid
+    let existing_entry_uuid_parsed = existing_entry_uuid
         .as_deref()
         .map(|s| {
             Uuid::parse_str(s).map_err(|e| {
                 onekeepass_core::error::Error::UnexpectedError(format!(
-                    "Invalid entry_uuid: {}",
+                    "Invalid existing_entry_uuid: {}",
                     e
                 ))
             })
@@ -102,9 +103,10 @@ pub(crate) fn create_and_store_passkey(
         username: creation_result.username.clone(),
         user_handle_b64url: creation_result.user_handle_b64url.clone(),
         origin: creation_result.origin.clone(),
-        entry_uuid: entry_uuid_parsed,
+        entry_uuid: existing_entry_uuid_parsed,
         new_entry_name,
         group_uuid: group_uuid_parsed,
+        new_group_name,
     };
     kp_service::browser_extension::store_passkey_entry(db_key, storage_info)?;
 

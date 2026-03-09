@@ -50,11 +50,26 @@ pub enum Request {
         request_id: String,
     },
 
+    /// Step B of passkey creation: fetch user-visible groups in the chosen database.
+    GetDbGroupsForPasskey {
+        association_id: String,
+        request_id: String,
+        db_key: String,
+    },
+
+    /// Step C of passkey creation: fetch entries in the chosen group.
+    GetDbGroupEntriesForPasskey {
+        association_id: String,
+        request_id: String,
+        db_key: String,
+        group_uuid: String,
+    },
+
     // ── Passkey: registration ─────────────────────────────────────────────────
 
-    /// Final passkey creation step. User has selected a database and an entry
-    /// target; the desktop generates the key pair, builds WebAuthn structures,
-    /// stores the key material in KDBX, and returns the credential JSON.
+    /// Final passkey creation step. User has selected a database, group, and
+    /// entry target; the desktop generates the key pair, builds WebAuthn
+    /// structures, stores the key material in KDBX, and returns the credential JSON.
     CreatePasskey {
         association_id: String,
         request_id: String,
@@ -64,11 +79,13 @@ pub enum Request {
         /// Page origin (e.g. `"https://example.com"`).
         origin: String,
         /// UUID of an existing entry to attach the passkey to (optional).
-        entry_uuid: Option<String>,
-        /// Title for a brand-new entry (used when `entry_uuid` is absent).
+        existing_entry_uuid: Option<String>,
+        /// Title for a brand-new entry (used when `existing_entry_uuid` is absent).
         new_entry_name: Option<String>,
-        /// Group UUID for a new entry. Defaults to root group when absent.
+        /// UUID of an existing group for a new entry. Defaults to root when absent.
         group_uuid: Option<String>,
+        /// Name of a brand-new group to create (used when `group_uuid` is absent).
+        new_group_name: Option<String>,
     },
 
     // ── Passkey: authentication ───────────────────────────────────────────────
@@ -140,15 +157,39 @@ impl Request {
                 Self::get_opened_databases_for_passkey(association_id, request_id).await;
             }
 
+            Ok(Request::GetDbGroupsForPasskey {
+                ref association_id,
+                ref request_id,
+                ref db_key,
+            }) => {
+                Self::get_db_groups_for_passkey(association_id, request_id, db_key).await;
+            }
+
+            Ok(Request::GetDbGroupEntriesForPasskey {
+                ref association_id,
+                ref request_id,
+                ref db_key,
+                ref group_uuid,
+            }) => {
+                Self::get_db_group_entries_for_passkey(
+                    association_id,
+                    request_id,
+                    db_key,
+                    group_uuid,
+                )
+                .await;
+            }
+
             Ok(Request::CreatePasskey {
                 ref association_id,
                 ref request_id,
                 ref db_key,
                 ref options_json,
                 ref origin,
-                ref entry_uuid,
+                ref existing_entry_uuid,
                 ref new_entry_name,
                 ref group_uuid,
+                ref new_group_name,
             }) => {
                 Self::create_passkey(
                     association_id,
@@ -156,9 +197,10 @@ impl Request {
                     db_key,
                     options_json,
                     origin,
-                    entry_uuid.clone(),
+                    existing_entry_uuid.clone(),
                     new_entry_name.clone(),
                     group_uuid.clone(),
+                    new_group_name.clone(),
                 )
                 .await;
             }
@@ -388,6 +430,73 @@ impl Request {
         SessionStore::send_session_response(association_id, &resp.json_str()).await;
     }
 
+    async fn get_db_groups_for_passkey(association_id: &str, request_id: &str, db_key: &str) {
+        let json_result = db_calls::get_db_groups_for_passkey(db_key)
+            .and_then(|ref groups| Ok(serde_json::to_string_pretty(groups)?));
+
+        let resp = match json_result {
+            Ok(ref json) => match SessionStore::encrypt(association_id, json).await {
+                Ok((nonce, enc_msg)) => ResponseResult::with_ok(Response::DbGroupsForPasskey {
+                    message_content: enc_msg,
+                    request_id: request_id.to_string(),
+                    nonce,
+                }),
+                Err(error) => ResponseActionName::GetDbGroupsForPasskey.with_error(error),
+            },
+            Err(e) => ResponseResult::from_error(
+                ResponseActionName::GetDbGroupsForPasskey,
+                request_id,
+                &format!("{}", e),
+            ),
+        };
+
+        SessionStore::send_session_response(association_id, &resp.json_str()).await;
+    }
+
+    async fn get_db_group_entries_for_passkey(
+        association_id: &str,
+        request_id: &str,
+        db_key: &str,
+        group_uuid: &str,
+    ) {
+        let parse_result = uuid::Uuid::parse_str(group_uuid);
+
+        let resp = match parse_result {
+            Err(e) => ResponseResult::from_error(
+                ResponseActionName::GetDbGroupEntriesForPasskey,
+                request_id,
+                &format!("Invalid group_uuid: {}", e),
+            ),
+            Ok(group_uuid_parsed) => {
+                let json_result =
+                    db_calls::get_group_entries_for_passkey(db_key, &group_uuid_parsed)
+                        .and_then(|ref entries| Ok(serde_json::to_string_pretty(entries)?));
+
+                match json_result {
+                    Ok(ref json) => match SessionStore::encrypt(association_id, json).await {
+                        Ok((nonce, enc_msg)) => {
+                            ResponseResult::with_ok(Response::DbGroupEntriesForPasskey {
+                                message_content: enc_msg,
+                                request_id: request_id.to_string(),
+                                nonce,
+                            })
+                        }
+                        Err(error) => {
+                            ResponseActionName::GetDbGroupEntriesForPasskey.with_error(error)
+                        }
+                    },
+                    Err(e) => ResponseResult::from_error(
+                        ResponseActionName::GetDbGroupEntriesForPasskey,
+                        request_id,
+                        &format!("{}", e),
+                    ),
+                }
+            }
+        };
+
+        SessionStore::send_session_response(association_id, &resp.json_str()).await;
+    }
+
     #[allow(clippy::too_many_arguments)]
     async fn create_passkey(
         association_id: &str,
@@ -395,17 +504,19 @@ impl Request {
         db_key: &str,
         options_json: &str,
         origin: &str,
-        entry_uuid: Option<String>,
+        existing_entry_uuid: Option<String>,
         new_entry_name: Option<String>,
         group_uuid: Option<String>,
+        new_group_name: Option<String>,
     ) {
         let credential_result = passkey_db::create_and_store_passkey(
             db_key,
             options_json,
             origin,
-            entry_uuid,
+            existing_entry_uuid,
             new_entry_name,
             group_uuid,
+            new_group_name,
         );
 
         let resp = match credential_result {
@@ -591,6 +702,20 @@ pub enum Response {
         nonce: String,
     },
 
+    /// Response to `GetDbGroupsForPasskey`: encrypted JSON array of `GroupInfo`.
+    DbGroupsForPasskey {
+        message_content: String,
+        request_id: String,
+        nonce: String,
+    },
+
+    /// Response to `GetDbGroupEntriesForPasskey`: encrypted JSON array of `EntryBasicInfo`.
+    DbGroupEntriesForPasskey {
+        message_content: String,
+        request_id: String,
+        nonce: String,
+    },
+
     /// Registration complete: encrypted `PublicKeyCredential` JSON ready to
     /// be returned by the extension to the website.
     PasskeyCreated {
@@ -637,6 +762,8 @@ enum ResponseActionName {
     JsonParseError,
     // Passkey
     GetOpenedDatabasesForPasskey,
+    GetDbGroupsForPasskey,
+    GetDbGroupEntriesForPasskey,
     CreatePasskey,
     GetPasskeyList,
     CompletePasskeyAssertion,
@@ -654,6 +781,8 @@ impl ResponseActionName {
             JsonParseError => "JsonParseError",
             // Passkey
             GetOpenedDatabasesForPasskey => "GetOpenedDatabasesForPasskey",
+            GetDbGroupsForPasskey => "GetDbGroupsForPasskey",
+            GetDbGroupEntriesForPasskey => "GetDbGroupEntriesForPasskey",
             CreatePasskey => "CreatePasskey",
             GetPasskeyList => "GetPasskeyList",
             CompletePasskeyAssertion => "CompletePasskeyAssertion",
@@ -793,7 +922,7 @@ mod tests {
             "db_key": "/path/to/db.kdbx",
             "options_json": "{}",
             "origin": "https://example.com",
-            "entry_uuid": "11111111-1111-1111-1111-111111111111",
+            "existing_entry_uuid": "11111111-1111-1111-1111-111111111111",
             "new_entry_name": "My Login",
             "group_uuid": "22222222-2222-2222-2222-222222222222"
         }"#;
@@ -802,7 +931,7 @@ mod tests {
                 association_id,
                 db_key,
                 origin,
-                entry_uuid,
+                existing_entry_uuid,
                 new_entry_name,
                 group_uuid,
                 ..
@@ -810,7 +939,10 @@ mod tests {
                 assert_eq!(association_id, "Chrome");
                 assert_eq!(db_key, "/path/to/db.kdbx");
                 assert_eq!(origin, "https://example.com");
-                assert_eq!(entry_uuid.as_deref(), Some("11111111-1111-1111-1111-111111111111"));
+                assert_eq!(
+                    existing_entry_uuid.as_deref(),
+                    Some("11111111-1111-1111-1111-111111111111")
+                );
                 assert_eq!(new_entry_name.as_deref(), Some("My Login"));
                 assert_eq!(group_uuid.as_deref(), Some("22222222-2222-2222-2222-222222222222"));
             }
@@ -830,14 +962,16 @@ mod tests {
         }"#;
         match serde_json::from_str(json).unwrap() {
             Request::CreatePasskey {
-                entry_uuid,
+                existing_entry_uuid,
                 new_entry_name,
                 group_uuid,
+                new_group_name,
                 ..
             } => {
-                assert!(entry_uuid.is_none());
+                assert!(existing_entry_uuid.is_none());
                 assert!(new_entry_name.is_none());
                 assert!(group_uuid.is_none());
+                assert!(new_group_name.is_none());
             }
             other => panic!("Unexpected variant: {:?}", other),
         }
