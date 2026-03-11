@@ -478,7 +478,8 @@ impl Request {
     }
 
     async fn get_db_groups_for_passkey(association_id: &str, request_id: &str, db_key: &str) {
-        let json_result = db_calls::get_db_groups_for_passkey(db_key)
+        let json_result = db_calls::validate_db_key(db_key)
+            .and_then(|_| db_calls::get_db_groups_for_passkey(db_key))
             .and_then(|ref groups| Ok(serde_json::to_string_pretty(groups)?));
 
         let resp = match json_result {
@@ -515,9 +516,9 @@ impl Request {
                 &format!("Invalid group_uuid: {}", e),
             ),
             Ok(group_uuid_parsed) => {
-                let json_result =
-                    db_calls::get_group_entries_for_passkey(db_key, &group_uuid_parsed)
-                        .and_then(|ref entries| Ok(serde_json::to_string_pretty(entries)?));
+                let json_result = db_calls::validate_db_key(db_key)
+                    .and_then(|_| db_calls::get_group_entries_for_passkey(db_key, &group_uuid_parsed))
+                    .and_then(|ref entries| Ok(serde_json::to_string_pretty(entries)?));
 
                 match json_result {
                     Ok(ref json) => match SessionStore::encrypt(association_id, json).await {
@@ -556,15 +557,17 @@ impl Request {
         group_uuid: Option<String>,
         new_group_name: Option<String>,
     ) {
-        let credential_result = passkey_db::create_and_store_passkey(
-            db_key,
-            options_json,
-            origin,
-            existing_entry_uuid,
-            new_entry_name,
-            group_uuid,
-            new_group_name,
-        );
+        let credential_result = db_calls::validate_db_key(db_key).and_then(|_| {
+            passkey_db::create_and_store_passkey(
+                db_key,
+                options_json,
+                origin,
+                existing_entry_uuid,
+                new_entry_name,
+                group_uuid,
+                new_group_name,
+            )
+        });
 
         let resp = match credential_result {
             Ok(ref credential_json) => {
@@ -652,7 +655,8 @@ impl Request {
         origin: &str,
     ) {
         // sign_passkey_assertion already returns a JSON string — no re-serialization needed.
-        let result = db_calls::sign_passkey_assertion(db_key, entry_uuid, options_json, origin);
+        let result = db_calls::validate_db_key(db_key)
+            .and_then(|_| db_calls::sign_passkey_assertion(db_key, entry_uuid, options_json, origin));
 
         let resp = match result {
             Ok(ref json) => match SessionStore::encrypt(association_id, json).await {
@@ -682,7 +686,8 @@ impl Request {
         entry_uuid: &Uuid,
         request_id: &str,
     ) {
-        let json_converted_result = db_calls::entry_details_by_id(db_key, entry_uuid)
+        let json_converted_result = db_calls::validate_db_key(db_key)
+            .and_then(|_| db_calls::entry_details_by_id(db_key, entry_uuid))
             .and_then(|ref s| Ok(serde_json::to_string_pretty(s)?));
 
         let resp = match json_converted_result {

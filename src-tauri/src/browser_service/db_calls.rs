@@ -9,6 +9,21 @@ use uuid::Uuid;
 
 use crate::browser_service::{passkey_db, passkey_db::OpenedDbInfo};
 
+/// Validates that `db_key` refers to a currently open database.
+/// Returns a generic error if the key is not recognised to avoid revealing
+/// which databases exist (enumeration protection).
+pub(crate) fn validate_db_key(db_key: &str) -> Result<()> {
+    let open_keys = kp_service::all_kdbx_cache_keys()?;
+    if open_keys.iter().any(|k| k == db_key) {
+        Ok(())
+    } else {
+        log::warn!("db_key validation failed — key not in open databases");
+        Err(onekeepass_core::error::Error::UnexpectedError(
+            "DATABASE_NOT_AVAILABLE".to_string(),
+        ))
+    }
+}
+
 #[derive(Serialize)]
 pub(crate) struct AllMatchedEntries {
     browser_enabled_db_available: bool,
