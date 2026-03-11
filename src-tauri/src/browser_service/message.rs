@@ -8,6 +8,7 @@ use crate::app_state;
 use crate::browser_service::{
     db_calls,
     key_share::{BrowserServiceTx, SessionStore},
+    native_messaging_config,
     passkey_db,
     verifier, SUPPORTED_BROWSERS,
 };
@@ -18,6 +19,10 @@ pub enum Request {
     // Called first time when the extension app is about to use the OneKeePass app
     Associate {
         client_id: String,
+        /// Browser extension ID sent by the extension (e.g. "onekeepass@gmail.com" for Firefox).
+        /// Validated against the known OneKeePass extension IDs before proceeding.
+        #[serde(default)]
+        extension_id: Option<String>,
     },
 
     // Session pub key from client for the shared key encryption/decryption
@@ -110,6 +115,16 @@ pub enum Request {
     },
 }
 
+/// Returns true if `extension_id` is a known OneKeePass extension for the given browser.
+/// IDs are sourced from the same constants written into the native messaging manifest files.
+fn is_known_extension_id(browser_id: &str, extension_id: &str) -> bool {
+    match browser_id {
+        "Firefox" => extension_id == native_messaging_config::FIREFOX_EXTENSION_ID,
+        "Chrome" => native_messaging_config::CHROME_EXTENSION_IDS.contains(&extension_id),
+        _ => false,
+    }
+}
+
 impl Request {
     // Called when the app side proxy handler receives a native message json string from browser extension through okp proxy stdio app
     pub(crate) async fn handle_input_message(input_message: String, sender: Arc<BrowserServiceTx>) {
@@ -119,8 +134,8 @@ impl Request {
         // Currently there is no request that has any sensitive data. So the extension side no encryption is done
         // In the future we pass any sensitive data as "message_data", then we need to decrypt and then convert that json to rust struct
         match serde_json::from_str(&input_message) {
-            Ok(Request::Associate { client_id }) => {
-                Self::verify(client_id, sender).await;
+            Ok(Request::Associate { client_id, extension_id }) => {
+                Self::verify(client_id, extension_id, sender).await;
             }
 
             Ok(Request::InitSessionKey {
@@ -261,7 +276,7 @@ impl Request {
     // Called first time when the extension sends the associate message
     // Need to check that either user has already enabled the browser extension use and if not we need to ask user
     // confirm the extension use
-    async fn verify(client_id: String, sender: Arc<BrowserServiceTx>) {
+    async fn verify(client_id: String, extension_id: Option<String>, sender: Arc<BrowserServiceTx>) {
         // Incoming client_id is the same as browser_id (e.g Firefox,Chrome)
         // At this time client_id, browser_id and association_id are the same
 
@@ -280,6 +295,35 @@ impl Request {
             // No session is yet available and we send the error responde directly
             let _r = sender.send(resp.json_str()).await;
             return;
+        }
+
+        // Verify that the connecting extension is a known OneKeePass extension.
+        // This guards against a different extension of the same browser obtaining silent
+        // auto-allow after the user has approved the legitimate OneKeePass extension once.
+        match &extension_id {
+            Some(ext_id) if !is_known_extension_id(&browser_id, ext_id) => {
+                log::error!(
+                    "Unknown extension id '{}' for browser '{}' — rejecting association",
+                    ext_id, &browser_id
+                );
+                let resp = ResponseResult::with_error(
+                    ResponseActionName::Associate,
+                    "UNKNOWN_EXTENSION_ID",
+                );
+                let _r = sender.send(resp.json_str()).await;
+                return;
+            }
+            None => {
+                // extension_id field was not sent (old client or tampered request) — reject.
+                log::error!("No extension_id in Associate request for browser '{}' — rejecting", &browser_id);
+                let resp = ResponseResult::with_error(
+                    ResponseActionName::Associate,
+                    "MISSING_EXTENSION_ID",
+                );
+                let _r = sender.send(resp.json_str()).await;
+                return;
+            }
+            _ => {} // extension_id is present and recognised — continue
         }
 
         // First we create a callback that will be called with 'confirmed' value after user confirms

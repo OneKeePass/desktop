@@ -72,7 +72,7 @@ impl<'a> FirefoxNativeMessagingConfig<'a> {
         );
 
         let config = FirefoxNativeMessagingConfig {
-            allowed_extensions: vec!["onekeepass@gmail.com"],
+            allowed_extensions: vec![FIREFOX_EXTENSION_ID],
             description: "OneKeePass integration with native messaging support",
             name: OKP_NATIVE_APP_NAME,
             path: &proxy_executable_path,
@@ -208,8 +208,18 @@ impl<'a> FirefoxNativeMessagingConfig<'a> {
     }
 }
 
-const CHROME_EXTENSION_ID1: &str = "ijkbdjdmmmbkjbdmmlcejonhmjnkhkka";
-const CHROME_EXTENSION_ID2: &str = "cmdmojmbfcpkloflnjkkdjcflaidangh";
+/// Known OneKeePass Firefox extension ID (matches `allowed_extensions` in the native messaging manifest).
+pub const FIREFOX_EXTENSION_ID: &str = "onekeepass@gmail.com";
+
+/// Known OneKeePass Chrome extension IDs (match `allowed_origins` in the native messaging manifest).
+pub const CHROME_EXTENSION_IDS: &[&str] = &[
+    "ijkbdjdmmmbkjbdmmlcejonhmjnkhkka",
+    "cmdmojmbfcpkloflnjkkdjcflaidangh",
+];
+
+// Private aliases used within this module for the manifest config builder.
+const CHROME_EXTENSION_ID1: &str = CHROME_EXTENSION_IDS[0];
+const CHROME_EXTENSION_ID2: &str = CHROME_EXTENSION_IDS[1];
 
 #[derive(Serialize)]
 pub(crate) struct ChromeNativeMessagingConfig<'a> {
