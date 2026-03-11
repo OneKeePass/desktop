@@ -301,8 +301,11 @@ impl Request {
 
                 Box::pin({
                     let client_id = client_id.clone();
-                    // TODO:  Instead of using 'client_id', Shoud we generate a random name for each session 'association_id' returned?
-                    let association_id = client_id.clone();
+                    // Generate a unique association_id per session so multiple browser
+                    // connections (different profiles, users) cannot collide or hijack
+                    // each other's session. The client_id ("Firefox"/"Chrome") is kept
+                    // separately for preference checks but is no longer the session key.
+                    let association_id = Uuid::new_v4().to_string();
                     let sender = sender.clone();
 
                     async move {
