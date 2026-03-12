@@ -86,8 +86,8 @@ impl SessionStore {
 
     // Session specific message encryption
     pub(crate) async fn encrypt(association_id: &str, message: &str) -> Result<(String, String)> {
-        let sessions = Self::shared().sessions.lock().await;
-        sessions.get(association_id).map_or(
+        let mut sessions = Self::shared().sessions.lock().await;
+        sessions.get_mut(association_id).map_or(
             Err(Error::DataError("Session is not available")),
             |session| session.encrypt(message),
         )
@@ -113,6 +113,11 @@ struct Session {
     // app_session_private_key: Option<SecretKey>,
     // app_session_pub_key: String,
     // client_session_pub_key: Option<PublicKey>,
+
+    /// Monotonically increasing counter embedded in every encrypted message
+    /// (inside the plaintext envelope) to prevent replay attacks.
+    /// Starts at 1 on the first encrypted message sent this session.
+    send_counter: u64,
 }
 
 impl Session {
@@ -147,16 +152,26 @@ impl Session {
         Ok(BASE64.encode(&pub_key))
     }
 
-    fn encrypt(&self, message: &str) -> Result<(String, String)> {
+    fn encrypt(&mut self, message: &str) -> Result<(String, String)> {
         let Some(app_crypto_box) = self.app_crypto_box.as_ref() else {
             return Err(Error::DataError("App crypto box is not available"));
         };
 
-        // Each encryption uses a nonce
+        // Increment per-session counter and embed it in the plaintext before
+        // encrypting. The extension validates that each received seq is strictly
+        // greater than the previous one, preventing replay attacks.
+        self.send_counter += 1;
+        let envelope = serde_json::json!({
+            "seq": self.send_counter,
+            "msg": message,
+        })
+        .to_string();
+
+        // Each encryption uses a fresh random nonce
         let nonce = SalsaBox::generate_nonce(&mut OsRng);
 
         let enc_data = app_crypto_box
-            .encrypt(&nonce, message.as_bytes())
+            .encrypt(&nonce, envelope.as_bytes())
             .map_err(|_| "Error in encryption")?;
 
         Ok((BASE64.encode(&nonce), BASE64.encode(&enc_data)))
