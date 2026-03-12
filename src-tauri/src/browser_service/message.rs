@@ -125,6 +125,24 @@ fn is_known_extension_id(browser_id: &str, extension_id: &str) -> bool {
     }
 }
 
+/// Rejects oversized string fields before they reach the database or crypto layer.
+/// Returns a generic error to avoid leaking field details to the caller.
+fn check_field_len(field_name: &str, value: &str, max_bytes: usize) -> onekeepass_core::error::Result<()> {
+    if value.len() > max_bytes {
+        log::warn!(
+            "Input field '{}' exceeds max size ({} > {} bytes) — rejecting",
+            field_name,
+            value.len(),
+            max_bytes
+        );
+        Err(onekeepass_core::error::Error::UnexpectedError(
+            "FIELD_TOO_LARGE".to_string(),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 impl Request {
     // Called when the app side proxy handler receives a native message json string from browser extension through okp proxy stdio app
     pub(crate) async fn handle_input_message(input_message: String, sender: Arc<BrowserServiceTx>) {
@@ -394,6 +412,12 @@ impl Request {
     }
 
     async fn init_session(association_id: &str, client_session_pub_key: &str) {
+        // Curve25519 public key is 32 bytes → base64 = 44 chars; 64 gives ample headroom
+        if let Err(e) = check_field_len("client_session_pub_key", client_session_pub_key, 64) {
+            let resp = ResponseResult::with_error(ResponseActionName::InitSessionKey, &format!("{}", e));
+            SessionStore::send_session_response(association_id, &resp.json_str()).await;
+            return;
+        }
         let resp = match SessionStore::init_session(association_id, client_session_pub_key).await {
             Ok(app_session_pub_key) => {
                 let (nonce, enc_msg) = SessionStore::encrypt(
@@ -423,7 +447,8 @@ impl Request {
         input_url: &str,
         request_id: &str,
     ) {
-        let matched_entries = db_calls::find_matching_in_enabled_db_entries(input_url)
+        let matched_entries = check_field_len("form_url", input_url, 2048)
+            .and_then(|_| db_calls::find_matching_in_enabled_db_entries(input_url))
             .and_then(|ref s| Ok(serde_json::to_string_pretty(s)?));
 
         let resp = match matched_entries {
@@ -557,7 +582,12 @@ impl Request {
         group_uuid: Option<String>,
         new_group_name: Option<String>,
     ) {
-        let credential_result = db_calls::validate_db_key(db_key).and_then(|_| {
+        let credential_result = check_field_len("options_json", options_json, 65536)
+            .and_then(|_| check_field_len("origin", origin, 512))
+            .and_then(|_| check_field_len("new_entry_name", new_entry_name.as_deref().unwrap_or(""), 512))
+            .and_then(|_| check_field_len("new_group_name", new_group_name.as_deref().unwrap_or(""), 512))
+            .and_then(|_| db_calls::validate_db_key(db_key))
+            .and_then(|_| {
             passkey_db::create_and_store_passkey(
                 db_key,
                 options_json,
@@ -594,8 +624,20 @@ impl Request {
         association_id: &str,
         request_id: &str,
         options_json: &str,
-        _origin: &str,
+        origin: &str,
     ) {
+        // Validate field sizes before parsing
+        if let Err(e) = check_field_len("options_json", options_json, 65536)
+            .and_then(|_| check_field_len("origin", origin, 512))
+        {
+            let resp = ResponseResult::from_error(
+                ResponseActionName::GetPasskeyList,
+                request_id,
+                &format!("{}", e),
+            );
+            SessionStore::send_session_response(association_id, &resp.json_str()).await;
+            return;
+        }
         // Extract rpId and allowCredentials from the options JSON
         let parse_result: Result<serde_json::Value, _> = serde_json::from_str(options_json);
 
@@ -655,7 +697,9 @@ impl Request {
         origin: &str,
     ) {
         // sign_passkey_assertion already returns a JSON string — no re-serialization needed.
-        let result = db_calls::validate_db_key(db_key)
+        let result = check_field_len("options_json", options_json, 65536)
+            .and_then(|_| check_field_len("origin", origin, 512))
+            .and_then(|_| db_calls::validate_db_key(db_key))
             .and_then(|_| db_calls::sign_passkey_assertion(db_key, entry_uuid, options_json, origin));
 
         let resp = match result {
