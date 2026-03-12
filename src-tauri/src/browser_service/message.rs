@@ -83,6 +83,10 @@ pub enum Request {
         options_json: String,
         /// Page origin (e.g. `"https://example.com"`).
         origin: String,
+        /// Full URL of the browser tab that initiated the ceremony.
+        /// Used to cross-verify that `origin` matches the actual page URL.
+        #[serde(default)]
+        tab_url: Option<String>,
         /// UUID of an existing entry to attach the passkey to (optional).
         existing_entry_uuid: Option<String>,
         /// Title for a brand-new entry (used when `existing_entry_uuid` is absent).
@@ -102,6 +106,9 @@ pub enum Request {
         /// JSON of `PublicKeyCredentialRequestOptions` from the website.
         options_json: String,
         origin: String,
+        /// Full URL of the browser tab that initiated the ceremony.
+        #[serde(default)]
+        tab_url: Option<String>,
     },
 
     /// Step 2 of authentication: user has chosen a passkey; sign the assertion.
@@ -112,6 +119,9 @@ pub enum Request {
         entry_uuid: Uuid,
         options_json: String,
         origin: String,
+        /// Full URL of the browser tab that initiated the ceremony.
+        #[serde(default)]
+        tab_url: Option<String>,
     },
 }
 
@@ -123,6 +133,70 @@ fn is_known_extension_id(browser_id: &str, extension_id: &str) -> bool {
         "Chrome" => native_messaging_config::CHROME_EXTENSION_IDS.contains(&extension_id),
         _ => false,
     }
+}
+
+/// Validates that `origin` is a syntactically well-formed `https://` origin:
+/// scheme must be `https`, host must be non-empty, and no path/query/fragment
+/// may be present.  Rejects `http://` origins outright — WebAuthn credentials
+/// must only be scoped to HTTPS origins.
+fn validate_https_origin(origin: &str) -> onekeepass_core::error::Result<()> {
+    let host_part = origin
+        .strip_prefix("https://")
+        .ok_or_else(|| onekeepass_core::error::Error::UnexpectedError("INVALID_ORIGIN".to_string()))?;
+
+    if host_part.is_empty()
+        || host_part.contains('/')
+        || host_part.contains('?')
+        || host_part.contains('#')
+        || host_part.chars().any(|c| c.is_ascii_whitespace() || c.is_control())
+    {
+        log::warn!("Passkey origin validation failed: '{}'", origin);
+        return Err(onekeepass_core::error::Error::UnexpectedError(
+            "INVALID_ORIGIN".to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
+/// Cross-references the claimed `origin` against the full `tab_url` supplied by
+/// the extension.  The tab URL must start with the exact origin string followed
+/// immediately by `'/'`, `'?'`, `'#'`, or end-of-string, preventing subdomain
+/// confusion (e.g. `https://evil.com` cannot match `https://evil.com.bank.com/`).
+///
+/// When `tab_url` is absent (e.g. the extension sent an older message format)
+/// the check is skipped so the call does not break existing connections.
+fn validate_origin_matches_tab_url(origin: &str, tab_url: Option<&str>) -> onekeepass_core::error::Result<()> {
+    let Some(url) = tab_url else {
+        return Ok(()); // tab_url not provided — skip cross-reference
+    };
+    if url.is_empty() {
+        return Ok(()); // empty string treated as absent
+    }
+    if !url.starts_with(origin) {
+        log::warn!(
+            "Origin '{}' does not match tab URL '{}' — rejecting",
+            origin, url
+        );
+        return Err(onekeepass_core::error::Error::UnexpectedError(
+            "ORIGIN_TAB_MISMATCH".to_string(),
+        ));
+    }
+    // The character immediately after the origin must be '/', '?', '#', or end-of-string.
+    // This prevents `https://evil.com` from passing when tab_url is `https://evil.com.bank.com/`.
+    let remainder = &url[origin.len()..];
+    if !remainder.is_empty()
+        && !matches!(remainder.chars().next(), Some('/') | Some('?') | Some('#'))
+    {
+        log::warn!(
+            "Origin '{}' does not cleanly terminate in tab URL '{}' — possible subdomain bypass",
+            origin, url
+        );
+        return Err(onekeepass_core::error::Error::UnexpectedError(
+            "ORIGIN_TAB_MISMATCH".to_string(),
+        ));
+    }
+    Ok(())
 }
 
 /// Rejects oversized string fields before they reach the database or crypto layer.
@@ -219,6 +293,7 @@ impl Request {
                 ref db_key,
                 ref options_json,
                 ref origin,
+                ref tab_url,
                 ref existing_entry_uuid,
                 ref new_entry_name,
                 ref group_uuid,
@@ -230,6 +305,7 @@ impl Request {
                     db_key,
                     options_json,
                     origin,
+                    tab_url.as_deref(),
                     existing_entry_uuid.clone(),
                     new_entry_name.clone(),
                     group_uuid.clone(),
@@ -243,8 +319,9 @@ impl Request {
                 ref request_id,
                 ref options_json,
                 ref origin,
+                ref tab_url,
             }) => {
-                Self::get_passkey_list(association_id, request_id, options_json, origin).await;
+                Self::get_passkey_list(association_id, request_id, options_json, origin, tab_url.as_deref()).await;
             }
 
             Ok(Request::CompletePasskeyAssertion {
@@ -254,6 +331,7 @@ impl Request {
                 ref entry_uuid,
                 ref options_json,
                 ref origin,
+                ref tab_url,
             }) => {
                 Self::complete_passkey_assertion(
                     association_id,
@@ -262,6 +340,7 @@ impl Request {
                     entry_uuid,
                     options_json,
                     origin,
+                    tab_url.as_deref(),
                 )
                 .await;
             }
@@ -577,6 +656,7 @@ impl Request {
         db_key: &str,
         options_json: &str,
         origin: &str,
+        tab_url: Option<&str>,
         existing_entry_uuid: Option<String>,
         new_entry_name: Option<String>,
         group_uuid: Option<String>,
@@ -584,6 +664,8 @@ impl Request {
     ) {
         let credential_result = check_field_len("options_json", options_json, 65536)
             .and_then(|_| check_field_len("origin", origin, 512))
+            .and_then(|_| validate_https_origin(origin))
+            .and_then(|_| validate_origin_matches_tab_url(origin, tab_url))
             .and_then(|_| check_field_len("new_entry_name", new_entry_name.as_deref().unwrap_or(""), 512))
             .and_then(|_| check_field_len("new_group_name", new_group_name.as_deref().unwrap_or(""), 512))
             .and_then(|_| db_calls::validate_db_key(db_key))
@@ -625,10 +707,13 @@ impl Request {
         request_id: &str,
         options_json: &str,
         origin: &str,
+        tab_url: Option<&str>,
     ) {
-        // Validate field sizes before parsing
+        // Validate field sizes, origin structure, and tab-url cross-reference before parsing
         if let Err(e) = check_field_len("options_json", options_json, 65536)
             .and_then(|_| check_field_len("origin", origin, 512))
+            .and_then(|_| validate_https_origin(origin))
+            .and_then(|_| validate_origin_matches_tab_url(origin, tab_url))
         {
             let resp = ResponseResult::from_error(
                 ResponseActionName::GetPasskeyList,
@@ -695,10 +780,13 @@ impl Request {
         entry_uuid: &Uuid,
         options_json: &str,
         origin: &str,
+        tab_url: Option<&str>,
     ) {
         // sign_passkey_assertion already returns a JSON string — no re-serialization needed.
         let result = check_field_len("options_json", options_json, 65536)
             .and_then(|_| check_field_len("origin", origin, 512))
+            .and_then(|_| validate_https_origin(origin))
+            .and_then(|_| validate_origin_matches_tab_url(origin, tab_url))
             .and_then(|_| db_calls::validate_db_key(db_key))
             .and_then(|_| db_calls::sign_passkey_assertion(db_key, entry_uuid, options_json, origin));
 
