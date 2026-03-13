@@ -5,6 +5,7 @@
 //! between the browser extension and the desktop app.
 
 use serde::Serialize;
+use tauri::{Emitter, Manager};
 use uuid::Uuid;
 
 use onekeepass_core::db_service as kp_service;
@@ -13,7 +14,15 @@ use onekeepass_core::db_service::browser_extension::{
     PasskeyEntry, PasskeySummary, PasskeyStorageInfo,
 };
 
+use crate::app_state;
 use crate::browser_service::passkey_crypto::{self, PasskeyCreationResult};
+use crate::constants::event_names::PASSKEY_DATA_CHANGED_EVENT;
+use crate::constants::window_labels::MAIN_WINDOW_LABEL;
+
+#[derive(Clone, Serialize)]
+struct PasskeyChangedPayload {
+    db_key: String,
+}
 
 // ── Shared data structures ────────────────────────────────────────────────────
 
@@ -108,10 +117,23 @@ pub(crate) fn create_and_store_passkey(
         group_uuid: group_uuid_parsed,
         new_group_name,
     };
-    kp_service::browser_extension::store_passkey_entry(db_key, storage_info)?;
+    // 4. Delegate entry create/update + save to core (with correct backup path)
+    let backup_file_name = app_state::AppState::state_instance().get_backup_file(db_key);
+    kp_service::browser_extension::create_and_store_passkey(
+        db_key,
+        storage_info,
+        backup_file_name.as_deref(),
+    )?;
 
-    // 4. Persist KDBX file to disk
-    kp_service::save_kdbx_with_backup(db_key, None, false)?;
+    // 5. Notify the main window so the UI reloads the entry list
+    if let Some(win) = app_state::AppState::global_app_handle()
+        .get_webview_window(MAIN_WINDOW_LABEL)
+    {
+        let _ = win.emit(
+            PASSKEY_DATA_CHANGED_EVENT,
+            PasskeyChangedPayload { db_key: db_key.to_string() },
+        );
+    }
 
     Ok(creation_result.credential_json)
 }

@@ -100,6 +100,7 @@
 (def OTP_TOKEN_UPDATE_EVENT "OtpTokenUpdateEvent")
 (def TAURI_MENU_EVENT "TauriMenuEvent")
 (def BROWSER_CONNECTION_REQUEST_EVENT "BrowserConnectionRequestEvent")
+(def PASSKEY_DATA_CHANGED_EVENT "PasskeyDataChangedEvent")
 
 (def WINDOW_FOCUS_CHANGED "WindowFocusChanged")
 (def CLOSE_REQUESTED  "CloseRequested")

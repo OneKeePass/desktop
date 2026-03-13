@@ -6,7 +6,7 @@
    [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.constants :as const :refer
     [BROWSER_CONNECTION_REQUEST_EVENT CLOSE_REQUESTED MAIN_WINDOW_EVENT
-     OTP_TOKEN_UPDATE_EVENT TAURI_MENU_EVENT WINDOW_FOCUS_CHANGED]]
+     OTP_TOKEN_UPDATE_EVENT PASSKEY_DATA_CHANGED_EVENT TAURI_MENU_EVENT WINDOW_FOCUS_CHANGED]]
    [re-frame.core :refer [dispatch]]))
 
 (defn- to-cljs [js-event-repsonse]
@@ -144,11 +144,19 @@
 (defn- register-browser-connection-request-event []
   (bg/register-event-listener BROWSER_CONNECTION_REQUEST_EVENT handle-browser-connection-request-event))
 
+(defn- handle-passkey-data-changed-event [_js-event]
+  (dispatch [:entry-list/entry-updated])
+  (dispatch [:entry-category/reload-category-data]))
+
+(defn- register-passkey-data-changed-event []
+  (bg/register-event-listener PASSKEY_DATA_CHANGED_EVENT handle-passkey-data-changed-event))
+
 (defn register-tauri-events []
   (register-menu-events)
   (register-main-window-events)
   (register-otp-token-update-events)
-  (register-browser-connection-request-event))
+  (register-browser-connection-request-event)
+  (register-passkey-data-changed-event))
 
 (defn enable-app-menu [menu-id enable? & {:as menu-args}]
   ;; (println "Going to call for menu-id " menu-id enable? menu-args)
