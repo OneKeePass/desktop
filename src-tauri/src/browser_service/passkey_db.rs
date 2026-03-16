@@ -119,6 +119,9 @@ pub(crate) fn create_and_store_passkey(
     };
     // 4. Delegate entry create/update + save to core (with correct backup path)
     let backup_file_name = app_state::AppState::state_instance().get_backup_file(db_key);
+
+    log::debug!("Passkey creation kdbx backup_file_name {:?}",&backup_file_name);
+
     kp_service::browser_extension::create_and_store_passkey(
         db_key,
         storage_info,
