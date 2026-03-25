@@ -132,6 +132,7 @@ pub(crate) fn create_and_store_passkey(
     if let Some(win) = app_state::AppState::global_app_handle()
         .get_webview_window(MAIN_WINDOW_LABEL)
     {
+        log::debug!("Emiting event PASSKEY_DATA_CHANGED_EVENT in db message to the UI layer");
         let _ = win.emit(
             PASSKEY_DATA_CHANGED_EVENT,
             PasskeyChangedPayload { db_key: db_key.to_string() },

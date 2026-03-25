@@ -90,13 +90,23 @@ pub(crate) fn get_group_entries_for_passkey(
     kp_service::browser_extension::get_group_entries(db_key, group_uuid)
 }
 
+/// Wraps the passkey list with a `browser_enabled_db_available` flag so the
+/// browser extension can distinguish "no DB open" from "no matching passkeys".
+#[derive(Serialize)]
+pub(crate) struct PasskeyListResult {
+    browser_enabled_db_available: bool,
+    passkey_list: Vec<PasskeySummary>,
+}
+
 /// Searches all open databases for passkeys matching the given RP ID.
-#[inline]
 pub(crate) fn find_matching_passkeys(
     rp_id: &str,
     allow_credential_ids: Vec<String>,
-) -> Result<Vec<PasskeySummary>> {
-    passkey_db::find_matching_passkeys(rp_id, allow_credential_ids)
+) -> Result<PasskeyListResult> {
+    let db_keys = kp_service::all_kdbx_cache_keys()?;
+    let browser_enabled_db_available = !db_keys.is_empty();
+    let passkey_list = passkey_db::find_matching_passkeys(rp_id, allow_credential_ids)?;
+    Ok(PasskeyListResult { browser_enabled_db_available, passkey_list })
 }
 
 /// Signs a WebAuthn assertion using the passkey stored in the given entry.

@@ -149,6 +149,7 @@
   (dispatch [:entry-category/reload-category-data]))
 
 (defn- register-passkey-data-changed-event []
+  (println "PASSKEY_DATA_CHANGED_EVENT received")
   (bg/register-event-listener PASSKEY_DATA_CHANGED_EVENT handle-passkey-data-changed-event))
 
 (defn register-tauri-events []
