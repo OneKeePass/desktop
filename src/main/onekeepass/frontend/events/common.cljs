@@ -579,7 +579,7 @@
 (reg-event-fx
  :common/passkey-db-data-changed
  (fn [{:keys [db]} [_event-id db-key]]
-   (println "in :common/passkey-db-data-changed refreshing db" db-key)
+   ;;(println "in :common/passkey-db-data-changed refreshing db" db-key)
    {:db (set-active-db-key-direct db db-key)
     :fx [[:dispatch [:load-all-tags]]
          [:dispatch [:group-tree-content/load-groups]]

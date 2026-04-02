@@ -42,7 +42,7 @@
 
 (def react-use-state ^js/UseState (.-useState ^js/React react)) ;; (.-useState ^js/React react)
 (def react-use-effect ^js/UseEffect (.-useEffect ^js/React react))
-#_(def react-use-ref (.-useRef ^js/React react))
+(def react-use-ref ^js/UseRef (.-useRef ^js/React react))
 
 #_(def use-idle-timer (.-useIdleTimer ^js/ReactIdleTimer react-idle-timer))
 
@@ -516,16 +516,62 @@
 (def ^:private input-component
   (react/forwardRef
    (fn [props ref]
-     (r/as-element
-      [:input (-> (js->clj props :keywordize-keys true)
-                  (assoc :ref ref))]))))
+     ;; composing tracks whether an IME composition session is active;
+     ;; while true, onChange is suppressed to avoid committing partial keystrokes
+     (let [^js composing (react-use-ref false)
+           clj-props (js->clj props :keywordize-keys true)
+           orig-on-change (:onChange clj-props)
+           orig-on-composition-start (:onCompositionStart clj-props)
+           orig-on-composition-end (:onCompositionEnd clj-props)]
+       (r/as-element
+        [:input
+         (-> clj-props
+             (assoc :ref ref)
+             (assoc :onCompositionStart
+                    (fn [e]
+                      (set! (.-current composing) true)
+                      (when orig-on-composition-start
+                        (orig-on-composition-start e))))
+             (assoc :onCompositionEnd
+                    (fn [e]
+                      (set! (.-current composing) false)
+                      (when orig-on-composition-end
+                        (orig-on-composition-end e))))
+             (assoc :onChange
+                    (fn [e]
+                      (when (and orig-on-change
+                                 (not (.-current composing)))
+                        (orig-on-change e)))))])))))
 
 (def ^:private textarea-component
   (react/forwardRef
    (fn [props ref]
-     (r/as-element
-      [:textarea (-> (js->clj props :keywordize-keys true)
-                     (assoc :ref ref))]))))
+     ;; composing tracks whether an IME composition session is active;
+     ;; while true, onChange is suppressed to avoid committing partial keystrokes
+     (let [^js composing (react-use-ref false)
+           clj-props (js->clj props :keywordize-keys true)
+           orig-on-change (:onChange clj-props)
+           orig-on-composition-start (:onCompositionStart clj-props)
+           orig-on-composition-end (:onCompositionEnd clj-props)]
+       (r/as-element
+        [:textarea
+         (-> clj-props
+             (assoc :ref ref)
+             (assoc :onCompositionStart
+                    (fn [e]
+                      (set! (.-current composing) true)
+                      (when orig-on-composition-start
+                        (orig-on-composition-start e))))
+             (assoc :onCompositionEnd
+                    (fn [e]
+                      (set! (.-current composing) false)
+                      (when orig-on-composition-end
+                        (orig-on-composition-end e))))
+             (assoc :onChange
+                    (fn [e]
+                      (when (and orig-on-change
+                                 (not (.-current composing)))
+                        (orig-on-change e)))))])))))
 
 ;; To fix cursor jumping when controlled input value is changed,
 ;; use wrapper input element created by Reagent instead of
