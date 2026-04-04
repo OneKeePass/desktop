@@ -245,6 +245,11 @@
         "expirationYear": "سنة الانتهاء",
         "expiryDuration": "مدة الانتهاء",
         "issuingBank": "البنك المصدر",
+        "kpexPasskeyUsername": "اسم مستخدم Passkey",
+        "kpexPasskeyRelyingParty": "Relying Party",
+        "kpexPasskeyUserHandle": "معرف المستخدم",
+        "kpexPasskeyCredentialId": "معرف بيانات اعتماد Passkey",
+        "kpexPasskeyPrivateKeyPem": "مفتاح خاص PEM لـ Passkey",
         "notes": "ملاحظات",
         "number": "الرقم",
         "otp": "otp",
@@ -268,6 +273,7 @@
         "billingAddress": "عنوان الفوترة",
         "cardDetails": "تفاصيل البطاقة",
         "notes": "ملاحظات",
+        "passkeyDetails": "تفاصيل Passkey",
         "loginDetails": "تفاصيل تسجيل الدخول"
     },
     "buttonLabels": {
