@@ -3,7 +3,7 @@
 
 #### Fixed
 - non-English input method bug [#65](https://github.com/OneKeePass/desktop/issues/65) - Thanks [PandaFang](https://github.com/PandaFang)
-- Deleted groups are excluded from not showing up in certain UI pages
+- Deleted groups are excluded from showing up in certain UI pages
 
 ### 0.18.0
 
