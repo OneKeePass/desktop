@@ -574,6 +574,20 @@
          ;; has been changed externally and load accordingly
          [:bg-read-and-verify-db-file [(active-db-key db)]]]}))
 
+;; Dispatched when the browser extension creates/updates a passkey in a db.
+;; Sets UI state as if the database is freshly opened and active.
+(reg-event-fx
+ :common/passkey-db-data-changed
+ (fn [{:keys [db]} [_event-id db-key]]
+   ;;(println "in :common/passkey-db-data-changed refreshing db" db-key)
+   {:db (set-active-db-key-direct db db-key)
+    :fx [[:dispatch [:load-all-tags]]
+         [:dispatch [:group-tree-content/load-groups]]
+         [:dispatch [:entry-category/category-data-load-start
+                     (-> db :app-preference :default-entry-category-groupings)]]
+         [:dispatch [:common/load-entry-type-headers]]
+         [:dispatch [:common/show-content :group-entry]]]}))
+
 
 ;; Called to detect whether database has been changed externally or not
 (reg-fx

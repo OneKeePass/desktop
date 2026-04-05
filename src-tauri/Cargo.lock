@@ -654,6 +654,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "ciborium"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42e69ffd6f0917f5c029256a24d0161db17cea3997d185db0d35926308770f0e"
+dependencies = [
+ "ciborium-io",
+ "ciborium-ll",
+ "serde",
+]
+
+[[package]]
+name = "ciborium-io"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05afea1e0a06c9be33d539b876f1ce3692f4afea2cb41f740e7743225ed1c757"
+
+[[package]]
+name = "ciborium-ll"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57663b653d948a338bfb3eeba9bb2fd5fcfaecb9e199e87e1eda4d9e8b240fd9"
+dependencies = [
+ "ciborium-io",
+ "half",
+]
+
+[[package]]
 name = "cipher"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3482,8 +3509,7 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
 name = "onekeepass-core"
-version = "0.19.0"
-source = "git+https://github.com/OneKeePass/onekeepass-core.git?tag=v0.19.0#eb79e5e322cdfc5f8fe2cff9d7f2afc9af141232"
+version = "0.20.0"
 dependencies = [
  "argon2-sys",
  "base64 0.22.1",
@@ -3492,8 +3518,10 @@ dependencies = [
  "chbs",
  "chrono",
  "chrono-tz",
+ "ciborium",
  "csv",
  "data-encoding",
+ "ed25519-dalek",
  "enum_dispatch",
  "flate2",
  "hex",
@@ -3502,17 +3530,21 @@ dependencies = [
  "log",
  "nom",
  "once_cell",
+ "p256",
  "passwords",
  "quick-xml 0.37.5",
+ "rand_core 0.6.4",
  "regex",
  "reqwest_dav",
  "rmp-serde",
+ "rsa",
  "russh",
  "russh-keys",
  "russh-sftp",
  "secstr",
  "serde",
  "serde_json",
+ "sha2",
  "slice_as_array",
  "thiserror 2.0.17",
  "tokio",

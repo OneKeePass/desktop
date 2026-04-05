@@ -6,6 +6,9 @@ mod verifier;
 
 mod native_messaging_config;
 
+pub(crate) mod passkey_crypto;
+pub(crate) mod passkey_db;
+
 pub(crate) use native_messaging_config::*;
 pub(crate) use proxy_handler::start_proxy_handler;
 pub(crate) use verifier::run_verifier;

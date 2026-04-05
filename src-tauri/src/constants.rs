@@ -3,6 +3,7 @@ pub mod event_names {
     pub const OTP_TOKEN_UPDATE_EVENT: &str = "OtpTokenUpdateEvent";
     pub const TAURI_MENU_EVENT: &str = "TauriMenuEvent";
     pub const BROWSER_CONNECTION_REQUEST_EVENT: &str = "BrowserConnectionRequestEvent";
+    pub const PASSKEY_DATA_CHANGED_EVENT: &str = "PasskeyDataChangedEvent";
 }
 
 pub mod event_action_names {

@@ -245,6 +245,11 @@
         "expirationYear": "Expiration Year",
         "expiryDuration": "Expiry Duration",
         "issuingBank": "Issuing Bank",
+        "kpexPasskeyUsername":"Passkey Username",
+        "kpexPasskeyRelyingParty":"Relying Party",
+        "kpexPasskeyUserHandle": "User Handle",
+        "kpexPasskeyCredentialId": "Passkey CredentialId",
+        "kpexPasskeyPrivateKeyPem": "Passkey PrivateKey Pem",
         "notes": "Notes",
         "number": "Number",
         "otp": "otp",
@@ -268,6 +273,7 @@
         "billingAddress": "Billing Address",
         "cardDetails": "Card Details",
         "notes": "Notes",
+        "passkeyDetails":"Passkey Details",
         "loginDetails": "Login Details"
     },
     "buttonLabels": {

@@ -245,6 +245,11 @@
         "expirationYear": "Voimassaolo vuosi",
         "expiryDuration": "Expiry Duration",
         "issuingBank": "Issuing Bank",
+        "kpexPasskeyUsername": "Passkey-käyttäjänimi",
+        "kpexPasskeyRelyingParty": "Luottava osapuoli",
+        "kpexPasskeyUserHandle": "Käyttäjätunnus",
+        "kpexPasskeyCredentialId": "Passkey-tunnistetunnus",
+        "kpexPasskeyPrivateKeyPem": "Passkey PrivateKey PEM",
         "notes": "Huomatukset",
         "number": "Numero",
         "otp": "otp",
@@ -268,6 +273,7 @@
         "billingAddress": "Maksun osoite",
         "cardDetails": "Kortin tiedot",
         "notes": "Huomautukset",
+        "passkeyDetails": "Passkey-tiedot",
         "loginDetails": "Kirjautumisen tiedot"
     },
     "buttonLabels": {
@@ -281,7 +287,7 @@
         "changePassword": "Vaihda salasana",
         "close": "Sulje",
         "copyClose": "Kopio & sulje",
-        "currentOpenedDatabase": "Current Opened Database",
+        "currentOpenedDatabase": "Tällä hetkellä avattu tietokanta",
         "delete": "Poista",
         "deleteAll": "Poista Kaikki",
         "discard": "Hylkää",

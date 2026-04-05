@@ -202,7 +202,7 @@
   (go
     (try
       (let [_r (<p! (writeText data))]
-        (println "Data is copied to clipboard" _r))
+        #_(println "Data is copied to clipboard" _r))
       (catch js/Error err (js/console.log "Error: " (ex-cause err))))))
 
 (defn read-from-clipboard

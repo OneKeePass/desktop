@@ -298,7 +298,7 @@ pub struct MenuActionRequest {
 }
 
 #[derive(Clone, serde::Serialize)]
-/// Payload to send to the UI layer
+// Payload to send to the UI layer
 struct MenuPayload {
   menu_id: String,
 }
