@@ -114,9 +114,9 @@ struct Session {
     // app_session_pub_key: String,
     // client_session_pub_key: Option<PublicKey>,
 
-    /// Monotonically increasing counter embedded in every encrypted message
-    /// (inside the plaintext envelope) to prevent replay attacks.
-    /// Starts at 1 on the first encrypted message sent this session.
+    // Monotonically increasing counter embedded in every encrypted message
+    // (inside the plaintext envelope) to prevent replay attacks.
+    // Starts at 1 on the first encrypted message sent this session.
     send_counter: u64,
 }
 

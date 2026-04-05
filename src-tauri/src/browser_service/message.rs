@@ -19,8 +19,8 @@ pub enum Request {
     // Called first time when the extension app is about to use the OneKeePass app
     Associate {
         client_id: String,
-        /// Browser extension ID sent by the extension (e.g. "onekeepass@gmail.com" for Firefox).
-        /// Validated against the known OneKeePass extension IDs before proceeding.
+        // Browser extension ID sent by the extension (e.g. "onekeepass@gmail.com" for Firefox).
+        // Validated against the known OneKeePass extension IDs before proceeding.
         #[serde(default)]
         extension_id: Option<String>,
     },
@@ -48,21 +48,21 @@ pub enum Request {
 
     // ── Passkey: pre-creation queries ────────────────────────────────────────
 
-    /// Step A of passkey creation: fetch the list of open, browser-enabled
-    /// databases so the user can choose where to store the new passkey.
+    // Step A of passkey creation: fetch the list of open, browser-enabled
+    // databases so the user can choose where to store the new passkey.
     GetOpenedDatabasesForPasskey {
         association_id: String,
         request_id: String,
     },
 
-    /// Step B of passkey creation: fetch user-visible groups in the chosen database.
+    // Step B of passkey creation: fetch user-visible groups in the chosen database.
     GetDbGroupsForPasskey {
         association_id: String,
         request_id: String,
         db_key: String,
     },
 
-    /// Step C of passkey creation: fetch entries in the chosen group.
+    // Step C of passkey creation: fetch entries in the chosen group.
     GetDbGroupEntriesForPasskey {
         association_id: String,
         request_id: String,
@@ -72,46 +72,46 @@ pub enum Request {
 
     // ── Passkey: registration ─────────────────────────────────────────────────
 
-    /// Final passkey creation step. User has selected a database, group, and
-    /// entry target; the desktop generates the key pair, builds WebAuthn
-    /// structures, stores the key material in KDBX, and returns the credential JSON.
+    // Final passkey creation step. User has selected a database, group, and
+    // entry target; the desktop generates the key pair, builds WebAuthn
+    // structures, stores the key material in KDBX, and returns the credential JSON.
     CreatePasskey {
         association_id: String,
         request_id: String,
         db_key: String,
-        /// JSON of `PublicKeyCredentialCreationOptions` from the website.
+        // JSON of `PublicKeyCredentialCreationOptions` from the website.
         options_json: String,
-        /// Page origin (e.g. `"https://example.com"`).
+        // Page origin (e.g. `"https://example.com"`).
         origin: String,
-        /// Full URL of the browser tab that initiated the ceremony.
-        /// Used to cross-verify that `origin` matches the actual page URL.
+        // Full URL of the browser tab that initiated the ceremony.
+        // Used to cross-verify that `origin` matches the actual page URL.
         #[serde(default)]
         tab_url: Option<String>,
-        /// UUID of an existing entry to attach the passkey to (optional).
+        // UUID of an existing entry to attach the passkey to (optional).
         existing_entry_uuid: Option<String>,
-        /// Title for a brand-new entry (used when `existing_entry_uuid` is absent).
+        // Title for a brand-new entry (used when `existing_entry_uuid` is absent).
         new_entry_name: Option<String>,
-        /// UUID of an existing group for a new entry. Defaults to root when absent.
+        // UUID of an existing group for a new entry. Defaults to root when absent.
         group_uuid: Option<String>,
-        /// Name of a brand-new group to create (used when `group_uuid` is absent).
+        // Name of a brand-new group to create (used when `group_uuid` is absent).
         new_group_name: Option<String>,
     },
 
     // ── Passkey: authentication ───────────────────────────────────────────────
 
-    /// Step 1 of authentication: fetch passkeys matching the site's RP ID.
+    // Step 1 of authentication: fetch passkeys matching the site's RP ID.
     GetPasskeyList {
         association_id: String,
         request_id: String,
-        /// JSON of `PublicKeyCredentialRequestOptions` from the website.
+        // JSON of `PublicKeyCredentialRequestOptions` from the website.
         options_json: String,
         origin: String,
-        /// Full URL of the browser tab that initiated the ceremony.
+        // Full URL of the browser tab that initiated the ceremony.
         #[serde(default)]
         tab_url: Option<String>,
     },
 
-    /// Step 2 of authentication: user has chosen a passkey; sign the assertion.
+    // Step 2 of authentication: user has chosen a passkey; sign the assertion.
     CompletePasskeyAssertion {
         association_id: String,
         request_id: String,
@@ -119,14 +119,14 @@ pub enum Request {
         entry_uuid: Uuid,
         options_json: String,
         origin: String,
-        /// Full URL of the browser tab that initiated the ceremony.
+        // Full URL of the browser tab that initiated the ceremony.
         #[serde(default)]
         tab_url: Option<String>,
     },
 }
 
-/// Returns true if `extension_id` is a known OneKeePass extension for the given browser.
-/// IDs are sourced from the same constants written into the native messaging manifest files.
+// Returns true if `extension_id` is a known OneKeePass extension for the given browser.
+// IDs are sourced from the same constants written into the native messaging manifest files.
 fn is_known_extension_id(browser_id: &str, extension_id: &str) -> bool {
     match browser_id {
         "Firefox" => extension_id == native_messaging_config::FIREFOX_EXTENSION_ID,
@@ -135,10 +135,10 @@ fn is_known_extension_id(browser_id: &str, extension_id: &str) -> bool {
     }
 }
 
-/// Validates that `origin` is a syntactically well-formed `https://` origin:
-/// scheme must be `https`, host must be non-empty, and no path/query/fragment
-/// may be present.  Rejects `http://` origins outright — WebAuthn credentials
-/// must only be scoped to HTTPS origins.
+// Validates that `origin` is a syntactically well-formed `https://` origin:
+// scheme must be `https`, host must be non-empty, and no path/query/fragment
+// may be present.  Rejects `http://` origins outright — WebAuthn credentials
+// must only be scoped to HTTPS origins.
 fn validate_https_origin(origin: &str) -> onekeepass_core::error::Result<()> {
     let host_part = origin
         .strip_prefix("https://")
@@ -159,13 +159,13 @@ fn validate_https_origin(origin: &str) -> onekeepass_core::error::Result<()> {
     Ok(())
 }
 
-/// Cross-references the claimed `origin` against the full `tab_url` supplied by
-/// the extension.  The tab URL must start with the exact origin string followed
-/// immediately by `'/'`, `'?'`, `'#'`, or end-of-string, preventing subdomain
-/// confusion (e.g. `https://evil.com` cannot match `https://evil.com.bank.com/`).
-///
-/// When `tab_url` is absent (e.g. the extension sent an older message format)
-/// the check is skipped so the call does not break existing connections.
+// Cross-references the claimed `origin` against the full `tab_url` supplied by
+// the extension.  The tab URL must start with the exact origin string followed
+// immediately by `'/'`, `'?'`, `'#'`, or end-of-string, preventing subdomain
+// confusion (e.g. `https://evil.com` cannot match `https://evil.com.bank.com/`).
+//
+// When `tab_url` is absent (e.g. the extension sent an older message format)
+// the check is skipped so the call does not break existing connections.
 fn validate_origin_matches_tab_url(origin: &str, tab_url: Option<&str>) -> onekeepass_core::error::Result<()> {
     let Some(url) = tab_url else {
         return Ok(()); // tab_url not provided — skip cross-reference
@@ -199,8 +199,8 @@ fn validate_origin_matches_tab_url(origin: &str, tab_url: Option<&str>) -> oneke
     Ok(())
 }
 
-/// Rejects oversized string fields before they reach the database or crypto layer.
-/// Returns a generic error to avoid leaking field details to the caller.
+// Rejects oversized string fields before they reach the database or crypto layer.
+// Returns a generic error to avoid leaking field details to the caller.
 fn check_field_len(field_name: &str, value: &str, max_bytes: usize) -> onekeepass_core::error::Result<()> {
     if value.len() > max_bytes {
         log::warn!(
@@ -878,45 +878,45 @@ pub enum Response {
 
     // ── Passkey responses ─────────────────────────────────────────────────────
 
-    /// Response to `GetOpenedDatabasesForPasskey`: encrypted JSON array of
-    /// `{ db_key, db_name }` objects.
+    // Response to `GetOpenedDatabasesForPasskey`: encrypted JSON array of
+    // `{ db_key, db_name }` objects.
     OpenedDatabasesForPasskey {
         message_content: String,
         request_id: String,
         nonce: String,
     },
 
-    /// Response to `GetDbGroupsForPasskey`: encrypted JSON array of `GroupInfo`.
+    // Response to `GetDbGroupsForPasskey`: encrypted JSON array of `GroupInfo`.
     DbGroupsForPasskey {
         message_content: String,
         request_id: String,
         nonce: String,
     },
 
-    /// Response to `GetDbGroupEntriesForPasskey`: encrypted JSON array of `EntryBasicInfo`.
+    // Response to `GetDbGroupEntriesForPasskey`: encrypted JSON array of `EntryBasicInfo`.
     DbGroupEntriesForPasskey {
         message_content: String,
         request_id: String,
         nonce: String,
     },
 
-    /// Registration complete: encrypted `PublicKeyCredential` JSON ready to
-    /// be returned by the extension to the website.
+    // Registration complete: encrypted `PublicKeyCredential` JSON ready to
+    // be returned by the extension to the website.
     PasskeyCreated {
         message_content: String,
         request_id: String,
         nonce: String,
     },
 
-    /// Authentication: encrypted JSON array of `PasskeySummary` objects
-    /// matching the site's RP ID.
+    // Authentication: encrypted JSON array of `PasskeySummary` objects
+    // matching the site's RP ID.
     PasskeyList {
         message_content: String,
         request_id: String,
         nonce: String,
     },
 
-    /// Authentication signed: encrypted `PublicKeyCredential` assertion JSON.
+    // Authentication signed: encrypted `PublicKeyCredential` assertion JSON.
     PasskeyAssertionComplete {
         message_content: String,
         request_id: String,

@@ -1,8 +1,8 @@
-//! High-level orchestration layer between the browser_service message handler
-//! and the onekeepass-core KDBX operations for passkeys.
-//!
-//! Each public function in this module corresponds to one message round-trip
-//! between the browser extension and the desktop app.
+// High-level orchestration layer between the browser_service message handler
+// and the onekeepass-core KDBX operations for passkeys.
+//
+// Each public function in this module corresponds to one message round-trip
+// between the browser extension and the desktop app.
 
 use serde::Serialize;
 use tauri::{Emitter, Manager};
@@ -26,8 +26,8 @@ struct PasskeyChangedPayload {
 
 // ── Shared data structures ────────────────────────────────────────────────────
 
-/// Minimal database descriptor returned to the extension so the user can choose
-/// which open database to store the new passkey in.
+// Minimal database descriptor returned to the extension so the user can choose
+// which open database to store the new passkey in.
 #[derive(Debug, Serialize)]
 pub struct OpenedDbInfo {
     pub db_key: String,
@@ -36,10 +36,10 @@ pub struct OpenedDbInfo {
 
 // ── Passkey creation helpers ──────────────────────────────────────────────────
 
-/// Returns a list of all currently open, browser-enabled databases.
-///
-/// The extension presents this list to the user as the first step of the
-/// passkey creation popup.
+// Returns a list of all currently open, browser-enabled databases.
+//
+// The extension presents this list to the user as the first step of the
+// passkey creation popup.
 pub(crate) fn get_opened_databases_for_passkey() -> Result<Vec<OpenedDbInfo>> {
     let db_keys = kp_service::all_kdbx_cache_keys()?;
     let mut result = Vec::with_capacity(db_keys.len());
@@ -59,12 +59,12 @@ pub(crate) fn get_opened_databases_for_passkey() -> Result<Vec<OpenedDbInfo>> {
     Ok(result)
 }
 
-/// Generates a new P-256 key pair, builds all WebAuthn registration structures,
-/// stores the passkey in KDBX, persists the database to disk, and returns the
-/// credential JSON that the extension passes back to the website.
-///
-/// `target` determines whether the passkey is added to an existing KDBX entry
-/// or stored as a brand-new entry.
+// Generates a new P-256 key pair, builds all WebAuthn registration structures,
+// stores the passkey in KDBX, persists the database to disk, and returns the
+// credential JSON that the extension passes back to the website.
+//
+// `target` determines whether the passkey is added to an existing KDBX entry
+// or stored as a brand-new entry.
 pub(crate) fn create_and_store_passkey(
     db_key: &str,
     options_json: &str,
@@ -144,10 +144,10 @@ pub(crate) fn create_and_store_passkey(
 
 // ── Passkey authentication helpers ───────────────────────────────────────────
 
-/// Searches all open databases for passkeys matching `rp_id`.
-///
-/// If `allow_credential_ids` is non-empty (site sent `allowCredentials`), only
-/// passkeys whose credential ID appears in that list are returned.
+// Searches all open databases for passkeys matching `rp_id`.
+//
+// If `allow_credential_ids` is non-empty (site sent `allowCredentials`), only
+// passkeys whose credential ID appears in that list are returned.
 pub(crate) fn find_matching_passkeys(
     rp_id: &str,
     allow_credential_ids: Vec<String>,
@@ -156,8 +156,8 @@ pub(crate) fn find_matching_passkeys(
     kp_service::browser_extension::find_matching_passkeys(&db_keys, rp_id, &allow_credential_ids)
 }
 
-/// Loads the passkey stored in `entry_uuid` (within `db_key`) and produces the
-/// signed WebAuthn assertion JSON.
+// Loads the passkey stored in `entry_uuid` (within `db_key`) and produces the
+// signed WebAuthn assertion JSON.
 pub(crate) fn sign_passkey_assertion(
     db_key: &str,
     entry_uuid: &Uuid,

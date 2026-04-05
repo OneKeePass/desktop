@@ -208,10 +208,10 @@ impl<'a> FirefoxNativeMessagingConfig<'a> {
     }
 }
 
-/// Known OneKeePass Firefox extension ID (matches `allowed_extensions` in the native messaging manifest).
+// Known OneKeePass Firefox extension ID (matches `allowed_extensions` in the native messaging manifest).
 pub const FIREFOX_EXTENSION_ID: &str = "onekeepass@gmail.com";
 
-/// Known OneKeePass Chrome extension IDs (match `allowed_origins` in the native messaging manifest).
+// Known OneKeePass Chrome extension IDs (match `allowed_origins` in the native messaging manifest).
 pub const CHROME_EXTENSION_IDS: &[&str] = &[
     "ijkbdjdmmmbkjbdmmlcejonhmjnkhkka",
     "cmdmojmbfcpkloflnjkkdjcflaidangh",
