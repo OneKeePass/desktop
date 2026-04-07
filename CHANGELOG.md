@@ -1,5 +1,7 @@
 ### 0.19.0
 - Added Passkey support and browser integration/proxy modules updated accordingly
+- With the latest OneKeePass-Browser extension, user should be able to create a passkey for any site that allows passkey creation and similarly can do passkey authentication
+
 
 #### Fixed
 - non-English input method bug [#65](https://github.com/OneKeePass/desktop/issues/65) - Thanks [PandaFang](https://github.com/PandaFang)
