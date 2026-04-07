@@ -33,6 +33,8 @@ figwheel-main.log*
 
 **/.swiftpm/*
 
+*.bak
+
 onekeepass-proxy/target/*
 onekeepass-proxy/binaries
 onekeepass-proxy/.clj-kondo
