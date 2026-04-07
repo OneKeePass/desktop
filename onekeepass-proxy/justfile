@@ -75,6 +75,5 @@ build-cmd-cp-windows-x86_64 release="":(build-windows-x86_64 release)
 
 build-cp-windows-x86_64 release="":(build-windows-x86_64 release)
     mkdir -Force .\binaries
-    mkdir .\binaries
     rm -r -force  .\binaries\*
     copy -Path .\target\x86_64-pc-windows-msvc\{{ if release == "true" {"release"} else {"debug"} }}\onekeepass-proxy.exe -Destination .\binaries\onekeepass-proxy-x86_64-pc-windows-msvc.exe
