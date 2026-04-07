@@ -40,7 +40,7 @@ All created database files are encrypted using the best and most secure encrypti
 - CSV file import
 - Fully offline 
 - Browser extension and integration (alpha version) - [Firefox](https://addons.mozilla.org/en-US/firefox/addon/onekeepass-browser/) and [Chrome](https://chromewebstore.google.com/detail/onekeepass-browser/cmdmojmbfcpkloflnjkkdjcflaidangh) 
-
+- Supports password autofill, passkey registration and passkey authentication - OneKeePass-Browser extension is required
 
 ## Installation and Quick start
 
