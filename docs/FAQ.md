@@ -170,6 +170,11 @@ Application Settings -> Browser Integration -> Enable browser Integration -> Ena
 </h1>
 </details>
 
+## Can I use OneKeePass to autofill passwords or use passkeys on websites?
+
+Yes,  password autofill, passkey registration and passkey authentication are supported. You need to install OneKeePass-Browser extension in the supported browsers 
+
+
 
 
 
