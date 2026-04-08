@@ -33,6 +33,7 @@ pub type Result<T> = std::result::Result<T, String>;
 struct WindowEventPayload {
   action: String,
   focused: Option<bool>,
+  file_path: Option<String>,
 }
 
 impl WindowEventPayload {
@@ -40,6 +41,7 @@ impl WindowEventPayload {
     Self {
       action: action.to_string(),
       focused: None,
+      file_path: None,
     }
   }
 }
@@ -213,6 +215,20 @@ fn main() {
           // use the exposed close api, and prevent the event loop to close
           // The window will be closed when UI side finally send the "Quit" event
           api.prevent_close();
+        }
+        tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) => {
+          // Find the first .kdbx file in the dropped paths
+          if let Some(kdbx_path) = paths.iter().find(|p| {
+            p.extension()
+              .map(|ext| ext.eq_ignore_ascii_case("kdbx"))
+              .unwrap_or(false)
+          }) {
+            let app_handle = app_handle.clone();
+            let window = app_handle.get_webview_window(&label).unwrap();
+            let mut payload = WindowEventPayload::new(FILE_DROP);
+            payload.file_path = Some(kdbx_path.to_string_lossy().to_string());
+            let _r = window.emit(MAIN_WINDOW_EVENT, payload);
+          }
         }
         _ => {}
       }

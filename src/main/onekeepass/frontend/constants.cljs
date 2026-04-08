@@ -104,5 +104,6 @@
 
 (def WINDOW_FOCUS_CHANGED "WindowFocusChanged")
 (def CLOSE_REQUESTED  "CloseRequested")
+(def FILE_DROP "FileDrop")
 
 

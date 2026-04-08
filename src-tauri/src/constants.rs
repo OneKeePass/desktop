@@ -9,6 +9,7 @@ pub mod event_names {
 pub mod event_action_names {
     pub const WINDOW_FOCUS_CHANGED: &str = "WindowFocusChanged";
     pub const CLOSE_REQUESTED: &str = "CloseRequested";
+    pub const FILE_DROP: &str = "FileDrop";
 }
 
 #[allow(dead_code)]

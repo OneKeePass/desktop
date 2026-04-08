@@ -5,7 +5,7 @@
    [camel-snake-kebab.extras :as cske]
    [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.constants :as const :refer
-    [BROWSER_CONNECTION_REQUEST_EVENT CLOSE_REQUESTED MAIN_WINDOW_EVENT
+    [BROWSER_CONNECTION_REQUEST_EVENT CLOSE_REQUESTED FILE_DROP MAIN_WINDOW_EVENT
      OTP_TOKEN_UPDATE_EVENT PASSKEY_DATA_CHANGED_EVENT TAURI_MENU_EVENT WINDOW_FOCUS_CHANGED]]
    [re-frame.core :refer [dispatch]]))
 
@@ -104,6 +104,10 @@
       (= action WINDOW_FOCUS_CHANGED)
       #()
       #_(println "Window focused val is " focused)
+
+      (= action FILE_DROP)
+      (when-let [file-path (-> cljs-response :payload :file-path)]
+        (dispatch [:open-db-dialog-show-on-file-selection file-path]))
 
       :else
       (println "No handler for Main Window event response: " js-event-repsonse))))
