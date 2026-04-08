@@ -172,7 +172,15 @@ Application Settings -> Browser Integration -> Enable browser Integration -> Ena
 
 ## Can I use OneKeePass to autofill passwords or use passkeys on websites?
 
-Yes,  password autofill, passkey registration and passkey authentication are supported. You need to install OneKeePass-Browser extension in the supported browsers 
+Yes, password autofill, passkey registration and passkey authentication are supported. You need to install the OneKeePass-Browser extension in a supported browser ([Firefox](https://addons.mozilla.org/en-US/firefox/addon/onekeepass-browser/) or [Chrome](https://chromewebstore.google.com/detail/onekeepass-browser/cmdmojmbfcpkloflnjkkdjcflaidangh)) and enable browser integration in Application Settings.
+
+**Password Autofill:** The extension detects login forms and can fill your saved credentials from any open database.
+
+**Passkey Registration:** When a website offers passkey creation, the extension handles the registration and stores the passkey in your database. You can choose which group and entry to store it in.
+
+**Passkey Authentication:** When a website requests a passkey for sign-in, the extension finds matching passkeys in your open databases and lets you select one to authenticate.
+
+Passkey entries are stored in standard KDBX4 format, compatible with other KeePass-based password managers.
 
 
 
