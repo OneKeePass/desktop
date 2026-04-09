@@ -1,0 +1,18 @@
+alias shcr := shadow-cljs-clean-watch
+alias shre := shadow-cljs-clean-release
+alias shres := shadow-cljs-release-serve
+
+shadow_cljs_version := "3.3.5"
+
+shadow-cljs-clean-watch:
+    rm -rf ../resources/public/cljs-out/dev
+    npx shadow-cljs@{{shadow_cljs_version}} watch app
+
+shadow-cljs-clean-release:
+    rm -rf ../resources/public/cljs-out/dev
+    npx shadow-cljs@{{shadow_cljs_version}} release app
+
+shadow-cljs-release-serve:
+    rm -rf ../resources/public/cljs-out/dev
+    npx shadow-cljs@{{shadow_cljs_version}} release app
+    cd ../resources/public && python3 -m http.server 9500
