@@ -278,6 +278,36 @@ pub(crate) async fn move_entry(db_key: &str, entry_uuid: Uuid, new_parent_id: Uu
 }
 
 #[command]
+pub(crate) async fn move_entry_to_other_db(
+    source_db_key: &str,
+    entry_uuid: Uuid,
+    target_db_key: &str,
+    target_parent_group_uuid: Uuid,
+) -> Result<kp_service::CrossDbMoveSummary> {
+    Ok(kp_service::move_entry_to_other_db(
+        source_db_key,
+        &entry_uuid,
+        target_db_key,
+        &target_parent_group_uuid,
+    )?)
+}
+
+#[command]
+pub(crate) async fn move_group_to_other_db(
+    source_db_key: &str,
+    group_uuid: Uuid,
+    target_db_key: &str,
+    target_parent_group_uuid: Uuid,
+) -> Result<kp_service::CrossDbMoveSummary> {
+    Ok(kp_service::move_group_to_other_db(
+        source_db_key,
+        &group_uuid,
+        target_db_key,
+        &target_parent_group_uuid,
+    )?)
+}
+
+#[command]
 pub(crate) async fn remove_group_permanently(db_key: &str, group_uuid: Uuid) -> Result<()> {
     Ok(kp_service::remove_group_permanently(db_key, group_uuid)?)
 }

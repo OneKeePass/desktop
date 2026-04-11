@@ -260,25 +260,29 @@
         :uuid (get g "uuid")
         :icon-id 0}))))
 
+(defn flatten-groups-summary-to-listing
+  "Converts a groups-summary-data response (the same shape returned by
+  bg/groups-summary-data and stored under :groups-tree-data-updated) into a flat
+  listing of {:name :uuid :parent-group-uuid :icon-id} maps suitable for the
+  Move dialog's target group autocomplete. Groups in the recycle bin (and the
+  recycle bin group itself) are excluded."
+  [data]
+  (let [groups (-> data (get "groups"))
+        recycle-groups (get data "deleted_group_uuids")
+        recycle-groups (conj recycle-groups (get data "recycle_bin_uuid"))]
+    (as-> (vals groups) coll
+      (filter #(not (contains-val? recycle-groups (get % "uuid"))) coll)
+      (map (fn [v] {:name (get v "name")
+                    :uuid (get v "uuid")
+                    :parent-group-uuid (get v "parent_group_uuid")
+                    :icon-id 0}) coll)
+      (sort-by (fn [v] (:name v)) coll))))
+
 (reg-sub
  :group-tree-content/groups-listing
  :<- [:groups-tree-data-updated]
  (fn [data _query-vec]
-   (let [groups (-> data (get "groups"))
-         recycle-groups  (get data "deleted_group_uuids")
-         recycle-groups (conj recycle-groups  (get data "recycle_bin_uuid"))]
-     ;;(println "groups size... " (count groups) ) 
-     (as-> (vals groups) coll
-       ;; Only groups that are not deleted
-       (filter #(not (contains-val? recycle-groups (get % "uuid"))) coll)
-       ;; Few fiedlds for each group
-       (map (fn [v] {:name (get v "name")
-                     :uuid (get v "uuid")
-                     :parent-group-uuid (get v "parent_group_uuid")
-                     :icon-id 0}) (filter #(not (contains-val? recycle-groups %))
-                                          coll))
-       ;; Sort by name - Note kw :name vs "name" used previously
-       (sort-by (fn [v] (:name v)) coll)))))
+   (flatten-groups-summary-to-listing data)))
 
 (reg-sub
  :expanded-nodes

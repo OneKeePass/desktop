@@ -425,6 +425,24 @@
   [db-key group-uuid new-parent-id dispatch-fn]
   (invoke-api "move_group" {:db-key db-key :group-uuid group-uuid :new-parent-id new-parent-id} dispatch-fn))
 
+(defn move-entry-to-other-db
+  [source-db-key entry-uuid target-db-key target-parent-group-uuid dispatch-fn]
+  (invoke-api "move_entry_to_other_db"
+              {:source-db-key source-db-key
+               :entry-uuid entry-uuid
+               :target-db-key target-db-key
+               :target-parent-group-uuid target-parent-group-uuid}
+              dispatch-fn))
+
+(defn move-group-to-other-db
+  [source-db-key group-uuid target-db-key target-parent-group-uuid dispatch-fn]
+  (invoke-api "move_group_to_other_db"
+              {:source-db-key source-db-key
+               :group-uuid group-uuid
+               :target-db-key target-db-key
+               :target-parent-group-uuid target-parent-group-uuid}
+              dispatch-fn))
+
 (defn remove-entry-permanently [db-key entry-uuid dispatch-fn]
   (invoke-api "remove_entry_permanently" {:db-key db-key :entry-uuid entry-uuid} dispatch-fn))
 

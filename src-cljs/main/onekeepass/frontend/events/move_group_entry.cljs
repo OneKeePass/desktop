@@ -7,10 +7,12 @@
                           reg-event-fx
                           reg-fx
                           reg-sub dispatch subscribe]]
-   [onekeepass.frontend.events.common  :refer [active-db-key
-                                               get-in-key-db
-                                               assoc-in-key-db
-                                               on-error]]
+   [onekeepass.frontend.events.common  :as cmn-events :refer [active-db-key
+                                                              get-in-key-db
+                                                              assoc-in-key-db
+                                                              check-error
+                                                              on-error]]
+   [onekeepass.frontend.events.group-tree-content :as gt-events]
    [onekeepass.frontend.background :as bg]))
 
 
@@ -187,7 +189,14 @@
 (reg-event-fx
  :move-entry-or-group
  (fn [{:keys [db]} [_event-id kind-kw id group-selection-info]]
-   {:fx [[:bg-move-entry-or-group [(active-db-key db) kind-kw id (:uuid group-selection-info)]]]}))
+   (let [source-db-key (active-db-key db)
+         dialog-state (get-in db [:generic-dialogs :move-group-or-entry-dialog])
+         target-db-key (or (:target-db-key dialog-state) source-db-key)
+         target-parent-uuid (:uuid group-selection-info)]
+     (if (= source-db-key target-db-key)
+       {:fx [[:bg-move-entry-or-group [source-db-key kind-kw id target-parent-uuid]]]}
+       {:fx [[:bg-move-entry-or-group-cross-db
+              [source-db-key target-db-key kind-kw id target-parent-uuid]]]}))))
 
 (defn- call-on-move-complete [kind-kw api-response]
   (when-not (on-error api-response)
@@ -204,3 +213,192 @@
    (if (= kind-kw :group)
      (bg/move-group db-key id parent-group-uuid #(call-on-move-complete kind-kw %))
      (bg/move-entry db-key id parent-group-uuid #(call-on-move-complete kind-kw %)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Cross database move support for the move-group-or-entry-dialog
+
+(defn unlocked-opened-dbs
+  "Returns a subscribed atom to the list of currently unlocked opened databases.
+  Each item is a map shaped for a selection-autocomplete: {:name :db-key :file-name}"
+  []
+  (subscribe [:move-group-entry/unlocked-opened-dbs]))
+
+(reg-sub
+ :move-group-entry/unlocked-opened-dbs
+ (fn [db _query-vec]
+   (let [all (:opened-db-list db)]
+     (->> all
+          (remove (fn [{:keys [db-key]}] (boolean (get-in db [db-key :locked]))))
+          (mapv (fn [{:keys [db-key database-name file-name]}]
+                  {:name database-name
+                   :db-key db-key
+                   :file-name file-name}))))))
+
+(defn target-db-changed
+  "Called when the user picks a different destination database in the move dialog"
+  [target-db-key]
+  (dispatch [:move-group-entry/target-db-changed target-db-key]))
+
+(reg-event-fx
+ :move-group-entry/target-db-changed
+ (fn [{:keys [db]} [_event-id target-db-key]]
+   (let [source-db-key (active-db-key db)
+         current (get-in db [:generic-dialogs :move-group-or-entry-dialog])
+         updated (-> current
+                     (assoc :target-db-key target-db-key)
+                     ;; Clear any previous group selection since it belonged
+                     ;; to the previously selected database
+                     (assoc :group-selection-info nil)
+                     (assoc :target-db-groups-listing nil)
+                     (assoc :target-db-loading? (not= target-db-key source-db-key)))]
+     (merge {:db (assoc-in db [:generic-dialogs :move-group-or-entry-dialog] updated)}
+            (when (not= target-db-key source-db-key)
+              {:fx [[:bg-fetch-target-db-groups target-db-key]]})))))
+
+(reg-fx
+ :bg-fetch-target-db-groups
+ (fn [target-db-key]
+   (bg/groups-summary-data
+    target-db-key
+    (fn [api-response]
+      (when-let [result (check-error api-response)]
+        (dispatch [:move-group-entry/target-db-groups-loaded target-db-key result]))))))
+
+(reg-event-db
+ :move-group-entry/target-db-groups-loaded
+ (fn [db [_event-id target-db-key groups-tree-response]]
+   (let [current (get-in db [:generic-dialogs :move-group-or-entry-dialog])]
+     ;; Only apply the response if the user has not switched to yet another
+     ;; target in the meantime
+     (if (= target-db-key (:target-db-key current))
+       (let [listing (gt-events/flatten-groups-summary-to-listing
+                      (js->clj groups-tree-response))
+             updated (-> current
+                         (assoc :target-db-groups-listing listing)
+                         (assoc :target-db-loading? false))]
+         (assoc-in db [:generic-dialogs :move-group-or-entry-dialog] updated))
+       db))))
+
+(defn- db-name-for [db-list db-key]
+  (some (fn [m] (when (= db-key (:db-key m)) (:database-name m))) db-list))
+
+(defn- call-on-cross-db-move-complete [kind-kw source-db-key target-db-key api-response]
+  (when-let [summary (check-error api-response)]
+    (let [db-list @(cmn-events/opened-db-list)
+          src-name (or (db-name-for db-list source-db-key) source-db-key)
+          tgt-name (or (db-name-for db-list target-db-key) target-db-key)
+          group-name (:target-parent-group-name summary)
+          label (if (= kind-kw :group) "Group" "Entry")
+          msg (str label " moved from '" src-name "' to '" tgt-name
+                   "' \u2192 '" group-name "'. Both databases are modified.")]
+      (dispatch [:generic-dialog-close :move-group-or-entry-dialog])
+      (dispatch [:common/message-snackbar-open msg])
+      (dispatch [:common/refresh-forms])
+      (dispatch [:cross-db-move/mark-both-save-pending source-db-key target-db-key])
+      (dispatch [:cross-db-move/save-prompt-show source-db-key target-db-key]))))
+
+(reg-event-db
+ :cross-db-move/mark-both-save-pending
+ (fn [db [_event-id source-db-key target-db-key]]
+   (-> db
+       (assoc-in [source-db-key :db-modification :save-pending] true)
+       (assoc-in [target-db-key :db-modification :save-pending] true))))
+
+(reg-fx
+ :bg-move-entry-or-group-cross-db
+ (fn [[source-db-key target-db-key kind-kw id target-parent-uuid]]
+   (if (= kind-kw :group)
+     (bg/move-group-to-other-db
+      source-db-key id target-db-key target-parent-uuid
+      #(call-on-cross-db-move-complete kind-kw source-db-key target-db-key %))
+     (bg/move-entry-to-other-db
+      source-db-key id target-db-key target-parent-uuid
+      #(call-on-cross-db-move-complete kind-kw source-db-key target-db-key %)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Save-both-databases confirmation prompt shown after a cross-db move
+
+(defn save-prompt-data []
+  (subscribe [:cross-db-move/save-prompt]))
+
+(defn save-prompt-close []
+  (dispatch [:cross-db-move/save-prompt-close]))
+
+(defn save-prompt-save-both []
+  (dispatch [:cross-db-move/save-prompt-save-both]))
+
+(reg-event-db
+ :cross-db-move/save-prompt-show
+ (fn [db [_event-id source-db-key target-db-key]]
+   (assoc db :cross-db-move-save-prompt
+          {:dialog-show true
+           :source-db-key source-db-key
+           :target-db-key target-db-key})))
+
+(reg-event-fx
+ :cross-db-move/save-prompt-close
+ (fn [{:keys [db]} [_event-id]]
+   {:db (assoc db :cross-db-move-save-prompt {:dialog-show false})
+    :fx [[:dispatch [:cross-db-move/pending-save-dialog-show]]]}))
+
+(reg-event-fx
+ :cross-db-move/save-prompt-save-both
+ (fn [{:keys [db]} [_event-id]]
+   (let [{:keys [source-db-key target-db-key]} (:cross-db-move-save-prompt db)]
+     {:db (assoc db :cross-db-move-save-prompt {:dialog-show false})
+      :fx [[:bg-cross-db-move-save-both [source-db-key target-db-key]]]})))
+
+(defn- any-save-failure? [result]
+  (some (fn [{{:keys [failed]} :save-status}] (some? failed)) result))
+
+(reg-fx
+ :bg-cross-db-move-save-both
+ (fn [[source-db-key target-db-key]]
+   (bg/save-all-modified-dbs
+    [source-db-key target-db-key]
+    (fn [api-response]
+      (when-let [result (check-error api-response)]
+        (if (any-save-failure? result)
+          (dispatch [:common/error-info-box-show
+                     {:title "Save error"
+                      :error-text "One or more databases could not be saved. Please check and save manually."}])
+          (dispatch [:cross-db-move/save-both-completed
+                     source-db-key target-db-key])))))))
+
+(reg-event-db
+ :cross-db-move/save-both-completed
+ (fn [db [_event-id source-db-key target-db-key]]
+   ;; Clear save-pending flag for both dbs directly (bypassing active-db-key)
+   (-> db
+       (assoc-in [source-db-key :db-modification :save-pending] false)
+       (assoc-in [target-db-key :db-modification :save-pending] false))))
+
+(reg-sub
+ :cross-db-move/save-prompt
+ (fn [db _query-vec]
+   (get db :cross-db-move-save-prompt {:dialog-show false})))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Pending-save info dialog — shown after the user declines to save
+;; the two databases immediately following a cross-db move
+
+(defn pending-save-dialog-data []
+  (subscribe [:cross-db-move/pending-save-dialog]))
+
+(defn pending-save-dialog-close []
+  (dispatch [:cross-db-move/pending-save-dialog-close]))
+
+(reg-event-db
+ :cross-db-move/pending-save-dialog-show
+ (fn [db [_event-id]]
+   (assoc db :cross-db-move-pending-save-dialog {:dialog-show true})))
+
+(reg-event-db
+ :cross-db-move/pending-save-dialog-close
+ (fn [db [_event-id]]
+   (assoc db :cross-db-move-pending-save-dialog {:dialog-show false})))
+
+(reg-sub
+ :cross-db-move/pending-save-dialog
+ (fn [db _query-vec]
+   (get db :cross-db-move-pending-save-dialog {:dialog-show false})))

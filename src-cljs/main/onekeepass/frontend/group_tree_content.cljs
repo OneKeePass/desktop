@@ -1,46 +1,41 @@
 (ns onekeepass.frontend.group-tree-content
   (:require
-   [reagent.core :as r]
+   [onekeepass.frontend.common-components :refer [alert-dialog-factory
+                                                  confirm-text-dialog
+                                                  dialog-factory menu-action
+                                                  selection-autocomplete]]
+   [onekeepass.frontend.constants :as const]
+   [onekeepass.frontend.db-icons :refer [group-icon]]
+   [onekeepass.frontend.events.common :as cmn-events]
+   [onekeepass.frontend.events.generic-dialogs :as gd-events]
+   [onekeepass.frontend.events.group-form :as gf-events]
+   [onekeepass.frontend.events.group-tree-content :as gt-events]
+   [onekeepass.frontend.events.move-group-entry :as move-events]
+   [onekeepass.frontend.events.tauri-events :as tauri-events]
+   [onekeepass.frontend.group-form :as gf]
+   [onekeepass.frontend.mui-components :as m :refer [mui-alert mui-box
+                                                     mui-button mui-dialog
+                                                     mui-dialog-actions
+                                                     mui-dialog-content
+                                                     mui-dialog-title
+                                                     mui-icon-arrow-drop-down
+                                                     mui-icon-arrow-right
+                                                     mui-icon-button
+                                                     mui-icon-more-vert
+                                                     mui-linear-progress
+                                                     mui-menu mui-menu-item
+                                                     mui-stack mui-tree-item
+                                                     mui-tree-view
+                                                     mui-typography]]
    [onekeepass.frontend.translation :as t :refer-macros [tr-l
                                                          tr-t
                                                          tr-ml
                                                          tr-h
                                                          tr-bl
                                                          tr-dlg-title
-                                                         tr-dlg-text]]
-   [onekeepass.frontend.db-icons :refer [group-icon]]
-   [onekeepass.frontend.group-form :as gf]
-   [onekeepass.frontend.common-components :refer [selection-autocomplete
-                                                  alert-dialog-factory
-                                                  dialog-factory
-                                                  confirm-text-dialog
-                                                  menu-action]]
-   [onekeepass.frontend.events.common :as cmn-events]
-   [onekeepass.frontend.events.group-tree-content :as gt-events]
-   [onekeepass.frontend.events.group-form :as gf-events]
-   [onekeepass.frontend.events.move-group-entry :as move-events]
-   [onekeepass.frontend.events.tauri-events :as tauri-events]
-   [onekeepass.frontend.events.generic-dialogs :as gd-events]
-   [onekeepass.frontend.constants :as const]
+                                                         tr-dlg-text] :refer [lstr-dlg-title]]
    [onekeepass.frontend.utils :as u]
-   [onekeepass.frontend.mui-components :as m :refer [mui-button
-                                                     mui-tree-view
-                                                     mui-dialog
-                                                     mui-dialog-title
-                                                     mui-dialog-content
-                                                     mui-dialog-actions
-                                                     mui-tree-item
-                                                     mui-icon-arrow-right
-                                                     mui-icon-arrow-drop-down
-                                                     mui-typography
-                                                     mui-menu
-                                                     mui-menu-item
-                                                     mui-icon-button
-                                                     mui-box
-                                                     mui-stack
-                                                     mui-alert
-                                                     mui-linear-progress
-                                                     mui-icon-more-vert]]))
+   [reagent.core :as r]))
 (set! *warn-on-infer* true)
 
 ;;;;;;;;;;;;;;;;;;;;; empty-recycle-bin related ;;;;;;;;;;;;;;;;;;;;;
@@ -108,7 +103,12 @@
     (fn [data]
       [dlg data])))
 
-;; Uses the generic dialog concepts 
+;; Uses the generic dialog concepts
+
+(defn- target-db-option
+  "Finds the currently selected destination database entry from the unlocked list"
+  [unlocked-dbs target-db-key]
+  (some (fn [m] (when (= target-db-key (:db-key m)) m)) unlocked-dbs))
 
 (defn move-group-or-entry-dialog
   ([{:keys [dialog-show
@@ -116,16 +116,26 @@
             group-selection-info
             kind-kw
             uuid-selected-to-move
-            current-parent-group-uuid]}]
+            current-parent-group-uuid
+            source-db-key
+            target-db-key
+            target-db-groups-listing
+            target-db-loading?]}]
    ;; Ensure that we build mui-dialog only when dialog-show show is true
    (when dialog-show
-     (let [groups-listing @(gt-events/groups-listing)
-           ;; Need to exlude few groups showing in the list 
-           groups-listing (filter (fn [g]
-                                    ;; Note: In case of entry 'uuid-selected-to-move' is the entry-uuid and stricly not 
-                                    ;; required to be excluded vec
-                                    (not (u/contains-val? [uuid-selected-to-move current-parent-group-uuid] (:uuid g))))
-                                  groups-listing)]
+     (let [unlocked-dbs @(move-events/unlocked-opened-dbs)
+           multi-db? (> (count unlocked-dbs) 1)
+           effective-target-key (or target-db-key source-db-key)
+           same-db? (= effective-target-key source-db-key)
+           same-db-listing @(gt-events/groups-listing)
+           groups-listing (cond
+                            same-db? (filter (fn [g]
+                                               (not (u/contains-val?
+                                                     [uuid-selected-to-move current-parent-group-uuid]
+                                                     (:uuid g))))
+                                             same-db-listing)
+                            :else (or target-db-groups-listing []))
+           selected-target-db (target-db-option unlocked-dbs effective-target-key)]
 
        [mui-dialog {:open dialog-show
                     :dir (t/dir)
@@ -134,24 +144,33 @@
         [mui-dialog-title title]
         [mui-dialog-content
          [mui-stack
+          (when multi-db?
+            [mui-box {:sx {:mb 2}}
+             [selection-autocomplete
+              {:label (tr-l "destinationDatabase")
+               :options unlocked-dbs
+               :current-value selected-target-db
+               :on-change (fn [_e db-info]
+                            (let [m (js->clj db-info :keywordize-keys true)]
+                              (move-events/target-db-changed (:db-key m))))
+               :required true}]])
           [mui-typography (tr-t selectAGroup)]
           [mui-box
            [selection-autocomplete {:label (tr-l "group")
-                                    :options groups-listing #_(filter (fn [g] (not= (:uuid g) current-group-uuid)) groups-listing)
+                                    :options groups-listing
                                     :current-value group-selection-info
                                     :on-change (fn [_e group-info]
                                                  (gd-events/move-group-or-entry-dialog-update-with-map
                                                   {:group-selection-info (js->clj group-info :keywordize-keys true)}))
                                     :required true
-                                    :error nil  ;; field-error
-                                    :error-text nil #_(when field-error (tr-h selectAValidGroup))}]]
-          #_(when api-error-text
-              [mui-alert {:severity "error" :style {:width "100%"} :sx {:mt 1}} api-error-text])
-          #_(when (and (nil? api-error-text) (= status :in-progress))
-              [mui-linear-progress {:sx {:mt 2}}])]]
+                                    :error nil
+                                    :error-text nil}]]
+          (when target-db-loading?
+            [mui-linear-progress {:sx {:mt 2}}])]]
         [mui-dialog-actions
          [mui-button {:on-click gd-events/move-group-or-entry-dialog-close} (tr-bl "cancel")]
-         [mui-button {:on-click  (fn []
+         [mui-button {:disabled (or target-db-loading? (nil? group-selection-info))
+                      :on-click  (fn []
                                    (move-events/move-entry-or-group kind-kw uuid-selected-to-move group-selection-info))} (tr-bl "ok")]]])))
 
   ([]
@@ -161,10 +180,39 @@
 (defn move-group-or-entry-dialog-show-with-state
   "Called to show the move dialog when menu item in group or entry panel is clicked"
   [kind-kw title uuid-selected-to-move current-parent-group-uuid]
-  (gd-events/move-group-or-entry-dialog-show-with-state {:title title
-                                                         :kind-kw kind-kw
-                                                         :uuid-selected-to-move uuid-selected-to-move
-                                                         :current-parent-group-uuid current-parent-group-uuid}))
+  (let [current-db-key @(cmn-events/active-db-key)]
+    (gd-events/move-group-or-entry-dialog-show-with-state {:title title
+                                                           :kind-kw kind-kw
+                                                           :uuid-selected-to-move uuid-selected-to-move
+                                                           :current-parent-group-uuid current-parent-group-uuid
+                                                           :source-db-key current-db-key
+                                                           :target-db-key current-db-key
+                                                           :target-db-groups-listing nil
+                                                           :target-db-loading? false})))
+
+(defn cross-db-save-prompt-dialog
+  "Confirmation dialog asking the user whether to save both the source and target
+  databases immediately after a successful cross-database move."
+  []
+  (let [data @(move-events/save-prompt-data)]
+    [confirm-text-dialog
+     (lstr-dlg-title 'saveBothDatabases)
+     (tr-dlg-text "saveBothDatabases")
+     [{:label (tr-bl yes) :on-click (fn [_] (move-events/save-prompt-save-both))}
+      {:label (tr-bl no) :on-click (fn [_] (move-events/save-prompt-close))}]
+     data]))
+
+(defn cross-db-move-pending-save-dialog
+  "Info dialog shown when the user declines to save the two databases after a
+  successful cross-database move. The Save button on the toolbar stays enabled
+  for both databases so the user can save them later."
+  []
+  (let [data @(move-events/pending-save-dialog-data)]
+    [confirm-text-dialog
+     (lstr-dlg-title 'moveCompletedPendingSave)
+     (tr-dlg-text "moveCompletedPendingSave")
+     [{:label (tr-bl ok) :on-click (fn [_] (move-events/pending-save-dialog-close))}]
+     data]))
 
 (defn tree-item-menu-items []
   (fn [anchor-el g-uuid _db-key]
@@ -384,6 +432,12 @@
 
        ;; Used to move one parent group to another (based on the generic dialogs concept)
        [move-group-or-entry-dialog]
+
+       ;; Asks the user to save both databases after a successful cross-database move
+       [cross-db-save-prompt-dialog]
+
+       ;; Shown when the user defers the save following a cross-database move
+       [cross-db-move-pending-save-dialog]
        ;; Used to move a group to recycle bin
        [move-dialog
         {:dialog-data @(move-events/move-group-entry-dialog-data :group)
