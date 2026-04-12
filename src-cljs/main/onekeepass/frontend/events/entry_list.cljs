@@ -24,6 +24,15 @@
   (dispatch [:entry-form-ex/find-entry-by-id entry-uuid])
   #_(dispatch [:entry-form/find-entry-by-id entry-uuid]))
 
+(defn toggle-entry-selection [entry-uuid]
+  (dispatch [:entry-list/toggle-entry-selection entry-uuid]))
+
+(defn clear-entry-selection []
+  (dispatch [:entry-list/clear-entry-selection]))
+
+(defn get-selected-entry-ids []
+  (subscribe [:entry-list/selected-entry-ids]))
+
 (defn add-new-entry [group-info entry-type-uuid]
   (dispatch [:entry-form-ex/add-new-entry group-info entry-type-uuid]))
 
@@ -132,6 +141,25 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(reg-event-db
+ :entry-list/toggle-entry-selection
+ (fn [db [_event-id entry-uuid]]
+   (let [current-set (or (get-in-key-db db [:entry-list :selected-entry-ids]) #{})]
+     (assoc-in-key-db db [:entry-list :selected-entry-ids]
+                      (if (contains? current-set entry-uuid)
+                        (disj current-set entry-uuid)
+                        (conj current-set entry-uuid))))))
+
+(reg-event-db
+ :entry-list/clear-entry-selection
+ (fn [db [_event-id]]
+   (assoc-in-key-db db [:entry-list :selected-entry-ids] #{})))
+
+(reg-sub
+ :entry-list/selected-entry-ids
+ (fn [db _query-vec]
+   (or (get-in-key-db db [:entry-list :selected-entry-ids]) #{})))
+
 ;; Called to clear previously loaded entry summary items (list) data
 ;; Also clears out the category source
 (reg-event-fx
@@ -148,6 +176,7 @@
  :entry-list/load-entry-items
  (fn [{:keys [db]} [_event-id category]]
    {:fx [[:dispatch [:entry-list/update-selected-entry-id nil]]
+         [:dispatch [:entry-list/clear-entry-selection]]
          [:load-bg-entry-summary-data [(active-db-key db) category]]]}))
 
 ;; Called after new entry is inserted in entry form

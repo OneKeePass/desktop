@@ -52,6 +52,9 @@
 (defn recycle-group-selected? []
   (subscribe [:group-tree-content/recycle-group-selected]))
 
+(defn recycle-bin-uuid []
+  (subscribe [:group-tree-content/recycle-bin-uuid]))
+
 (defn selected-group-in-recycle-bin? []
   (subscribe [:group-tree-content/selected-group-in-recycle-bin]))
 
@@ -191,6 +194,12 @@
  :<- [:selected-group-uuid]
  (fn [[data selected] _query-vec]
    (= (get data "recycle_bin_uuid") selected)))
+
+(reg-sub
+ :group-tree-content/recycle-bin-uuid
+ :<- [:groups-tree-data-updated]
+ (fn [data _query-vec]
+   (get data "recycle_bin_uuid")))
 
 ;; Checks whether there are any deleted entry or group in recycle bin
 ;; Returns true if both lists are empty

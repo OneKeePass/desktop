@@ -35,6 +35,7 @@
                                                          tr-dlg-title
                                                          tr-dlg-text] :refer [lstr-dlg-title]]
    [onekeepass.frontend.utils :as u]
+   [cljs.reader :as edn]
    [reagent.core :as r]))
 (set! *warn-on-infer* true)
 
@@ -297,6 +298,8 @@
 ;; Keep the group uuid for which the system menu is active
 (def menu-event-uuid (atom nil))
 
+(def drag-over-group-uuid (r/atom nil))
+
 ;; A functional component that uses react useEffect
 (defn tree-item-menu []
   (let [anchor-el (r/atom nil)]
@@ -340,34 +343,32 @@
         recycle-bin? (gt-events/recycle-group-selected?)
         group-in-recycle-bin? (gt-events/selected-group-in-recycle-bin?)]
     (fn [uuid name icon_id]
-      [mui-box {:sx {:display "flex" :alignItems "center"  :p 0.5 :pr 0}}
-       [mui-box {:sx {;;"& svg" {:width "1em" :height "1em"}
-                      :mr 1  ;; 1 => 8px
-                      :display "flex"
-                      :alignItems "center"}}
-        [group-icon icon_id]]
-       ;; Based on the discussions
-       ;; https://github.com/mui/material-ui/issues/19953#issuecomment-1184953127
-       [mui-typography {:variant "body1" :sx {:flex-grow 1}
-                        ;; This disables the tree item expanding/collapsing when user clicks on the label by calling stopPropagation
-                        ;; in the onclick event. 
-                        ;; User needs to click on expand icon to see all child tree items under a tree item
-                        :on-click (fn [^js/Event e]
-                                    ;; Need to call this event so that group is selected without expanding or collapsing
-                                    (gt-events/node-on-select nil uuid)
-                                    (.stopPropagation e))} name]
+      (let [drop-target? (= @drag-over-group-uuid uuid)]
+        [mui-box {:data-group-uuid uuid
+                  :sx {:display "flex" :alignItems "center" :p 0.5 :pr 0
+                       :background-color (when drop-target? "action.hover")
+                       :border-radius    (when drop-target? "4px")}}
+         [mui-box {:sx {:mr 1
+                        :display "flex"
+                        :alignItems "center"}}
+          [group-icon icon_id]]
+         ;; Based on the discussions
+         ;; https://github.com/mui/material-ui/issues/19953#issuecomment-1184953127
+         [mui-typography {:variant "body1" :sx {:flex-grow 1}
+                          :on-click (fn [^js/Event e]
+                                      (gt-events/node-on-select nil uuid)
+                                      (.stopPropagation e))} name]
 
-       ;; Shows three dot veritical icon for the menu popup
-       (when (= uuid @g-uuid)
-         (cond
-           @recycle-bin?
-           [tree-item-recycle-bin-menu]
+         (when (= uuid @g-uuid)
+           (cond
+             @recycle-bin?
+             [tree-item-recycle-bin-menu]
 
-           (and @group-in-recycle-bin? (not @recycle-bin?))
-           [tree-item-recycle-sub-group-menu @g-uuid]
+             (and @group-in-recycle-bin? (not @recycle-bin?))
+             [tree-item-recycle-sub-group-menu @g-uuid]
 
-           (not @recycle-bin?)
-           [:f> tree-item-menu @g-uuid]))])))
+             (not @recycle-bin?)
+             [:f> tree-item-menu @g-uuid]))]))))
 
 ;; Need to use :strs to retrive values from map argument 
 ;; as "uuid name icon_id" are the string keys in the map
@@ -451,5 +452,50 @@
                                 #(move-events/move-group-entry-ok :group (:selected-group-uuid data)))}]])))
 
 (defn group-tree-panel []
-  [mui-stack  [group-tree-view]])
+  (println "In comp group-tree-panel...")
+  (let [recycle-bin-uuid-sub (gt-events/recycle-bin-uuid)]
+    (fn []
+      [mui-stack
+       {:on-drag-enter (fn [^js/Event e]
+                         (println "In on-drag-enter ...")
+                         ;; WKWebView requires dragenter.preventDefault to register
+                         ;; the element as a valid drop zone (in addition to dragover).
+                         (when-let [el (.closest (.-target e) "[data-group-uuid]")]
+                           (let [uuid (.getAttribute el "data-group-uuid")]
+                             (when (not= uuid @recycle-bin-uuid-sub)
+                               (.preventDefault e)
+                               (when (not= @drag-over-group-uuid uuid)
+                                 (reset! drag-over-group-uuid uuid))))))
+        :on-drag-over (fn [^js/Event e]
+                        (println "In on-drag-over ...")
+                        (let [el (.closest (.-target e) "[data-group-uuid]")
+                              uuid (when el (.getAttribute el "data-group-uuid"))]
+                          (if (and uuid (not= uuid @recycle-bin-uuid-sub))
+                            (do (.preventDefault e)
+                                (set! (.-dropEffect (.-dataTransfer e)) "move")
+                                (when (not= @drag-over-group-uuid uuid)
+                                  (reset! drag-over-group-uuid uuid)))
+                            ;; Not over a valid group — clear highlight
+                            (when @drag-over-group-uuid
+                              (reset! drag-over-group-uuid nil)))))
+        :on-drag-leave (fn [^js/Event e]
+                         (println "In on-drag-leave ...")
+                         ;; Only clear when drag truly leaves the panel
+                         (let [related (.-relatedTarget e)]
+                           (when (or (nil? related)
+                                     (not (.contains (.-currentTarget e) related)))
+                             (reset! drag-over-group-uuid nil))))
+        :on-drop (fn [^js/Event e]
+                   (println "In on-drop ...")
+                   (.preventDefault e)
+                   (let [el (.closest (.-target e) "[data-group-uuid]")
+                         uuid (when el (.getAttribute el "data-group-uuid"))
+                         raw-data (.getData (.-dataTransfer e) "text/plain")
+                         uuids (when (seq raw-data) (edn/read-string raw-data))]
+                     (when (and uuid
+                                (not= uuid @recycle-bin-uuid-sub)
+                                (seq uuids))
+                       (move-events/drag-move-entries uuids uuid)))
+                   (reset! drag-over-group-uuid nil))}
+       [group-tree-view]])))
    

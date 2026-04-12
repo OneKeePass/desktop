@@ -402,3 +402,34 @@
  :cross-db-move/pending-save-dialog
  (fn [db _query-vec]
    (get db :cross-db-move-pending-save-dialog {:dialog-show false})))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Drag-and-drop entry move
+
+(defn drag-move-entries
+  "Called when one or more entries are dropped onto a target group.
+   entry-uuids is a vector of entry UUIDs to move."
+  [entry-uuids target-group-uuid]
+  (dispatch [:drag-move-entries entry-uuids target-group-uuid]))
+
+(reg-event-fx
+ :drag-move-entries
+ (fn [{:keys [db]} [_event-id entry-uuids target-group-uuid]]
+   {:fx [[:bg-drag-move-entries [(active-db-key db) entry-uuids target-group-uuid]]]}))
+
+(reg-fx
+ :bg-drag-move-entries
+ (fn [[db-key entry-uuids target-group-uuid]]
+   (let [total (count entry-uuids)
+         completed (atom 0)]
+     (doseq [uuid entry-uuids]
+       (bg/move-entry db-key uuid target-group-uuid
+                      (fn [api-response]
+                        (swap! completed inc)
+                        (when-not (on-error api-response)
+                          (when (= @completed total)
+                            (dispatch [:entry-list/clear-entry-selection])
+                            (dispatch [:common/message-snackbar-open
+                                       (if (= total 1) "Entry is moved"
+                                           (str total " entries moved"))])
+                            (dispatch [:common/refresh-forms])))))))))

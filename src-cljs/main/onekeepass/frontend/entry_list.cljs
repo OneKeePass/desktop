@@ -63,27 +63,49 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn row-item
-  "Renders a list item. 
+  "Renders a list item.
   The arg 'props' is a map passed from 'fixed-size-list'
   "
   []
   (fn [props]
-    (let [items  (el-events/get-selected-entry-items)
-          item (nth @items (:index props))
-          selected-id (el-events/get-selected-entry-id)]
-      [mui-list-item {:style (:style props)
-                      ;; MuiListItemSecondaryAction-root is the CSS used for the secondaryAction component
-                      ;; This was found by using Inspect Element. By default the right side More icon is placed 16px
-                      ;; absolutely from right edge wasting more space. It is overriden here setting to 0 px
-                      :sx {"& .MuiListItemSecondaryAction-root" {:right 0}}
-                      :button true
-                      :value (:uuid item)
-                      :on-click #(el-events/update-selected-entry-id (:uuid item))
-                      :selected (if (= @selected-id (:uuid item)) true false)
-                      :secondaryAction (when (= @selected-id (:uuid item))
-                                         ;; We are reusing the menu components from entry-form-ex directly here
-                                         ;; Need to move this a common UI name space
-                                         (r/as-element [entry-form-ex/form-menu @selected-id] #_[mui-icon-button {:edge "end"} [mui-icon-more-vert]]))}
+    (let [items                 (el-events/get-selected-entry-items)
+          item                  (nth @items (:index props))
+          selected-id           (el-events/get-selected-entry-id)
+          selected-ids          (el-events/get-selected-entry-ids)
+          recycle-bin?          (gt-events/recycle-group-selected?)
+          group-in-recycle-bin? (gt-events/selected-group-in-recycle-bin?)
+          deleted-cat?          (el-events/deleted-category-showing)
+          draggable?            (not (or @recycle-bin? @group-in-recycle-bin? @deleted-cat?))
+          entry-uuid            (:uuid item)
+          multi-selected?       (contains? @selected-ids entry-uuid)]
+      [mui-list-item
+       {:style (:style props)
+        ;; MuiListItemSecondaryAction-root is the CSS used for the secondaryAction component
+        ;; This was found by using Inspect Element. By default the right side More icon is placed 16px
+        ;; absolutely from right edge wasting more space. It is overriden here setting to 0 px
+        :sx {"& .MuiListItemSecondaryAction-root" {:right 0}
+             :background-color (when multi-selected? "action.selected")}
+        :button true
+        :value entry-uuid
+        :on-click (fn [^js/Event e]
+                    (if (or (.-ctrlKey e) (.-metaKey e))
+                      (el-events/toggle-entry-selection entry-uuid)
+                      (do
+                        (el-events/clear-entry-selection)
+                        (el-events/update-selected-entry-id entry-uuid))))
+        :selected (or (= @selected-id entry-uuid) multi-selected?)
+        :draggable draggable?
+        :on-drag-start (when draggable?
+                         (fn [^js/Event e]
+                           (let [uuids (if (contains? @selected-ids entry-uuid)
+                                         (vec @selected-ids)
+                                         [entry-uuid])]
+                             (.setData (.-dataTransfer e) "text/plain" (pr-str uuids))
+                             (set! (.-effectAllowed (.-dataTransfer e)) "move"))))
+        :secondaryAction (when (= @selected-id entry-uuid)
+                           ;; We are reusing the menu components from entry-form-ex directly here
+                           ;; Need to move this a common UI name space
+                           (r/as-element [entry-form-ex/form-menu @selected-id] #_[mui-icon-button {:edge "end"} [mui-icon-more-vert]]))}
        [mui-list-item-avatar
         [mui-avatar [entry-icon (:icon-id item)]]]
        [mui-list-item-text
@@ -95,7 +117,7 @@
                                     :white-space "nowrap"
                                     :text-overflow "ellipsis"
                                     :overflow "hidden"}
-         :primary (:title  item) :secondary (:secondary-title item)}]])))
+         :primary (:title item) :secondary (:secondary-title item)}]])))
 
 ;; A functional component to use react useEffect
 (defn fn-entry-list-content
