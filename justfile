@@ -1,11 +1,13 @@
-alias r := run-repl
-alias acs := advanced-compile-start-server
+
 alias td := run-tauri-dev
+
+# alias r := run-repl
+# alias acs := advanced-compile-start-server
 
 # Using 'just run-repl' will start nrepl server and then we need to click jack-in or connect to the REPL server
 # in MS Code to start the cljs compiling and connect to the REPL 
-run-repl:
-    clojure  -M:frontend:fw:nrepl
+# run-repl:
+#     clojure  -M:frontend:fw:nrepl
 
 # Before calling target 'run-tauri-dev', we need to do the above 'just run-repl' in a terminal and
 # then do the following in another terminal
@@ -40,6 +42,9 @@ run-tauri-dev:
 #     clojure -M:frontend:fw  -m figwheel.main -O {{type}} -bo dev
 #     mkdir  -p ./resources/public/cljs-out/dev
 #     cp  ./target/public/cljs-out/dev/main_bundle.js  ./resources/public/cljs-out/dev/main_bundle.js
+
+build-cljs-bundle:
+    echo "Need to call shadow-cljs build"
 
 mac-aarch64-bundle-build-only:
     #!/usr/bin/env bash
