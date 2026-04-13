@@ -20,19 +20,26 @@ run-tauri-dev:
 # using webpack (--mode=production) to /desktop/target/public/cljs-out/dev/main_bundle.js
 # And then starts the http server 
 # Once the http server starts, we can then use 'just td' to connect to this build
-advanced-compile-start-server:
-    clojure -M:frontend:fw  -m figwheel.main -O advanced  -bo dev -s
 
-advanced-compile:
-    clojure -M:frontend:fw  -m figwheel.main -O advanced  -bo dev
+################
+## IMPORTANT: Should be removed as moved to shadow-cljs build.
+# advanced-compile-start-server:
+#     clojure -M:frontend:fw  -m figwheel.main -O advanced  -bo dev -s
+
+# advanced-compile:
+#     clojure -M:frontend:fw  -m figwheel.main -O advanced  -bo dev
+
+################
 
 ## Default is now "simple" instead of "advanced", because of issue with compiling of the package 'react-window'
 ## See the comments in src/main/onekeepass/frontend/mui_components.cljs
-build-cljs-bundle type="simple":
-    rm -rf target
-    clojure -M:frontend:fw  -m figwheel.main -O {{type}} -bo dev
-    mkdir  -p ./resources/public/cljs-out/dev
-    cp  ./target/public/cljs-out/dev/main_bundle.js  ./resources/public/cljs-out/dev/main_bundle.js
+
+## IMPORTANT: Need to be redone for shadow-cljs build
+# build-cljs-bundle type="simple":
+#     rm -rf target
+#     clojure -M:frontend:fw  -m figwheel.main -O {{type}} -bo dev
+#     mkdir  -p ./resources/public/cljs-out/dev
+#     cp  ./target/public/cljs-out/dev/main_bundle.js  ./resources/public/cljs-out/dev/main_bundle.js
 
 mac-aarch64-bundle-build-only:
     #!/usr/bin/env bash

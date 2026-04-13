@@ -4,7 +4,7 @@
             [onekeepass.frontend.entry-category :as ec]
             [onekeepass.frontend.entry-form-ex :as eform-ex]
             [onekeepass.frontend.entry-list :as el]
-            [onekeepass.frontend.events.common :as cmn-events] 
+            [onekeepass.frontend.events.common :as cmn-events]
             ;; Just to load events defined in this ns
             [onekeepass.frontend.events.auto-open]
             [onekeepass.frontend.events.tauri-events :as tauri-events]
@@ -24,6 +24,7 @@
             [onekeepass.frontend.start-page :as sp]
             [onekeepass.frontend.tool-bar :as tool-bar]
             [onekeepass.frontend.translation :as t :refer-macros [tr-t tr-bl]]
+            [reagent.dom.client :as rdomc]
             [reagent.dom :as rdom]))
 
 ;;(set! *warn-on-infer* true)
@@ -32,11 +33,11 @@
   "Component that has entry list and any selected entry content"
   []
   [split-pane {:split "vertical"
-                 ;;:size "200" 
+               ;;:size "200" 
                :minSize "200"
                :maxSize "275"
                :primary "first"
-               :resizerClassName  (if (= @(cmn-events/app-theme) THEME_LIGHT) 
+               :resizerClassName  (if (= @(cmn-events/app-theme) THEME_LIGHT)
                                     "Resizer1 vertical" "Resizer2 vertical")
                :style {:position "relative"}}
    ;; Pane1
@@ -54,21 +55,21 @@
                :primary "first"
                :style {:position "relative"}
                :pane1Style {:background (theme-color @custom-theme-atom :bg-default)}
-               :resizerClassName (if (= @(cmn-events/app-theme) THEME_LIGHT) 
+               :resizerClassName (if (= @(cmn-events/app-theme) THEME_LIGHT)
                                    "Resizer1 vertical" "Resizer2 vertical")
 
-              ;; Another way of styling split pane's resizer. But did not work as expected
-              ;; Leaving it here commenting out for future use if possible
-              ;;  :resizerStyle {:background "darkslategrey" 
-              ;;                 :width "11px"
-              ;;                 :margin "0 -5px"
-              ;;                 :border-left "5px solid rgba(255, 255, 255, 0)"
-              ;;                 :border-right "5px solid rgba(255, 255, 255, 0)" 
-              ;;                 :hover {:border-left "5px solid rgba(0, 0, 0, 0.5)"
-              ;;                         :border-right "5px solid rgba(0, 0, 0, 0.5)"
-              ;;                         ;;:background "yellow"
-              ;;                         }
-              ;;                 }
+               ;; Another way of styling split pane's resizer. But did not work as expected
+               ;; Leaving it here commenting out for future use if possible
+               ;;  :resizerStyle {:background "darkslategrey" 
+               ;;                 :width "11px"
+               ;;                 :margin "0 -5px"
+               ;;                 :border-left "5px solid rgba(255, 255, 255, 0)"
+               ;;                 :border-right "5px solid rgba(255, 255, 255, 0)" 
+               ;;                 :hover {:border-left "5px solid rgba(0, 0, 0, 0.5)"
+               ;;                         :border-right "5px solid rgba(0, 0, 0, 0.5)"
+               ;;                         ;;:background "yellow"
+               ;;                         }
+               ;;                 }
 
                ;;:pane2Style {:max-width "25%"}
                }
@@ -173,7 +174,7 @@
       [:<>
        [sp/welcome-content]
        [common-snackbars]]
-      [:div {:class "box" :dir (t/dir) }  ;;:style {:height "100vh"}
+      [:div {:class "box" :dir (t/dir)}  ;;:style {:height "100vh"}
        [:div {:class "cust_row header"}
         [header-bar]
         [common-snackbars]]
@@ -192,7 +193,7 @@
 (defn main-app-with-theme
   "Main component that uses custom theme"
   []
-  (fn [theme-mode] 
+  (fn [theme-mode]
     (let [theme (m/create-custom-theme theme-mode)]
       [mui-styled-engine-provider {:injectFirst true}
        [mui-theme-provider {:theme theme}
@@ -200,18 +201,25 @@
          [:f> root-content]]]])))
 
 (defn main-app []
-  
+
   (if (and
        @(cmn-events/language-translation-loading-completed)
-         @(cmn-events/app-preference-loading-completed)) 
-      [:f> main-app-with-theme @(cmn-events/app-theme)]
-      [:div "Please wait......"]))
+       @(cmn-events/app-preference-loading-completed))
+    [:f> main-app-with-theme @(cmn-events/app-theme)]
+    [:div "Please wait......"]))
+
+#_(defn start
+    {:dev/after-load true}
+    []
+    (rdom/render
+     [main-app] (.getElementById  ^js/Window js/document "app")))
+
+(defonce react-root (delay (rdomc/create-root (.getElementById js/document "app"))))
 
 (defn start
   {:dev/after-load true}
   []
-  (rdom/render
-   [main-app] (.getElementById  ^js/Window js/document "app")))
+  (rdomc/render @react-root [main-app]))
 
 (defn ^:export init
   "Called once on app load via shadow-cljs :init-fn"

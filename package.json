@@ -5,6 +5,7 @@
   "devDependencies": {
     "@fontsource/roboto": "^4.5.7",
     "@tauri-apps/cli": "^2.0.0",
+    "process": "^0.11.10",
     "trim-newlines": "^4.0.2",
     "webpack": "^5.97.1",
     "webpack-cli": "^5.1.4"
@@ -30,8 +31,8 @@
     "date-fns": "^2.25.0",
     "i18next": "^23.11.2",
     "onekeepass-local": "file:./src-js",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
     "react-i18next": "^14.1.0",
     "react-idle-timer": "^5.4.1",
     "react-split-pane": "^0.1.92",

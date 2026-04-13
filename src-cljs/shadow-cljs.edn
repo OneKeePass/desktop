@@ -1,8 +1,8 @@
 {:source-paths ["main"]
 
  :dependencies
- [[reagent "1.3.0"]
-  [re-frame "1.4.3"]
+ [[reagent "2.0.1"]
+  [re-frame "1.4.5"]
   [camel-snake-kebab/camel-snake-kebab "0.4.3"]
   [hickory/hickory "0.7.1"]
   [org.clojure/core.async "1.5.648"]
@@ -17,4 +17,12 @@
    :output-dir "../resources/public/cljs-out/dev"
    :asset-path "/cljs-out/dev"
    :js-options {:js-package-dirs ["../node_modules"]}
-   :devtools {:after-load onekeepass.frontend.core/start}}}}
+   :devtools {:after-load onekeepass.frontend.core/start}
+
+   ;; Here is some production config
+   ;; :optimizations :simple
+   ;; :optimizations :advanced
+   ;; :release {:compiler-options {:optimizations :advanced
+   ;;                              :pretty-print true
+   ;;                              :pseudo-names true}}
+   }}}
