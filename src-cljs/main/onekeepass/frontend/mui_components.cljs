@@ -520,15 +520,7 @@
 
 ;;;;;;;;;;;;;;;;
 ;;; Follwings are based on this example
-;;; https://github.com/reagent-project/reagent/blob/v1.2.0/examples/material-ui/src/example/core.cljs
-
-#_(def ^:private input-component
-  (react/forwardRef
-   (fn [props ref]
-     (r/as-element
-      [:input (-> (js->clj props :keywordize-keys true)
-                  (assoc :ref ref))]))))
-
+;;; https://github.com/reagent-project/reagent/blob/v1.3.0/examples/material-ui/src/example/core.cljs
 
 (def ^:private input-component
     (react/forwardRef
@@ -589,30 +581,6 @@
                       (when (and orig-on-change
                                  (not (.-current composing)))
                         (orig-on-change e)))))])))))
-
-#_(defn text-field [props & children]
-  #_(println "1 - The text-field props:" props  " children " children)
-  (let [;; props (assoc props :dir (t/dir))
-        props (-> props
-                  (assoc-in [:InputProps :inputComponent] (cond
-                                                            (and (:multiline props) (:rows props) (not (:maxRows props)))
-                                                            textarea-component
-
-                                                            ;; FIXME: Autosize multiline field is broken.
-                                                            (:multiline props)
-                                                            nil
-
-                                                            ;; Select doesn't require cursor fix so default can be used.
-                                                            (:select props)
-                                                            nil
-
-                                                            :else
-                                                            input-component))
-                  rtpl/convert-prop-value)]
-    
-    #_(println "2 - The text-field props:" props)
-    
-    (apply r/create-element mui/TextField props (map r/as-element children))))
 
 ;; To fix cursor jumping when controlled input value is changed,
 ;; use wrapper input element created by Reagent instead of
