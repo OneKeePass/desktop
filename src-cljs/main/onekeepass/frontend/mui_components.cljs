@@ -62,24 +62,6 @@
   "A reagent component formed from react component SplitPane"
   (reagent.core/adapt-react-class SplitPane))
 
-
-;;;;;;;;;;;;;;; Issue found while creating reagent component from react component 'react-window' ;;;;; 
-
-;; After Tauri 2 upgrade, saw some issues with compling all @tauri-apps/* packages by cljs in REPL.
-;; Upgraded clojurescript and it worked.
-
-;; However during production build time, we could compile cljs 'main_bundle.js' with advanced option of closure compiler. 
-;; But when the final built app was lauched,the cljs bundle failed to load because of failure of 'adapt-react-class' call with 'my-fix-list' with error
-;; "Error: Assert failed: Component must not be nil" 
-;; And the UI part of app failed to lauch
-
-;; But when compiled the cljs 'main_bundle.js' with simple option, the final app build worked without any runtime error
-
-;; Could not find where the problem is - is it in advanced compiled code (main.js) or the final webpacking the code 'main_bundle.js' ?
-
-;; For now decided to use 'simple' option. The size of the final build increase around 3 to 4 MB as the 
-;; size of 'main_bundle.js' increased
-
 (def ^js/FixedSizeListObj my-fix-list ^js/FixedSizeList (.-FixedSizeList react-window))
 
 #_(def ^js/FixedSizeListObj my-fix-list (j/get react-window :FixedSizeList))
