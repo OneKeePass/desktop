@@ -18,14 +18,14 @@
                                                      mui-dialog-actions
                                                      mui-dialog-content
                                                      mui-dialog-title
-                                                     mui-icon-arrow-drop-down
-                                                     mui-icon-arrow-right
+                                                     mui-icon-arrow-drop-down-class
+                                                     mui-icon-arrow-right-class
                                                      mui-icon-button
                                                      mui-icon-more-vert
                                                      mui-linear-progress
                                                      mui-menu mui-menu-item
                                                      mui-stack mui-tree-item
-                                                     mui-tree-view
+                                                     mui-simple-tree-view
                                                      mui-typography]]
    [onekeepass.frontend.translation :as t :refer-macros [tr-l
                                                          tr-t
@@ -372,7 +372,7 @@
 ;; Need to use :strs to retrive values from map argument 
 ;; as "uuid name icon_id" are the string keys in the map
 (defn make-tree-item [{:strs [uuid name icon_id]}]
-  [mui-tree-item {:nodeId uuid
+  [mui-tree-item {:itemId uuid
                   ;; :label (r/as-element [:div name [mui-icon-more-vert]]) ;; Need more work
                   ;; :icon (r/as-element [mui-icon-more-vert]) ;; Not working; Replaces expand icon
                   :label (r/as-element [tree-label uuid name icon_id])}
@@ -413,14 +413,14 @@
       ;; Just :div in case group tree data is nil
       [:div]
       ;; Tree view is shown when the group tree data is loaded and data is not nil
-      [mui-tree-view
-       {:defaultCollapseIcon (r/as-element [mui-icon-arrow-drop-down])
-        :defaultExpandIcon (r/as-element [mui-icon-arrow-right])
-        :onNodeSelect gt-events/node-on-select
-        :onNodeToggle gt-events/on-node-toggle
-        :expanded (if (nil? expanded) [root-id] expanded)
-        ;; This ensures to clear any previous selection that when some other entry category item is selected
-        :selected selected-group-uuid}
+      [mui-simple-tree-view
+       {:slots {:collapseIcon mui-icon-arrow-drop-down-class
+                :expandIcon mui-icon-arrow-right-class}
+        :onSelectedItemsChange gt-events/node-on-select
+        :onExpandedItemsChange gt-events/on-node-toggle
+        :expandedItems (if (nil? expanded) [root-id] expanded)
+        ;; This ensures to clear any previous selection when some other entry category item is selected
+        :selectedItems selected-group-uuid}
        ;; Form the children tree items 
        (when-not (nil? gd)
          (group-visitor-action

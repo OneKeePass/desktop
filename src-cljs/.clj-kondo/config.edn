@@ -56,6 +56,7 @@
                                 SnackbarContent
                                 Switch
                                 Select
+                                SimpleTreeView
                                 SvgIcon
                                 Tabs
                                 Tab
@@ -63,6 +64,7 @@
                                 Toolbar
                                 Tooltip
                                 Typography
+                                
 
                                 ArrowDropUpOutlined
                                 ArrowDropDownOutlined

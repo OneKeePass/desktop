@@ -117,7 +117,7 @@
                    :on-change on-change-handler
                    :error  (not (nil? error-text))
                    :helperText (if (nil? error-text) helper-text error-text)
-                   :inputProps  {:readOnly (not edit)}
+                   :slotProps {:htmlInput {:readOnly (not edit)}}
                    :variant "standard" :fullWidth true}
    (doall (for [y select-field-options]
             ^{:key y} [mui-menu-item {:value y} y]))])
@@ -162,18 +162,14 @@
                    :onChange  on-change-handler
                    :required false
                    :disabled disabled
-                   :InputLabelProps {}
-                   :InputProps {:id key
-                                :sx (theme-text-field-sx edit @custom-theme-atom)
-                                :endAdornment (if no-end-icons nil
-                                                  (r/as-element
-                                                   [mui-input-adornment {:position "end"}
-                                                    [end-icons kv]]))
-                                :type (if (or (not protected) visible) "text" "password")}
-                   ;;attributes for 'input' tag can be added here
-                   ;;It seems adding these 'InputProps' also works
-                   ;;We need to use 'readOnly' and not 'readonly'        
-                   :inputProps  {:readOnly (not edit)}}]))
+                   :slotProps {:input {:id key
+                                      :sx (theme-text-field-sx edit @custom-theme-atom)
+                                      :endAdornment (if no-end-icons nil
+                                                        (r/as-element
+                                                         [mui-input-adornment {:position "end"}
+                                                          [end-icons kv]]))
+                                      :type (if (or (not protected) visible) "text" "password")}
+                              :htmlInput {:readOnly (not edit)}}}]))
 
 ;; Both works
 ;;"& .MuiInputBase-input" 
@@ -243,20 +239,17 @@
                         :error  (or (not (nil? error-text)) (not valid-token-found))
                         :helperText (if-not valid-token-found (tr-h "invalidOtpUrl") error-text)
                         :required false
-                        ;; setting props in this is not working
-                        :InputLabelProps {}
-                        :InputProps {:id key
-                                     :sx (theme-text-field-sx edit @custom-theme-atom)
-                                     :endAdornment (if (or (not valid-token-found) no-end-icons) nil
-                                                       (r/as-element
-                                                        [mui-input-adornment {:position "end"}
-                                                         [end-icons (assoc kv
-                                                                           :value token
-                                                                           :read-value nil
-                                                                           :protected false)]]))
-                                     :type "text"}
-
-                        :inputProps  {:readOnly true}}]
+                        :slotProps {:input {:id key
+                                           :sx (theme-text-field-sx edit @custom-theme-atom)
+                                           :endAdornment (if (or (not valid-token-found) no-end-icons) nil
+                                                             (r/as-element
+                                                              [mui-input-adornment {:position "end"}
+                                                               [end-icons (assoc kv
+                                                                                 :value token
+                                                                                 :read-value nil
+                                                                                 :protected false)]]))
+                                           :type "text"}
+                                   :htmlInput {:readOnly true}}}]
 
        (when valid-token-found
          [mui-stack {:sx {:width "10%"
@@ -325,7 +318,7 @@
                           :value value
                           :onChange on-change-handler
                           :slotProps {:textField {:variant "standard"
-                                                  :classes {:root "entry-cnt-field"}
+                                                  :sx {:margin-top cc/entry-cnt-field-margin-top}
                                                   :fullWidth true}}}]])
 
 (defn text-area-field [{:keys [key value edit on-change-handler]
@@ -344,12 +337,11 @@
                  ;;minRows and maxRows should not be used with the fixed 'm/text-field'
                  ;;:minRows 3 
                  ;;:maxRows 10 
-                 :InputLabelProps {:shrink true}
-                 :InputProps {:id key}
-
-                 :inputProps  {:readOnly (not edit)
-                               :sx {:ml ".5em" :mr ".5em"}
-                               :style {:resize "vertical"}}}])
+                 :slotProps {:inputLabel {:shrink true}
+                             :input {:id key}
+                             :htmlInput {:readOnly (not edit)
+                                         :sx {:ml ".5em" :mr ".5em"}
+                                         :style {:resize "vertical"}}}}])
 
 (defn- single-line-text-field
   "A single line text field"
@@ -404,18 +396,14 @@
                                (if  (> (.-scrollWidth ref-val) (.-clientWidth ref-val))
                                  (form-events/entry-form-multiline-field-toggle key true)
                                  (form-events/entry-form-multiline-field-toggle key false))))
-                 :InputLabelProps {}
-                 :InputProps {:id key
-                              :sx (theme-text-field-sx edit @custom-theme-atom)
-                              :endAdornment (if no-end-icons nil
-                                                (r/as-element
-                                                 [mui-input-adornment {:position "end"}
-                                                  [end-icons kv]]))
-                              :type (if (or (not protected) visible) "text" "password")}
-                 ;;attributes for 'input' tag can be added here
-                 ;;It seems adding these 'InputProps' also works
-                 ;;We need to use 'readOnly' and not 'readonly'        
-                 :inputProps  {:readOnly (not edit)}}])
+                 :slotProps {:input {:id key
+                                    :sx (theme-text-field-sx edit @custom-theme-atom)
+                                    :endAdornment (if no-end-icons nil
+                                                      (r/as-element
+                                                       [mui-input-adornment {:position "end"}
+                                                        [end-icons kv]]))
+                                    :type (if (or (not protected) visible) "text" "password")}
+                             :htmlInput {:readOnly (not edit)}}}])
 
 
 
@@ -448,22 +436,20 @@
                  ;;minRows and maxRows should not be used with the fixed 'm/text-field'
                  ;;:minRows 3 
                  ;;:maxRows 10 
-                 :InputLabelProps {:shrink true}
-
-                 :InputProps {:id key
-                              :endAdornment (if no-end-icons nil
-                                                (r/as-element
-                                                 ;; Need to position the input adornment 'absolute' to override the default position style of mui
-                                                 ;; so that it is aligned properly when there are multiple lines and not pusing the text area to left
-                                                 [mui-input-adornment
-                                                  {:sx {:position "absolute"
-                                                        :right "5px"}
-                                                   :position "end"}
-                                                  [end-icons kv]]))}
-
-                 :inputProps  {:readOnly (not edit)
-                               :sx {:ml ".5em" :mr ".5em"}
-                               :style {:resize "vertical"}}}])
+                 :slotProps {:inputLabel {:shrink true}
+                             :input {:id key
+                                     :endAdornment (if no-end-icons nil
+                                                       (r/as-element
+                                                        ;; Need to position the input adornment 'absolute' to override the default position style of mui
+                                                        ;; so that it is aligned properly when there are multiple lines and not pusing the text area to left
+                                                        [mui-input-adornment
+                                                         {:sx {:position "absolute"
+                                                               :right "5px"}
+                                                          :position "end"}
+                                                         [end-icons kv]]))}
+                             :htmlInput {:readOnly (not edit)
+                                         :sx {:ml ".5em" :mr ".5em"}
+                                         :style {:resize "vertical"}}}}])
 
 
 (defn single-or-multiline-text-field

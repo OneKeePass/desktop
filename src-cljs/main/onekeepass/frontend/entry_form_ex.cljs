@@ -1074,7 +1074,6 @@
                                       (when (and (boolean (seq error-fields)) (not (nil? comp-ref)))
                                         (when-let [comp-id (some-> comp-ref .-props .-id)]
                                           (.focus (.getElementById js/document comp-id)))))
-                          :InputProps {}
                           :on-change (on-change-factory form-events/section-field-dialog-update :field-name)
                           :variant "standard" :fullWidth true}]
 
@@ -1121,14 +1120,12 @@
                        :value field-name
                        :error (boolean (seq error-fields))
                        :helperText (get error-fields field-name)
-                       :InputProps {}
                        :on-change (on-change-factory form-events/update-custom-field-dialog-data :field-name)
                        :variant "standard" :fullWidth true}]
 
         (when (= mode :add)
           [m/text-field {:label "Field Value"
                          :value field-value
-                         :InputProps {}
                          :on-change (on-change-factory form-events/update-custom-field-dialog-data :field-value)
                          :variant "standard" :fullWidth true}])
 
@@ -1208,7 +1205,6 @@
                                    :value section-name
                                    :error (boolean (seq error-fields))
                                    :helperText (get error-fields :section-name)
-                                   :InputProps {}
                                    :on-change (on-change-factory2 form-events/section-add-name-update)
                                    :variant "standard" :fullWidth true}]]]
         [mui-stack  {:sx {:align-items "end"}}

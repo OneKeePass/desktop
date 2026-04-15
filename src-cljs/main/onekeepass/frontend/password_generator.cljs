@@ -74,7 +74,7 @@
                    :on-change on-change-handler
                    :error  (not (nil? error-text))
                    :helperText (if (nil? error-text) helper-text error-text)
-                   :inputProps  {:readOnly (not edit)}
+                   :slotProps {:htmlInput {:readOnly (not edit)}}
                    :variant "standard" :fullWidth true}
    (doall (for [y select-field-options]
             (let [{:keys [value label]} (if (string? y) {:value y :label y} y)]
@@ -153,7 +153,7 @@
 
                                (> words 40)
                                (gen-events/pass-phrase-options-update :words 40)))
-                  :inputProps {:min 1 :max 40 :type "number"}}]]]
+                  :slotProps {:htmlInput {:min 1 :max 40 :type "number"}}}]]]
     [mui-stack {:direction "row" :sx {:width "50%"}}
      [m/text-field {:label (lstr-l 'separator)
                     :value separator
@@ -180,11 +180,11 @@
        :value password
        :sx   (merge {} (cc/password-helper-text-sx (:name score)))
        :helper-text (-> score :name lstr-l-cv)
-       :InputProps {:endAdornment (r/as-element
-                                   [mui-input-adornment {:position "end"}
-                                    [end-icons password-visible]])
-                    :type (if password-visible "text" "password")
-                    :readOnly true}
+       :type (if password-visible "text" "password")
+       :slotProps {:input {:endAdornment (r/as-element
+                                         [mui-input-adornment {:position "end"}
+                                          [end-icons password-visible]])}
+                   :htmlInput {:readOnly true}}
        :variant "standard"
        :fullWidth true}]]
 
@@ -225,7 +225,7 @@
 
                                (> length 100)
                                (gen-events/password-options-update :length 100)))
-                  :inputProps {:min 8 :max 100 :type "number"}}]]]
+                  :slotProps {:htmlInput {:min 8 :max 100 :type "number"}}}]]]
 
     [mui-stack {:direction "row"}
      [mui-stack {:sx {:width "50%"}}
@@ -269,11 +269,11 @@
        :value analyzed-password
        :sx   (merge {} (cc/password-helper-text-sx (:name score)))
        :helper-text (-> score :name lstr-l-cv)
-       :InputProps {:endAdornment (r/as-element
-                                   [mui-input-adornment {:position "end"}
-                                    [end-icons password-visible]])
-                    :type (if password-visible "text" "password")
-                    :readOnly true}
+       :type (if password-visible "text" "password")
+       :slotProps {:input {:endAdornment (r/as-element
+                                         [mui-input-adornment {:position "end"}
+                                          [end-icons password-visible]])}
+                   :htmlInput {:readOnly true}}
        :variant "standard"
        :fullWidth true}]]
 

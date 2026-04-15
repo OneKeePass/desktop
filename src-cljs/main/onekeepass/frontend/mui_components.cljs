@@ -16,7 +16,7 @@
    ["@mui/material/styles" :as mui-mat-styles]
    ["@mui/x-tree-view" :as mui-x-tree-view]
    ["@mui/x-date-pickers" :as mui-x-date-pickers]
-   ["@mui/x-date-pickers/AdapterDateFns" :as mui-x-adapter-date-fns]
+   ["@mui/x-date-pickers/AdapterDateFnsV2" :as mui-x-adapter-date-fns]
    ["@mui/material/Autocomplete" :as mui-ac]
 
    ["@date-io/date-fns" :as DateAdapter]
@@ -46,8 +46,7 @@
 
 #_(def use-idle-timer (.-useIdleTimer ^js/ReactIdleTimer react-idle-timer))
 
-;; datetime picker component v 5.x used date-fns DateAdapter
-;; datetime picker component v 6.x needs to use this
+;; AdapterDateFns in MUI X v7 supports date-fns v2; AdapterDateFnsV3 is for date-fns v3
 (def adapter-date-fns ^js/AdapterDateFns (.-AdapterDateFns  mui-x-adapter-date-fns))
 
 ;; https://github.com/dmtrKovalenko/date-io
@@ -365,6 +364,14 @@
 (def mui-text-field-type
   "TextField is a React Component" mui/TextField)
 
+;; Raw React icon components for use in MUI `:slots` props.
+;; `:slots` is rendered by MUI via React.createElement and therefore needs
+;; the raw React component type, not a Reagent adapter.
+(def mui-icon-arrow-drop-down-class
+  "ArrowDropDown as the raw React component" (.-ArrowDropDown mui-icons))
+(def mui-icon-arrow-right-class
+  "ArrowRight as the raw React component" (.-ArrowRight mui-icons))
+
 ;; declare-mui-classes macro is used to define 'def's of all Material React components 
 ;; as Reagent components in this name space
 ;; e.g  
@@ -385,7 +392,6 @@
   CssBaseline
   Checkbox
   Chip
-  ClickAwayListener
   CircularProgress
   Container
   Dialog
@@ -433,12 +439,16 @@
   Typography]
  "mui-" "mui/")
 
-;; Thesse components do not have name space prefix 
+;; Thesse components do not have name space prefix
 ;; e.g (def mui-tree-item  (reagent.core/adapt-react-class TreeItem))
+;; TreeView was replaced by SimpleTreeView in MUI X v7
 (declare-mui-classes
  [TreeItem
-  TreeView]
+  SimpleTreeView]
  "mui-", "mui-x-tree-view/")
+
+;; Backward-compat alias so consumer code can still use mui-tree-view
+#_(def mui-tree-view mui-simple-tree-view)
 
 ;; DateTimePicker and LocalizationProvider are moved from mui lab to mui-x date pickers
 ;; See https://mui.com/blog/lab-date-pickers-to-mui-x/
@@ -511,35 +521,44 @@
 ;;;;;;;;;;;;;;;;
 ;;; Follwings are based on this example
 ;;; https://github.com/reagent-project/reagent/blob/v1.2.0/examples/material-ui/src/example/core.cljs
-(def ^:private input-component
+
+#_(def ^:private input-component
   (react/forwardRef
    (fn [props ref]
-     ;; composing tracks whether an IME composition session is active;
-     ;; while true, onChange is suppressed to avoid committing partial keystrokes
-     (let [^js composing (react-use-ref false)
-           clj-props (js->clj props :keywordize-keys true)
-           orig-on-change (:onChange clj-props)
-           orig-on-composition-start (:onCompositionStart clj-props)
-           orig-on-composition-end (:onCompositionEnd clj-props)]
-       (r/as-element
-        [:input
-         (-> clj-props
-             (assoc :ref ref)
-             (assoc :onCompositionStart
-                    (fn [e]
-                      (set! (.-current composing) true)
-                      (when orig-on-composition-start
-                        (orig-on-composition-start e))))
-             (assoc :onCompositionEnd
-                    (fn [e]
-                      (set! (.-current composing) false)
-                      (when orig-on-composition-end
-                        (orig-on-composition-end e))))
-             (assoc :onChange
-                    (fn [e]
-                      (when (and orig-on-change
-                                 (not (.-current composing)))
-                        (orig-on-change e)))))])))))
+     (r/as-element
+      [:input (-> (js->clj props :keywordize-keys true)
+                  (assoc :ref ref))]))))
+
+
+(def ^:private input-component
+    (react/forwardRef
+     (fn [props ref]
+       ;; composing tracks whether an IME composition session is active;
+       ;; while true, onChange is suppressed to avoid committing partial keystrokes
+       (let [^js composing (react-use-ref false)
+             clj-props (js->clj props :keywordize-keys true)
+             orig-on-change (:onChange clj-props)
+             orig-on-composition-start (:onCompositionStart clj-props)
+             orig-on-composition-end (:onCompositionEnd clj-props)]
+         (r/as-element
+          [:input
+           (-> clj-props
+               (assoc :ref ref)
+               (assoc :onCompositionStart
+                      (fn [e]
+                        (set! (.-current composing) true)
+                        (when orig-on-composition-start
+                          (orig-on-composition-start e))))
+               (assoc :onCompositionEnd
+                      (fn [e]
+                        (set! (.-current composing) false)
+                        (when orig-on-composition-end
+                          (orig-on-composition-end e))))
+               (assoc :onChange
+                      (fn [e]
+                        (when (and orig-on-change
+                                   (not (.-current composing)))
+                          (orig-on-change e)))))])))))
 
 (def ^:private textarea-component
   (react/forwardRef
@@ -571,11 +590,8 @@
                                  (not (.-current composing)))
                         (orig-on-change e)))))])))))
 
-;; To fix cursor jumping when controlled input value is changed,
-;; use wrapper input element created by Reagent instead of
-;; letting Material-UI to create input element directly using React.
-;; Create-element + convert-props-value is the same as what adapt-react-class does.
-(defn text-field [props & children]
+#_(defn text-field [props & children]
+  #_(println "1 - The text-field props:" props  " children " children)
   (let [;; props (assoc props :dir (t/dir))
         props (-> props
                   (assoc-in [:InputProps :inputComponent] (cond
@@ -593,7 +609,39 @@
                                                             :else
                                                             input-component))
                   rtpl/convert-prop-value)]
+    
+    #_(println "2 - The text-field props:" props)
+    
     (apply r/create-element mui/TextField props (map r/as-element children))))
+
+;; To fix cursor jumping when controlled input value is changed,
+;; use wrapper input element created by Reagent instead of
+;; letting Material-UI to create input element directly using React.
+;; Create-element + convert-props-value is the same as what adapt-react-class does.
+;; MUI v7: InputProps.inputComponent replaced by slotProps.input.inputComponent
+;; (slots.input would replace the whole Input component and flood props like
+;;  endAdornment/fullWidth/ownerState onto our native <input> tag.)
+(defn text-field [props & children]
+    (let [slot-input (cond
+                       #_(and (:multiline props) (:rows props) (not (:maxRows props)))
+                       (and (:multiline props) (:rows props))
+                       textarea-component
+
+                       ;; FIXME: Autosize multiline field is broken.
+                       (:multiline props)
+                       nil
+
+                       ;; Select doesn't require cursor fix so default can be used.
+                       (:select props)
+                       nil
+
+                       :else
+                       input-component)
+
+          props (-> props
+                    (cond-> slot-input (assoc-in [:slotProps :input :inputComponent] slot-input))
+                    rtpl/convert-prop-value)]
+      (apply r/create-element mui/TextField props (map r/as-element children))))
 
 ;;NOTE:
 ;; Following error is seen in the js console during developmemnt. However the above fix works and no other problem encountered

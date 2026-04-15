@@ -132,10 +132,9 @@
   [mui-autocomplete
    {:disablePortal true
     :multiple true
-    :classes {}
     :disableClearable (not editing)
     ;;removes the X from Chip component
-    :ChipProps (when-not editing  {:onDelete nil})
+    :slotProps {:chip (when-not editing {:onDelete nil})}
     :disabled (not editing)
     ;;:readOnly (not editing) ;;Not working 
 
@@ -450,7 +449,7 @@
 ;; :common/progress-message-box-show
 (defn progress-message-dialog
   ([{:keys [title dialog-show message]}]
-   [mui-dialog {:classes {:paper "pwd-dlg-root"}
+   [mui-dialog {:sx {"& .MuiDialog-paper" {:width "85%"}}
                 :dir (t/dir)
                 :open dialog-show
                 :on-click #(.stopPropagation ^js/Event %)}
@@ -530,7 +529,7 @@
                    :on-change on-change-handler
                    :error  (not (nil? error-text))
                    :helperText (if (nil? error-text) helper-text error-text)
-                   :inputProps  {:readOnly (not edit)}
+                   :slotProps {:htmlInput {:readOnly (not edit)}}
                    :variant "standard" :fullWidth true}
    (doall (for [y select-field-options]
             (let [{:keys [value label]} (if (string? y) {:value y :label y} y)]

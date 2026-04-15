@@ -18,8 +18,8 @@
   (dispatch [:group-form/create-blank-group parent-group-uuid]))
 
 (defn node-on-select
-  "Called when a tree item is selected with value found ':nodeId' attribute of mui-tree-item.
-  The value of ':nodeId' is the group uuid of the group selected
+  "Called when a tree item is selected with value found ':itemId' attribute of mui-tree-item.
+  The value of ':itemId' is the group uuid of the group selected
   "
   [_e group-id]
   (dispatch [:group-selected group-id])

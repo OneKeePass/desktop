@@ -34,25 +34,23 @@
                  ;;:classes {:root "entry-cnt-field"}
                  :value value
                  :onChange on-change
-                 :InputLabelProps {}
-                 :InputProps {:id field-name
-                              :sx (theme-text-field-sx editing @custom-theme-atom)
-                              :type "text"}
-                 ;;attributes for 'input' tag can be added here
-                 ;;It seems adding these 'InputProps' also works
-                 ;;We need to use 'readOnly' and not 'readonly'
-                 :inputProps  {:readOnly (not editing)}}])
+                 :slotProps {:input {:id field-name
+                                    :sx (theme-text-field-sx editing @custom-theme-atom)
+                                    :type "text"}
+                             ;;attributes for 'input' tag can be added here
+                             ;;We need to use 'readOnly' and not 'readonly'
+                             :htmlInput {:readOnly (not editing)}}}])
 
 (defn- form-readonly-item [label value]
-  [mui-grid {:container true :item true  :wrap "nowrap"}
-   [mui-grid {:item true :xs true}
+  [mui-grid {:container true :wrap "nowrap"}
+   [mui-grid {:size "grow"}
     [mui-typography label]] ;;(:creation-time times) false (:last-modification-time times)
 
-   [mui-grid {:item true :xs true}
+   [mui-grid {:size "grow"}
     [mui-typography value]]])
 
 (defn- form-readonly-content [times]
-  [mui-grid {:container true :item true :spacing 0
+  [mui-grid {:container true :spacing 0
              ;; :classes {:root "entry-cnt-container"}
              :sx {:width "95%" :margin-top cc/entry-cnt-field-margin-top
                   ;;:background "white"
@@ -62,15 +60,15 @@
              }
 
    [form-readonly-item (tr-l creationTime) (u/to-local-datetime-str (:creation-time times) DATETIME_FORMAT)]
-   [mui-grid {:item true :xs true}
+   [mui-grid {:size "grow"}
     [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]]
    
    [form-readonly-item "Last Accessed" (u/to-local-datetime-str (:last-access-time times) DATETIME_FORMAT)]
-   [mui-grid {:item true :xs true}
+   [mui-grid {:size "grow"}
     [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]]
 
    [form-readonly-item (tr-l lastModificationTime) (u/to-local-datetime-str (:last-modification-time times) DATETIME_FORMAT)]
-   [mui-grid {:item true :xs true}
+   [mui-grid {:size "grow"}
     [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]]])
 
 (defn- replace-newline [notes]
@@ -80,7 +78,7 @@
 (defn- group-info-content
   [{:keys [name tags notes times]}]
   [mui-grid {:container true  :direction "column" :alignItems "center"}
-   [mui-grid {:container true :item true :spacing 0
+   [mui-grid {:container true :spacing 0
               ;;:classes {:root "entry-cnt-container"}
               :sx {:width "95%"
                    :margin-top cc/entry-cnt-field-margin-top
@@ -89,12 +87,12 @@
                    :border ".1px solid"}}
 
     [form-readonly-item (tr-l "name") name]
-    [mui-grid {:item true :xs true}
+    [mui-grid {:size "grow"}
      [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]]
 
     [form-readonly-item (tr-l "tags") (vec->tags tags)]
 
-    [mui-grid {:item true :xs true}
+    [mui-grid {:size "grow"}
      [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]]
 
     ;;[form-readonly-item "Notes" (replace-newline notes)]
@@ -105,7 +103,7 @@
        [mui-stack {:sx {:mt 1}}
         [mui-typography notes]]])
 
-    [mui-grid {:item true :xs true}
+    [mui-grid {:size "grow"}
      [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]]]
 
    [form-readonly-content times]])
@@ -121,11 +119,11 @@
                   :onChange on-change
                   :multiline true
                   :rows 4
-                  :InputLabelProps {:shrink true}
-                  :InputProps {:id :notes}
-                  :inputProps  {:readOnly (not editing)
-                                :sx {:ml ".5em" :mr ".5em"}
-                                :style {:resize "vertical"}}}]])
+                  :slotProps {:inputLabel {:shrink true}
+                              :input {:id :notes}
+                              :htmlInput {:readOnly (not editing)
+                                          :sx {:ml ".5em" :mr ".5em"}
+                                          :style {:resize "vertical"}}}}]])
 
 ;;;;;;;;;;;;;;;;; Copied from entry form ;;;;;;;;;;;;;;;;;
 ;;; Move to common place
@@ -143,10 +141,10 @@
     [:div [mui-dialog {:open (if (nil? dialog-open?) false dialog-open?)
                        :dir (t/dir)
                        :on-click #(.stopPropagation ^js/Event %) ;;prevents on click for any parent components to avoid closing dialog by external clicking
-                       :classes {:paper "group-form-flg-root"}}
+                       :sx {"& .MuiDialog-paper" {:width "85%"}}}
            [mui-dialog-title (tr-dlg-title "icons")]
            [mui-dialog-content {:dividers true}
-            [mui-grid {:container true :xs true :spacing 0}
+            [mui-grid {:container true :spacing 0}
              (for [[idx svg-icon] db-icons/all-icons]
                ^{:key idx} [:div {:style {:margin "4px"} ;;:border "1px solid blue"
                                   :on-click #(do
@@ -209,7 +207,7 @@
    [mui-dialog {:open (if (nil? flag) false flag)
                 :dir (t/dir)
                 :on-click #(.stopPropagation ^js/Event %) ;;prevents on click for any parent components to avoid closing dialog by external clicking
-                :classes {:paper "group-form-flg-root"}}
+                :sx {"& .MuiDialog-paper" {:width "85%"}}}
     [mui-dialog-title (tr-dlg-title "groupDetails")]
     [mui-dialog-content
      (if (= mode :edit)

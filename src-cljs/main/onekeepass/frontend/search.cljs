@@ -85,7 +85,7 @@
     [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
                  :dir (t/dir)
                  :on-click #(.stopPropagation %)
-                 :classes {:paper "pwd-dlg-root"}}
+                 :sx {"& .MuiDialog-paper" {:width "85%"}}}
      [mui-dialog-title (tr-dlg-title "search")]
      [mui-dialog-content
       [mui-stack
@@ -101,14 +101,14 @@
                       :on-change sch-event/search-term-update ;; a fn that needs to accept an event object
                       :variant "standard"
                       :fullWidth true
-                      :InputProps {:endAdornment (r/as-element
-                                                  [mui-input-adornment {:position "end"}
-                                                   [mui-icon-button
-                                                    {:edge false
-                                                     :on-click (fn []
-                                                                 (focus @input-comp-ref)
-                                                                 (sch-event/search-term-clear))}
-                                                    [mui-icon-clear-outlined]]])}}]
+                      :slotProps {:input {:endAdornment (r/as-element
+                                                         [mui-input-adornment {:position "end"}
+                                                          [mui-icon-button
+                                                           {:edge false
+                                                            :on-click (fn []
+                                                                        (focus @input-comp-ref)
+                                                                        (sch-event/search-term-clear))}
+                                                           [mui-icon-clear-outlined]]])}}}]
        (when (seq matched-entries)
          [mui-stack {:sx {:mt 2 :height "250px"
                           :background-color (get-theme-color :header-footer)}}

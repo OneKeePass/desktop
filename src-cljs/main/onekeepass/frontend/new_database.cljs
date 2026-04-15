@@ -57,10 +57,10 @@
                     :helperText "Any random small file. A hash of the file's content is used as an additional passsord. This is just an optional one and not required"
                     :on-change (nd-events/field-update-factory :key-file-name)
                     :variant "standard" :fullWidth true
-                    :InputProps {:endAdornment (r/as-element [mui-input-adornment {:position "end"}
-                                                              [mui-icon-button {:edge "end" :sx {:mr "-8px"}
-                                                                                :onClick nd-events/open-key-file-explorer-on-click}
-                                                               [mui-icon-folder-outlined]]])}}]])
+                    :slotProps {:input {:endAdornment (r/as-element [mui-input-adornment {:position "end"}
+                                                                  [mui-icon-button {:edge "end" :sx {:mr "-8px"}
+                                                                                    :onClick nd-events/open-key-file-explorer-on-click}
+                                                                   [mui-icon-folder-outlined]]])}}}]])
 
 (defn- credentials-info [{:keys [password
                                  password-confirm
@@ -83,15 +83,15 @@
                     :on-change (nd-events/field-update-factory :password)
                     :variant "standard" :fullWidth true
                     :type (if password-visible "text" "password")
-                    :InputProps {:endAdornment (r/as-element
-                                                [mui-input-adornment {:position "end"}
-                                                 (if password-visible
-                                                   [mui-icon-button {:edge "end" :sx {:mr "-8px"}
-                                                                     :on-click #(nd-events/database-field-update :password-visible false)}
-                                                    [mui-icon-visibility]]
-                                                   [mui-icon-button {:edge "end" :sx {:mr "-8px"}
-                                                                     :on-click #(nd-events/database-field-update :password-visible true)}
-                                                    [mui-icon-visibility-off]])])}}]]
+                    :slotProps {:input {:endAdornment (r/as-element
+                                                       [mui-input-adornment {:position "end"}
+                                                        (if password-visible
+                                                          [mui-icon-button {:edge "end" :sx {:mr "-8px"}
+                                                                            :on-click #(nd-events/database-field-update :password-visible false)}
+                                                           [mui-icon-visibility]]
+                                                          [mui-icon-button {:edge "end" :sx {:mr "-8px"}
+                                                                            :on-click #(nd-events/database-field-update :password-visible true)}
+                                                           [mui-icon-visibility-off]])])}}}]]
 
     (when (not password-visible)
       [mui-box {:sx {:width "80%"}}
@@ -154,10 +154,10 @@
                     :on-change (nd-events/field-update-factory :database-file-name)
                     :variant "standard" :fullWidth true
 
-                    :InputProps {:endAdornment (r/as-element [mui-input-adornment {:position "end"}
-                                                              [mui-icon-button {:edge "end" :sx {:mr "-8px"}
-                                                                                :onClick #(nd-events/save-as-file-explorer-on-click database-name)}
-                                                               [mui-icon-folder-outlined]]])}}]
+                    :slotProps {:input {:endAdornment (r/as-element [mui-input-adornment {:position "end"}
+                                                                  [mui-icon-button {:edge "end" :sx {:mr "-8px"}
+                                                                                    :onClick #(nd-events/save-as-file-explorer-on-click database-name)}
+                                                                   [mui-icon-folder-outlined]]])}}}]
 
      (when db-file-file-exists
        [mui-alert {:severity "warning" :sx {:mt 1}} (tr-m newDbPage txt4)])]]]) ;;"** Database file already exists and will be replaced with this new one **"
@@ -229,7 +229,7 @@
     [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
                  :dir (t/dir)
                  :on-click #(.stopPropagation ^js/Event %)
-                 :classes {:paper "pwd-dlg-root"}}
+                 :sx {"& .MuiDialog-paper" {:width "85%"}}}
 
      [mui-dialog-title (tr-l newDatabase)]
      [mui-dialog-content {:dividers true}

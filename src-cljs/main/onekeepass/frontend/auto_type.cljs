@@ -89,8 +89,7 @@
                                  (at-events/auto-type-edit-dialog-update
                                   :default-sequence (-> e .-target .-value)))
                     :variant "standard"
-                    :fullWidth true
-                    :InputProps {}}]
+                    :fullWidth true}]
      (when-not (nil? api-error-text)
        [mui-stack
         [mui-alert {:severity "error" :sx {:mt 1}} api-error-text]])]

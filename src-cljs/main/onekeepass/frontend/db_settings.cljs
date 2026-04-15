@@ -133,19 +133,19 @@
                      :on-change (settings-events/field-update-factory [:data :password])
                      :variant "standard" :fullWidth true
                      :type (if password-visible "text" "password")
-                     :InputProps {:endAdornment (r/as-element
-                                                 [mui-input-adornment {:position "end"}
-                                                  (if password-visible
-                                                    [mui-icon-button
-                                                     {:edge "end" :sx {:mr "-8px"}
-                                                      :on-click #(settings-events/database-field-update
-                                                                  :password-visible false)}
-                                                     [mui-icon-visibility]]
-                                                    [mui-icon-button
-                                                     {:edge "end" :sx {:mr "-8px"}
-                                                      :on-click #(settings-events/database-field-update
-                                                                  :password-visible true)}
-                                                     [mui-icon-visibility-off]])])}}]
+                     :slotProps {:input {:endAdornment (r/as-element
+                                                        [mui-input-adornment {:position "end"}
+                                                         (if password-visible
+                                                           [mui-icon-button
+                                                            {:edge "end" :sx {:mr "-8px"}
+                                                             :on-click #(settings-events/database-field-update
+                                                                         :password-visible false)}
+                                                            [mui-icon-visibility]]
+                                                           [mui-icon-button
+                                                            {:edge "end" :sx {:mr "-8px"}
+                                                             :on-click #(settings-events/database-field-update
+                                                                         :password-visible true)}
+                                                            [mui-icon-visibility-off]])])}}}]
 
       (when (not password-visible)
         [m/text-field {:label (tr-l confirmPassword)
@@ -195,11 +195,11 @@
                      :placeholder "Optional"
                      :on-change (settings-events/field-update-factory [:data :key-file-name])
                      :variant "standard" :fullWidth true
-                     :InputProps {:endAdornment (r/as-element [mui-input-adornment {:position "end"}
-                                                               [mui-icon-button
-                                                                {:edge "end" :sx {:mr "-8px"}
-                                                                 :onClick settings-events/open-key-file-explorer-on-click}
-                                                                [mui-icon-folder-outlined]]])}}]
+                     :slotProps {:input {:endAdornment (r/as-element [mui-input-adornment {:position "end"}
+                                                                  [mui-icon-button
+                                                                   {:edge "end" :sx {:mr "-8px"}
+                                                                    :onClick settings-events/open-key-file-explorer-on-click}
+                                                                   [mui-icon-folder-outlined]]])}}}]
 
       [mui-stack
        [mui-button  {:sx {:m 1}

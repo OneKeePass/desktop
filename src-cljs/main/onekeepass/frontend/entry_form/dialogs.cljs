@@ -107,7 +107,7 @@
                         :error (contains? error-fields :period)
                         :helperText (get error-fields :period)
                         :on-change (on-change-factory dlg-events/otp-settings-dialog-update :period)
-                        :inputProps {:min 1 :max 60}
+                        :slotProps {:htmlInput {:min 1 :max 60}}
                         :variant "standard" :fullWidth true}]]
 
         [mui-stack {:sx {:width "30%" :ml 3}}
@@ -117,7 +117,7 @@
                         :error (contains? error-fields :digits)
                         :helperText (get error-fields :digits)
                         :on-change (on-change-factory dlg-events/otp-settings-dialog-update :digits)
-                        :inputProps {:min 6 :max 10}
+                        :slotProps {:htmlInput {:min 6 :max 10}}
                         :variant "standard" :fullWidth true}]]])
 
      (when api-error-text
@@ -163,7 +163,6 @@
                                :helperText (get error-fields :section-name)
                                :on-key-press (enter-key-pressed-factory
                                               #(form-events/section-name-add-modify dialog-data))
-                               :InputProps {}
                                :on-change (on-change-factory form-events/section-name-dialog-update :section-name)
                                :variant "standard" :fullWidth true}]]]
     [mui-stack  {:sx {:justify-content "end"} :direction "row"}
@@ -218,7 +217,6 @@
                                   (when (and (boolean (seq error-fields)) (not (nil? comp-ref)))
                                     (when-let [comp-id (some-> comp-ref .-props .-id)]
                                       (.focus (.getElementById js/document comp-id)))))
-                      :InputProps {}
                       :on-change (on-change-factory form-events/section-field-dialog-update :field-name)
                       :variant "standard" :fullWidth true}]
        [mui-stack {:direction "row"}
@@ -298,10 +296,10 @@
    (fn [dialog-open? call-on-icon-selection]
      [:div [mui-dialog {:open (if (nil? dialog-open?) false dialog-open?)
                         :on-click #(.stopPropagation ^js/Event %) ;;prevents on click for any parent components to avoid closing dialog by external clicking
-                        :classes {:paper "group-form-flg-root"}}
+                        :sx {"& .MuiDialog-paper" {:width "85%"}}}
             [mui-dialog-title (tr-dlg-title "icons")]
             [mui-dialog-content {:dividers true}
-             [mui-grid {:container true :xs true :spacing 0}
+             [mui-grid {:container true :spacing 0}
               (for [[idx svg-icon] db-icons/all-icons]
                 ^{:key idx} [:div {:style {:margin "4px"} ;;:border "1px solid blue"
                                    :on-click #(do
@@ -376,8 +374,7 @@
           :sx  {}
           :error  (not (nil? title-error-text))
           :helperText (if-not (nil? title-error-text) title-error-text nil)
-          :on-change (on-change-factory dlg-events/clone-entry-options-dialog-update :new-title) 
-          :InputProps {}
+          :on-change (on-change-factory dlg-events/clone-entry-options-dialog-update :new-title)
           :variant "standard"
           :fullWidth true}]]
 
