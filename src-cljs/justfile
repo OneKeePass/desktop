@@ -6,6 +6,13 @@ alias shres := shadow-cljs-release-serve
 ## We may see this WARNING: shadow-cljs not installed in project
 shadow_cljs_version := "3.4.1"
 
+shadow-cljs-compile:
+    npx shadow-cljs@{{shadow_cljs_version}} compile app
+
+shadow-cljs-clean-compile:
+    rm -rf ../resources/public/cljs-out/dev
+    npx shadow-cljs@{{shadow_cljs_version}} compile app
+
 shadow-cljs-clean-watch:
     rm -rf ../resources/public/cljs-out/dev
     npx shadow-cljs@{{shadow_cljs_version}} watch app
