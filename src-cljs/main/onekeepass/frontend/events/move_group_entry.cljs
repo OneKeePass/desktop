@@ -415,14 +415,21 @@
 (reg-event-fx
  :drag-move-entries
  (fn [{:keys [db]} [_event-id source-uuid target-uuid]]
-   (let [db-key   (active-db-key db)
-         selected (or (get-in-key-db db [:entry-list :selected-entry-ids]) #{})
+   (let [db-key      (active-db-key db)
+         selected    (or (get-in-key-db db [:entry-list :selected-entry-ids]) #{})
          ;; If the dragged entry is part of the multi-selection, move all selected;
          ;; otherwise treat it as a single-entry move
-         uuids    (if (contains? selected source-uuid)
-                    (vec selected)
-                    [source-uuid])]
-     {:fx [[:bg-drag-move-entries [db-key uuids target-uuid]]]})))
+         uuids       (if (contains? selected source-uuid)
+                       (vec selected)
+                       [source-uuid])
+         ;; Build uuid → parent-group-uuid lookup from the currently loaded entry list.
+         ;; EntrySummary carries :parent-group-uuid so we can detect same-group drops.
+         entry-items (or (get-in-key-db db [:entry-list :selected-entry-items]) [])
+         parent-of   (into {} (map (fn [m] [(:uuid m) (str (:parent-group-uuid m))]) entry-items))
+         ;; Keep only entries whose current parent differs from the drop target
+         moveable    (filterv (fn [uuid] (not= (get parent-of uuid) (str target-uuid))) uuids)]
+     (when (seq moveable)
+       {:fx [[:bg-drag-move-entries [db-key moveable target-uuid]]]}))))
 
 (reg-fx
  :bg-drag-move-entries

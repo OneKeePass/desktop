@@ -193,7 +193,7 @@
  ;; reg-fx accepts only single argument. So the calleer needs to use map or vector to pass multiple values
  (fn [[db-key category]]
    (bg/entry-summary-data db-key category
-                          (fn [api-response] 
+                          (fn [api-response]
                             (when-let [entry-summaries-v (check-error api-response)]
                               (dispatch [:entry-list-load-complete entry-summaries-v category])))
                           #_(partial summary-entry-items-loaded category))))
@@ -225,10 +225,18 @@
 
 ;; list of entry items returned by backend api when a category selected
 ;; or entry items returned in a search result - Work is yet to be done
-(reg-event-db
+
+#_(reg-event-db
+   :update-selected-entry-items
+   (fn [db [_event-id  entry-summaries-v]]
+     (assoc-in-key-db db [:entry-list :selected-entry-items] entry-summaries-v)))
+
+(reg-event-fx
  :update-selected-entry-items
- (fn [db [_event-id  entry-summaries-v]]
-   (assoc-in-key-db db [:entry-list :selected-entry-items] entry-summaries-v)))
+ (fn [{:keys [db]} [_event-id entry-summaries-v]]
+   {:db (assoc-in-key-db db [:entry-list :selected-entry-items] entry-summaries-v)
+    ;; Need to clear any previous selection done in dnd
+    :fx [[:dispatch [:entry-list/clear-entry-selection]]]}))
 
 ;; Sets the category-source that is selected in the category view
 (reg-event-db

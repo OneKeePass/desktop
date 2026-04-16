@@ -81,9 +81,14 @@
     [mui-list-item
      (cond-> {:ref    set-node-ref
               :style  drag-style
+              
+              ;; The selection color is set to one from "action.selected" instead of 
+              ;; Mui-selected color "rgba(25, 118, 210, 0.08)" because of dnd. Need to see how to use that color 
+              ;; for selected rows for both light and dark mode
               :sx (cond-> {"& .MuiListItemSecondaryAction-root" {:right 0}}
-                    ;; highlight rows in the multi-select set (bgcolor resolves MUI theme tokens)
-                    (contains? selected-ids uuid)
+                    ;; MUI v7 ListItem does not visually reflect :selected prop; apply bgcolor explicitly
+                    ;; covers both single-select (selected-id) and multi-select (selected-ids)
+                    (or (= selected-id uuid) (contains? selected-ids uuid))
                     (assoc :bgcolor "action.selected"))
               :button true
               :value  uuid

@@ -189,7 +189,7 @@
 
 
 ;; https://mui.com/customization/default-theme/  
-;; https://v5.mui.com/material-ui/customization/default-theme/  ( The new url for v5 as the other one is meant for the latest mui)
+;; https://v7.mui.com/material-ui/customization/default-theme/  ( The new url for v7 as the other one is meant for the latest mui)
 ;; Here we can see all the props of the theme object that are shown for MUI's organization branding theme
 ;; From this link: 
 ;; If you want to learn more about how the theme is assembled, 
