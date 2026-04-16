@@ -28,6 +28,8 @@ pub mod menu_ids {
   pub const LOCK_DATABASE: &str = "LockDatabase";
   pub const LOCK_ALL_DATABASES: &str = "LockAllDatabases";
 
+  pub const OPEN_RECENT: &str = "OpenRecent";
+
   pub const MERGE_DATABASE: &str = "MergeDatabase";
   pub const IMPORT: &str = "Import";
 
@@ -132,6 +134,13 @@ fn build_database_menus<R: Runtime>(
       system_menu_translation.sub_menu(OPEN_DATABASE, "Open Database"),
       true,
       Some("CmdOrControl+O"),
+    )?,
+    &MenuItem::with_id(
+      app_handle,
+      OPEN_RECENT,
+      system_menu_translation.sub_menu(OPEN_RECENT, "Open Recent"),
+      true,
+      None::<&str>,
     )?,
     &MenuItem::with_id(
       app_handle,

@@ -282,6 +282,11 @@ impl AppState {
         store_pref.clear_recent_files();
     }
 
+    pub(crate) fn remove_recent_file(&self, file_name: &str) {
+        let mut store_pref = self.preference.lock().unwrap();
+        store_pref.remove_recent_file(file_name);
+    }
+
     pub(crate) fn app_version(&self) -> String {
         let store_pref = self.preference.lock().unwrap();
         store_pref.version().to_string()

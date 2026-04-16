@@ -144,6 +144,7 @@ fn main() {
       commands::reload_kdbx,
       commands::remove_entry_permanently,
       commands::remove_group_permanently,
+      commands::remove_recent_file,
       commands::resolve_auto_open_properties,
       commands::save_all_modified_dbs,
       commands::save_as_kdbx,

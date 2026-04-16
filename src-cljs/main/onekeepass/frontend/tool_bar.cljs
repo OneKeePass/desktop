@@ -43,6 +43,7 @@
                                                      theme-color]]
    [onekeepass.frontend.new-database :as nd-form]
    [onekeepass.frontend.open-db-form :as od-form]
+   [onekeepass.frontend.open-recent :as open-recent]
    [onekeepass.frontend.password-generator :as gen-form]
    [onekeepass.frontend.search :as search]
    [onekeepass.frontend.translation :as t :refer-macros [tr-bl tr-dlg-title tr-dlg-text]]))
@@ -258,6 +259,7 @@
        [progress-message-dialog]
        [error-info-dialog]
        [od-form/open-db-dialog-main]
+       [open-recent/open-recent-dialog-main]
        [save-info-dialog save-action-data]
        [nd-form/new-database-dialog-main]
        [settings-form/settings-dialog-main]

@@ -57,6 +57,22 @@
                            (when-not (on-error api-response)
                              (dispatch [:clear-recent-files-done])))))
 
+(defn open-recent-dialog-show []
+  (dispatch [:open-recent/dialog-show]))
+
+(defn open-recent-dialog-hide []
+  (dispatch [:open-recent/dialog-hide]))
+
+(defn open-recent-dialog-data []
+  (subscribe [:open-recent/dialog-data]))
+
+(defn remove-recent-file [file-name]
+  (bg/remove-recent-file
+   file-name
+   (fn [api-response]
+     (when-not (on-error api-response)
+       (dispatch [:open-recent/remove-file-done file-name])))))
+
 (defn recent-files []
   (subscribe [:recent-files]))
 
@@ -161,6 +177,27 @@
  :clear-recent-files-done
  (fn [{:keys [db]} [_event-id]]
    {:db (assoc-in db [:app-preference :recent-files] [])}))
+
+(reg-event-db
+ :open-recent/dialog-show
+ (fn [db [_event-id]]
+   (assoc-in db [:open-recent :dialog-show] true)))
+
+(reg-event-db
+ :open-recent/dialog-hide
+ (fn [db [_event-id]]
+   (assoc-in db [:open-recent :dialog-show] false)))
+
+(reg-event-db
+ :open-recent/remove-file-done
+ (fn [db [_event-id file-name]]
+   (update-in db [:app-preference :recent-files]
+              (fn [files] (vec (remove #(= % file-name) files))))))
+
+(reg-sub
+ :open-recent/dialog-data
+ (fn [db _]
+   (get db :open-recent)))
 
 (reg-sub
  :recent-files

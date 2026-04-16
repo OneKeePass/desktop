@@ -223,6 +223,15 @@ pub(crate) async fn clear_recent_files(app_state: State<'_, app_state::AppState>
     Ok(app_state.clear_recent_files())
 }
 
+// remove_recent_file
+#[tauri::command]
+pub(crate) async fn remove_recent_file(
+    file_name: &str,
+    app_state: State<'_, app_state::AppState>,
+) -> Result<()> {
+    Ok(app_state.remove_recent_file(file_name))
+}
+
 #[tauri::command]
 pub(crate) async fn get_db_settings(db_key: &str) -> Result<kp_service::DbSettings> {
     Ok(kp_service::get_db_settings(db_key)?)

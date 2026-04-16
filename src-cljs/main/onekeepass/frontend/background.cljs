@@ -573,6 +573,9 @@
 (defn clear-recent-files [dispatch-fn]
   (invoke-api "clear_recent_files" {} dispatch-fn))
 
+(defn remove-recent-file [file-name dispatch-fn]
+  (invoke-api "remove_recent_file" {:file-name file-name} dispatch-fn))
+
 (defn get-db-settings [db-key dispatch-fn]
   (invoke-api "get_db_settings" {:db-key db-key} dispatch-fn))
 

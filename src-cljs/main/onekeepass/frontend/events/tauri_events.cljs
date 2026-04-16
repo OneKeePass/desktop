@@ -83,6 +83,9 @@
       (= menu-id const/MENU_ID_IMPORT)
       (dispatch [:import/import-csv-file-start])
 
+      (= menu-id const/MENU_ID_OPEN_RECENT)
+      (dispatch [:open-recent/dialog-show])
+
       :else
       (dispatch [:common/message-box-show "Work In Progress" (str "Menu action for " menu-id " will be implemented soon")]))))
 
