@@ -1,10 +1,12 @@
-(ns  onekeepass.frontend.core  ;;ns ^:figwheel-always onekeepass.frontend.core 
+(ns  onekeepass.frontend.core  ;;ns ^:figwheel-always onekeepass.frontend.core
   (:require [onekeepass.frontend.common-components :as cc]
             [onekeepass.frontend.constants :as const :refer [THEME_LIGHT]]
+            [onekeepass.frontend.dnd :as dnd]
             [onekeepass.frontend.entry-category :as ec]
             [onekeepass.frontend.entry-form-ex :as eform-ex]
             [onekeepass.frontend.entry-list :as el]
             [onekeepass.frontend.events.common :as cmn-events]
+            [onekeepass.frontend.events.move-group-entry :as move-events]
             ;; Just to load events defined in this ns
             [onekeepass.frontend.events.auto-open]
             [onekeepass.frontend.events.tauri-events :as tauri-events]
@@ -46,37 +48,48 @@
    [eform-ex/entry-content-core]])
 
 (defn group-entry-content
-  "Shows the group and entry content from the current active db "
+  "Shows the group and entry content from the current active db.
+  DndContext wraps both panels so entries can be dragged from the entry
+  list (right) and dropped onto groups in the tree (left)."
   []
-  [split-pane {:split "vertical"
-               ;;:size "200" 
-               :minSize "250"
-               :maxSize "260"
-               :primary "first"
-               :style {:position "relative"}
-               :pane1Style {:background (theme-color @custom-theme-atom :bg-default)}
-               :resizerClassName (if (= @(cmn-events/app-theme) THEME_LIGHT)
-                                   "Resizer1 vertical" "Resizer2 vertical")
-
-               ;; Another way of styling split pane's resizer. But did not work as expected
-               ;; Leaving it here commenting out for future use if possible
-               ;;  :resizerStyle {:background "darkslategrey" 
-               ;;                 :width "11px"
-               ;;                 :margin "0 -5px"
-               ;;                 :border-left "5px solid rgba(255, 255, 255, 0)"
-               ;;                 :border-right "5px solid rgba(255, 255, 255, 0)" 
-               ;;                 :hover {:border-left "5px solid rgba(0, 0, 0, 0.5)"
-               ;;                         :border-right "5px solid rgba(0, 0, 0, 0.5)"
-               ;;                         ;;:background "yellow"
-               ;;                         }
-               ;;                 }
-
-               ;;:pane2Style {:max-width "25%"}
-               }
-   ;; Pane1
-   [ec/entry-category-content]
-   ;; Pane2
-   [right-content]])
+  (let [[active-uuid set-active-uuid] (m/react-use-state nil)
+        sensors (dnd/use-sensors
+                 (dnd/use-sensor dnd/PointerSensor #js {:activationConstraint #js {:distance 8}})
+                 (dnd/use-sensor dnd/KeyboardSensor))]
+    [dnd/dnd-context
+     {:sensors            sensors
+      :collisionDetection dnd/closest-center
+      :onDragStart        (fn [^js evt] (set-active-uuid (-> evt .-active .-id)))
+      :onDragEnd          (fn [^js evt]
+                            (set-active-uuid nil)
+                            (let [target (some-> ^js evt .-over .-id)
+                                  source (some-> ^js evt .-active .-id)]
+                              (when target
+                                (move-events/drag-move-entries source target))))
+      :onDragCancel       (fn [_] (set-active-uuid nil))}
+     [split-pane {:split "vertical"
+                  ;;:size "200"
+                  :minSize "250"
+                  :maxSize "260"
+                  :primary "first"
+                  :style {:position "relative"}
+                  :pane1Style {:background (theme-color @custom-theme-atom :bg-default)}
+                  :resizerClassName (if (= @(cmn-events/app-theme) THEME_LIGHT)
+                                      "Resizer1 vertical" "Resizer2 vertical")}
+      ;; Pane1
+      [ec/entry-category-content]
+      ;; Pane2
+      [right-content]]
+     ;; Ghost shown while dragging — rendered via portal at document body
+     [dnd/drag-overlay {}
+      (when active-uuid
+        [mui-box {:sx {:bgcolor "primary.main"
+                       :color "primary.contrastText"
+                       :px 1.5 :py 0.5
+                       :border-radius "4px"
+                       :font-size "0.875rem"
+                       :pointer-events "none"}}
+         "Moving entries..."])]]))
 
 (defn locked-content []
   (let [biometric-type @(cmn-events/biometric-type-available)]
@@ -145,7 +158,7 @@
                       :margin-bottom "2px"}}]
        (cond
          (= content-to-show :group-entry)
-         [group-entry-content]
+         [:f> group-entry-content]
 
          (= content-to-show :entry-history)
          [eform-ex/entry-history-content-main]
@@ -154,7 +167,7 @@
          [locked-content]
 
          :else
-         [group-entry-content])])))
+         [:f> group-entry-content])])))
 
 (defn header-bar []
   [:div  [:f> tool-bar/top-bar]])

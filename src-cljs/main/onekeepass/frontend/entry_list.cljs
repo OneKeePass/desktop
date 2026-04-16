@@ -7,6 +7,7 @@
                                                              TITLE
                                                              UUID_OF_ENTRY_TYPE_LOGIN]]
             [onekeepass.frontend.db-icons :refer [entry-icon]]
+            [onekeepass.frontend.dnd :as dnd]
             [onekeepass.frontend.entry-form-ex :as entry-form-ex]
             [onekeepass.frontend.events.entry-list :as el-events]
             [onekeepass.frontend.events.group-tree-content :as gt-events]
@@ -62,40 +63,76 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn row-item
-  "Renders a list item. 
-  The arg 'props' is a map passed from 'fixed-size-list'
-  "
-  []
-  (fn [props]
-    (let [items  (el-events/get-selected-entry-items)
-          item (nth @items (:index props))
-          selected-id (el-events/get-selected-entry-id)]
-      [mui-list-item {:style (:style props)
-                      ;; MuiListItemSecondaryAction-root is the CSS used for the secondaryAction component
-                      ;; This was found by using Inspect Element. By default the right side More icon is placed 16px
-                      ;; absolutely from right edge wasting more space. It is overriden here setting to 0 px
-                      :sx {"& .MuiListItemSecondaryAction-root" {:right 0}}
-                      :button true
-                      :value (:uuid item)
-                      :on-click #(el-events/update-selected-entry-id (:uuid item))
-                      :selected (if (= @selected-id (:uuid item)) true false)
-                      :secondaryAction (when (= @selected-id (:uuid item))
-                                         ;; We are reusing the menu components from entry-form-ex directly here
-                                         ;; Need to move this a common UI name space
-                                         (r/as-element [entry-form-ex/form-menu @selected-id] #_[mui-icon-button {:edge "end"} [mui-icon-more-vert]]))}
-       [mui-list-item-avatar
-        [mui-avatar [entry-icon (:icon-id item)]]]
-       [mui-list-item-text
-        {:primaryTypographyProps {:max-width 155
+(defn- row-item-draggable
+  "Form-1 component rendered with :f> so React treats it as a function component.
+  use-draggable must be called here, not inside a form-2 inner fn, because hooks
+  require a React function component context.
+  Selection state arrives as plain deref'd props from row-item (form-2), which has
+  Reagent reactive tracking and re-renders when either subscription changes."
+  [item style selected-id selected-ids]
+  (let [uuid         (:uuid item)
+        ^js drag-obj  (dnd/use-draggable #js {:id uuid})
+        set-node-ref  (.-setNodeRef drag-obj)
+        ^js listeners (.-listeners drag-obj)
+        transform     (.-transform drag-obj)
+        drag-style    (if transform
+                        (assoc style :transform (dnd/css-translate transform))
+                        style)]
+    [mui-list-item
+     (cond-> {:ref    set-node-ref
+              :style  drag-style
+              :sx (cond-> {"& .MuiListItemSecondaryAction-root" {:right 0}}
+                    ;; highlight rows in the multi-select set (bgcolor resolves MUI theme tokens)
+                    (contains? selected-ids uuid)
+                    (assoc :bgcolor "action.selected"))
+              :button true
+              :value  uuid
+              :on-click (fn [^js e]
+                          (if (or (.-ctrlKey e) (.-metaKey e))
+                            (el-events/toggle-entry-selection uuid)
+                            (do (el-events/clear-entry-selection)
+                                (el-events/update-selected-entry-id uuid))))
+              :selected (or (= selected-id uuid) (contains? selected-ids uuid))
+              :secondaryAction (when (= selected-id uuid)
+                                 ;; We are reusing the menu components from entry-form-ex directly here
+                                 (r/as-element [entry-form-ex/form-menu selected-id]))}
+       
+       (and listeners (.-onPointerDown listeners))
+       (assoc :on-pointer-down (.-onPointerDown listeners))
+       
+       (and listeners (.-onKeyDown listeners))
+       (assoc :on-key-down (.-onKeyDown listeners)))
+     
+     [mui-list-item-avatar
+      [mui-avatar [entry-icon (:icon-id item)]]]
+     [mui-list-item-text
+      {:primaryTypographyProps {:max-width 155
+                                :white-space "nowrap"
+                                :text-overflow "ellipsis"
+                                :overflow "hidden"}
+       :secondaryTypographyProps {:max-width 155
                                   :white-space "nowrap"
                                   :text-overflow "ellipsis"
                                   :overflow "hidden"}
-         :secondaryTypographyProps {:max-width 155
-                                    :white-space "nowrap"
-                                    :text-overflow "ellipsis"
-                                    :overflow "hidden"}
-         :primary (:title  item) :secondary (:secondary-title item)}]])))
+       :primary (:title item) :secondary (:secondary-title item)}]]))
+
+(defn row-item
+  "Renders a list item.
+  The arg 'props' is a map passed from 'fixed-size-list'.
+  Subscriptions are obtained once in the outer fn (form-2 setup phase) and deref'd
+  in the inner fn so Reagent's reactive tracking registers them as dependencies.
+  When selected-id or selected-ids change, Reagent force-updates this component and
+  passes fresh plain values down to row-item-draggable (:f> React FC)."
+  []
+  (let [items-sub        (el-events/get-selected-entry-items)
+        selected-id-sub  (el-events/get-selected-entry-id)
+        selected-ids-sub (el-events/get-selected-entry-ids)]
+    (fn [props]
+      (let [item         (nth @items-sub (:index props))
+            selected-id  @selected-id-sub
+            selected-ids @selected-ids-sub]
+        ;; :f> ensures row-item-draggable is a React function component so use-draggable hook is valid
+        [:f> row-item-draggable item (:style props) selected-id selected-ids]))))
 
 ;; A functional component to use react useEffect
 (defn fn-entry-list-content

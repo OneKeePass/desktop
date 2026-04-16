@@ -402,3 +402,41 @@
  :cross-db-move/pending-save-dialog
  (fn [db _query-vec]
    (get db :cross-db-move-pending-save-dialog {:dialog-show false})))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Drag-and-drop move: entries dragged from list onto a group node
+
+(defn drag-move-entries
+  "Called from core.cljs onDragEnd. source-uuid is the dragged entry;
+  target-uuid is the group uuid dropped onto."
+  [source-uuid target-uuid]
+  (dispatch [:drag-move-entries source-uuid target-uuid]))
+
+(reg-event-fx
+ :drag-move-entries
+ (fn [{:keys [db]} [_event-id source-uuid target-uuid]]
+   (let [db-key   (active-db-key db)
+         selected (or (get-in-key-db db [:entry-list :selected-entry-ids]) #{})
+         ;; If the dragged entry is part of the multi-selection, move all selected;
+         ;; otherwise treat it as a single-entry move
+         uuids    (if (contains? selected source-uuid)
+                    (vec selected)
+                    [source-uuid])]
+     {:fx [[:bg-drag-move-entries [db-key uuids target-uuid]]]})))
+
+(reg-fx
+ :bg-drag-move-entries
+ (fn [[db-key uuids target-uuid]]
+   (let [completed (atom 0)
+         total     (count uuids)]
+     (doseq [uuid uuids]
+       (bg/move-entry
+        db-key uuid target-uuid
+        (fn [api-response]
+          (when-not (on-error api-response)
+            (swap! completed inc)
+            (when (= @completed total)
+              (dispatch [:entry-list/clear-entry-selection])
+              (dispatch [:common/message-snackbar-open
+                         (str total (if (= total 1) " entry moved" " entries moved"))])
+              (dispatch [:common/refresh-forms])))))))))

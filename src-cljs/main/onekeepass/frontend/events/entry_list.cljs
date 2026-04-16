@@ -270,6 +270,37 @@
      (if-not (nil? index) index 0))))
 
 
+;;; Multi-select support for drag-and-drop
+
+(defn toggle-entry-selection [uuid]
+  (dispatch [:entry-list/toggle-entry-selection uuid]))
+
+(defn clear-entry-selection []
+  (dispatch [:entry-list/clear-entry-selection]))
+
+(defn get-selected-entry-ids []
+  (subscribe [:entry-list/selected-entry-ids]))
+
+(reg-event-db
+ :entry-list/toggle-entry-selection
+ (fn [db [_event-id uuid]]
+   (let [current (or (get-in-key-db db [:entry-list :selected-entry-ids]) #{})]
+     #_(println "In :entry-list/toggle-entry-selection current selection" current)
+     (assoc-in-key-db db [:entry-list :selected-entry-ids]
+                      (if (contains? current uuid)
+                        (disj current uuid)
+                        (conj current uuid))))))
+
+(reg-event-db
+ :entry-list/clear-entry-selection
+ (fn [db [_event-id]]
+   (assoc-in-key-db db [:entry-list :selected-entry-ids] #{})))
+
+(reg-sub
+ :entry-list/selected-entry-ids
+ (fn [db _query-vec]
+   (or (get-in-key-db db [:entry-list :selected-entry-ids]) #{})))
+
 (comment
   @re-frame.db/app-db
   (def db-key (:current-db-file-name @re-frame.db/app-db))

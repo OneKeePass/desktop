@@ -10,6 +10,7 @@
    [onekeepass.frontend.events.generic-dialogs :as gd-events]
    [onekeepass.frontend.events.group-form :as gf-events]
    [onekeepass.frontend.events.group-tree-content :as gt-events]
+   [onekeepass.frontend.dnd :as dnd]
    [onekeepass.frontend.events.move-group-entry :as move-events]
    [onekeepass.frontend.events.tauri-events :as tauri-events]
    [onekeepass.frontend.group-form :as gf]
@@ -335,47 +336,49 @@
            (not @recycle-bin?)
            [tree-item-menu-items anchor-el g-uuid @(cmn-events/active-db-key)])]))))
 
-(defn tree-label []
-  (let [g-uuid (gt-events/selected-group-uuid)
-        recycle-bin? (gt-events/recycle-group-selected?)
-        group-in-recycle-bin? (gt-events/selected-group-in-recycle-bin?)]
-    (fn [uuid name icon_id]
-      [mui-box {:sx {:display "flex" :alignItems "center"  :p 0.5 :pr 0}}
-       [mui-box {:sx {;;"& svg" {:width "1em" :height "1em"}
-                      :mr 1  ;; 1 => 8px
-                      :display "flex"
-                      :alignItems "center"}}
-        [group-icon icon_id]]
-       ;; Based on the discussions
-       ;; https://github.com/mui/material-ui/issues/19953#issuecomment-1184953127
-       [mui-typography {:variant "body1" :sx {:flex-grow 1}
-                        ;; This disables the tree item expanding/collapsing when user clicks on the label by calling stopPropagation
-                        ;; in the onclick event. 
-                        ;; User needs to click on expand icon to see all child tree items under a tree item
-                        :on-click (fn [^js/Event e]
-                                    ;; Need to call this event so that group is selected without expanding or collapsing
-                                    (gt-events/node-on-select nil uuid)
-                                    (.stopPropagation e))} name]
+(defn tree-label [uuid name icon_id]
+  (let [g-uuid                (gt-events/selected-group-uuid)
+        recycle-bin?          (gt-events/recycle-group-selected?)
+        group-in-recycle-bin? (gt-events/selected-group-in-recycle-bin?)
+        ^js drop-obj          (dnd/use-droppable #js {:id uuid})
+        set-node-ref          (.-setNodeRef drop-obj)
+        is-over               (.-isOver drop-obj)]
+    [mui-box {:ref set-node-ref
+              :sx  (cond-> {:display "flex" :alignItems "center" :p 0.5 :pr 0}
+                     is-over (assoc :bgcolor "action.hover"))}
+     [mui-box {:sx {:mr 1  ;; 1 => 8px
+                    :display "flex"
+                    :alignItems "center"}}
+      [group-icon icon_id]]
+     ;; Based on the discussions
+     ;; https://github.com/mui/material-ui/issues/19953#issuecomment-1184953127
+     [mui-typography {:variant "body1" :sx {:flex-grow 1}
+                      ;; This disables the tree item expanding/collapsing when user clicks on the label by calling stopPropagation
+                      ;; in the onclick event.
+                      ;; User needs to click on expand icon to see all child tree items under a tree item
+                      :on-click (fn [^js/Event e]
+                                  ;; Need to call this event so that group is selected without expanding or collapsing
+                                  (gt-events/node-on-select nil uuid)
+                                  (.stopPropagation e))} name]
 
-       ;; Shows three dot veritical icon for the menu popup
-       (when (= uuid @g-uuid)
-         (cond
-           @recycle-bin?
-           [tree-item-recycle-bin-menu]
+     ;; Shows three dot vertical icon for the menu popup
+     (when (= uuid @g-uuid)
+       (cond
+         @recycle-bin?
+         [tree-item-recycle-bin-menu]
 
-           (and @group-in-recycle-bin? (not @recycle-bin?))
-           [tree-item-recycle-sub-group-menu @g-uuid]
+         (and @group-in-recycle-bin? (not @recycle-bin?))
+         [tree-item-recycle-sub-group-menu @g-uuid]
 
-           (not @recycle-bin?)
-           [:f> tree-item-menu @g-uuid]))])))
+         (not @recycle-bin?)
+         [:f> tree-item-menu @g-uuid]))]))
 
 ;; Need to use :strs to retrive values from map argument 
 ;; as "uuid name icon_id" are the string keys in the map
 (defn make-tree-item [{:strs [uuid name icon_id]}]
   [mui-tree-item {:itemId uuid
-                  ;; :label (r/as-element [:div name [mui-icon-more-vert]]) ;; Need more work
-                  ;; :icon (r/as-element [mui-icon-more-vert]) ;; Not working; Replaces expand icon
-                  :label (r/as-element [tree-label uuid name icon_id])}
+                  ;; :f> ensures tree-label is treated as a pure React FC so hooks work correctly
+                  :label (r/as-element [:f> tree-label uuid name icon_id])}
    ;; We reuse the group form dialog from group-form ns
    [gf/group-content-dialog-main]])
 
