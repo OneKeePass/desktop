@@ -21,6 +21,7 @@
                                                               mui-styled-engine-provider
                                                               mui-tab mui-tabs
                                                               mui-theme-provider
+                                                              mui-tooltip
                                                               mui-typography
                                                               split-pane
                                                               theme-color]]
@@ -144,25 +145,26 @@
                          (set-drag-ref node)
                          (set-drop-ref node))
         is-selected    (= db-key @(cmn-events/active-db-key))]
-    [mui-tab
-     (cond-> {:label    database-name
-              :value    db-key
-              :selected is-selected
-              :on-click (fn [_e] (cmn-events/set-active-db-key db-key))
-              :ref      combined-ref
-              ;; MUI Tabs cannot inject Mui-selected styling through :f> wrappers,
-              ;; so color and underline indicator are applied explicitly here.
-              :sx       (cond-> {}
-                          is-selected (assoc :color "primary.main"
-                                            :border-bottom "2px solid"
-                                            :border-bottom-color "primary.main"))
-              :style    {:transform (dnd/css-translate transform)
-                         :cursor    "grab"}}
-       (and listeners (.-onPointerDown listeners))
-       (assoc :on-pointer-down (.-onPointerDown listeners))
+    [mui-tooltip {:title db-key :enterDelay 2000}
+     [mui-tab
+      (cond-> {:label    database-name
+               :value    db-key
+               :selected is-selected
+               :on-click (fn [_e] (cmn-events/set-active-db-key db-key))
+               :ref      combined-ref
+               ;; MUI Tabs cannot inject Mui-selected styling through :f> wrappers,
+               ;; so color and underline indicator are applied explicitly here.
+               ;; cursor is "default" normally; switches to "grab" only while pointer is pressed.
+               :sx       (cond-> {:cursor "default" "&:active" {:cursor "grab"}}
+                           is-selected (assoc :color "primary.main"
+                                             :border-bottom "2px solid"
+                                             :border-bottom-color "primary.main"))
+               :style    {:transform (dnd/css-translate transform)}}
+        (and listeners (.-onPointerDown listeners))
+        (assoc :on-pointer-down (.-onPointerDown listeners))
 
-       (and listeners (.-onKeyDown listeners))
-       (assoc :on-key-down (.-onKeyDown listeners)))]))
+        (and listeners (.-onKeyDown listeners))
+        (assoc :on-key-down (.-onKeyDown listeners)))]]))
 
 (defn group-entry-content-tabs
   "Presents draggable tabs for all opened dbs. Uses its own DndContext — separate
