@@ -682,8 +682,12 @@ pub(crate) async fn save_all_modified_dbs(
 }
 
 #[command]
-pub(crate) async fn close_kdbx(db_key: &str) -> Result<()> {
+pub(crate) async fn close_kdbx(
+    db_key: &str,
+    app_state: State<'_, app_state::AppState>,
+) -> Result<()> {
     kp_service::close_kdbx(db_key)?;
+    app_state.remove_app_home_backup_file(db_key);
     Ok(())
 }
 

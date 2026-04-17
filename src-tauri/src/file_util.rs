@@ -3,6 +3,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
+use chrono::Local;
 use log::debug;
 use onekeepass_core::db_service as kp_service;
 
@@ -40,9 +41,43 @@ pub(crate) fn generate_backup_file_name(
     .map(|s| s.to_string())
 }
 
+// Generates a timestamped backup file name of form
+// "MY_All_Passwords-2026-04-17 10 30 45.kdbx"
+pub(crate) fn generate_timestamped_backup_file_name(
+  backup_dir_path: PathBuf,
+  db_file_name: &str,
+) -> Option<String> {
+  if db_file_name.trim().is_empty() {
+    return None;
+  }
+
+  let db_path = Path::new(db_file_name);
+  let fname_no_extension = db_path.file_stem().map_or_else(
+    || "DB_FILE_NAME".into(),
+    |s| s.to_string_lossy().to_string(),
+  );
+
+  let ts = Local::now().format("%Y-%m-%d %H %M %S").to_string();
+  let backup_file_name = format!("{fname_no_extension}-{ts}.kdbx");
+
+  debug!("timestamped backup_file_name is {}", backup_file_name);
+  backup_dir_path
+    .join(backup_file_name)
+    .to_str()
+    .map(|s| s.to_string())
+}
+
 pub(crate) fn remove_dir_files<P: AsRef<Path>>(path: P) -> io::Result<()> {
   for entry in fs::read_dir(path)? {
     fs::remove_file(entry?.path())?;
   }
   Ok(())
+}
+
+pub(crate) fn remove_file_if_exists<P: AsRef<Path>>(path: P) -> io::Result<()> {
+  match fs::remove_file(path.as_ref()) {
+    Ok(()) => Ok(()),
+    Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
+    Err(err) => Err(err),
+  }
 }

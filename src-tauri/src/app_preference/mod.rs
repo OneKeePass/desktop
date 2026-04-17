@@ -32,6 +32,7 @@ pub(crate) struct PreferenceData {
     default_entry_category_groupings: Option<String>,
     theme: Option<String>,
     language: Option<String>,
+    backup: Option<BackupPreference>,
     pass_phrase_options: Option<kp_service::PassphraseGenerationOptions>,
     browser_ext_support:Option<BrowserExtSupportData>,
     // browser_ext_supported_databases:Option<Vec<DatabaseBrowserExtSupport>>,

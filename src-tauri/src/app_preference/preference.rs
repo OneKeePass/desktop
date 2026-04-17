@@ -295,6 +295,11 @@ impl Preference {
             updated = true;
         }
 
+        if let Some(v) = preference_data.backup {
+            self.backup = v;
+            updated = true;
+        }
+
         if let Some(v) = preference_data.pass_phrase_options {
             self.password_gen_preference.update_pass_phrase_options(v);
             updated = true;

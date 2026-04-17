@@ -146,6 +146,23 @@
         (dispatch-fn {:error (ex-cause err)})
         (js/console.log (ex-cause err))))))
 
+(defn open-directory-dialog
+  "Calls the tauri open dialog in directory-selection mode.
+   The dispatch-fn will receive a result map with the selected directory path or nil."
+  [api-args dispatch-fn]
+  (go
+    (try
+      (let [dialog-args (->> (merge {:directory true
+                                     :multiple false}
+                                    api-args)
+                             (cske/transform-keys csk/->camelCaseString)
+                             clj->js)
+            selected-path (<p! (open dialog-args))]
+        (dispatch-fn {:result selected-path}))
+      (catch js/Error err
+        (dispatch-fn {:error (ex-cause err)})
+        (js/console.log (ex-cause err))))))
+
 (defn save-file-dialog
   "Calls the tauri's 'save' command so that native file explorerer dialog is opened
    The 'dispatch-fn' will receive the full file path when user clicks 'Save'

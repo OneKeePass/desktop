@@ -9,9 +9,12 @@
                                                      mui-dialog-content
                                                      mui-dialog-title
                                                      mui-form-control-label
+                                                     mui-icon-button
+                                                     mui-icon-folder-outlined
+                                                     mui-icon-open-in-browser
                                                      mui-icon-security-outlined
                                                      mui-icon-settings-outlined
-                                                     mui-icon-open-in-browser
+                                                     mui-input-adornment
                                                      mui-list
                                                      mui-list-item-button
                                                      mui-list-item-icon
@@ -43,6 +46,11 @@
      [mui-list-item-icon [mui-icon-security-outlined]]
      [mui-list-item-text text-style-m (tr-l security)]]
 
+    [mui-list-item-button {:on-click #(app-settings-events/app-settings-panel-select :file-management)
+                           :selected (= panel :file-management)}
+     [mui-list-item-icon [mui-icon-folder-outlined]]
+     [mui-list-item-text text-style-m "File Management"]]
+
     [mui-list-item-button {:on-click #(app-settings-events/app-settings-panel-select :browser-integration)
                            :selected (= panel :browser-integration)}
      [mui-list-item-icon [mui-icon-open-in-browser]]
@@ -54,7 +62,7 @@
 (def entry-groupings [{:name "Groups" :value "Groups"} {:name "Categories" :value "Categories"}
                       {:name "Types" :value "Types"} {:name "Tags" :value "Tags"}])
 
-;; Here we list all lanaguages that we support. 
+;; Here we list all lanaguages that we support.
 ;; We need to have the corresponding translation json files in the dir resources/public/translations
 ;; See translation.rs for the backend loading of these json files
 (def languages [{:name "en - English" :value "en"}
@@ -149,7 +157,7 @@
                      :on-change (app-settings-events/field-update-factory [:preference-data :session-timeout])
                      :variant "standard" :fullWidth true}]]
 
-     ;; Enable this once we add clearing clipboard on timeout feature 
+     ;; Enable this once we add clearing clipboard on timeout feature
      #_[mui-stack {:sx {:margin-top "16px"}}
         [m/text-field {:label (tr-l "clipboardTimeout")
                        :value clipboard-timeout
@@ -158,6 +166,42 @@
                        :helperText (get error-fields :clipboard-timeout)
                        :on-change (app-settings-events/field-update-factory [:preference-data :clipboard-timeout])
                        :variant "standard" :fullWidth true}]]]]])
+
+(defn file-management [{:keys [error-fields]
+                        {:keys [backup]} :preference-data}]
+  (let [{:keys [enabled dir]} backup]
+    [mui-stack
+     [mui-stack {:sx {:pt 1 :pb 1}}
+      [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
+       "Backups"]]
+
+     [mui-stack {:spacing 2 :sx {:alignItems "center"}}
+      [mui-box {:sx {:width "80%"}}
+       [mui-form-control-label
+        {:control (r/as-element
+                   [mui-checkbox
+                    {:checked (boolean enabled)
+                     :on-change (fn [^js/CheckedEvent e]
+                                  (app-settings-events/field-update
+                                   [:preference-data :backup :enabled]
+                                   (-> e .-target .-checked)))}])
+         :label "Enable backup"}]]
+
+      [mui-box {:sx {:width "80%"}}
+       [m/text-field {:label "Backup dir"
+                      :value (or dir "")
+                      :disabled (not enabled)
+                      :error (contains? error-fields :backup-dir)
+                      :helperText (get error-fields :backup-dir "Directory used for database backups")
+                      :on-change (app-settings-events/field-update-factory [:preference-data :backup :dir])
+                      :variant "standard" :fullWidth true
+                      :slotProps {:input {:endAdornment (r/as-element
+                                                         [mui-input-adornment {:position "end"}
+                                                          [mui-icon-button {:edge "end"
+                                                                            :disabled (not enabled)
+                                                                            :sx {:mr "-8px"}
+                                                                            :on-click app-settings-events/open-backup-dir-dialog}
+                                                           [mui-icon-folder-outlined]]])}}}]]]]))
 
 (defn browser-integration [{:keys [_error-fields]
                             {:keys  [browser-ext-support]} :preference-data}]
@@ -238,7 +282,7 @@
   [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
                :dir (t/dir)
                ;;:fullScreen true
-               ;;:scroll "paper" 
+               ;;:scroll "paper"
                :on-click #(.stopPropagation %)
                :sx {:min-width "650px"  "& .MuiDialog-paper" {:max-width "750px" :width "90%"}}}
    [mui-dialog-title (tr-dlg-title applicationSettings)]
@@ -263,6 +307,9 @@
         :security-info
         [security-info dialog-data]
 
+        :file-management
+        [file-management dialog-data]
+
         :browser-integration
         [mui-stack
          [browser-integration dialog-data]
@@ -270,8 +317,8 @@
          [supported-browsers dialog-data]]
 
 
-        ;;IMPORATNT: 
-        ;; We need this as dialog-data may nil and hence panel when first time  
+        ;;IMPORATNT:
+        ;; We need this as dialog-data may nil and hence panel when first time
         ;; [app-settings-dialog] is called. Otherwise we will see
         ;; Error: No matching clause and app UI will fail
         [:div])]]]

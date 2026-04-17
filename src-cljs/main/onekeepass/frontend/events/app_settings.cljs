@@ -3,12 +3,12 @@
                    [onekeepass.frontend.translation :refer [tr-m]])
   (:require [clojure.string :as str]
             [onekeepass.frontend.background :as bg]
-            [onekeepass.frontend.events.common :as cmn-events :refer [on-error]]
+            [onekeepass.frontend.events.common :as cmn-events :refer [check-error on-error]]
             [onekeepass.frontend.utils :refer [str->int]]
             [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-fx
                                    reg-sub subscribe]]))
 
-(def panels [:general-info  :security-info])
+(def panels [:general-info :security-info :file-management :browser-integration])
 
 (defn field-update-factory
   "Creates a function that can be used as on-change handler for text fields
@@ -36,6 +36,9 @@
 
 (defn app-settings-save []
   (dispatch [:app-settings-save]))
+
+(defn open-backup-dir-dialog []
+  (dispatch [:app-settings/open-backup-dir-dialog]))
 
 (defn app-settings-dialog-data []
   (subscribe [:app-settings-dialog-data]))
@@ -72,12 +75,23 @@
 
     errors))
 
+(defn- validate-file-management-fields
+  [app-db]
+  (let [{:keys [backup]} (get-in app-db [:app-settings :preference-data])
+        {:keys [enabled dir]} backup]
+    (cond-> {}
+      (and enabled (str/blank? dir))
+      (assoc :backup-dir "Backup directory is required when backup is enabled"))))
+
 
 (defn- validate-required-fields
   [db panel]
   (cond
     (= panel :security-info)
     (validate-security-fields db)
+
+    (= panel :file-management)
+    (validate-file-management-fields db)
 
     :else
     {}))
@@ -110,6 +124,7 @@
                                          :language
                                          :session-timeout
                                          :clipboard-timeout
+                                         :backup
                                          :browser-ext-support
                                          :default-entry-category-groupings]))
               (assoc-in  [:app-settings :preference-data] pd))})))
@@ -151,14 +166,36 @@
                  language
                  session-timeout
                  clipboard-timeout
+                 backup
                  browser-ext-support
                  default-entry-category-groupings]} (-> db :app-settings :preference-data)]
      {:fx [[:bg-update-preference (as-map [theme
                                            language
                                            session-timeout
                                            clipboard-timeout
+                                           backup
                                            browser-ext-support
                                            default-entry-category-groupings])]]})))
+
+(reg-event-fx
+ :app-settings/open-backup-dir-dialog
+ (fn [{:keys [db]} [_event-id]]
+   (let [default-path (get-in db [:app-settings :preference-data :backup :dir])]
+     (bg/open-directory-dialog
+      (cond-> {}
+        (not (str/blank? default-path))
+        (assoc :default-path default-path))
+      (fn [api-response]
+        (when-let [selected-dir (check-error api-response)]
+          (dispatch [:app-settings/backup-dir-selected selected-dir]))))
+     {})))
+
+(reg-event-db
+ :app-settings/backup-dir-selected
+ (fn [db [_event-id selected-dir]]
+   (let [db (assoc-in db [:app-settings :preference-data :backup :dir] selected-dir)
+         errors (validate-required-fields db (get-in db [:app-settings :panel]))]
+     (assoc-in db [:app-settings :error-fields] errors))))
 
 (reg-fx
  :bg-update-preference
