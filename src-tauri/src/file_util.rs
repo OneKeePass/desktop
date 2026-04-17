@@ -9,25 +9,68 @@ use onekeepass_core::db_service as kp_service;
 
 fn normalized_backup_source_stem(file_stem: &str) -> String {
   const BACKUP_TIMESTAMP_FORMAT: &str = "%Y-%m-%d %H %M %S";
-  const TIMESTAMP_WITH_SEPARATOR_LEN: usize = 20;
+  const TIMESTAMP_LEN: usize = 19;
+  const HASH_LEN: usize = 8;
 
-  if file_stem.len() <= TIMESTAMP_WITH_SEPARATOR_LEN {
-    return file_stem.to_string();
+  let mut current = file_stem.to_string();
+  let mut stripped_timestamped_suffix = false;
+
+  loop {
+    if current.len() <= HASH_LEN + TIMESTAMP_LEN + 2 {
+      break;
+    }
+
+    let timestamp_start = current.len() - TIMESTAMP_LEN;
+    let hash_end = timestamp_start - 1;
+    let hash_start = hash_end.saturating_sub(HASH_LEN);
+
+    if &current[hash_end..timestamp_start] != "-" {
+      break;
+    }
+
+    let timestamp_part = &current[timestamp_start..];
+    if NaiveDateTime::parse_from_str(timestamp_part, BACKUP_TIMESTAMP_FORMAT).is_err() {
+      break;
+    }
+
+    if hash_start == 0 || &current[hash_start - 1..hash_start] != "-" {
+      break;
+    }
+
+    let hash_part = &current[hash_start..hash_end];
+    let valid_hash = hash_part.len() == HASH_LEN
+      && hash_part.chars().all(|c| c.is_ascii_hexdigit());
+
+    if !valid_hash {
+      break;
+    }
+
+    current.truncate(hash_start - 1);
+    stripped_timestamped_suffix = true;
   }
 
-  let split_at = file_stem.len() - TIMESTAMP_WITH_SEPARATOR_LEN;
-  let (base_name, suffix) = file_stem.split_at(split_at);
+  if stripped_timestamped_suffix {
+    loop {
+      if current.len() <= HASH_LEN + 1 {
+        break;
+      }
 
-  if !suffix.starts_with('-') {
-    return file_stem.to_string();
+      let hash_start = current.len() - HASH_LEN;
+      if &current[hash_start - 1..hash_start] != "-" {
+        break;
+      }
+
+      let hash_part = &current[hash_start..];
+      let valid_hash = hash_part.chars().all(|c| c.is_ascii_hexdigit());
+      if !valid_hash {
+        break;
+      }
+
+      current.truncate(hash_start - 1);
+    }
   }
 
-  let ts = &suffix[1..];
-  if NaiveDateTime::parse_from_str(ts, BACKUP_TIMESTAMP_FORMAT).is_ok() {
-    base_name.to_string()
-  } else {
-    file_stem.to_string()
-  }
+  current
 }
 
 // Generates the complete backup file name for an existing database file
@@ -115,31 +158,61 @@ mod tests {
   use std::path::PathBuf;
 
   #[test]
-  fn strips_one_trailing_backup_timestamp_suffix() {
+  fn normal_name_stays_unchanged() {
+    assert_eq!(normalized_backup_source_stem("Testcsv"), "Testcsv");
+  }
+
+  #[test]
+  fn backup_name_normalizes_to_original_file_name() {
     assert_eq!(
-      normalized_backup_source_stem("MY_All_Passwords-2026-04-17 10 30 45"),
-      "MY_All_Passwords"
+      normalized_backup_source_stem("Testcsv-2cba3048-2026-04-17 11 15 52"),
+      "Testcsv"
     );
   }
 
   #[test]
-  fn keeps_non_backup_timestamp_names_intact() {
+  fn backup_of_backup_name_also_normalizes_to_original_file_name() {
     assert_eq!(
-      normalized_backup_source_stem("MY_All_Passwords-archive"),
-      "MY_All_Passwords-archive"
+      normalized_backup_source_stem("Testcsv-2cba3048-f2c6ac7f-2026-04-17 11 40 38"),
+      "Testcsv"
     );
   }
 
   #[test]
-  fn timestamped_backup_name_uses_normalized_stem_and_hash() {
+  fn generated_name_for_original_file_uses_original_stem_and_one_hash() {
     let backup_file_name = generate_timestamped_backup_file_name(
       PathBuf::from("/mybackups"),
-      "/path/to/db_file/MY_All_Passwords-2026-04-17 10 30 45.kdbx",
+      "/path/to/db_file/Testcsv.kdbx",
     )
     .unwrap();
 
-    assert!(backup_file_name.starts_with("/mybackups/MY_All_Passwords-"));
-    assert!(!backup_file_name.contains("10 30 45-"));
+    assert!(backup_file_name.starts_with("/mybackups/Testcsv-"));
+    assert!(backup_file_name.ends_with(".kdbx"));
+  }
+
+  #[test]
+  fn generated_name_for_backup_file_resets_to_original_stem_before_new_hash() {
+    let backup_file_name = generate_timestamped_backup_file_name(
+      PathBuf::from("/mybackups"),
+      "/path/to/db_file/Testcsv-2cba3048-2026-04-17 11 15 52.kdbx",
+    )
+    .unwrap();
+
+    assert!(backup_file_name.starts_with("/mybackups/Testcsv-"));
+    assert!(!backup_file_name.starts_with("/mybackups/Testcsv-2cba3048-"));
+    assert!(backup_file_name.ends_with(".kdbx"));
+  }
+
+  #[test]
+  fn generated_name_for_older_buggy_backup_chain_also_resets_to_original_stem() {
+    let backup_file_name = generate_timestamped_backup_file_name(
+      PathBuf::from("/mybackups"),
+      "/path/to/db_file/Testcsv-2cba3048-f2c6ac7f-2026-04-17 11 40 38.kdbx",
+    )
+    .unwrap();
+
+    assert!(backup_file_name.starts_with("/mybackups/Testcsv-"));
+    assert!(!backup_file_name.starts_with("/mybackups/Testcsv-2cba3048-"));
     assert!(backup_file_name.ends_with(".kdbx"));
   }
 }
