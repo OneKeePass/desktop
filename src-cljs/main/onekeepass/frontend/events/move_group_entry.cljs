@@ -417,10 +417,17 @@
  (fn [{:keys [db]} [_event-id source-uuid target-uuid]]
    (let [db-key      (active-db-key db)
          selected    (or (get-in-key-db db [:entry-list :selected-entry-ids]) #{})
-         ;; If the dragged entry is part of the multi-selection, move all selected;
+         selected-id (get-in-key-db db [:entry-list :selected-entry-id])
+         ;; When multi-select has entries, the single-selected entry (selected-id)
+         ;; acts as the "anchor" (e.g. click A then Cmd+Click B). Include it so
+         ;; all visually highlighted rows are moved together.
+         effective   (if (seq selected)
+                       (cond-> selected selected-id (conj selected-id))
+                       #{})
+         ;; If the dragged entry is part of the effective selection, move all of them;
          ;; otherwise treat it as a single-entry move
-         uuids       (if (contains? selected source-uuid)
-                       (vec selected)
+         uuids       (if (contains? effective source-uuid)
+                       (vec effective)
                        [source-uuid])
          ;; Build uuid → parent-group-uuid lookup from the currently loaded entry list.
          ;; EntrySummary carries :parent-group-uuid so we can detect same-group drops.

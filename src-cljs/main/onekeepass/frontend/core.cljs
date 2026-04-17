@@ -6,6 +6,7 @@
             [onekeepass.frontend.entry-form-ex :as eform-ex]
             [onekeepass.frontend.entry-list :as el]
             [onekeepass.frontend.events.common :as cmn-events]
+            [onekeepass.frontend.events.entry-list :as el-events]
             [onekeepass.frontend.events.move-group-entry :as move-events]
             ;; Just to load events defined in this ns
             [onekeepass.frontend.events.auto-open]
@@ -59,14 +60,20 @@
     [dnd/dnd-context
      {:sensors            sensors
       :collisionDetection dnd/closest-center
-      :onDragStart        (fn [^js evt] (set-active-uuid (-> evt .-active .-id)))
+      :onDragStart        (fn [^js evt]
+                            (let [uuid (-> evt .-active .-id)]
+                              (set-active-uuid uuid)
+                              (el-events/set-drag-active uuid)))
       :onDragEnd          (fn [^js evt]
                             (set-active-uuid nil)
+                            (el-events/set-drag-active nil)
                             (let [target (some-> ^js evt .-over .-id)
                                   source (some-> ^js evt .-active .-id)]
                               (when target
                                 (move-events/drag-move-entries source target))))
-      :onDragCancel       (fn [_] (set-active-uuid nil))}
+      :onDragCancel       (fn [_]
+                            (set-active-uuid nil)
+                            (el-events/set-drag-active nil))}
      [split-pane {:split "vertical"
                   ;;:size "200"
                   :minSize "250"

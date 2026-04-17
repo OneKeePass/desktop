@@ -69,27 +69,37 @@
   require a React function component context.
   Selection state arrives as plain deref'd props from row-item (form-2), which has
   Reagent reactive tracking and re-renders when either subscription changes."
-  [item style selected-id selected-ids]
-  (let [uuid         (:uuid item)
-        ^js drag-obj  (dnd/use-draggable #js {:id uuid})
-        set-node-ref  (.-setNodeRef drag-obj)
-        ^js listeners (.-listeners drag-obj)
-        transform     (.-transform drag-obj)
-        drag-style    (if transform
-                        (assoc style :transform (dnd/css-translate transform))
-                        style)]
+  [item style selected-id selected-ids drag-active-uuid]
+  (let [uuid             (:uuid item)
+        ^js drag-obj     (dnd/use-draggable #js {:id uuid})
+        set-node-ref     (.-setNodeRef drag-obj)
+        ^js listeners    (.-listeners drag-obj)
+        is-dragging      (.-isDragging drag-obj)
+        is-selected      (or (= selected-id uuid) (contains? selected-ids uuid))
+        drag-in-progress (boolean drag-active-uuid)
+        ;; With DragOverlay: hide the original element during drag (opacity 0 preserves
+        ;; layout space so the list doesn't reflow). Two cases to hide:
+        ;;   1. This item is the active draggable (isDragging)
+        ;;   2. A drag is in progress AND this item is selected (multi-select group hides together)
+        
+        ;; Using opacity 0 creates blank spaces. Using opacity 1 so that the entries remains in the list
+        drag-style       (if (or is-dragging (and drag-in-progress is-selected))
+                           (assoc style :opacity 1)
+                           style)]
     [mui-list-item
      (cond-> {:ref    set-node-ref
               :style  drag-style
-              
-              ;; The selection color is set to one from "action.selected" instead of 
-              ;; Mui-selected color "rgba(25, 118, 210, 0.08)" because of dnd. Need to see how to use that color 
+
+              ;; The selection color is set to one from "action.selected" instead of
+              ;; Mui-selected color "rgba(25, 118, 210, 0.08)" because of dnd. Need to see how to use that color
               ;; for selected rows for both light and dark mode
               :sx (cond-> {"& .MuiListItemSecondaryAction-root" {:right 0}}
                     ;; MUI v7 ListItem does not visually reflect :selected prop; apply bgcolor explicitly
-                    ;; covers both single-select (selected-id) and multi-select (selected-ids)
-                    (or (= selected-id uuid) (contains? selected-ids uuid))
-                    (assoc :bgcolor "action.selected"))
+                    ;; covers both single-select (selected-id) and multi-select (selected-ids).
+                    ;; "&:hover" keeps the same bg on mouse-over to suppress hover color on selected items.
+                    is-selected
+                    (assoc :bgcolor "action.selected"
+                           "&:hover" {:bgcolor "action.selected"}))
               :button true
               :value  uuid
               :on-click (fn [^js e]
@@ -126,18 +136,20 @@
   The arg 'props' is a map passed from 'fixed-size-list'.
   Subscriptions are obtained once in the outer fn (form-2 setup phase) and deref'd
   in the inner fn so Reagent's reactive tracking registers them as dependencies.
-  When selected-id or selected-ids change, Reagent force-updates this component and
-  passes fresh plain values down to row-item-draggable (:f> React FC)."
+  When selected-id, selected-ids, or drag-active-uuid change, Reagent force-updates
+  this component and passes fresh plain values down to row-item-draggable (:f> React FC)."
   []
-  (let [items-sub        (el-events/get-selected-entry-items)
-        selected-id-sub  (el-events/get-selected-entry-id)
-        selected-ids-sub (el-events/get-selected-entry-ids)]
+  (let [items-sub         (el-events/get-selected-entry-items)
+        selected-id-sub   (el-events/get-selected-entry-id)
+        selected-ids-sub  (el-events/get-selected-entry-ids)
+        drag-active-sub   (el-events/get-drag-active-uuid)]
     (fn [props]
-      (let [item         (nth @items-sub (:index props))
-            selected-id  @selected-id-sub
-            selected-ids @selected-ids-sub]
+      (let [item             (nth @items-sub (:index props))
+            selected-id      @selected-id-sub
+            selected-ids     @selected-ids-sub
+            drag-active-uuid @drag-active-sub]
         ;; :f> ensures row-item-draggable is a React function component so use-draggable hook is valid
-        [:f> row-item-draggable item (:style props) selected-id selected-ids]))))
+        [:f> row-item-draggable item (:style props) selected-id selected-ids drag-active-uuid]))))
 
 ;; A functional component to use react useEffect
 (defn fn-entry-list-content

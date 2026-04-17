@@ -309,6 +309,26 @@
  (fn [db _query-vec]
    (or (get-in-key-db db [:entry-list :selected-entry-ids]) #{})))
 
+;;; Drag-active state — tracks the uuid of the entry currently being dragged.
+;;; Set from core.cljs onDragStart/onDragEnd/onDragCancel so all selected
+;;; row items can hide together when any drag is in progress.
+
+(defn set-drag-active [uuid]
+  (dispatch [:entry-list/set-drag-active uuid]))
+
+(defn get-drag-active-uuid []
+  (subscribe [:entry-list/drag-active-uuid]))
+
+(reg-event-db
+ :entry-list/set-drag-active
+ (fn [db [_ uuid]]
+   (assoc-in-key-db db [:entry-list :drag-active-uuid] uuid)))
+
+(reg-sub
+ :entry-list/drag-active-uuid
+ (fn [db _]
+   (get-in-key-db db [:entry-list :drag-active-uuid])))
+
 (comment
   @re-frame.db/app-db
   (def db-key (:current-db-file-name @re-frame.db/app-db))
