@@ -126,22 +126,74 @@
                     :on-click #(cmn-events/unlock-current-db biometric-type)}
         (tr-bl quickUnlock)]]]]))
 
+(defn- draggable-tab
+  "Form-1 React function component (used with :f>) for a single draggable + droppable tab.
+  Follows the same pattern as row-item-draggable in entry_list.cljs.
+  Calls use-draggable and use-droppable with the same id so the tab is both a
+  drag source and a drop target within the tab DndContext.
+  Reads active-db-key directly and sets :selected/:on-click explicitly because MUI Tabs
+  cannot inject those props through a React function-component wrapper (:f>)."
+  [db-key database-name]
+  (let [^js drag-obj   (dnd/use-draggable #js {:id db-key})
+        ^js drop-obj   (dnd/use-droppable #js {:id db-key})
+        set-drag-ref   (.-setNodeRef drag-obj)
+        set-drop-ref   (.-setNodeRef drop-obj)
+        ^js listeners  (.-listeners drag-obj)
+        transform      (.-transform drag-obj)
+        combined-ref   (fn [node]
+                         (set-drag-ref node)
+                         (set-drop-ref node))
+        is-selected    (= db-key @(cmn-events/active-db-key))]
+    [mui-tab
+     (cond-> {:label    database-name
+              :value    db-key
+              :selected is-selected
+              :on-click (fn [_e] (cmn-events/set-active-db-key db-key))
+              :ref      combined-ref
+              ;; MUI Tabs cannot inject Mui-selected styling through :f> wrappers,
+              ;; so color and underline indicator are applied explicitly here.
+              :sx       (cond-> {}
+                          is-selected (assoc :color "primary.main"
+                                            :border-bottom "2px solid"
+                                            :border-bottom-color "primary.main"))
+              :style    {:transform (dnd/css-translate transform)
+                         :cursor    "grab"}}
+       (and listeners (.-onPointerDown listeners))
+       (assoc :on-pointer-down (.-onPointerDown listeners))
+
+       (and listeners (.-onKeyDown listeners))
+       (assoc :on-key-down (.-onKeyDown listeners)))]))
+
 (defn group-entry-content-tabs
-  "Presents tabs for all opened dbs.The actual content of a selected 
-   tab is determined in 'group-entry-content' through the 'db-key' selection
-  The arg 'db-list' is a vector of db summary maps
-  "
+  "Presents draggable tabs for all opened dbs. Uses its own DndContext — separate
+  from the entry/group DndContext in group-entry-content — so tab reordering does
+  not interfere with entry dragging. The arg 'db-list' is a vector of db summary maps."
   [db-list]
-  [mui-box
-   [mui-box
-    [mui-tabs {;; This determines which tab's content shown
-               :value @(cmn-events/active-db-key)
-               ;; Sets the active db so that group-entry-content can show selected db data
-               ;; 'val' is from :value prop of 'mui-tab' below
-               :on-change (fn [_event val] (cmn-events/set-active-db-key val))}
-     (doall
-      (for [{:keys [db-key database-name]} db-list]
-        ^{:key db-key}  [mui-tab {:label database-name :value db-key}]))]]])
+  (let [sensors (dnd/use-sensors
+                 (dnd/use-sensor dnd/PointerSensor #js {:activationConstraint #js {:distance 8}})
+                 (dnd/use-sensor dnd/KeyboardSensor))]
+    [dnd/dnd-context
+     {:sensors            sensors
+      :collisionDetection dnd/closest-center
+      :onDragEnd          (fn [^js evt]
+                            (let [from (some-> evt .-active .-id)
+                                  to   (some-> evt .-over .-id)]
+                              (when (and from to (not= from to))
+                                (cmn-events/reorder-opened-db-list from to))))}
+     [mui-box
+      [mui-box
+       [mui-tabs {;; This determines which tab's content shown
+                  :value @(cmn-events/active-db-key)
+                  ;; Sets the active db so that group-entry-content can show selected db data
+                  ;; 'val' is from :value prop of 'mui-tab' below
+                  :on-change (fn [_event val] (cmn-events/set-active-db-key val))
+                  ;; MUI's indicator cannot position itself through :f> wrappers;
+                  ;; suppress it — the selected tab draws its own border-bottom via sx.
+                  :TabIndicatorProps {:style {:display "none"}}}
+        (doall
+         (for [{:keys [db-key database-name]} db-list]
+           ^{:key db-key}
+           [:f> draggable-tab db-key database-name]))]]]]))
 
 ;; A functional component that can use effect 
 (defn main-content []
@@ -155,7 +207,7 @@
                   :on-click cmn-events/user-action-detected}
        ;; Tabs are shown only when there are more than 1 databases are open
        (when (> (count db-list) 1)
-         [group-entry-content-tabs db-list])
+         [:f> group-entry-content-tabs db-list])
 
        ;; A Gap between tab header and content
        [:div {:style {:height "2px"

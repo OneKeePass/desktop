@@ -325,6 +325,11 @@
   [app-db]
   (mapv (fn [m] (:db-key m)) (:opened-db-list app-db)))
 
+(defn reorder-opened-db-list
+  "Moves the tab for from-db-key to the position occupied by to-db-key"
+  [from-db-key to-db-key]
+  (dispatch [:common/reorder-opened-db-list from-db-key to-db-key]))
+
 (defn current-opened-db
   "Called to get the currently active database's info 
    as map - keys are [db-key database-name file-name key-file-name]
@@ -852,6 +857,23 @@
  :opened-db-list
  (fn [db _query-vec]
    (-> db :opened-db-list)))
+
+(defn- vec-move
+  "Moves the item at from-idx to to-idx within vector v"
+  [v from-idx to-idx]
+  (let [item    (nth v from-idx)
+        without (into [] (keep-indexed #(when (not= %1 from-idx) %2) v))]
+    (into [] (concat (subvec without 0 to-idx) [item] (subvec without to-idx)))))
+
+(reg-event-db
+ :common/reorder-opened-db-list
+ (fn [db [_ from-db-key to-db-key]]
+   (let [db-list  (:opened-db-list db)
+         from-idx (first (keep-indexed #(when (= (:db-key %2) from-db-key) %1) db-list))
+         to-idx   (first (keep-indexed #(when (= (:db-key %2) to-db-key) %1) db-list))]
+     (if (and from-idx to-idx (not= from-idx to-idx))
+       (assoc db :opened-db-list (vec-move db-list from-idx to-idx))
+       db))))
 
 ;;;;;;;;;;;;;;; Message dialog ;;;;;;;;;;;;;
 
