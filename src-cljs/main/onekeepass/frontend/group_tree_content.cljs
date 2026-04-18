@@ -12,6 +12,8 @@
    [onekeepass.frontend.events.group-tree-content :as gt-events]
    [onekeepass.frontend.dnd :as dnd]
    [onekeepass.frontend.events.move-group-entry :as move-events]
+   [onekeepass.frontend.events.clone-entry-to-other-db :as clone-events]
+   [re-frame.core :refer [dispatch]]
    [onekeepass.frontend.events.tauri-events :as tauri-events]
    [onekeepass.frontend.group-form :as gf]
    [onekeepass.frontend.mui-components :as m :refer [mui-alert mui-box
@@ -190,6 +192,60 @@
                                                            :target-db-key current-db-key
                                                            :target-db-groups-listing nil
                                                            :target-db-loading? false})))
+
+(defn clone-entry-to-other-db-dialog
+  "Dialog for cloning an entry to a different open database.
+   Source entry is not removed; no history; no references.
+   The source database is excluded from the destination list."
+  []
+  (let [{:keys [dialog-show
+                entry-title
+                target-db-key
+                target-db-groups-listing
+                target-db-loading?
+                group-selection-info]}
+        @(clone-events/clone-entry-to-other-db-dialog-data)]
+    (when dialog-show
+      ;; other-unlocked-dbs excludes the current source database
+      (let [other-dbs @(clone-events/other-unlocked-dbs)
+            selected-target-db (target-db-option other-dbs target-db-key)]
+        [mui-dialog {:open dialog-show
+                     :dir (t/dir)
+                     :on-click #(.stopPropagation ^js/Event %)
+                     :sx {"& .MuiPaper-root" {:width "60%"}}}
+         [mui-dialog-title (tr-dlg-title "cloneEntryToDatabase")]
+         [mui-dialog-content
+          [mui-stack
+           (when entry-title
+             [mui-typography {:variant "subtitle2" :sx {:mb 1 :fontStyle "italic"}}
+              (str (tr-l "entry") ": " entry-title)])
+           [mui-box {:sx {:mb 2}}
+            [selection-autocomplete
+             {:label (tr-l "destinationDatabase")
+              :options other-dbs
+              :current-value selected-target-db
+              :on-change (fn [_e db-info]
+                            (let [m (js->clj db-info :keywordize-keys true)]
+                              (clone-events/clone-target-db-changed (:db-key m))))
+              :required true}]]
+           [mui-typography (tr-t selectAGroup)]
+           [mui-box
+            [selection-autocomplete {:label (tr-l "group")
+                                     :options (or target-db-groups-listing [])
+                                     :current-value group-selection-info
+                                     :on-change (fn [_e group-info]
+                                                  (gd-events/clone-entry-to-other-db-dialog-update-with-map
+                                                   {:group-selection-info (js->clj group-info :keywordize-keys true)}))
+                                     :required true}]]
+           (when target-db-loading?
+             [mui-linear-progress {:sx {:mt 2}}])]]
+         [mui-dialog-actions
+          [mui-button {:on-click gd-events/clone-entry-to-other-db-dialog-close} (tr-bl "cancel")]
+          [mui-button {:disabled (or target-db-loading?
+                                     (nil? target-db-key)
+                                     (nil? group-selection-info))
+                       :on-click (fn [] (dispatch [:clone-entry-to-other-db/ok-clicked]))}
+           (tr-bl "ok")]]]))))
 
 (defn cross-db-save-prompt-dialog
   "Confirmation dialog asking the user whether to save both the source and target
@@ -441,6 +497,9 @@
 
        ;; Shown when the user defers the save following a cross-database move
        [cross-db-move-pending-save-dialog]
+
+       ;; Used to clone an entry to a different open database
+       [clone-entry-to-other-db-dialog]
        ;; Used to move a group to recycle bin
        [move-dialog
         {:dialog-data @(move-events/move-group-entry-dialog-data :group)

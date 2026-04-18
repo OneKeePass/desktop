@@ -317,6 +317,21 @@ pub(crate) async fn move_group_to_other_db(
 }
 
 #[command]
+pub(crate) async fn clone_entry_to_other_db(
+    source_db_key: &str,
+    entry_uuid: Uuid,
+    target_db_key: &str,
+    target_parent_group_uuid: Uuid,
+) -> Result<kp_service::CrossDbCloneSummary> {
+    Ok(kp_service::clone_entry_to_other_db(
+        source_db_key,
+        &entry_uuid,
+        target_db_key,
+        &target_parent_group_uuid,
+    )?)
+}
+
+#[command]
 pub(crate) async fn remove_group_permanently(db_key: &str, group_uuid: Uuid) -> Result<()> {
     Ok(kp_service::remove_group_permanently(db_key, group_uuid)?)
 }

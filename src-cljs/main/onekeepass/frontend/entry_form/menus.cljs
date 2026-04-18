@@ -20,6 +20,7 @@
    [onekeepass.frontend.events.common :as ce]
    [onekeepass.frontend.events.entry-form-ex :as form-events]
    [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
+   [onekeepass.frontend.events.clone-entry-to-other-db :as clone-events]
    [onekeepass.frontend.group-tree-content :as gt-content]))
 
 (defn- menu-action [anchor-el action & action-args]
@@ -54,6 +55,12 @@
                      :divider false
                      :on-click (menu-action anchor-el dlg-events/clone-entry-options-dialog-show entry-uuid)}
       [mui-list-item-text {:inset true} "Clone"]]
+
+     (when @(clone-events/multi-db-open?)
+       [mui-menu-item {:sx {:padding-left "1px"}
+                       :divider false
+                       :on-click (menu-action anchor-el clone-events/clone-entry-to-other-db-dialog-show entry-uuid)}
+        [mui-list-item-text {:inset true} (tr-ml "cloneToDatabase")]])
 
      [mui-menu-item {:sx {:padding-left "1px"}
                      :divider false

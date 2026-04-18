@@ -460,6 +460,17 @@
                :target-parent-group-uuid target-parent-group-uuid}
               dispatch-fn))
 
+(defn clone-entry-to-other-db
+  "Clones an entry from one database into another.
+   The source entry is not removed. No history, no references."
+  [source-db-key entry-uuid target-db-key target-parent-group-uuid dispatch-fn]
+  (invoke-api "clone_entry_to_other_db"
+              {:source-db-key source-db-key
+               :entry-uuid entry-uuid
+               :target-db-key target-db-key
+               :target-parent-group-uuid target-parent-group-uuid}
+              dispatch-fn))
+
 (defn remove-entry-permanently [db-key entry-uuid dispatch-fn]
   (invoke-api "remove_entry_permanently" {:db-key db-key :entry-uuid entry-uuid} dispatch-fn))
 

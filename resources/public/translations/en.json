@@ -79,6 +79,7 @@
         "description": "Description",
         "done": "Done",
         "edit": "Edit",
+        "entry": "Entry",
         "destinationDatabase": "Destination database",
         "encriptionAlgorithm": "Encription Algorithm",
         "entryGroupings": "Entry Groupings",
@@ -162,6 +163,7 @@
         "titles": {
             "applicationSettings": "Application Settings",
             "cloneEntry": "Clone entry",
+            "cloneEntryToDatabase": "Clone Entry to Another Database",
             "confirmDiscard": "Confirm Discard",
             "confirmOverwrite": "Confirm Overwrite",
             "conflictOnSave": "Content conflicts detected",
@@ -324,6 +326,7 @@
         "addCategory": "Add category",
         "addGroup": "Add Group",
         "clone": "Clone",
+        "cloneToDatabase": "Clone to Database",
         "createdTime": "Created Time",
         "delete": "Delete",
         "deletePermanent": "Delete Permanent",

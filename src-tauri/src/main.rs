@@ -128,6 +128,7 @@ fn main() {
       commands::menu_action_requested,
       commands::merge_databases,
       // commands::menu_titles_change_requested,
+      commands::clone_entry_to_other_db,
       commands::move_entry,
       commands::move_entry_to_other_db,
       commands::move_entry_to_recycle_bin,

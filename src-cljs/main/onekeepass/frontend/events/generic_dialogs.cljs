@@ -40,6 +40,16 @@
 ;; a subscribe event wrapper
 (defn-generic-dialog-subs-events move-group-or-entry-dialog [[data nil]])
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  clone-entry-to-other-db-dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; dialog-identifier-kw :clone-entry-to-other-db-dialog
+
+(defn-generic-dialog-disp-events :clone-entry-to-other-db-dialog [[close nil]
+                                                                  [show-with-state state-m]
+                                                                  [update-with-map state-m]])
+
+(defn-generic-dialog-subs-events :clone-entry-to-other-db-dialog [[data nil]])
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; browser-extension-connection-permit-dialog-data 
 
 ; dialog-identifier-kw :browser-extension-connection-permit-dialog
