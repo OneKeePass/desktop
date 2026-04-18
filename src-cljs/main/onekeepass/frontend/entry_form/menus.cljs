@@ -21,7 +21,8 @@
    [onekeepass.frontend.events.entry-form-ex :as form-events]
    [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
    [onekeepass.frontend.events.clone-entry-to-other-db :as clone-events]
-   [onekeepass.frontend.group-tree-content :as gt-content]))
+   [onekeepass.frontend.group-tree-content :as gt-content]
+   [onekeepass.frontend.events.common :as cmn-events]))
 
 (defn- menu-action [anchor-el action & action-args]
   (fn [^js/Event e]
@@ -68,7 +69,9 @@
                                             :entry
                                             "Move entry"
                                             entry-uuid
-                                            @(form-events/entry-form-data-fields :group-uuid))}
+                                            @(form-events/entry-form-data-fields :group-uuid)
+                                            @(cmn-events/active-db-key)
+                                            )}
       [mui-list-item-text {:inset true} "Move"]]
 
      [mui-menu-item {:divider true

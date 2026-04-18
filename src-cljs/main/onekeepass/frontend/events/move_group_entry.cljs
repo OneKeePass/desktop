@@ -13,7 +13,8 @@
                                                               check-error
                                                               on-error]]
    [onekeepass.frontend.events.group-tree-content :as gt-events]
-   [onekeepass.frontend.background :as bg]))
+   [onekeepass.frontend.background :as bg]
+   [onekeepass.frontend.translation :refer [lstr-l]]))
 
 
 (defn move-group-entry-dialog-show [kind-kw show?] ;; show or hide
@@ -226,11 +227,14 @@
 (reg-sub
  :move-group-entry/unlocked-opened-dbs
  (fn [db _query-vec]
-   (let [all (:opened-db-list db)]
+   (let [all (:opened-db-list db)
+         current-key (:current-db-file-name db)]
      (->> all
           (remove (fn [{:keys [db-key]}] (boolean (get-in db [db-key :locked]))))
           (mapv (fn [{:keys [db-key database-name file-name]}]
-                  {:name database-name
+                  {:name (if (= db-key current-key)
+                           (str database-name "(" (lstr-l "currentDatabase") ")")
+                           database-name)
                    :db-key db-key
                    :file-name file-name}))))))
 

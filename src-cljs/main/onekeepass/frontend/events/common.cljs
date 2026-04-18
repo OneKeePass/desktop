@@ -10,7 +10,8 @@
             [onekeepass.frontend.utils :refer [contains-val? str->int
                                                utc-to-local-datetime-str]]
             [re-frame.core :refer [dispatch dispatch-sync reg-event-db
-                                   reg-event-fx reg-fx reg-sub subscribe]]))
+                                   reg-event-fx reg-fx reg-sub subscribe]]
+            [re-frame.db :as rf-db]))
 
 ;; ns onekeepass.frontend.events.common-supports introduced 
 ;; to avoid dependency issue to use transalation fns
@@ -293,9 +294,16 @@
   ;; To be called only in react components as it used 'subscribe' (i.e in React context)
   ([]
    (subscribe [:current-db-file-name]))
-  ;; Used in reg-event-db , reg-event-fx by passing the main re-frame global 'app-db' 
+  ;; Used in reg-event-db , reg-event-fx by passing the main re-frame global 'app-db'
   ([app-db]
    (:current-db-file-name app-db)))
+
+;; Should be avoid using
+#_(defn current-active-db-key
+  "Returns the current active db key as a plain value by reading app-db directly.
+  Safe to call outside a React reactive context (e.g. from click/event handlers)."
+  []
+  (:current-db-file-name @rf-db/app-db))
 
 ;; db-file-name is the same as db-key
 (def active-db-file-name active-db-key)

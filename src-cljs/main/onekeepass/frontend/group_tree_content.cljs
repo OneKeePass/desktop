@@ -124,8 +124,10 @@
             target-db-key
             target-db-groups-listing
             target-db-loading?]}]
+   
    ;; Ensure that we build mui-dialog only when dialog-show show is true
    (when dialog-show
+     #_(println "Will call move-group-or-entry-dialog")
      (let [unlocked-dbs @(move-events/unlocked-opened-dbs)
            multi-db? (> (count unlocked-dbs) 1)
            effective-target-key (or target-db-key source-db-key)
@@ -182,8 +184,17 @@
 
 (defn move-group-or-entry-dialog-show-with-state
   "Called to show the move dialog when menu item in group or entry panel is clicked"
-  [kind-kw title uuid-selected-to-move current-parent-group-uuid]
-  (let [current-db-key @(cmn-events/active-db-key)]
+  [kind-kw title uuid-selected-to-move current-parent-group-uuid current-db-key]
+  (gd-events/move-group-or-entry-dialog-show-with-state {:title title
+                                                         :kind-kw kind-kw
+                                                         :uuid-selected-to-move uuid-selected-to-move
+                                                         :current-parent-group-uuid current-parent-group-uuid
+                                                         :source-db-key current-db-key
+                                                         :target-db-key current-db-key
+                                                         :target-db-groups-listing nil
+                                                         :target-db-loading? false})
+  
+  #_(let [ current-db-key (cmn-events/current-active-db-key)]
     (gd-events/move-group-or-entry-dialog-show-with-state {:title title
                                                            :kind-kw kind-kw
                                                            :uuid-selected-to-move uuid-selected-to-move
