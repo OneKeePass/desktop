@@ -188,6 +188,9 @@
                   ;; so it assigns sequential integer indices instead of file-path strings.
                   ;; Drop :value/:on-change — selection is managed via :on-click and
                   ;; is-selected/sx in draggable-tab.
+                  ;; value false = MUI's "no tab selected" sentinel; suppresses the
+                  ;; one-time initialization warning that fires when value is undefined.
+                  :value false
                   ;; MUI's indicator cannot position itself through :f> wrappers;
                   ;; suppress it — the selected tab draws its own border-bottom via sx.
                   :TabIndicatorProps {:style {:display "none"}}}

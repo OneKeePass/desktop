@@ -446,22 +446,26 @@
   [group-uuid parent-tree-item groups seen]
   (when-not (contains? @seen group-uuid)
     (swap! seen conj group-uuid)
-    (let [g              (get groups group-uuid)
-          ;; distinct guards against the same child UUID appearing more than once
-          ;; in group_uuids (same-parent duplicate).
-          child-group-ids (distinct (get g "group_uuids"))]
-      (loop [c-id      (first child-group-ids)
-             remaining (next child-group-ids)
-             tree-item (make-tree-item g)]
-        (if (nil? c-id)
-          (if (nil? parent-tree-item)
-            tree-item
-            (conj parent-tree-item tree-item))
-          (let [updated (group-visitor-action* c-id tree-item groups seen)]
-            (recur (first remaining)
-                   (next remaining)
-                   ;; If the child was already seen (updated is nil), keep tree-item unchanged.
-                   (or updated tree-item))))))))
+    (let [g (get groups group-uuid)]
+      ;; nil-guard: skip groups missing from the map. An absent group would produce
+      ;; (make-tree-item nil) → itemId: null. Multiple such orphans → duplicate null
+      ;; IDs → same MUI X crash as duplicate real UUIDs.
+      (when g
+        (let [;; distinct guards against the same child UUID appearing more than once
+              ;; in group_uuids (same-parent duplicate).
+              child-group-ids (distinct (get g "group_uuids"))]
+          (loop [c-id      (first child-group-ids)
+                 remaining (next child-group-ids)
+                 tree-item (make-tree-item g)]
+            (if (nil? c-id)
+              (if (nil? parent-tree-item)
+                tree-item
+                (conj parent-tree-item tree-item))
+              (let [updated (group-visitor-action* c-id tree-item groups seen)]
+                (recur (first remaining)
+                       (next remaining)
+                       ;; If the child was already seen (updated is nil), keep tree-item unchanged.
+                       (or updated tree-item))))))))))
 
 (defn- group-visitor-action
   "Visits a group and its children recursively and form tree items
@@ -525,5 +529,13 @@
                                 #(move-events/move-group-entry-ok :group (:selected-group-uuid data)))}]])))
 
 (defn group-tree-panel []
-  [mui-stack  [group-tree-view]])
+  ;; Key group-tree-view on the active db so React fully unmounts/remounts the
+  ;; tree on every database switch. Without this, React reconciles tree items by
+  ;; index: when itemId props swap across positions, MUI X's isMountedRef guard
+  ;; prevents the old UUID from being removed before the new one is registered,
+  ;; causing "Two items were provided with the same id" if two dbs share UUIDs.
+  (let [active-db-key @(cmn-events/active-db-key)]
+    [mui-stack
+     ^{:key active-db-key}
+     [group-tree-view]]))
    
