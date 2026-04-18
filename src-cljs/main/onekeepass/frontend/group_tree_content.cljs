@@ -47,7 +47,7 @@
 (defn show-empty-recycle-bin-confirm-dialog []
   (reset! empty-recycle-bin-confirm-dialog-data {:dialog-show true}))
 
-(defn empty-recycle-bin-confirm-dialog [dialog-data]
+(defn- empty-recycle-bin-confirm-dialog [dialog-data]
   ;; we can use either 'alert-dialog-factory' or confirm-text-dialog for this
   [confirm-text-dialog
    (tr-dlg-title emptyRecycleBin)
@@ -70,7 +70,7 @@
      {:label (tr-bl no) :on-click #(move-events/delete-permanent-group-entry-dialog-show :group false)}])
    dialog-data])
 
-(defn move-dialog-content
+(defn- move-dialog-content
   "The main content of the move dialog"
   [{{:keys [status group-selection-info api-error-text field-error]} :dialog-data
     :keys [groups-listing on-change]}]
@@ -193,7 +193,7 @@
                                                            :target-db-groups-listing nil
                                                            :target-db-loading? false})))
 
-(defn clone-entry-to-other-db-dialog
+(defn- clone-entry-to-other-db-dialog
   "Dialog for cloning an entry to a different open database.
    Source entry is not removed; no history; no references.
    The source database is excluded from the destination list."
@@ -247,7 +247,7 @@
                        :on-click (fn [] (dispatch [:clone-entry-to-other-db/ok-clicked]))}
            (tr-bl "ok")]]]))))
 
-(defn cross-db-save-prompt-dialog
+(defn- cross-db-save-prompt-dialog
   "Confirmation dialog asking the user whether to save both the source and target
   databases immediately after a successful cross-database move."
   []
@@ -259,7 +259,7 @@
       {:label (tr-bl no) :on-click (fn [_] (move-events/save-prompt-close))}]
      data]))
 
-(defn cross-db-move-pending-save-dialog
+(defn- cross-db-move-pending-save-dialog
   "Info dialog shown when the user declines to save the two databases after a
   successful cross-database move. The Save button on the toolbar stays enabled
   for both databases so the user can save them later."
@@ -271,7 +271,7 @@
      [{:label (tr-bl ok) :on-click (fn [_] (move-events/pending-save-dialog-close))}]
      data]))
 
-(defn tree-item-menu-items []
+(defn- tree-item-menu-items []
   (fn [anchor-el g-uuid _db-key]
     [mui-menu {:anchorEl @anchor-el
                :open (if @anchor-el true false)
@@ -306,7 +306,7 @@
                      :on-click (menu-action anchor-el gt-events/group-delete-start g-uuid)}
       (tr-ml delete)]]))
 
-(defn tree-item-recycle-sub-group-menu-items []
+(defn- tree-item-recycle-sub-group-menu-items []
   (fn [anchor-el _g-uuid]
     [mui-menu {:anchorEl @anchor-el
                :open (if @anchor-el true false)
@@ -318,7 +318,7 @@
                      :on-click (menu-action anchor-el move-events/delete-permanent-group-entry-dialog-show :group true)}
       (tr-ml deletePermanent)]]))
 
-(defn tree-item-recycle-sub-group-menu []
+(defn- tree-item-recycle-sub-group-menu []
   (let [anchor-el (r/atom nil)]
     (fn [g-uuid]
       [:div {:style {:height 24}}
@@ -331,7 +331,7 @@
                                  :margin-left 15}} [mui-icon-more-vert]]
        [tree-item-recycle-sub-group-menu-items anchor-el g-uuid]])))
 
-(defn tree-item-recycle-bin-menu-items [anchor-el]
+(defn- tree-item-recycle-bin-menu-items [anchor-el]
   [mui-menu {:anchorEl @anchor-el
              :open (if @anchor-el true false)
              :on-close #(reset! anchor-el nil)}
@@ -340,7 +340,7 @@
                    :on-click (menu-action anchor-el show-empty-recycle-bin-confirm-dialog)}
     "Empty recycle bin"]])
 
-(defn tree-item-recycle-bin-menu []
+(defn- tree-item-recycle-bin-menu []
   (let [anchor-el (r/atom nil)]
     [mui-stack
      [mui-icon-button {:edge "start"
@@ -355,7 +355,7 @@
 (def menu-event-uuid (atom nil))
 
 ;; A functional component that uses react useEffect
-(defn tree-item-menu []
+(defn- tree-item-menu []
   (let [anchor-el (r/atom nil)]
     (fn [g-uuid]
       (let [recycle-bin? (gt-events/recycle-group-selected?)
@@ -392,7 +392,7 @@
            (not @recycle-bin?)
            [tree-item-menu-items anchor-el g-uuid @(cmn-events/active-db-key)])]))))
 
-(defn tree-label [uuid name icon_id]
+(defn- tree-label [uuid name icon_id]
   (let [g-uuid                (gt-events/selected-group-uuid)
         recycle-bin?          (gt-events/recycle-group-selected?)
         group-in-recycle-bin? (gt-events/selected-group-in-recycle-bin?)
@@ -431,38 +431,50 @@
 
 ;; Need to use :strs to retrive values from map argument 
 ;; as "uuid name icon_id" are the string keys in the map
-(defn make-tree-item [{:strs [uuid name icon_id]}]
+(defn- make-tree-item [{:strs [uuid name icon_id]}]
   [mui-tree-item {:itemId uuid
                   ;; :f> ensures tree-label is treated as a pure React FC so hooks work correctly
                   :label (r/as-element [:f> tree-label uuid name icon_id])}
    ;; We reuse the group form dialog from group-form ns
    [gf/group-content-dialog-main]])
 
-(defn group-visitor-action
+(defn- group-visitor-action*
+  ;; Internal impl that threads a seen-set atom to guard against duplicate UUIDs.
+  ;; KDBX groups form a strict tree, so duplicates only occur on transient data
+  ;; corruption or a concurrent in-progress entry-move refresh. Skipping the
+  ;; duplicate is safe — the subtree already appears elsewhere in the tree.
+  [group-uuid parent-tree-item groups seen]
+  (when-not (contains? @seen group-uuid)
+    (swap! seen conj group-uuid)
+    (let [g              (get groups group-uuid)
+          ;; distinct guards against the same child UUID appearing more than once
+          ;; in group_uuids (same-parent duplicate).
+          child-group-ids (distinct (get g "group_uuids"))]
+      (loop [c-id      (first child-group-ids)
+             remaining (next child-group-ids)
+             tree-item (make-tree-item g)]
+        (if (nil? c-id)
+          (if (nil? parent-tree-item)
+            tree-item
+            (conj parent-tree-item tree-item))
+          (let [updated (group-visitor-action* c-id tree-item groups seen)]
+            (recur (first remaining)
+                   (next remaining)
+                   ;; If the child was already seen (updated is nil), keep tree-item unchanged.
+                   (or updated tree-item))))))))
+
+(defn- group-visitor-action
   "Visits a group and its children recursively and form tree items
   The args are
-   'group-uuid' is the current group id 
+   'group-uuid' is the current group id
    'parent-tree-item' is reagent tree item component of parent group or nil in case of root group
    'groups' is toplevel map (comes from :groups-tree :data) that has all groups. In that toplevel map
    'key' is the group uuid and value is that group map
-  Returns the root tree item at the end
-  "
+  Returns the root tree item at the end"
   [group-uuid parent-tree-item groups]
-  (let [g (get groups group-uuid)
-        ;; Get direct children of this gorup 'g'
-        child-group-ids (get g "group_uuids")]
-    (loop [c-id (first child-group-ids)
-           remaining (next child-group-ids)
-           tree-item (make-tree-item g)]
-      (if (nil? c-id)
-        (if (nil? parent-tree-item)
-          tree-item
-          (conj parent-tree-item tree-item))
-        (recur (first remaining)
-               (next remaining)
-               (group-visitor-action c-id tree-item groups))))))
+  (group-visitor-action* group-uuid parent-tree-item groups (atom #{})))
 
-(defn group-tree-view []
+(defn- group-tree-view []
   (let [gd @(gt-events/groups-tree-data)
         selected-group-uuid @(gt-events/selected-group-uuid)
         root-id @(gt-events/root-group-uuid)

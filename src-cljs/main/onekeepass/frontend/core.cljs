@@ -184,11 +184,10 @@
                                 (cmn-events/reorder-opened-db-list from to))))}
      [mui-box
       [mui-box
-       [mui-tabs {;; This determines which tab's content shown
-                  :value @(cmn-events/active-db-key)
-                  ;; Sets the active db so that group-entry-content can show selected db data
-                  ;; 'val' is from :value prop of 'mui-tab' below
-                  :on-change (fn [_event val] (cmn-events/set-active-db-key val))
+       [mui-tabs {;; MUI cannot see through :f> wrappers to read each tab's :value prop,
+                  ;; so it assigns sequential integer indices instead of file-path strings.
+                  ;; Drop :value/:on-change — selection is managed via :on-click and
+                  ;; is-selected/sx in draggable-tab.
                   ;; MUI's indicator cannot position itself through :f> wrappers;
                   ;; suppress it — the selected tab draws its own border-bottom via sx.
                   :TabIndicatorProps {:style {:display "none"}}}
