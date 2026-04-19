@@ -157,15 +157,14 @@
                      :on-change (app-settings-events/field-update-factory [:preference-data :session-timeout])
                      :variant "standard" :fullWidth true}]]
 
-     ;; Enable this once we add clearing clipboard on timeout feature
-     #_[mui-stack {:sx {:margin-top "16px"}}
-        [m/text-field {:label (tr-l "clipboardTimeout")
-                       :value clipboard-timeout
-                       :type "number"
-                       :error (contains? error-fields :clipboard-timeout)
-                       :helperText (get error-fields :clipboard-timeout)
-                       :on-change (app-settings-events/field-update-factory [:preference-data :clipboard-timeout])
-                       :variant "standard" :fullWidth true}]]]]])
+     [mui-stack {:sx {:margin-top "16px"}}
+      [m/text-field {:label (tr-l "clipboardTimeout")
+                     :value clipboard-timeout
+                     :type "number"
+                     :error (contains? error-fields :clipboard-timeout)
+                     :helperText (get error-fields :clipboard-timeout)
+                     :on-change (app-settings-events/field-update-factory [:preference-data :clipboard-timeout])
+                     :variant "standard" :fullWidth true}]]]]])
 
 (defn file-management [{:keys [error-fields]
                         {:keys [backup]} :preference-data}]

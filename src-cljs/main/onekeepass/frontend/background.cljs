@@ -222,6 +222,9 @@
         #_(println "Data is copied to clipboard" _r))
       (catch js/Error err (js/console.log "Error: " (ex-cause err))))))
 
+(defn clear-clipboard []
+  (write-to-clipboard ""))
+
 (defn read-from-clipboard
   "Gets any text copied previously to clipboard and 'callback-fn' is called with that data - equivalent to Cmd + P
   The arg 'callback-fn' should accept one argument

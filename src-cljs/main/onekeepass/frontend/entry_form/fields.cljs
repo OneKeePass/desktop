@@ -4,6 +4,7 @@
    [onekeepass.frontend.common-components :as cc :refer [theme-text-field-sx]]
    [onekeepass.frontend.constants :as const :refer [OTP PASSWORD URL]]
    [onekeepass.frontend.entry-form.common :as ef-cmn]
+   [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
    [onekeepass.frontend.events.entry-form-ex :as form-events]
    [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom mui-box
@@ -68,6 +69,11 @@
     :else
     error-text))
 
+(defn- html-input-props
+  [{:keys [edit protected]}]
+  (cond-> {:readOnly (not edit)}
+    protected (assoc :data-okp-sensitive-copy "true")))
+
 (defn- end-icons [{:keys [key protected visible edit] :as kv}]
   (let [val (to-value kv)]
     [:<>
@@ -94,7 +100,11 @@
                          :on-click form-events/password-generator-show}
         [mui-icon-autorenew]])
      ;; Copy 
-     [(cc/copy-icon-factory) val {:sx {:mr "-1px"}}]]))
+     [(if protected
+        (cc/copy-icon-factory #(cmn-events/write-sensitive-to-clipboard val))
+        (cc/copy-icon-factory))
+      val
+      {:sx {:mr "-1px"}}]]))
 
 (defn simple-selection-field [{:keys [key
                                       value
@@ -169,7 +179,7 @@
                                                          [mui-input-adornment {:position "end"}
                                                           [end-icons kv]]))
                                       :type (if (or (not protected) visible) "text" "password")}
-                              :htmlInput {:readOnly (not edit)}}}]))
+                              :htmlInput (html-input-props kv)}}]))
 
 ;; Both works
 ;;"& .MuiInputBase-input" 
@@ -403,7 +413,7 @@
                                                        [mui-input-adornment {:position "end"}
                                                         [end-icons kv]]))
                                     :type (if (or (not protected) visible) "text" "password")}
-                             :htmlInput {:readOnly (not edit)}}}])
+                             :htmlInput (html-input-props kv)}}])
 
 
 
@@ -597,13 +607,11 @@
                        ;;attributes for 'input' tag can be added here
                        ;;It seems adding these 'InputProps' also works
                        ;;We need to use 'readOnly' and not 'readonly'        
-                       :inputProps  {:readOnly (not edit)
+                       :inputProps  (html-input-props kv)
                                      ;;:sx (if edit sx2 sx1) ;;:readonly "readonly"
-                                     }}]
+                                     }]
 
         [text-area-field-1 kv])))
 
 
   
-
-

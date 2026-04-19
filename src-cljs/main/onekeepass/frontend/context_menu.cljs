@@ -1,6 +1,7 @@
 (ns onekeepass.frontend.context-menu
   (:require
    [onekeepass.frontend.background :as bg]
+   [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.mui-components :refer [mui-divider mui-menu mui-menu-item]]
    [reagent.core :as r]))
 
@@ -103,7 +104,11 @@
 
 (defn- copy-selection!
   [target-el selection]
-  (bg/write-to-clipboard (selected-text target-el selection)))
+  (let [text (selected-text target-el selection)
+        sensitive-copy? (= "true" (.getAttribute target-el "data-okp-sensitive-copy"))]
+    (if sensitive-copy?
+      (cmn-events/write-sensitive-to-clipboard text)
+      (bg/write-to-clipboard text))))
 
 (defn- cut-selection!
   [target-el selection]

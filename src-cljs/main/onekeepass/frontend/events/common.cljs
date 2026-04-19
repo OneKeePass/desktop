@@ -1,6 +1,6 @@
 (ns onekeepass.frontend.events.common
   "All common events that are used across many pages"
-  (:require [cljs.core.async :refer [<! go-loop timeout]]
+  (:require [cljs.core.async :refer [<! go go-loop timeout]]
             [clojure.string :as str]
             [onekeepass.frontend.background :as bg]
             [onekeepass.frontend.constants :as const :refer [ADD_TAG_PREFIX
@@ -11,7 +11,7 @@
                                                utc-to-local-datetime-str]]
             [re-frame.core :refer [dispatch dispatch-sync reg-event-db
                                    reg-event-fx reg-fx reg-sub subscribe]]
-            [re-frame.db :as rf-db]))
+            #_[re-frame.db :as rf-db]))
 
 ;; ns onekeepass.frontend.events.common-supports introduced 
 ;; to avoid dependency issue to use transalation fns
@@ -44,6 +44,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;; System Info and Preference ;;;;;;;;;;;;;;;;;;;;
 
 (declare set-session-timeout)
+(declare set-clipboard-timeout)
 
 #_(defn load-language-translation-completed []
     (dispatch [:load-language-translation-complete]))
@@ -135,6 +136,7 @@
                                       dev-mode
                                       preference]}]]
    (set-session-timeout (:session-timeout preference))
+   (set-clipboard-timeout (:clipboard-timeout preference))
    ;;(println "os-name os-version arch path-sep preference -- " os-name os-version arch path-sep preference)
    {:db (-> db
             (assoc :app-preference preference)
@@ -161,6 +163,7 @@
  (fn [{:keys [db]} [_event-id preference]]
    ;; A temp side effect call. Need to move to a reg-fx call
    (set-session-timeout (:session-timeout preference))
+   (set-clipboard-timeout (:clipboard-timeout preference))
    {:db (assoc db :app-preference preference)}))
 
 ;; Called after loading the language translation texts
@@ -1140,12 +1143,28 @@
 ;;;;;;;;;;;;;;;;;;;;;  Session timeout ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def session-timeout (atom 600000))  ;; time in milli second
+(def clipboard-timeout (atom 30000)) ;; time in milli second
 
 (defn set-session-timeout [time-in-minute]
   (let [in-timeout (str->int time-in-minute)
         in-timeout (if (nil? in-timeout) 10 in-timeout)
         in-timeout (* in-timeout 60 1000)]
     (reset! session-timeout in-timeout)))
+
+(defn set-clipboard-timeout [time-in-seconds]
+  (let [in-timeout (str->int time-in-seconds)
+        in-timeout (if (nil? in-timeout) 30 in-timeout)
+        in-timeout (* in-timeout 1000)]
+    (reset! clipboard-timeout in-timeout)))
+
+(defn write-sensitive-to-clipboard [data]
+  (bg/write-to-clipboard data)
+  (go
+    (<! (timeout @clipboard-timeout))
+    (bg/read-from-clipboard
+     (fn [clipboard-text]
+       (when (= clipboard-text data)
+         (bg/clear-clipboard))))))
 
 (defn user-action-detected []
   (dispatch [:user-action-detected]))
