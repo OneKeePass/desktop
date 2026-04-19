@@ -10,6 +10,7 @@
                                                     PASSWORD
                                                     STANDARD_ENTRY_TYPES URL
                                                     USERNAME]]
+   [onekeepass.frontend.context-menu :as ctx-menu]
    [onekeepass.frontend.db-icons :as db-icons :refer [entry-icon
                                                       entry-type-icon]]
    [onekeepass.frontend.entry-form.common :as ef-cmn :refer [ENTRY_DATETIME_FORMAT
@@ -34,6 +35,7 @@
                                                              text-area-field text-field]]
    [onekeepass.frontend.entry-form.menus :as menus]
    [onekeepass.frontend.events.common :as ce]
+   [onekeepass.frontend.events.clone-entry-to-other-db :as clone-events]
    [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
    [onekeepass.frontend.events.entry-form-ex :as form-events :refer [place-holder-resolved-value]]
    [onekeepass.frontend.events.move-group-entry :as move-events]
@@ -73,6 +75,60 @@
     (if-not (= :protected field-name-kw)
       (handler-name field-name-kw (-> e .-target  .-value))
       (handler-name field-name-kw (-> e .-target  .-checked)))))
+
+(defn- entry-context-items
+  [entry-uuid group-uuid active-db-key favorites? history-available? os-name multi-db-open? deleted?]
+  (if deleted?
+    [(ctx-menu/action-item
+      {:id "entry-form-put-back"
+       :text (t/lstr-ml 'putBack)
+       :action #(move-events/move-group-entry-dialog-show :entry true)})
+     (ctx-menu/action-item
+      {:id "entry-form-delete-permanently"
+       :text (t/lstr-ml 'deletePermanent)
+       :action #(move-events/delete-permanent-group-entry-dialog-show :entry true)})]
+    (vec
+     (remove nil?
+             [(ctx-menu/action-item
+               {:id "entry-form-edit"
+                :text (t/lstr-ml 'edit)
+                :action form-events/edit-mode-menu-clicked})
+              (ctx-menu/action-item
+               {:id "entry-form-clone"
+                :text "Clone"
+                :action #(dlg-events/clone-entry-options-dialog-show entry-uuid)})
+              (when multi-db-open?
+                (ctx-menu/action-item
+                 {:id "entry-form-clone-to-database"
+                  :text (t/lstr-ml "cloneToDatabase")
+                  :action #(clone-events/clone-entry-to-other-db-dialog-show entry-uuid)}))
+              (ctx-menu/action-item
+               {:id "entry-form-move"
+                :text "Move"
+                :action #(gt-content/move-group-or-entry-dialog-show-with-state
+                          :entry
+                          "Move entry"
+                          entry-uuid
+                          group-uuid
+                          active-db-key)})
+              (ctx-menu/action-item
+               {:id "entry-form-delete"
+                :text (t/lstr-ml 'delete)
+                :action #(form-events/entry-delete-start entry-uuid)})
+              (ctx-menu/action-item
+               {:id "entry-form-favorite"
+                :text (t/lstr-ml 'favorites)
+                :action #(form-events/favorite-menu-checked (not favorites?))})
+            (when (= os-name const/MACOS)
+              (ctx-menu/action-item
+               {:id "entry-form-auto-type"
+                :text (t/lstr-ml 'performAutoType)
+                :action form-events/perform-auto-type-start}))
+              (ctx-menu/action-item
+               {:id "entry-form-history"
+                :text (t/lstr-ml 'history)
+                :enabled? history-available?
+                :action #(form-events/load-history-entries-summary entry-uuid)})]))))
 
 #_(defn on-check-factory [handler-name field-name-kw]
     (fn [e]
@@ -531,14 +587,34 @@
 
           icon-id @(form-events/entry-form-data-fields :icon-id)
           entry-uuid  @(form-events/entry-form-data-fields :uuid)
+          group-uuid @(form-events/entry-form-data-fields :group-uuid)
+          active-db-key @(ce/active-db-key)
           edit @(form-events/form-edit-mode)
+          favorites? @(form-events/favorites?)
+          history-available? @(form-events/history-available)
+          os-name @(ce/os-name)
+          multi-db-open? @(clone-events/multi-db-open?)
           deleted-cat? @(form-events/deleted-category-showing)
           recycle-bin? @(form-events/recycle-group-selected?)
           group-in-recycle-bin? @(form-events/selected-group-in-recycle-bin?)
           pd-dlg-data  @(move-events/delete-permanent-group-entry-dialog-data :entry)]
       [:div {:class "gbox"
              :style {:margin 0
-                     :width "100%"}}
+                     :width "100%"}
+             :on-context-menu (fn [^js/Event e]
+                                (when (and (not edit)
+                                           (not (ctx-menu/editable-target? e)))
+                                  (ctx-menu/show-app-context-menu!
+                                   e
+                                   (entry-context-items
+                                    entry-uuid
+                                    group-uuid
+                                    active-db-key
+                                    favorites?
+                                    history-available?
+                                    os-name
+                                    multi-db-open?
+                                    (or deleted-cat? recycle-bin? group-in-recycle-bin?)))))}
 
        [:div {:class "gheader" :style {:background  (theme-color @custom-theme-atom :bg-default)}}
         (when-not edit
@@ -1212,5 +1288,3 @@
                       :color "primary" :on-click (fn [_e]
                                                    (form-events/section-add-done)
                                                    (reset! anchor-el nil))} "Close"]]]]))
-
-

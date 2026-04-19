@@ -1,6 +1,7 @@
 (ns  onekeepass.frontend.core  ;;ns ^:figwheel-always onekeepass.frontend.core
   (:require [onekeepass.frontend.common-components :as cc]
             [onekeepass.frontend.constants :as const :refer [THEME_LIGHT]]
+            [onekeepass.frontend.context-menu :as ctx-menu]
             [onekeepass.frontend.dnd :as dnd]
             [onekeepass.frontend.entry-category :as ec]
             [onekeepass.frontend.entry-form-ex :as eform-ex]
@@ -204,6 +205,12 @@
   (fn []
     (let [content-to-show @(cmn-events/content-to-show)
           db-list @(cmn-events/opened-db-list)]
+      (m/react-use-effect
+       (fn []
+         (ctx-menu/install-global-text-context-menu!)
+         (fn []
+           (ctx-menu/uninstall-global-text-context-menu!)))
+       (clj->js []))
 
       [mui-stack {:sx {:height "100%"}
                   :dir (t/dir)
@@ -230,7 +237,9 @@
          [locked-content]
 
          :else
-         [:f> group-entry-content])])))
+         [:f> group-entry-content])
+
+       [ctx-menu/context-menu-root]])))
 
 (defn header-bar []
   [:div  [:f> tool-bar/top-bar]])
@@ -306,5 +315,3 @@
   (tauri-events/register-tauri-events)
   (cmn-events/init-session-timeout-tick)
   (start))
-
-

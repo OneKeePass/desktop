@@ -1,6 +1,7 @@
 (ns onekeepass.frontend.entry-list
   (:require [onekeepass.frontend.common-components :refer [list-items-factory
                                                            menu-action]]
+            [onekeepass.frontend.context-menu :as ctx-menu]
             [onekeepass.frontend.constants :as const :refer [ASCENDING
                                                              CREATED_TIME
                                                              MODIFIED_TIME
@@ -9,9 +10,15 @@
             [onekeepass.frontend.db-icons :refer [entry-icon]]
             [onekeepass.frontend.dnd :as dnd]
             [onekeepass.frontend.entry-form-ex :as entry-form-ex]
+            [onekeepass.frontend.events.clone-entry-to-other-db :as clone-events]
+            [onekeepass.frontend.events.common :as cmn-events]
+            [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
+            [onekeepass.frontend.events.entry-form-ex :as form-events]
             [onekeepass.frontend.events.entry-list :as el-events]
             [onekeepass.frontend.events.group-tree-content :as gt-events]
+            [onekeepass.frontend.events.move-group-entry :as move-events]
             [onekeepass.frontend.events.tauri-events :as tauri-events]
+            [onekeepass.frontend.group-tree-content :as gt-content]
             [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                               mui-avatar
                                                               mui-button
@@ -26,6 +33,7 @@
                                                               mui-menu-item
                                                               mui-stack
                                                               theme-color]]
+            [onekeepass.frontend.translation :as t]
             [onekeepass.frontend.translation :refer-macros [tr-bl tr-ml] :refer [lstr-ml]]
             [reagent.core :as r]))
 (set! *warn-on-infer* true)
@@ -63,13 +71,56 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn- entry-row-context-items
+  [item deleted-cat? recycle-bin? group-in-recycle-bin? multi-db-open? active-db-key]
+  (let [uuid (:uuid item)
+        parent-group-uuid (:parent-group-uuid item)
+        deleted? (or deleted-cat? recycle-bin? group-in-recycle-bin?)]
+    (if deleted?
+      [(ctx-menu/action-item
+        {:id "entry-put-back"
+         :text (t/lstr-ml 'putBack)
+         :action #(move-events/move-group-entry-dialog-show :entry true)})
+       (ctx-menu/action-item
+        {:id "entry-delete-permanently"
+         :text (t/lstr-ml 'deletePermanent)
+         :action #(move-events/delete-permanent-group-entry-dialog-show :entry true)})]
+      (vec
+       (remove nil?
+               [(ctx-menu/action-item
+                 {:id "entry-edit"
+                  :text (t/lstr-ml 'edit)
+                  :action form-events/edit-mode-menu-clicked})
+                (ctx-menu/action-item
+                 {:id "entry-clone"
+                  :text "Clone"
+                  :action #(dlg-events/clone-entry-options-dialog-show uuid)})
+                (when multi-db-open?
+                  (ctx-menu/action-item
+                   {:id "entry-clone-to-database"
+                    :text (t/lstr-ml "cloneToDatabase")
+                    :action #(clone-events/clone-entry-to-other-db-dialog-show uuid)}))
+                (ctx-menu/action-item
+                 {:id "entry-move"
+                  :text "Move"
+                  :action #(gt-content/move-group-or-entry-dialog-show-with-state
+                            :entry
+                            "Move entry"
+                            uuid
+                            parent-group-uuid
+                            active-db-key)})
+                (ctx-menu/action-item
+                 {:id "entry-delete"
+                  :text (t/lstr-ml 'delete)
+                  :action #(form-events/entry-delete-start uuid)})])))))
+
 (defn- row-item-draggable
   "Form-1 component rendered with :f> so React treats it as a function component.
   use-draggable must be called here, not inside a form-2 inner fn, because hooks
   require a React function component context.
   Selection state arrives as plain deref'd props from row-item (form-2), which has
   Reagent reactive tracking and re-renders when either subscription changes."
-  [item style selected-id selected-ids drag-active-uuid]
+  [item style selected-id selected-ids drag-active-uuid deleted-cat? recycle-bin? group-in-recycle-bin? multi-db-open? active-db-key]
   (let [uuid             (:uuid item)
         ^js drag-obj     (dnd/use-draggable #js {:id uuid})
         set-node-ref     (.-setNodeRef drag-obj)
@@ -107,6 +158,19 @@
                             (el-events/toggle-entry-selection uuid)
                             (do (el-events/clear-entry-selection)
                                 (el-events/update-selected-entry-id uuid))))
+              :on-context-menu (fn [^js e]
+                                 (when-not is-selected
+                                   (el-events/clear-entry-selection)
+                                   (el-events/update-selected-entry-id uuid))
+                                 (ctx-menu/show-app-context-menu!
+                                  e
+                                  (entry-row-context-items
+                                   item
+                                   deleted-cat?
+                                   recycle-bin?
+                                   group-in-recycle-bin?
+                                   multi-db-open?
+                                   active-db-key)))
               :selected (or (= selected-id uuid) (contains? selected-ids uuid))
               :secondaryAction (when (= selected-id uuid)
                                  ;; We are reusing the menu components from entry-form-ex directly here
@@ -142,14 +206,29 @@
   (let [items-sub         (el-events/get-selected-entry-items)
         selected-id-sub   (el-events/get-selected-entry-id)
         selected-ids-sub  (el-events/get-selected-entry-ids)
-        drag-active-sub   (el-events/get-drag-active-uuid)]
+        drag-active-sub   (el-events/get-drag-active-uuid)
+        deleted-cat?-sub  (el-events/deleted-category-showing)
+        recycle-bin?-sub  (gt-events/recycle-group-selected?)
+        group-in-recycle-bin?-sub (gt-events/selected-group-in-recycle-bin?)
+        multi-db-open?-sub (clone-events/multi-db-open?)
+        active-db-key-sub (cmn-events/active-db-key)]
     (fn [props]
       (let [item             (nth @items-sub (:index props))
             selected-id      @selected-id-sub
             selected-ids     @selected-ids-sub
             drag-active-uuid @drag-active-sub]
         ;; :f> ensures row-item-draggable is a React function component so use-draggable hook is valid
-        [:f> row-item-draggable item (:style props) selected-id selected-ids drag-active-uuid]))))
+        [:f> row-item-draggable
+         item
+         (:style props)
+         selected-id
+         selected-ids
+         drag-active-uuid
+         @deleted-cat?-sub
+         @recycle-bin?-sub
+         @group-in-recycle-bin?-sub
+         @multi-db-open?-sub
+         @active-db-key-sub]))))
 
 ;; A functional component to use react useEffect
 (defn fn-entry-list-content

@@ -6,6 +6,7 @@
                                                              GROUPING_LABEL_GROUPS
                                                              GROUPING_LABEL_TAGS
                                                              GROUPING_LABEL_TYPES]]
+            [onekeepass.frontend.context-menu :as ctx-menu]
             [onekeepass.frontend.db-icons :refer [entry-type-icon group-icon]]
             [onekeepass.frontend.events.common :as cmn-events]
             [onekeepass.frontend.events.entry-category :as ec-events]
@@ -253,6 +254,31 @@
     :else
     title))
 
+(defn- category-context-items
+  [category-detail-m categories-kind custom-entry-type? entries-count]
+  (vec
+   (remove nil?
+           [(ctx-menu/action-item
+             {:id "category-show-entries"
+              :text "Show Entries"
+              :action #(ec-events/load-category-entry-items category-detail-m categories-kind)})
+            (when (= categories-kind :group-categories)
+              (ctx-menu/action-item
+               {:id "category-group-edit"
+                :text (t/lstr-l "edit")
+                :action #(gf-events/find-group-by-id (:group-uuid category-detail-m) :edit)}))
+            (when (= categories-kind :group-categories)
+              (ctx-menu/action-item
+               {:id "category-group-info"
+                :text (t/lstr-l "info")
+                :action #(gf-events/find-group-by-id (:group-uuid category-detail-m) :info)}))
+            (when (and (= categories-kind :type-categories) custom-entry-type?)
+              (ctx-menu/action-item
+               {:id "category-type-delete"
+                :text (t/lstr-l "deleteType")
+                :enabled? (zero? entries-count)
+                :action #(ec-events/delete-custom-entry-type (:entry-type-uuid category-detail-m))}))])))
+
 (defn category-item
   "Returns form-2 reagent component"
   []
@@ -287,7 +313,16 @@
       [mui-list-item-button {:sx {"&.MuiListItemButton-root" {:padding-right "1px"}}
                              :on-click #(ec-events/load-category-entry-items
                                          category-detail-m categories-kind)
-                             ;;:on-context-menu (handle-right-click-factory category-detail-m)
+                             :on-context-menu (fn [^js/Event e]
+                                                (ec-events/load-category-entry-items
+                                                 category-detail-m categories-kind)
+                                                (ctx-menu/show-app-context-menu!
+                                                 e
+                                                 (category-context-items
+                                                  category-detail-m
+                                                  categories-kind
+                                                  custom-entry-type?
+                                                  entries-count)))
                              :selected row-selected?}
 
      ;;Include context menus for a category

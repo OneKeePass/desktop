@@ -5,6 +5,7 @@
                                                   dialog-factory menu-action
                                                   selection-autocomplete]]
    [onekeepass.frontend.constants :as const]
+   [onekeepass.frontend.context-menu :as ctx-menu]
    [onekeepass.frontend.db-icons :refer [group-icon]]
    [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.events.generic-dialogs :as gd-events]
@@ -309,7 +310,7 @@
 
      [mui-menu-item {:divider true
                      :on-click (menu-action anchor-el move-group-or-entry-dialog-show-with-state
-                                            :group "Move group" g-uuid @(gt-events/selected-group-parent-uuid g-uuid))}
+                                            :group "Move group" g-uuid @(gt-events/selected-group-parent-uuid g-uuid) _db-key)}
       "Move"]
 
      [mui-menu-item {:divider false
@@ -400,19 +401,96 @@
            (and @group-in-recycle-bin? (not @recycle-bin?))
            [tree-item-recycle-sub-group-menu-items anchor-el g-uuid]
 
-           (not @recycle-bin?)
-           [tree-item-menu-items anchor-el g-uuid @(cmn-events/active-db-key)])]))))
+         (not @recycle-bin?)
+         [tree-item-menu-items anchor-el g-uuid @(cmn-events/active-db-key)])]))))
+
+(defn- group-tree-context-items
+  [uuid parent-group-uuid root-group? recycle-bin? group-in-recycle-bin? current-db-key]
+  (vec
+   (remove nil?
+           [(when recycle-bin?
+              (ctx-menu/action-item
+               {:id "group-empty-recycle-bin"
+                :text "Empty recycle bin"
+                :action show-empty-recycle-bin-confirm-dialog}))
+            (when (and group-in-recycle-bin? (not recycle-bin?))
+              (ctx-menu/action-item
+               {:id "group-put-back"
+                :text (t/lstr-ml 'putBack)
+                :action #(move-events/move-group-entry-dialog-show :group true)}))
+            (when (and group-in-recycle-bin? (not recycle-bin?))
+              (ctx-menu/action-item
+               {:id "group-delete-permanently"
+                :text (t/lstr-ml 'deletePermanent)
+                :action #(move-events/delete-permanent-group-entry-dialog-show :group true)}))
+            (when-not (or recycle-bin? group-in-recycle-bin?)
+              (ctx-menu/action-item
+               {:id "group-add"
+                :text (t/lstr-ml 'addGroup)
+                :action #(gt-events/initiate-new-blank-group-form uuid)}))
+            (when-not (or recycle-bin? group-in-recycle-bin?)
+              (ctx-menu/action-item
+               {:id "group-edit"
+                :text (t/lstr-ml 'edit)
+                :action #(gf-events/find-group-by-id uuid :edit)}))
+            (when-not (or recycle-bin? group-in-recycle-bin?)
+              (ctx-menu/action-item
+               {:id "group-info"
+                :text (t/lstr-ml 'info)
+                :action #(gf-events/find-group-by-id uuid :info)}))
+            (when-not (or recycle-bin? group-in-recycle-bin?)
+              (ctx-menu/action-item
+               {:id "group-sort-a-to-z"
+                :text (t/lstr-ml "sortAtoZ")
+                :action #(gt-events/sort-groups uuid true)}))
+            (when-not (or recycle-bin? group-in-recycle-bin?)
+              (ctx-menu/action-item
+               {:id "group-sort-z-to-a"
+                :text (t/lstr-ml "sortZtoA")
+                :action #(gt-events/sort-groups uuid false)}))
+            (when-not (or recycle-bin? group-in-recycle-bin?)
+              (ctx-menu/action-item
+               {:id "group-move"
+                :text "Move"
+                :action #(move-group-or-entry-dialog-show-with-state
+                          :group
+                          "Move group"
+                          uuid
+                          parent-group-uuid
+                          current-db-key)}))
+            (when-not (or recycle-bin? group-in-recycle-bin?)
+              (ctx-menu/action-item
+               {:id "group-delete"
+                :text (t/lstr-ml 'delete)
+                :enabled? (not root-group?)
+                :action #(gt-events/group-delete-start uuid)}))])))
 
 (defn- tree-label [uuid name icon_id]
   (let [g-uuid                (gt-events/selected-group-uuid)
-        recycle-bin?          (gt-events/recycle-group-selected?)
-        group-in-recycle-bin? (gt-events/selected-group-in-recycle-bin?)
+        tree-data             @(gt-events/groups-tree-data)
+        recycle-bin?          (= uuid (get tree-data "recycle_bin_uuid"))
+        group-in-recycle-bin? (contains? (set (get tree-data "deleted_group_uuids")) uuid)
+        root-group?           (= uuid (get tree-data "root_uuid"))
+        parent-group-uuid     @(gt-events/selected-group-parent-uuid uuid)
+        current-db-key        @(cmn-events/active-db-key)
         ^js drop-obj          (dnd/use-droppable #js {:id uuid})
         set-node-ref          (.-setNodeRef drop-obj)
         is-over               (.-isOver drop-obj)]
     [mui-box {:ref set-node-ref
               :sx  (cond-> {:display "flex" :alignItems "center" :p 0.5 :pr 0}
-                     is-over (assoc :bgcolor "action.hover"))}
+                     is-over (assoc :bgcolor "action.hover"))
+              :on-context-menu (fn [^js/Event e]
+                                 (gt-events/node-on-select nil uuid)
+                                 (.stopPropagation e)
+                                 (ctx-menu/show-app-context-menu!
+                                  e
+                                  (group-tree-context-items
+                                   uuid
+                                   parent-group-uuid
+                                   root-group?
+                                   recycle-bin?
+                                   group-in-recycle-bin?
+                                   current-db-key)))}
      [mui-box {:sx {:mr 1  ;; 1 => 8px
                     :display "flex"
                     :alignItems "center"}}
@@ -431,13 +509,13 @@
      ;; Shows three dot vertical icon for the menu popup
      (when (= uuid @g-uuid)
        (cond
-         @recycle-bin?
+         recycle-bin?
          [tree-item-recycle-bin-menu]
 
-         (and @group-in-recycle-bin? (not @recycle-bin?))
+         (and group-in-recycle-bin? (not recycle-bin?))
          [tree-item-recycle-sub-group-menu @g-uuid]
 
-         (not @recycle-bin?)
+         (not recycle-bin?)
          [:f> tree-item-menu @g-uuid]))]))
 
 ;; Need to use :strs to retrive values from map argument 
