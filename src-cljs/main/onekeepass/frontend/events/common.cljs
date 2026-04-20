@@ -1157,14 +1157,24 @@
         in-timeout (* in-timeout 1000)]
     (reset! clipboard-timeout in-timeout)))
 
-(defn write-sensitive-to-clipboard [data]
+(defn notify-copied-to-clipboard []
+  (dispatch [:common/message-snackbar-open (lstr-sm 'copiedToClipboard)]))
+
+(defn write-to-clipboard [data]
   (bg/write-to-clipboard data)
+  (notify-copied-to-clipboard))
+
+(defn schedule-sensitive-clipboard-clear [data]
   (go
     (<! (timeout @clipboard-timeout))
     (bg/read-from-clipboard
      (fn [clipboard-text]
        (when (= clipboard-text data)
          (bg/clear-clipboard))))))
+
+(defn write-sensitive-to-clipboard [data]
+  (write-to-clipboard data)
+  (schedule-sensitive-clipboard-clear data))
 
 (defn user-action-detected []
   (dispatch [:user-action-detected]))

@@ -15,6 +15,7 @@
            :selection nil}))
 
 (def ^:private global-text-menu-handler (atom nil))
+(def ^:private global-copy-handler (atom nil))
 
 (defn editable-target-element
   "Returns the closest editable element for the event target, if any."
@@ -58,6 +59,11 @@
   (or (= "INPUT" (.-tagName target-el))
       (= "TEXTAREA" (.-tagName target-el))))
 
+(defn- sensitive-copy-target?
+  "Returns true when the editable target is a protected entry field."
+  [target-el]
+  (= "true" (.getAttribute target-el "data-okp-sensitive-copy")))
+
 (defn- contenteditable?
   [target-el]
   (some? (.getAttribute target-el "contenteditable")))
@@ -90,6 +96,29 @@
     :else
     ""))
 
+(defn- selected-input-text
+  "Returns selected text from input/textarea targets, or nil when no text is selected."
+  [target-el]
+  (when (input-like? target-el)
+    (let [start (.-selectionStart target-el)
+          end (.-selectionEnd target-el)
+          value (or (.-value target-el) "")]
+      (when (and start end (< start end))
+        (.slice value start end)))))
+
+(defn- selected-copy-text
+  "Returns text that native copy will copy from an editable target."
+  [target-el]
+  (cond
+    (input-like? target-el)
+    (selected-input-text target-el)
+
+    (contenteditable? target-el)
+    (not-empty (str (.toString (.getSelection js/window))))
+
+    :else
+    nil))
+
 (defn- replace-input-selection!
   [target-el {:keys [start end]} insert-text]
   (let [value (or (.-value target-el) "")
@@ -103,12 +132,13 @@
     (.dispatchEvent target-el (js/Event. "input" #js {:bubbles true}))))
 
 (defn- copy-selection!
+  "Copies text from our custom context menu and applies protected-field handling."
   [target-el selection]
   (let [text (selected-text target-el selection)
-        sensitive-copy? (= "true" (.getAttribute target-el "data-okp-sensitive-copy"))]
-    (if sensitive-copy?
+        sensitive-copy? (sensitive-copy-target? target-el)]
+    (if (and sensitive-copy? (not (empty? text)))
       (cmn-events/write-sensitive-to-clipboard text)
-      (bg/write-to-clipboard text))))
+      (cmn-events/write-to-clipboard text))))
 
 (defn- cut-selection!
   [target-el selection]
@@ -200,16 +230,32 @@
       true)))
 
 (defn install-global-text-context-menu! []
+  ;; Our custom text context menu handles right-click Copy/Paste.
   (when-not @global-text-menu-handler
     (let [handler (fn [^js/Event e]
                     (show-text-edit-context-menu! e))]
       (.addEventListener js/document "contextmenu" handler)
-      (reset! global-text-menu-handler handler))))
+      (reset! global-text-menu-handler handler)))
+  ;; Native Edit > Copy and Cmd/Ctrl+C bypass the custom menu, so observe
+  ;; copy events without preventing the browser/webview default copy action.
+  (when-not @global-copy-handler
+    (let [handler (fn [^js/Event e]
+                    (when-let [target-el (editable-target-element e)]
+                      (when-let [text (selected-copy-text target-el)]
+                        (cmn-events/notify-copied-to-clipboard)
+                        (when (sensitive-copy-target? target-el)
+                          (cmn-events/schedule-sensitive-clipboard-clear text)))))]
+      (.addEventListener js/document "copy" handler true)
+      (reset! global-copy-handler handler))))
 
 (defn uninstall-global-text-context-menu! []
+  ;; Keep global listeners paired with the React effect lifecycle.
   (when-let [handler @global-text-menu-handler]
     (.removeEventListener js/document "contextmenu" handler)
-    (reset! global-text-menu-handler nil)))
+    (reset! global-text-menu-handler nil))
+  (when-let [handler @global-copy-handler]
+    (.removeEventListener js/document "copy" handler true)
+    (reset! global-copy-handler nil)))
 
 (defn context-menu-root []
   (let [{:keys [open position items]} @menu-state]

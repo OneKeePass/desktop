@@ -153,7 +153,7 @@
          score (-> data :password-result :score)]
      (if (nil? callback-on-copy-fn)
        (do
-         (bg/write-to-clipboard password) ;; side effect!
+         (cmn-events/write-to-clipboard password) ;; side effect!
          {:fx [[:dispatch [:generator-dialog-data-update :text-copied true]]]})
        (do
          (callback-on-copy-fn password score) ;; side effect!
@@ -262,4 +262,3 @@
   (get-in @re-frame.db/app-db [:generator :dialog-data :password-options])
   (def a (to-password-options-data :password-options @re-frame.db/app-db :length 11))
   (-> @re-frame.db/app-db :generator :dialog-data :password-result :score))
-

@@ -381,6 +381,7 @@
         }
     },
     "snackbarMessages": {
+        "copiedToClipboard":"Copied to clipboard",
         "dbBackupCompleted": "Database backup saving is completed",
         "dbClosed": "Closed database {{- dbFileName}}",
         "entryCloned": "Entry is cloned",

@@ -1,7 +1,6 @@
 (ns onekeepass.frontend.common-components
   (:require
    [clojure.string :as str]
-   [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.constants :refer [ADD_TAG_PREFIX]]
    [onekeepass.frontend.events.common :as cmn-events]
   ;;  [onekeepass.frontend.events.generic-dialogs :as gd-events]
@@ -553,7 +552,7 @@
       (println "inputRef called back with invalid ref or nil ref")))
 
 (defn write-to-clipboard [value]
-  (bg/write-to-clipboard value))
+  (cmn-events/write-to-clipboard value))
 
 (defn copy-icon-factory
   "Returns a form-2 reagent component that on click copies the 'value' 
@@ -567,7 +566,7 @@
    (fn [value & {:as props}]
      [mui-icon-button {:edge "end"
                        :sx (:sx props)
-                       :on-click #(bg/write-to-clipboard value)}
+                       :on-click #(cmn-events/write-to-clipboard value)}
       [mui-icon-file-copy-outlined]])))
 
 #_(defn on-change-factory
