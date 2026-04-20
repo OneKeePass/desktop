@@ -72,11 +72,20 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn- entry-row-context-items
-  [item deleted-cat? recycle-bin? group-in-recycle-bin? multi-db-open? active-db-key]
+  [item selected-ids deleted-cat? recycle-bin? group-in-recycle-bin? multi-db-open? active-db-key]
   (let [uuid (:uuid item)
         parent-group-uuid (:parent-group-uuid item)
-        deleted? (or deleted-cat? recycle-bin? group-in-recycle-bin?)]
-    (if deleted?
+        deleted? (or deleted-cat? recycle-bin? group-in-recycle-bin?)
+        multi-selected? (> (count selected-ids) 1)]
+    #_(println "In entry-row-context-items selected-ids multi-selected?" selected-ids multi-selected?)
+    (cond
+      (and multi-selected? (not deleted?))
+      [(ctx-menu/action-item
+        {:id "entry-delete-all"
+         :text "Delete All"
+         :action #(el-events/delete-selected-entries-start selected-ids)})]
+
+      deleted?
       [(ctx-menu/action-item
         {:id "entry-put-back"
          :text (t/lstr-ml 'putBack)
@@ -85,6 +94,8 @@
         {:id "entry-delete-permanently"
          :text (t/lstr-ml 'deletePermanent)
          :action #(move-events/delete-permanent-group-entry-dialog-show :entry true)})]
+
+      :else
       (vec
        (remove nil?
                [(ctx-menu/action-item
@@ -166,6 +177,8 @@
                                   e
                                   (entry-row-context-items
                                    item
+                                   ;; selected-ids does not include the first entry item clicked when user clicks more than one 
+                                   (conj selected-ids selected-id)
                                    deleted-cat?
                                    recycle-bin?
                                    group-in-recycle-bin?

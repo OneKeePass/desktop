@@ -8,11 +8,12 @@ alias shres := shadow-cljs-release-serve
 
 ## Another options is to use npx 
 ## shadow_cljs_version := "3.4.1"
+## npx shadow-cljs@{{shadow_cljs_version}} compile app
 
 shadow_cljs_bin := "../node_modules/.bin/shadow-cljs"
 
 shadow-cljs-compile:
-    #npx shadow-cljs@{{shadow_cljs_version}} compile app
+    # npx shadow-cljs compile app
     {{shadow_cljs_bin}} compile app
 
 shadow-cljs-clean-compile:

@@ -8,7 +8,8 @@
    [onekeepass.frontend.events.common :as common :refer [active-db-key
                                                          get-in-key-db
                                                          assoc-in-key-db
-                                                         check-error]]
+                                                         check-error
+                                                         on-error]]
    [onekeepass.frontend.background :as bg]))
 
 #_(set! *warn-on-infer* true)
@@ -289,6 +290,9 @@
 (defn get-selected-entry-ids []
   (subscribe [:entry-list/selected-entry-ids]))
 
+(defn delete-selected-entries-start [selected-ids]
+  (dispatch [:entry-list/delete-selected-entries-start selected-ids]))
+
 (reg-event-db
  :entry-list/toggle-entry-selection
  (fn [db [_event-id uuid]]
@@ -308,6 +312,40 @@
  :entry-list/selected-entry-ids
  (fn [db _query-vec]
    (or (get-in-key-db db [:entry-list :selected-entry-ids]) #{})))
+
+(reg-event-fx
+ :entry-list/delete-selected-entries-start
+ (fn [{:keys [db]} [_event-id selected-ids]]
+   (let [selected-entry-ids (vec selected-ids #_(get-in-key-db db [:entry-list :selected-entry-ids]))]
+     (if (seq selected-entry-ids)
+       {:fx [[:bg-delete-selected-entries [(active-db-key db) selected-entry-ids]]]}
+       {}))))
+
+(reg-fx
+ :bg-delete-selected-entries
+ (fn [[db-key entry-ids]]
+   (letfn [(delete-next [remaining]
+             (if-let [entry-id (first remaining)]
+               (bg/move-entry-to-recycle_bin
+                db-key
+                entry-id
+                (fn [api-response]
+                  (when-not (on-error api-response #(dispatch [:entry-list/delete-selected-entries-error %]))
+                    (delete-next (rest remaining)))))
+               (dispatch [:entry-list/delete-selected-entries-completed (count entry-ids)])))]
+     (delete-next entry-ids))))
+
+(reg-event-fx
+ :entry-list/delete-selected-entries-completed
+ (fn [{:keys [db]} [_event-id deleted-count]]
+   {:db (assoc-in-key-db db [:entry-list :selected-entry-ids] #{})
+    :fx [[:dispatch [:common/refresh-forms]]
+         [:dispatch [:common/message-snackbar-open (str deleted-count " entries deleted")]]]}))
+
+(reg-event-fx
+ :entry-list/delete-selected-entries-error
+ (fn [{:keys [_db]} [_event-id error-text]]
+   {:fx [[:dispatch [:common/message-snackbar-error-open error-text]]]}))
 
 ;;; Drag-active state — tracks the uuid of the entry currently being dragged.
 ;;; Set from core.cljs onDragStart/onDragEnd/onDragCancel so all selected
