@@ -69,6 +69,7 @@
 (def ADD_TAG_PREFIX "Add New Tag:")
 
 (def DB_CHANGED "DbFileContentChangeDetected")
+(def MERGE_FAILED_CREDENTIALS_CHANGED "MergeFailedCredentialsChanged")
 
 (def TOUCH_ID "TouchID")
 (def FACE_ID "FaceID")
@@ -102,6 +103,7 @@
 (def TAURI_MENU_EVENT "TauriMenuEvent")
 (def BROWSER_CONNECTION_REQUEST_EVENT "BrowserConnectionRequestEvent")
 (def PASSKEY_DATA_CHANGED_EVENT "PasskeyDataChangedEvent")
+(def DB_FILE_CHANGED_EVENT "DbFileChangedEvent")
 
 (def WINDOW_FOCUS_CHANGED "WindowFocusChanged")
 (def CLOSE_REQUESTED  "CloseRequested")

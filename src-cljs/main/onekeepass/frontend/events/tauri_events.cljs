@@ -5,7 +5,7 @@
    [camel-snake-kebab.extras :as cske]
    [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.constants :as const :refer
-    [BROWSER_CONNECTION_REQUEST_EVENT CLOSE_REQUESTED FILE_DROP MAIN_WINDOW_EVENT
+    [BROWSER_CONNECTION_REQUEST_EVENT CLOSE_REQUESTED DB_FILE_CHANGED_EVENT FILE_DROP MAIN_WINDOW_EVENT
      OTP_TOKEN_UPDATE_EVENT PASSKEY_DATA_CHANGED_EVENT TAURI_MENU_EVENT WINDOW_FOCUS_CHANGED]]
    [re-frame.core :refer [dispatch]]))
 
@@ -159,12 +159,20 @@
   (println "PASSKEY_DATA_CHANGED_EVENT received")
   (bg/register-event-listener PASSKEY_DATA_CHANGED_EVENT handle-passkey-data-changed-event))
 
+(defn- handle-db-file-changed-event [js-event]
+  (let [{:keys [db-key]} (-> js-event to-cljs :payload)]
+    (dispatch [:common/db-file-changed-externally db-key])))
+
+(defn- register-db-file-changed-event []
+  (bg/register-event-listener DB_FILE_CHANGED_EVENT handle-db-file-changed-event))
+
 (defn register-tauri-events []
   (register-menu-events)
   (register-main-window-events)
   (register-otp-token-update-events)
   (register-browser-connection-request-event)
-  (register-passkey-data-changed-event))
+  (register-passkey-data-changed-event)
+  (register-db-file-changed-event))
 
 (defn enable-app-menu [menu-id enable? & {:as menu-args}]
   ;; (println "Going to call for menu-id " menu-id enable? menu-args)

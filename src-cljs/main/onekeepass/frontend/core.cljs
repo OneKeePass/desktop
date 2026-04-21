@@ -156,7 +156,7 @@
                ;; MUI Tabs cannot inject Mui-selected styling through :f> wrappers,
                ;; so color and underline indicator are applied explicitly here.
                ;; cursor is "default" normally; switches to "grab" only while pointer is pressed.
-               :sx       (cond-> {:cursor "default" "&:active" {:cursor "grab"}}
+               :sx       (cond-> {:cursor "pointer" "&:active" {:cursor "grab"}}
                            is-selected (assoc :color "primary.main"
                                              :border-bottom "2px solid"
                                              :border-bottom-color "primary.main"))

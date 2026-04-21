@@ -7,6 +7,7 @@ mod app_paths;
 mod app_preference;
 mod app_state;
 mod auto_open;
+mod db_file_watcher;
 mod auto_type;
 mod biometric;
 mod browser_service;
@@ -81,6 +82,7 @@ fn main() {
     .invoke_handler(tauri::generate_handler![
   
       // Sorted alphabetically
+      commands::acknowledge_db_file_change,
       commands::active_window_to_auto_type,
       commands::analyzed_password,
       commands::authenticate_with_biometric,
@@ -127,6 +129,7 @@ fn main() {
       commands::mark_group_as_category,
       commands::menu_action_requested,
       commands::merge_databases,
+      commands::merge_kdbx_with_disk_version,
       // commands::menu_titles_change_requested,
       commands::clone_entry_to_other_db,
       commands::move_entry,

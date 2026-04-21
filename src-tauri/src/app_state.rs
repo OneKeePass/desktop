@@ -112,6 +112,7 @@ pub(crate) struct AppState {
     pub(crate) preference: Arc<Mutex<Preference>>,
     timers_init_completed: Mutex<bool>,
     resource_dir_path: Mutex<Option<PathBuf>>,
+    pub(crate) db_file_watcher: crate::db_file_watcher::DbFileWatcherState,
 }
 
 impl AppState {
@@ -120,6 +121,7 @@ impl AppState {
             preference: Arc::new(Mutex::new(Preference::default())),
             timers_init_completed: Mutex::new(false),
             resource_dir_path: Mutex::new(None),
+            db_file_watcher: crate::db_file_watcher::DbFileWatcherState::new(),
         }
     }
 

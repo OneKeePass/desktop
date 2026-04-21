@@ -270,4 +270,5 @@
        [close-current-db-save-dialog @(tb-events/close-current-db-dialog-data)]
        [csv/csv-columns-mapping-dialog]
        [csv/csv-imoprt-start-dialog]
-       [merging/merge-result-dialog]])))
+       [merging/merge-result-dialog]
+       [merging/external-db-change-dialog]])))

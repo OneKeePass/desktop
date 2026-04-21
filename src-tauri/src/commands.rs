@@ -159,6 +159,11 @@ pub(crate) async fn load_kdbx(
         .unwrap()
         .add_recent_file(db_file_name);
 
+    // Start watching for external changes on successful open
+    if r.is_ok() {
+        app_state.db_file_watcher.start_watching(db_file_name);
+    }
+
     Ok(r?)
 }
 
@@ -701,8 +706,28 @@ pub(crate) async fn close_kdbx(
     db_key: &str,
     app_state: State<'_, app_state::AppState>,
 ) -> Result<()> {
+    app_state.db_file_watcher.stop_watching(db_key);
     kp_service::close_kdbx(db_key)?;
     app_state.remove_app_home_backup_file(db_key);
+    Ok(())
+}
+
+#[command]
+pub(crate) async fn merge_kdbx_with_disk_version(
+    db_key: &str,
+    app_state: State<'_, app_state::AppState>,
+) -> Result<kp_service::MergeResult> {
+    let result = kp_service::merge_kdbx_with_disk_version(db_key)?;
+    app_state.db_file_watcher.clear_notification_pending(db_key);
+    Ok(result)
+}
+
+#[command]
+pub(crate) async fn acknowledge_db_file_change(
+    db_key: &str,
+    app_state: State<'_, app_state::AppState>,
+) -> Result<()> {
+    app_state.db_file_watcher.clear_notification_pending(db_key);
     Ok(())
 }
 

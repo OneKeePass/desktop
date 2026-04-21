@@ -7,11 +7,18 @@
 
 (defn merge-databases
   "Calls the API to merge two databases.
-   Calls the dispatch-fn with the result or error 
+   Calls the dispatch-fn with the result or error
   "
   [target-db-key source-db-key  password key-file-name dispatch-fn]
-  (invoke-api "merge_databases" 
+  (invoke-api "merge_databases"
               {:target-db-key target-db-key
                :source-db-key source-db-key
                :password password
                :key-file-name key-file-name} dispatch-fn))
+
+(defn merge-kdbx-with-disk-version
+  "Merges the on-disk version of the DB into the in-memory version using the
+   stored composite key. No credential re-entry needed.
+   Calls dispatch-fn with MergeResult on success."
+  [db-key dispatch-fn]
+  (invoke-api "merge_kdbx_with_disk_version" {:db-key db-key} dispatch-fn))

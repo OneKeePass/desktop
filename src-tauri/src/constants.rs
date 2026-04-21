@@ -4,6 +4,7 @@ pub mod event_names {
     pub const TAURI_MENU_EVENT: &str = "TauriMenuEvent";
     pub const BROWSER_CONNECTION_REQUEST_EVENT: &str = "BrowserConnectionRequestEvent";
     pub const PASSKEY_DATA_CHANGED_EVENT: &str = "PasskeyDataChangedEvent";
+    pub const DB_FILE_CHANGED_EVENT: &str = "DbFileChangedEvent";
 }
 
 pub mod event_action_names {

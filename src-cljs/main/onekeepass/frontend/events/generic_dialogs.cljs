@@ -60,6 +60,15 @@
 (defn-generic-dialog-subs-events :browser-extension-connection-permit-dialog [[data nil]])
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  external-db-change-dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; dialog-identifier-kw :external-db-change-dialog
+(defn-generic-dialog-disp-events :external-db-change-dialog [[close nil]
+                                                              [show-with-state state-m]])
+
+(defn-generic-dialog-subs-events :external-db-change-dialog [[data nil]])
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  csv-columns-mapping-dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; dialog-identifier-kw :csv-columns-mapping-dialog

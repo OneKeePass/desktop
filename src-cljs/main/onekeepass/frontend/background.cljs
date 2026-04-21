@@ -270,6 +270,12 @@
 (defn reload-kdbx [db-key dispatch-fn]
   (invoke-api "reload_kdbx" {:db-key db-key} dispatch-fn))
 
+(defn acknowledge-db-file-change
+  "Tells the backend the user has acknowledged the external-change notification,
+   clearing the notification-pending flag so future changes can be detected."
+  [db-key dispatch-fn]
+  (invoke-api "acknowledge_db_file_change" {:db-key db-key} dispatch-fn))
+
 (defn groups-summary-data
   "Gets all groups and subgroups for a given db-key"
   [db-key dispatch-fn]
