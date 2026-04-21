@@ -1,8 +1,10 @@
 (ns onekeepass.frontend.merging
   (:require
    [clojure.string :as str]
-   [onekeepass.frontend.events.common :as cmn-events]
+   [onekeepass.frontend.common-components :refer [selection-autocomplete]]
+   [onekeepass.frontend.events.external-db-change :as external-db-change-events]
    [onekeepass.frontend.events.generic-dialogs :as gd-events]
+   [onekeepass.frontend.events.merging :as merging-events]
    [onekeepass.frontend.mui-components :as m :refer [mui-box mui-button
                                                      mui-dialog
                                                      mui-dialog-actions
@@ -10,7 +12,7 @@
                                                      mui-dialog-title
                                                      mui-divider mui-stack
                                                      mui-typography]]
-   [onekeepass.frontend.translation :as t :refer-macros [tr-bl tr-dlg-text] :refer [lstr-dlg-title]]))
+   [onekeepass.frontend.translation :as t :refer-macros [tr-bl tr-dlg-text tr-dlg-title tr-l] :refer [lstr-dlg-title]]))
 
 
 (defn merge-result-dialog
@@ -90,6 +92,45 @@
   ([]
    (merge-result-dialog @(gd-events/merge-result-dialog-data))))
 
+(defn merge-opened-dbs-dialog
+  ([{:keys [dialog-show source-db-key target-db-key]}]
+   (when dialog-show
+     (let [all-dbs @(merging-events/multiple-unlocked-dbs?)
+           target-options (filterv #(not= (:db-key %) source-db-key) all-dbs)
+           source-val (first (filter #(= (:db-key %) source-db-key) all-dbs))
+           target-val (first (filter #(= (:db-key %) target-db-key) all-dbs))]
+       [mui-dialog {:open true
+                    :dir (t/dir)
+                    :on-click #(.stopPropagation ^js/Event %)
+                    :sx {"& .MuiPaper-root" {:width "55%"}}}
+        [mui-dialog-title (tr-dlg-title "mergeOpenedDatabases")]
+        [mui-dialog-content
+         [mui-stack {:spacing 2 :sx {:mt 1}}
+          [selection-autocomplete
+           {:label (tr-l "sourceDatabase")
+            :options all-dbs
+            :current-value source-val
+            :on-change (fn [_e v]
+                         (let [m (js->clj v :keywordize-keys true)]
+                           (merging-events/merge-opened-dbs-source-changed (:db-key m))))
+            :required true}]
+          [selection-autocomplete
+           {:label (tr-l "targetDatabase")
+            :options target-options
+            :current-value target-val
+            :on-change (fn [_e v]
+                         (let [m (js->clj v :keywordize-keys true)]
+                           (merging-events/merge-opened-dbs-target-changed (:db-key m))))
+            :required true}]]]
+        [mui-dialog-actions
+         [mui-button {:on-click gd-events/merge-opened-dbs-dialog-close} (tr-bl "cancel")]
+         [mui-button {:disabled (or (nil? target-db-key)
+                                    (= source-db-key target-db-key))
+                      :on-click merging-events/merge-opened-dbs-confirm}
+          (tr-bl merge)]]])))
+  ([]
+   (merge-opened-dbs-dialog @(merging-events/merge-opened-dbs-dialog-data))))
+
 (defn external-db-change-dialog
   ([{:keys [dialog-show] {:keys [db-key save-pending]} :data}]
    [mui-dialog {:open (boolean dialog-show)
@@ -104,14 +145,13 @@
     [mui-dialog-actions
      [mui-stack {:direction "row" :spacing 2}
       [mui-button {:variant "contained"
-                   :on-click #(cmn-events/external-change-merge-start db-key)}
+                   :on-click #(external-db-change-events/external-change-merge-start db-key)}
        (tr-bl merge)]
       [mui-button {:variant "outlined"
-                   :on-click #(cmn-events/external-change-reload-start db-key)}
+                   :on-click #(external-db-change-events/external-change-reload-start db-key)}
        (tr-bl "reload")]
-      [mui-button {:on-click #(cmn-events/external-change-ignore db-key)}
+      [mui-button {:on-click #(external-db-change-events/external-change-ignore db-key)}
        (tr-bl "ignore")]]]])
   ([]
    (external-db-change-dialog @(gd-events/external-db-change-dialog-data))))
-
 

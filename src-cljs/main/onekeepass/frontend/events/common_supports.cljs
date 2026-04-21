@@ -8,15 +8,32 @@
 ;; onekeepass.frontend.events.translation -> onekeepass.frontend.events.common
 
 
-;;TODO: 
-;; Need to add somethings similar to the following so that translations fns can be called here 
+;; Following is done so that translations fns can be called here 
 ;; This is required to avoid the above said circular references
 ;; set-translator should be called in onekeepass.frontend.translation ??
-;; Till that time, we can't use any translation fns from ns onekeepass.frontend.translation here
+;; Without this tr fns mapping, we can't use any translation fns from ns onekeepass.frontend.translation here
 
-#_(def ^:private tr-service (atom {}))
-#_(defn set-translator [tr-fns-m]
-    (reset! tr-service tr-fns-m))
+(def ^:private tr-service (atom {}))
+
+(defn set-translator [tr-fns-m]
+  (reset! tr-service tr-fns-m))
+
+(defn- lstr-sm [txt-key]
+  ((:lstr-sm @tr-service) txt-key))
+
+;; An example to show when the backend core returns error from
+;; Error::DataError ("ErrorEntryUuidExistsInTarget")
+#_(defn error-to-msg-text [error]
+    (cond
+      (= error "ErrorEntryUuidExistsInTarget")
+      (lstr-sm 'entryUuidExistsInTarget)
+      ;;"An entry with the same uuid already exists in the target database"
+
+      (= error "ErrorGroupUuidExistsInTarget")
+      "A group with the same uuid already exists in the target database"
+
+      :else
+      error))
 
 (defn check-error
   "Receives a map with keys :result and :error or either one.
@@ -32,7 +49,7 @@
      (do
        (if (nil? error-fn)
          (do
-           (dispatch [:common/message-snackbar-error-open error])
+           (dispatch [:common/message-snackbar-error-open error #_(error-to-msg-text error)])
            (dispatch [:common/progress-message-box-hide]))
          (do
            (error-fn error)

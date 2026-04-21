@@ -18,6 +18,7 @@
    [onekeepass.frontend.events.tauri-events :as tauri-events]
    [onekeepass.frontend.events.tool-bar :as tb-events]
    [onekeepass.frontend.import-file.csv :as csv]
+   [onekeepass.frontend.events.merging :as merging-events]
    [onekeepass.frontend.merging :as merging]
    [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                      mui-alert mui-app-bar
@@ -160,17 +161,19 @@
     (let [save-action-data @(tb-events/save-current-db-data)
           locked? @(cmn-events/locked?)
           biometric-type @(cmn-events/biometric-type-available)
-          save-disabled? (or locked? (not @(cmn-events/db-save-pending?)))]
+          save-disabled? (or locked? (not @(cmn-events/db-save-pending?)))
+          multiple-dbs? (>= (count @(merging-events/multiple-unlocked-dbs?)) 2)]
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE (not save-disabled?))
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_AS (not locked?))
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_BACKUP (not locked?))
-      ;; React useEffect 
+      ;; React useEffect
       (m/react-use-effect (fn []
                             #_(tauri-events/enable-app-menu const/MENU_ID_PASSWORD_GENERATOR true)
                             (tauri-events/enable-app-menu const/MENU_ID_CLOSE_DATABASE true)
                             (tauri-events/enable-app-menu const/MENU_ID_LOCK_DATABASE true)
                             (tauri-events/enable-app-menu const/MENU_ID_SEARCH true)
                             (tauri-events/enable-app-menu const/MENU_ID_MERGE_DATABASE (not locked?))
+                            (tauri-events/enable-app-menu const/MENU_ID_MERGE_OPENED_DATABASES multiple-dbs?)
 
                             ;; cleanup fn is returned which is called when this component unmounts
                             (fn []
@@ -179,8 +182,9 @@
                               (tauri-events/enable-app-menu const/MENU_ID_LOCK_DATABASE false)
                               (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_AS false)
                               (tauri-events/enable-app-menu const/MENU_ID_MERGE_DATABASE false)
+                              (tauri-events/enable-app-menu const/MENU_ID_MERGE_OPENED_DATABASES false)
                               (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_BACKUP false)
-                              (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js [locked?]))
+                              (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js [locked? multiple-dbs?]))
 
       [:div {:style {:flex-grow 1}}
        [mui-app-bar {:position "static" :color "primary" :dir (t/dir)}  ;; 
@@ -271,4 +275,5 @@
        [csv/csv-columns-mapping-dialog]
        [csv/csv-imoprt-start-dialog]
        [merging/merge-result-dialog]
+       [merging/merge-opened-dbs-dialog]
        [merging/external-db-change-dialog]])))

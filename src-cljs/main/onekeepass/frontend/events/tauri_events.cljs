@@ -80,6 +80,9 @@
       (= menu-id const/MENU_ID_MERGE_DATABASE)
       (dispatch [:merging/open-dbs-start])
 
+      (= menu-id const/MENU_ID_MERGE_OPENED_DATABASES)
+      (dispatch [:merging/merge-opened-dbs-start])
+
       (= menu-id const/MENU_ID_IMPORT)
       (dispatch [:import/import-csv-file-start])
 
@@ -161,7 +164,7 @@
 
 (defn- handle-db-file-changed-event [js-event]
   (let [{:keys [db-key]} (-> js-event to-cljs :payload)]
-    (dispatch [:common/db-file-changed-externally db-key])))
+    (dispatch [:external-db-change/db-file-changed-externally db-key])))
 
 (defn- register-db-file-changed-event []
   (bg/register-event-listener DB_FILE_CHANGED_EVENT handle-db-file-changed-event))

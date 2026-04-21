@@ -173,12 +173,13 @@
     (try
       (let [_f (<p! (.init instance (clj->js options)))]
         (reset! i18n-instance instance)
-        
+
         #_(js/body.setAttribute "direction" (.dir i18n-obj @prefered-language-val))
-        
+
         (js/console.log  "i18n init is done successfully")
         ;; Need to dispatch on successful loading of data 
-        (tr-events/load-language-data-complete))
+        (tr-events/load-language-data-complete)
+        (tr-events/set-translator {:lstr-sm lstr-sm}))
       ;; Error should not happen as we have already loaded a valid translations data before calling init 
       ;; Still what to do if there is any error in initializing 'i18n'? 
       (catch js/Error err

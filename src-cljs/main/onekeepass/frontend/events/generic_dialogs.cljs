@@ -69,6 +69,16 @@
 (defn-generic-dialog-subs-events :external-db-change-dialog [[data nil]])
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  merge-opened-dbs-dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; dialog-identifier-kw :merge-opened-dbs-dialog
+
+(defn-generic-dialog-disp-events :merge-opened-dbs-dialog [[close nil]
+                                                            [show-with-state state-m]
+                                                            [update-with-map state-m]])
+
+(defn-generic-dialog-subs-events :merge-opened-dbs-dialog [[data nil]])
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  csv-columns-mapping-dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; dialog-identifier-kw :csv-columns-mapping-dialog

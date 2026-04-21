@@ -1,6 +1,6 @@
 (ns onekeepass.frontend.events.translation
   (:require [onekeepass.frontend.background :as bg]
-            [onekeepass.frontend.events.common-supports
+            [onekeepass.frontend.events.common-supports :as cmn-supports
              :refer [check-error]]
             [re-frame.core :refer [dispatch
                                    reg-event-fx reg-fx]]))
@@ -25,7 +25,9 @@
 (def ^:private tr-service (atom {}))
 
 (defn set-translator [tr-fns-m]
-  (reset! tr-service tr-fns-m))
+  (reset! tr-service tr-fns-m)
+  (cmn-supports/set-translator tr-fns-m)
+  )
 
 ;; Called when the application starts
 (reg-event-fx

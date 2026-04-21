@@ -31,6 +31,7 @@ pub mod menu_ids {
   pub const OPEN_RECENT: &str = "OpenRecent";
 
   pub const MERGE_DATABASE: &str = "MergeDatabase";
+  pub const MERGE_OPENED_DATABASES: &str = "MergeOpenedDatabases";
   pub const IMPORT: &str = "Import";
 
   pub const NEW_GROUP: &str = "NewGroup";
@@ -194,6 +195,13 @@ fn build_database_menus<R: Runtime>(
       app_handle,
       MERGE_DATABASE,
       system_menu_translation.sub_menu(MERGE_DATABASE, "Merge Database..."),
+      false,
+      None::<&str>,
+    )?,
+    &MenuItem::with_id(
+      app_handle,
+      MERGE_OPENED_DATABASES,
+      system_menu_translation.sub_menu(MERGE_OPENED_DATABASES, "Merge Opened Databases"),
       false,
       None::<&str>,
     )?,
@@ -376,7 +384,7 @@ pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app_handle:
       toggle_enable_disable(app_handle, MAIN_MENU_EDIT, menu_id, menu_enabled);
     }
     LOCK_DATABASE | LOCK_ALL_DATABASES | CLOSE_DATABASE | SAVE_DATABASE | SAVE_DATABASE_AS
-    | SAVE_DATABASE_BACKUP | MERGE_DATABASE => {
+    | SAVE_DATABASE_BACKUP | MERGE_DATABASE | MERGE_OPENED_DATABASES => {
       toggle_enable_disable(app_handle, MAIN_MENU_DATABASE, menu_id, menu_enabled);
     }
     EDIT_ENTRY | NEW_ENTRY => {
