@@ -158,8 +158,8 @@
                ;; cursor is "default" normally; switches to "grab" only while pointer is pressed.
                :sx       (cond-> {:cursor "pointer" "&:active" {:cursor "grab"}}
                            is-selected (assoc :color "primary.main"
-                                             :border-bottom "2px solid"
-                                             :border-bottom-color "primary.main"))
+                                              :border-bottom "2px solid"
+                                              :border-bottom-color "primary.main"))
                :style    {:transform (dnd/css-translate transform)}}
         (and listeners (.-onPointerDown listeners))
         (assoc :on-pointer-down (.-onPointerDown listeners))
@@ -304,11 +304,14 @@
 (defn start
   {:dev/after-load true}
   []
-  (rdomc/render @react-root [main-app]))
+  (println "In core start.......")
+  (rdomc/render @react-root [main-app])
+  #_(rdomc/render (rdomc/create-root (.getElementById js/document "app")) [main-app]))
 
 (defn ^:export init
   "Called once on app load via shadow-cljs :init-fn"
   []
+  #_(println "In core init....")
   ;; Some initializations need to be done before app window loads
   (t/load-language-translation)
   (cmn-events/sync-initialize)

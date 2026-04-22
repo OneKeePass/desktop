@@ -21,19 +21,23 @@
 (defn- lstr-sm [txt-key]
   ((:lstr-sm @tr-service) txt-key))
 
+(defn- lstr-error-sm [txt-key]
+  ((:lstr-error-sm @tr-service) txt-key))
+
 ;; An example to show when the backend core returns error from
 ;; Error::DataError ("ErrorEntryUuidExistsInTarget")
-#_(defn error-to-msg-text [error]
-    (cond
-      (= error "ErrorEntryUuidExistsInTarget")
-      (lstr-sm 'entryUuidExistsInTarget)
-      ;;"An entry with the same uuid already exists in the target database"
+(defn error-to-msg-text [error]
+  (cond
+    (= error "ErrorEntryUuidExistsInTarget")
+    (lstr-error-sm 'entryUuidExistsInTarget)
+    ;;"An entry with the same uuid already exists in the target database"
 
-      (= error "ErrorGroupUuidExistsInTarget")
-      "A group with the same uuid already exists in the target database"
+    (= error "ErrorGroupUuidExistsInTarget")
+    (lstr-error-sm 'groupUuidExistsInTarget)
+    ;;"A group with the same uuid already exists in the target database"
 
-      :else
-      error))
+    :else
+    error))
 
 (defn check-error
   "Receives a map with keys :result and :error or either one.
@@ -49,7 +53,7 @@
      (do
        (if (nil? error-fn)
          (do
-           (dispatch [:common/message-snackbar-error-open error #_(error-to-msg-text error)])
+           (dispatch [:common/message-snackbar-error-open (error-to-msg-text error)])
            (dispatch [:common/progress-message-box-hide]))
          (do
            (error-fn error)

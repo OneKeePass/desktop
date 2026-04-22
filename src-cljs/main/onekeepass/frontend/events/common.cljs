@@ -303,10 +303,10 @@
 
 ;; Should be avoid using
 #_(defn current-active-db-key
-  "Returns the current active db key as a plain value by reading app-db directly.
+    "Returns the current active db key as a plain value by reading app-db directly.
   Safe to call outside a React reactive context (e.g. from click/event handlers)."
-  []
-  (:current-db-file-name @rf-db/app-db))
+    []
+    (:current-db-file-name @rf-db/app-db))
 
 ;; db-file-name is the same as db-key
 (def active-db-file-name active-db-key)
@@ -1095,6 +1095,13 @@
    (get-in-key-db app-db [:db-modification :save-pending]))
   ([]
    (subscribe [:db-save-pending])))
+
+;; An event that is called from other ns to enable or disable save pending 
+(reg-event-fx
+ :common/db-save-pending-set
+ (fn [{:keys [db]} [_event-id flag target-db-key]]
+   (let [db-key (if (nil? target-db-key) (active-db-key db) target-db-key)]
+     {:db (assoc-in db [db-key :db-modification :save-pending] flag)})))
 
 (reg-event-fx
  :common/db-api-call-completed

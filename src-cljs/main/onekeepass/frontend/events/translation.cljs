@@ -26,8 +26,7 @@
 
 (defn set-translator [tr-fns-m]
   (reset! tr-service tr-fns-m)
-  (cmn-supports/set-translator tr-fns-m)
-  )
+  (cmn-supports/set-translator tr-fns-m))
 
 ;; Called when the application starts
 (reg-event-fx

@@ -3,7 +3,7 @@
    [clojure.string :as str]
    [onekeepass.frontend.constants :refer [ADD_TAG_PREFIX]]
    [onekeepass.frontend.events.common :as cmn-events]
-  ;;  [onekeepass.frontend.events.generic-dialogs :as gd-events]
+   ;;  [onekeepass.frontend.events.generic-dialogs :as gd-events]
    [onekeepass.frontend.mui-components :as m :refer [auto-sizer
                                                      fixed-size-list
                                                      is-light-theme? mui-alert
@@ -343,7 +343,7 @@
                  :dir (t/dir)
                  :on-click #(.stopPropagation ^js/Event %)
                  :sx {"& .MuiPaper-root" {:width "60%"}}} ;; sx props is equivalent to :classes {:paper "pwd-dlg-root"}
-     
+
      [mui-dialog-title title]
      [mui-dialog-content [content-comp all-data]]
      [mui-dialog-actions
@@ -366,16 +366,25 @@
   closed on completting the work requested or shows any error 
   "
   [title content-component actions {:keys [dialog-show status api-error-text] :as dialog-data}]
-  [mui-dialog {:open dialog-show 
+  [mui-dialog {:open dialog-show
                :dir (t/dir)
                :on-click #(.stopPropagation ^js/Event %)}
    [mui-dialog-title title]
    [mui-dialog-content {:dividers true :style {:min-height "100px"}}
     [mui-stack
      ;; content-component may be a simple text string or an valid reagent component accepting a map as arg or nil
-     (if (string? content-component)
+     (cond
+       (string? content-component)
        content-component
+
+       (nil? content-component)
+       "No valid message passed"
+
+       :else
        [content-component dialog-data])
+     #_(if (string? content-component)
+         content-component
+         [content-component dialog-data])
 
      (when api-error-text
        [mui-alert {:severity "error" :sx {:mt 1}} api-error-text])

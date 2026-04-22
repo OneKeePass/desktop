@@ -418,6 +418,10 @@
         "entryUpdated": "Entry is updated",
         "externalChangePending": "External change pending: {{- fileName}}"
     },
+    "snackbarErrorMessages": {
+        "entryUuidExistsInTarget": "An entry with the same uuid already exists in the target database. Merge databases",
+        "groupUuidExistsInTarget": "A group with the same uuid already exists in the target database. Merge databases"
+    },
     "systemMenus": {
         "main": {
             "Database": "Database",

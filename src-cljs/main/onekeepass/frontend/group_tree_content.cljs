@@ -125,7 +125,7 @@
             target-db-key
             target-db-groups-listing
             target-db-loading?]}]
-   
+
    ;; Ensure that we build mui-dialog only when dialog-show show is true
    (when dialog-show
      #_(println "Will call move-group-or-entry-dialog")
@@ -194,16 +194,16 @@
                                                          :target-db-key current-db-key
                                                          :target-db-groups-listing nil
                                                          :target-db-loading? false})
-  
-  #_(let [ current-db-key (cmn-events/current-active-db-key)]
-    (gd-events/move-group-or-entry-dialog-show-with-state {:title title
-                                                           :kind-kw kind-kw
-                                                           :uuid-selected-to-move uuid-selected-to-move
-                                                           :current-parent-group-uuid current-parent-group-uuid
-                                                           :source-db-key current-db-key
-                                                           :target-db-key current-db-key
-                                                           :target-db-groups-listing nil
-                                                           :target-db-loading? false})))
+
+  #_(let [current-db-key (cmn-events/current-active-db-key)]
+      (gd-events/move-group-or-entry-dialog-show-with-state {:title title
+                                                             :kind-kw kind-kw
+                                                             :uuid-selected-to-move uuid-selected-to-move
+                                                             :current-parent-group-uuid current-parent-group-uuid
+                                                             :source-db-key current-db-key
+                                                             :target-db-key current-db-key
+                                                             :target-db-groups-listing nil
+                                                             :target-db-loading? false})))
 
 (defn- clone-entry-to-other-db-dialog
   "Dialog for cloning an entry to a different open database.
@@ -237,8 +237,8 @@
               :options other-dbs
               :current-value selected-target-db
               :on-change (fn [_e db-info]
-                            (let [m (js->clj db-info :keywordize-keys true)]
-                              (clone-events/clone-target-db-changed (:db-key m))))
+                           (let [m (js->clj db-info :keywordize-keys true)]
+                             (clone-events/clone-target-db-changed (:db-key m))))
               :required true}]]
            [mui-typography (tr-t selectAGroup)]
            [mui-box
@@ -259,28 +259,14 @@
                        :on-click (fn [] (dispatch [:clone-entry-to-other-db/ok-clicked]))}
            (tr-bl "ok")]]]))))
 
-(defn- cross-db-save-prompt-dialog
-  "Confirmation dialog asking the user whether to save both the source and target
-  databases immediately after a successful cross-database move."
-  []
-  (let [data @(move-events/save-prompt-data)]
-    [confirm-text-dialog
-     (lstr-dlg-title 'saveBothDatabases)
-     (tr-dlg-text "saveBothDatabases")
-     [{:label (tr-bl yes) :on-click (fn [_] (move-events/save-prompt-save-both))}
-      {:label (tr-bl no) :on-click (fn [_] (move-events/save-prompt-close))}]
-     data]))
-
-(defn- cross-db-move-pending-save-dialog
-  "Info dialog shown when the user declines to save the two databases after a
-  successful cross-database move. The Save button on the toolbar stays enabled
-  for both databases so the user can save them later."
-  []
-  (let [data @(move-events/pending-save-dialog-data)]
+(defn- cross-db-move-completed-dialog
+  [{:keys [src-name tgt-name group-or-entry parent-group-name] :as data}]
+  (let [msg (str group-or-entry " moved from '" src-name "' to group '"
+                 parent-group-name "' in '" tgt-name ". Please verify and save both databases")]
     [confirm-text-dialog
      (lstr-dlg-title 'moveCompletedPendingSave)
-     (tr-dlg-text "moveCompletedPendingSave")
-     [{:label (tr-bl ok) :on-click (fn [_] (move-events/pending-save-dialog-close))}]
+     msg
+     [{:label (tr-bl ok) :on-click (fn [_] (move-events/move-completed-dialog-close))}]
      data]))
 
 (defn- tree-item-menu-items []
@@ -401,8 +387,8 @@
            (and @group-in-recycle-bin? (not @recycle-bin?))
            [tree-item-recycle-sub-group-menu-items anchor-el g-uuid]
 
-         (not @recycle-bin?)
-         [tree-item-menu-items anchor-el g-uuid @(cmn-events/active-db-key)])]))))
+           (not @recycle-bin?)
+           [tree-item-menu-items anchor-el g-uuid @(cmn-events/active-db-key)])]))))
 
 (defn- group-tree-context-items
   [uuid parent-group-uuid root-group? recycle-bin? group-in-recycle-bin? current-db-key]
@@ -597,11 +583,8 @@
        ;; Used to move one parent group to another (based on the generic dialogs concept)
        [move-group-or-entry-dialog]
 
-       ;; Asks the user to save both databases after a successful cross-database move
-       [cross-db-save-prompt-dialog]
-
-       ;; Shown when the user defers the save following a cross-database move
-       [cross-db-move-pending-save-dialog]
+       ;; Shown after a successful cross-database move; on close switches to target db
+       [cross-db-move-completed-dialog @(move-events/move-completed-dialog-data)]
 
        ;; Used to clone an entry to a different open database
        [clone-entry-to-other-db-dialog]
@@ -627,4 +610,4 @@
     [mui-stack
      ^{:key active-db-key}
      [group-tree-view]]))
-   
+

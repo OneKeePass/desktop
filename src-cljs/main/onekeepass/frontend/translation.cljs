@@ -102,6 +102,19 @@
   ([txt-key]
    (lstr-sm txt-key nil)))
 
+(defn lstr-error-sm
+  "Adds prefix 'snackbarErrorMessages' to the key before getting the translation
+  The arg 'txt-key' are expected to be a symbol as passed in events call ':common/message-snackbar-error-open' 
+   "
+  ([txt-key interpolation-args]
+   ;; If string value is used, that means such text is 
+   ;; already translated or in some cases yet to be translated    
+   (if (symbol? txt-key)
+     (lstr (str "snackbarErrorMessages." txt-key) interpolation-args)
+     txt-key))
+  ([txt-key]
+   (lstr-error-sm txt-key nil)))
+
 (defn lstr-field-name
   "Adds 'entryFieldNames' prefix to the key and gets the translated text of standard entry fields"
   [txt-key]
@@ -179,7 +192,7 @@
         (js/console.log  "i18n init is done successfully")
         ;; Need to dispatch on successful loading of data 
         (tr-events/load-language-data-complete)
-        (tr-events/set-translator {:lstr-sm lstr-sm}))
+        (tr-events/set-translator {:lstr-sm lstr-sm :lstr-error-sm lstr-error-sm}))
       ;; Error should not happen as we have already loaded a valid translations data before calling init 
       ;; Still what to do if there is any error in initializing 'i18n'? 
       (catch js/Error err
