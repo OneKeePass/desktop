@@ -3,6 +3,7 @@
    [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.mui-components :refer [mui-divider mui-menu mui-menu-item]]
+   [onekeepass.frontend.translation :refer [lstr-ml]]
    [reagent.core :as r]))
 
 (set! *warn-on-infer* true)
@@ -171,22 +172,22 @@
     (assoc menu-item :kind :separator)
 
     "Undo"
-    {:id "undo" :kind :action :text "Undo" :enabled true :action #(.execCommand js/document "undo")}
+    {:id "undo" :kind :action :text (lstr-ml 'undo) :enabled true :action #(.execCommand js/document "undo")}
 
     "Redo"
-    {:id "redo" :kind :action :text "Redo" :enabled true :action #(.execCommand js/document "redo")}
+    {:id "redo" :kind :action :text (lstr-ml 'redo) :enabled true :action #(.execCommand js/document "redo")}
 
     "Cut"
-    {:id "cut" :kind :action :text "Cut" :enabled true :action #(cut-selection! target-el selection)}
+    {:id "cut" :kind :action :text (lstr-ml 'cut) :enabled true :action #(cut-selection! target-el selection)}
 
     "Copy"
-    {:id "copy" :kind :action :text "Copy" :enabled true :action #(copy-selection! target-el selection)}
+    {:id "copy" :kind :action :text (lstr-ml 'copy) :enabled true :action #(copy-selection! target-el selection)}
 
     "Paste"
-    {:id "paste" :kind :action :text "Paste" :enabled true :action #(paste-into-selection! target-el selection)}
+    {:id "paste" :kind :action :text (lstr-ml 'paste) :enabled true :action #(paste-into-selection! target-el selection)}
 
     "SelectAll"
-    {:id "select-all" :kind :action :text "Select All" :enabled true :action #(select-all! target-el)}
+    {:id "select-all" :kind :action :text (lstr-ml 'selectAll) :enabled true :action #(select-all! target-el)}
 
     (assoc menu-item :kind :action :enabled (:enabled menu-item true))))
 

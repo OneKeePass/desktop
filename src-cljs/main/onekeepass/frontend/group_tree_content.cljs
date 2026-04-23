@@ -424,7 +424,7 @@
            [(when recycle-bin?
               (ctx-menu/action-item
                {:id "group-empty-recycle-bin"
-                :text "Empty recycle bin"
+                :text (t/lstr-ml 'emptyRecycleBin)
                 :action show-empty-recycle-bin-confirm-dialog}))
             (when (and group-in-recycle-bin? (not recycle-bin?))
               (ctx-menu/action-item
@@ -464,10 +464,10 @@
             (when-not (or recycle-bin? group-in-recycle-bin?)
               (ctx-menu/action-item
                {:id "group-move"
-                :text "Move"
+                :text (t/lstr-ml 'move)
                 :action #(move-group-or-entry-dialog-show-with-state
                           :group
-                          "Move group"
+                          (lstr-dlg-title 'moveGroup)
                           uuid
                           parent-group-uuid
                           current-db-key)}))
@@ -653,4 +653,3 @@
      ^{:key active-db-key}
      [group-tree-error-boundary
       [group-tree-view]]]))
-
