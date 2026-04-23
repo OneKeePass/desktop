@@ -71,7 +71,9 @@
                 {:name "zh - 中文" :value "zh"}
                 {:name "ar - العربية" :value "ar"}
                 {:name "fi - suomi" :value "fi"}
-
+                {:name "ru - русский" :value "ru"}
+                
+                
                 #_{:name "fr - Français" :value "fr"}])
 
 (defn- user-interface

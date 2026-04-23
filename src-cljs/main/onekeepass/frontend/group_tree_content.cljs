@@ -553,6 +553,7 @@
   [group-uuid parent-tree-item groups]
   (group-visitor-action* group-uuid parent-tree-item groups (atom #{})))
 
+
 (defn- group-tree-view []
   (let [gd @(gt-events/groups-tree-data)
         selected-group-uuid @(gt-events/selected-group-uuid)
@@ -599,6 +600,19 @@
                                     #(move-events/move-group-entry-dialog-show :group false))
          :ok-on-click-factory (fn [data]
                                 #(move-events/move-group-entry-ok :group (:selected-group-uuid data)))}]])))
+
+
+#_(defn- group-tree-view []
+  (try
+    (println "Calling group-tree-view-1")
+    [group-tree-view-1]
+    (catch js/Error err
+      (do
+        (println "group-tree-view error is " (ex-cause err))
+        (js/console.log (ex-cause err)) 
+        [:div ]
+        
+        ) )))
 
 (defn group-tree-panel []
   ;; Key group-tree-view on the active db so React fully unmounts/remounts the

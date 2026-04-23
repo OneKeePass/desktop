@@ -189,6 +189,7 @@
             "importInto": "Import Into",
             "mergeFailed": "Merge Failed",
             "mergeNotPossible": "Merge Not Possible",
+            "moveNotPossible": "Move Not Possible",
             "mergeOpenedDatabases": "Merge Opened Databases",
             "mergeResult": "Merge result",
             "mergingExternalChanges": "Merging External Changes",
@@ -228,6 +229,7 @@
             "groupDeletePermanent": "Are you sure you want to delete this group and children permanently?",
             "mergeFailed": "Merge failed",
             "mergeNotPossibleCredentialsChangedTxt": "Cannot merge because the database credentials (master password or key file) were changed by another application. Close this database and reopen it with the new credentials.",
+            "moveNotPossibleCopies": "These databases are copies of each other. Use 'Merge Opened Databases' from the Database menu instead.",
             "mergeResultEntriesAdded": "Entries added",
             "mergeResultEntriesDeleted": "Entries deleted",
             "mergeResultEntriesMoved": "Entries moved",
@@ -415,8 +417,15 @@
         "dbOpened": "Opened database {{- dbFileName}}",
         "entryCloned": "Entry is cloned",
         "entryCreated": "New entry is created",
+        "entriesMovedCount": "{{count}} entries moved",
+        "entryMoved": "Entry is moved",
+        "entryMovedCount": "{{count}} entry moved",
+        "entryPermanentlyDeleted": "Entry is permanently deleted",
         "entryUpdated": "Entry is updated",
-        "externalChangePending": "External change pending: {{- fileName}}"
+        "externalChangePending": "External change pending: {{- fileName}}",
+        "groupMoved": "Group is moved",
+        "groupPermanentlyDeleted": "Group is permanently deleted",
+        "recycleBinEmptied": "Recycle bin is emptied"
     },
     "snackbarErrorMessages": {
         "entryUuidExistsInTarget": "An entry with the same uuid already exists in the target database. Merge databases",

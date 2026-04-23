@@ -14,7 +14,7 @@
                                              on-error]]
    [onekeepass.frontend.events.group-tree-content :as gt-events]
    [onekeepass.frontend.background :as bg]
-   [onekeepass.frontend.translation :refer [lstr-l]]))
+   [onekeepass.frontend.translation :refer [lstr-l lstr-dlg-title lstr-dlg-text lstr-error-sm lstr-sm]]))
 
 
 (defn move-group-entry-dialog-show [kind-kw show?] ;; show or hide
@@ -83,7 +83,7 @@
             (assoc-in-key-db [:move-group-entry kind-kw :field-error] false))
 
     :fx [[:dispatch [:common/message-snackbar-open
-                     (str (if (= kind-kw :group) "Group" "Entry") " is moved")]]
+                     (lstr-sm (if (= kind-kw :group) 'groupMoved 'entryMoved))]]
          [:dispatch [:common/refresh-forms]]]}))
 
 
@@ -147,7 +147,7 @@
             (assoc-in-key-db [:delete-permanent-group-entry kind-kw :status] :completed)
             (assoc-in-key-db [:delete-permanent-group-entry kind-kw :api-error-text] nil))
     :fx [[:dispatch [:common/message-snackbar-open
-                     (str (if (= kind-kw :group) "Group" "Entry") " is permanently deleted")]]
+                     (lstr-sm (if (= kind-kw :group) 'groupPermanentlyDeleted 'entryPermanentlyDeleted))]]
          [:dispatch [:common/refresh-forms]]]}))
 
 (reg-event-db
@@ -174,7 +174,7 @@
                    (fn [api-response]
                      (when-not (on-error api-response)
                        (dispatch [:common/refresh-forms])
-                       (dispatch [:common/message-snackbar-open "Recycle bin is emptied"]))))
+                       (dispatch [:common/message-snackbar-open (lstr-sm 'recycleBinEmptied)]))))
    {}))
 
 
@@ -193,15 +193,25 @@
    (let [source-db-key (active-db-key db)
          dialog-state (get-in db [:generic-dialogs :move-group-or-entry-dialog])
          target-db-key (or (:target-db-key dialog-state) source-db-key)
-         target-parent-uuid (:uuid group-selection-info)]
+         target-parent-uuid (:uuid group-selection-info)
+         target-groups-listing (:target-db-groups-listing dialog-state)]
+     #_(println "In :move-entry-or-group and flag" (some #(= id (:uuid %)) target-groups-listing))
      (if (= source-db-key target-db-key)
        {:fx [[:bg-move-entry-or-group [source-db-key kind-kw id target-parent-uuid]]]}
        (let [source-root-uuid (get (get-in-key-db db [:groups-tree :data]) "root_uuid")
              target-root-uuid (:target-root-uuid dialog-state)]
-         (if (and source-root-uuid target-root-uuid (= source-root-uuid target-root-uuid))
+         (cond
+           (and (= kind-kw :group)
+                (some #(= id (:uuid %)) target-groups-listing))
+           {:fx [[:dispatch [:common/message-snackbar-error-open
+                             (lstr-error-sm 'groupUuidExistsInTarget)]]]}
+
+           (and source-root-uuid target-root-uuid (= source-root-uuid target-root-uuid))
            {:fx [[:dispatch [:common/error-info-box-show
-                             {:title "Move Not Possible"
-                              :error-text "These databases are copies of each other. Use 'Merge Opened Databases' from the Database menu instead."}]]]}
+                             {:title (lstr-dlg-title 'moveNotPossible)
+                              :error-text (lstr-dlg-text 'moveNotPossibleCopies)}]]]}
+
+           :else
            {:fx [[:bg-move-entry-or-group-cross-db
                   [source-db-key target-db-key kind-kw id target-parent-uuid]]]}))))))
 
@@ -211,7 +221,7 @@
     ;; Ensure that the dialog is closed
     (dispatch [:generic-dialog-close :move-group-or-entry-dialog])
     (dispatch [:common/message-snackbar-open
-               (str (if (= kind-kw :group) "Group" "Entry") " is moved")])
+               (lstr-sm (if (= kind-kw :group) 'groupMoved 'entryMoved))])
     (dispatch [:common/refresh-forms])))
 
 ;; Called to move a group or an entry from one parent group to another parent group
@@ -332,12 +342,13 @@
          src-name   (or (db-name-for db-list source-db-key) source-db-key)
          tgt-name   (or (db-name-for db-list target-db-key) target-db-key)
          group-name (:target-parent-group-name summary)
-         label      (if (= kind-kw :group) "Group" "Entry")
+         label      (lstr-l (if (= kind-kw :group) 'group 'entry))
          ;; msg        (str label " moved from '" src-name "' to group '"
          ;;                 group-name "' in '" tgt-name
          ;;                 "'. Click OK to switch to the target database.")
          
          ]
+     #_(println "In :cross-db-move/move-completed-dialog-show label" label)
      (assoc db :cross-db-move-completed-dialog
             {:dialog-show   true
              :src-name src-name
@@ -401,6 +412,7 @@
 (reg-fx
  :bg-drag-move-entries
  (fn [[db-key uuids target-uuid]]
+   #_(println "bg-drag-move-entries")
    (let [completed (atom 0)
          total     (count uuids)]
      (doseq [uuid uuids]
@@ -412,5 +424,6 @@
             (when (= @completed total)
               (dispatch [:entry-list/clear-entry-selection])
               (dispatch [:common/message-snackbar-open
-                         (str total (if (= total 1) " entry moved" " entries moved"))])
+                         (lstr-sm (if (= total 1) 'entryMovedCount 'entriesMovedCount)
+                                  {:count total})])
               (dispatch [:common/refresh-forms])))))))))

@@ -64,6 +64,13 @@
   ([txt-key]
    (lstr-dlg-title txt-key nil)))
 
+(defn lstr-dlg-text
+  "Adds prefix 'dialog.texts' to the key before getting the translation"
+  ([txt-key interpolation-args]
+   (-> (str "dialog.texts." (convert txt-key)) (lstr interpolation-args)))
+  ([txt-key]
+   (lstr-dlg-text txt-key nil)))
+
 (defn lstr-l-cv
   "Adds 'labels' prefix to the key and gets the traslated text. 
    This is similar to the macro tr-l-cv. This fn needs to be used if we want to evaluate a expression 
