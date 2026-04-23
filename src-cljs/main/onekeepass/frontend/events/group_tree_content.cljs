@@ -70,6 +70,9 @@
 (defn recycle-bin-empty-check []
   (subscribe [:recycle-bin-empty-check]))
 
+(defn groups-tree-version []
+  (subscribe [:groups-tree-data-version]))
+
 ;;;;;;;;;
 
 (reg-event-db
@@ -145,7 +148,16 @@
 (reg-event-db
  :groups-tree-data-update
  (fn [db [_event-id v]]
-   (assoc-in-key-db db [:groups-tree :data] v)))
+   (let [db' (assoc-in-key-db db [:groups-tree :data] v)]
+     ;; Reagent batches renders. If the backend returns quickly enough, 
+     ;; the nil update and the new-data update both land in the same Reagent render batch. 
+     ;; React renders only the final state, 
+     ;; skipping nil entirely — so SimpleTreeView is never actually unmounted between old and new data.
+     ;; :groups-tree :version is used as key 
+     (if (some? v)
+       (let [ver (get-in-key-db db' [:groups-tree :version] 0)]
+         (assoc-in-key-db db' [:groups-tree :version] (inc ver)))
+       db'))))
 
 ;; Called when a new entry is created under a group selected in the category view
 (reg-event-fx
@@ -158,6 +170,11 @@
  :groups-tree-data-updated
  (fn [db _query-vec]
    (get-in-key-db db [:groups-tree :data])))
+
+(reg-sub
+ :groups-tree-data-version
+ (fn [db _query-vec]
+   (get-in-key-db db [:groups-tree :version] 0)))
 
 (reg-sub
  :selected-group-parent-uuid

@@ -54,51 +54,51 @@
   "Shows the group and entry content from the current active db.
   DndContext wraps both panels so entries can be dragged from the entry
   list (right) and dropped onto groups in the tree (left)."
-  []
-  (let [[active-uuid set-active-uuid] (m/react-use-state nil)
-        sensors (dnd/use-sensors
-                 (dnd/use-sensor dnd/PointerSensor #js {:activationConstraint #js {:distance 8}})
-                 (dnd/use-sensor dnd/KeyboardSensor))]
-    [dnd/dnd-context
-     {:sensors            sensors
-      :collisionDetection dnd/closest-center
-      :onDragStart        (fn [^js evt]
-                            (let [uuid (-> evt .-active .-id)]
-                              (set-active-uuid uuid)
-                              (el-events/set-drag-active uuid)))
-      :onDragEnd          (fn [^js evt]
-                            (set-active-uuid nil)
-                            (el-events/set-drag-active nil)
-                            (let [target (some-> ^js evt .-over .-id)
-                                  source (some-> ^js evt .-active .-id)]
-                              (when target
-                                (move-events/drag-move-entries source target))))
-      :onDragCancel       (fn [_]
-                            (set-active-uuid nil)
-                            (el-events/set-drag-active nil))}
-     [split-pane {:split "vertical"
-                  ;;:size "200"
-                  :minSize "250"
-                  :maxSize "260"
-                  :primary "first"
-                  :style {:position "relative"}
-                  :pane1Style {:background (theme-color @custom-theme-atom :bg-default)}
-                  :resizerClassName (if (= @(cmn-events/app-theme) THEME_LIGHT)
-                                      "Resizer1 vertical" "Resizer2 vertical")}
-      ;; Pane1
-      [ec/entry-category-content]
-      ;; Pane2
-      [right-content]]
-     ;; Ghost shown while dragging — rendered via portal at document body
-     [dnd/drag-overlay {}
-      (when active-uuid
-        [mui-box {:sx {:bgcolor "primary.main"
-                       :color "primary.contrastText"
-                       :px 1.5 :py 0.5
-                       :border-radius "4px"
-                       :font-size "0.875rem"
-                       :pointer-events "none"}}
-         "Moving entries..."])]]))
+    []
+    (let [[active-uuid set-active-uuid] (m/react-use-state nil)
+          sensors (dnd/use-sensors
+                   (dnd/use-sensor dnd/PointerSensor #js {:activationConstraint #js {:distance 8}})
+                   (dnd/use-sensor dnd/KeyboardSensor))]
+      [dnd/dnd-context
+       {:sensors            sensors
+        :collisionDetection dnd/closest-center
+        :onDragStart        (fn [^js evt]
+                              (let [uuid (-> evt .-active .-id)]
+                                (set-active-uuid uuid)
+                                (el-events/set-drag-active uuid)))
+        :onDragEnd          (fn [^js evt]
+                              (set-active-uuid nil)
+                              (el-events/set-drag-active nil)
+                              (let [target (some-> ^js evt .-over .-id)
+                                    source (some-> ^js evt .-active .-id)]
+                                (when target
+                                  (move-events/drag-move-entries source target))))
+        :onDragCancel       (fn [_]
+                              (set-active-uuid nil)
+                              (el-events/set-drag-active nil))}
+       [split-pane {:split "vertical"
+                    ;;:size "200"
+                    :minSize "250"
+                    :maxSize "260"
+                    :primary "first"
+                    :style {:position "relative"}
+                    :pane1Style {:background (theme-color @custom-theme-atom :bg-default)}
+                    :resizerClassName (if (= @(cmn-events/app-theme) THEME_LIGHT)
+                                        "Resizer1 vertical" "Resizer2 vertical")}
+        ;; Pane1
+        [ec/entry-category-content]
+        ;; Pane2
+        [right-content]]
+       ;; Ghost shown while dragging — rendered via portal at document body
+       [dnd/drag-overlay {}
+        (when active-uuid
+          [mui-box {:sx {:bgcolor "primary.main"
+                         :color "primary.contrastText"
+                         :px 1.5 :py 0.5
+                         :border-radius "4px"
+                         :font-size "0.875rem"
+                         :pointer-events "none"}}
+           "Moving entries..."])]]))
 
 (defn locked-content []
   (let [biometric-type @(cmn-events/biometric-type-available)]

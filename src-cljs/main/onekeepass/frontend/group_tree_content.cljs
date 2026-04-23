@@ -42,29 +42,32 @@
    [reagent.core :as r]))
 (set! *warn-on-infer* true)
 
+;; This helps prevents UI crashing if there is any TreeView refresh time 
+;; By using ^{:key tree-version} mui-simple-tree-view solved this issue. 
+;; We will keep this error boundary wrapping in case any refresh of TreeView happens for someother reason
 (def ^:private group-tree-error-boundary
   ;; React error boundaries must be class components. r/create-class produces one.
   ;; component-did-catch is the lifecycle React calls after a child render throws.
   ;; err-state is reset on unmount so a remount (e.g. active-db-key change) starts clean.
   (let [err-state (r/atom nil)]
     (r/create-class
-      {:display-name "GroupTreeErrorBoundary"
-       :component-will-unmount
-       (fn [_this] (reset! err-state nil))
-       :component-did-catch
-       (fn [_this error _info]
-         (js/console.error "GroupTree error boundary caught:" error)
-         (reset! err-state error))
-       :reagent-render
-       (fn [& children]
-         (if @err-state
-           [mui-stack {:sx {:p 2 :alignItems "flex-start"}}
-            [mui-alert {:severity "warning" :sx {:width "100%"}}
-             "Group tree failed to render. This can happen when moving groups across databases with shared UUIDs."]
-            [mui-button {:size "small" :sx {:mt 1}
-                         :on-click #(reset! err-state nil)}
-             "Retry"]]
-           (into [:<>] children)))})))
+     {:display-name "GroupTreeErrorBoundary"
+      :component-will-unmount
+      (fn [_this] (reset! err-state nil))
+      :component-did-catch
+      (fn [_this error _info]
+        (js/console.error "GroupTree error boundary caught:" error)
+        (reset! err-state error))
+      :reagent-render
+      (fn [& children]
+        (if @err-state
+          [mui-stack {:sx {:p 2 :alignItems "flex-start"}}
+           [mui-alert {:severity "warning" :sx {:width "100%"}}
+            "Group tree failed to render"]
+           [mui-button {:size "small" :sx {:mt 1}
+                        :on-click #(reset! err-state nil)}
+            "Retry"]]
+          (into [:<>] children)))})))
 
 ;;;;;;;;;;;;;;;;;;;;; empty-recycle-bin related ;;;;;;;;;;;;;;;;;;;;;
 (def empty-recycle-bin-confirm-dialog-data (r/atom {:dialog-show false}))
@@ -579,15 +582,19 @@
 
 
 (defn- group-tree-view []
-  (let [gd @(gt-events/groups-tree-data)
+  (let [g-tree-data @(gt-events/groups-tree-data)
         selected-group-uuid @(gt-events/selected-group-uuid)
         root-id @(gt-events/root-group-uuid)
         expanded @(gt-events/expanded-nodes)
-        groups-listing (gt-events/groups-listing)]
-    (if (nil? gd)
+        groups-listing (gt-events/groups-listing)
+        tree-version @(gt-events/groups-tree-version)]
+    (if (nil? g-tree-data)
       ;; Just :div in case group tree data is nil
       [:div]
-      ;; Tree view is shown when the group tree data is loaded and data is not nil
+      ;; Key on tree-version forces a full SimpleTreeView remount on each reload,
+      ;; avoiding MUI X's "duplicate id" error during React reconciliation when
+      ;; a group moves from one parent to another within the same tree or when a group is moved from one db to another.
+      ^{:key tree-version}
       [mui-simple-tree-view
        {:slots {:collapseIcon mui-icon-arrow-drop-down-class
                 :expandIcon mui-icon-arrow-right-class}
@@ -597,9 +604,9 @@
         ;; This ensures to clear any previous selection when some other entry category item is selected
         :selectedItems selected-group-uuid}
        ;; Form the children tree items 
-       (when-not (nil? gd)
+       (when-not (nil? g-tree-data)
          (group-visitor-action
-          (get gd "root_uuid") nil (get gd "groups")))
+          (get g-tree-data "root_uuid") nil (get g-tree-data "groups")))
 
        [delete-group-permanent-dialog @(move-events/delete-permanent-group-entry-dialog-data :group) selected-group-uuid]
 
@@ -630,17 +637,6 @@
                                 #(move-events/move-group-entry-ok :group (:selected-group-uuid data)))}]])))
 
 
-#_(defn- group-tree-view []
-  (try
-    (println "Calling group-tree-view-1")
-    [group-tree-view-1]
-    (catch js/Error err
-      (do
-        (println "group-tree-view error is " (ex-cause err))
-        (js/console.log (ex-cause err)) 
-        [:div ]
-        
-        ) )))
 
 (defn group-tree-panel []
   ;; Key group-tree-view on the active db so React fully unmounts/remounts the

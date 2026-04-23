@@ -205,16 +205,17 @@
        {:fx [[:bg-move-entry-or-group [source-db-key kind-kw id target-parent-uuid]]]}
        (let [source-root-uuid (get (get-in-key-db db [:groups-tree :data]) "root_uuid")
              target-root-uuid (:target-root-uuid dialog-state)]
+         
          (cond
-           (and (= kind-kw :group)
-                (some #(= id (:uuid %)) target-groups-listing))
-           {:fx [[:dispatch [:common/message-snackbar-error-open
-                             (lstr-error-sm 'groupUuidExistsInTarget)]]]}
-
            (and source-root-uuid target-root-uuid (= source-root-uuid target-root-uuid))
            {:fx [[:dispatch [:common/error-info-box-show
                              {:title (lstr-dlg-title 'moveNotPossible)
                               :error-text (lstr-dlg-text 'moveNotPossibleCopies)}]]]}
+           
+           (and (= kind-kw :group)
+                (some #(= id (:uuid %)) target-groups-listing))
+           {:fx [[:dispatch [:common/message-snackbar-error-open
+                             (lstr-error-sm 'groupUuidExistsInTarget)]]]}
 
            :else
            {:fx [[:bg-move-entry-or-group-cross-db
@@ -229,7 +230,8 @@
                (lstr-sm (if (= kind-kw :group) 'groupMoved 'entryMoved))])
     (dispatch [:common/refresh-forms])))
 
-;; Called to move a group or an entry from one parent group to another parent group
+;; Called to move a group or an entry from one parent group to another parent group within a db
+;; The event :bg-move-entry-or-group-cross-db is used for the same across dbs
 (reg-fx
  :bg-move-entry-or-group
  (fn [[db-key kind-kw id parent-group-uuid]]
