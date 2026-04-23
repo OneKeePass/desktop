@@ -510,7 +510,11 @@
       [group-icon icon_id]]
      ;; Based on the discussions
      ;; https://github.com/mui/material-ui/issues/19953#issuecomment-1184953127
-     [mui-typography {:variant "body1" :sx {:flex-grow 1}
+     [mui-typography {:variant "body1" :sx {:flex-grow 1
+                                            :min-width 0
+                                            :overflow "hidden"
+                                            :white-space "nowrap"
+                                            :text-overflow "ellipsis"}
                       ;; This disables the tree item expanding/collapsing when user clicks on the label by calling stopPropagation
                       ;; in the onclick event.
                       ;; User needs to click on expand icon to see all child tree items under a tree item
@@ -645,7 +649,7 @@
   ;; prevents the old UUID from being removed before the new one is registered,
   ;; causing "Two items were provided with the same id" if two dbs share UUIDs.
   (let [active-db-key @(cmn-events/active-db-key)]
-    [mui-stack
+    [mui-stack {:sx {:overflow "hidden" :width "100%"}}
      ^{:key active-db-key}
      [group-tree-error-boundary
       [group-tree-view]]]))

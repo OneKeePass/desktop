@@ -38,9 +38,9 @@
   "Component that has entry list and any selected entry content"
   []
   [split-pane {:split "vertical"
-               ;;:size "200" 
-               :minSize "200"
-               :maxSize "275"
+               :defaultSize 200
+               :minSize 200
+               :maxSize 275
                :primary "first"
                :resizerClassName  (if (= @(cmn-events/app-theme) THEME_LIGHT)
                                     "Resizer1 vertical" "Resizer2 vertical")
@@ -77,12 +77,13 @@
                               (set-active-uuid nil)
                               (el-events/set-drag-active nil))}
        [split-pane {:split "vertical"
-                    ;;:size "200"
-                    :minSize "250"
-                    :maxSize "260"
+                    :defaultSize 250
+                    :minSize 220
+                    :maxSize 350
                     :primary "first"
                     :style {:position "relative"}
-                    :pane1Style {:background (theme-color @custom-theme-atom :bg-default)}
+                    :pane1Style {:background (theme-color @custom-theme-atom :bg-default)
+                                 :overflow "hidden"}
                     :resizerClassName (if (= @(cmn-events/app-theme) THEME_LIGHT)
                                         "Resizer1 vertical" "Resizer2 vertical")}
         ;; Pane1

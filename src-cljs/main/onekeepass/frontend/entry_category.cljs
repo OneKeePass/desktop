@@ -370,10 +370,11 @@
         tag-cats  @(ec-events/tag-categories)]
 
     [mui-box {:style {:height "100%"
-                      ;; This will result in a vertical scroll bar for the entire 
-                      ;; left side panel when the height of main window is small 
+                      ;; This will result in a vertical scroll bar for the entire
+                      ;; left side panel when the height of main window is small
                       :overflow-y "auto"
-                      :min-width "250px"}}
+                      :overflow-x "hidden"
+                      :width "100%"}}
      [mui-box
       [mui-list
        ^{:key :all} [category-item all :general-categories]
