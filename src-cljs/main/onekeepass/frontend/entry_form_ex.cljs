@@ -119,11 +119,11 @@
                {:id "entry-form-favorite"
                 :text (t/lstr-ml 'favorites)
                 :action #(form-events/favorite-menu-checked (not favorites?))})
-            (when (= os-name const/MACOS)
-              (ctx-menu/action-item
-               {:id "entry-form-auto-type"
-                :text (t/lstr-ml 'performAutoType)
-                :action form-events/perform-auto-type-start}))
+              (when (= os-name const/MACOS)
+                (ctx-menu/action-item
+                 {:id "entry-form-auto-type"
+                  :text (t/lstr-ml 'performAutoType)
+                  :action form-events/perform-auto-type-start}))
               (ctx-menu/action-item
                {:id "entry-form-history"
                 :text (t/lstr-ml 'history)
@@ -158,7 +158,7 @@
         ;; chrono::NaiveDateTime is serialized in this format   
         expiry-dt @(form-events/entry-form-data-fields :expiry-time)]
     (when edit
-      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
+      [mui-box {:sx (theme-content-sx @custom-theme-atom)}
        [mui-stack {:direction "row" :sx {:align-items "flex-end"}}
         [mui-stack {:direction "row" :sx {:width "30%"}}
          [mui-text-field {:sx {:padding-right "16px" :margin-top cc/entry-cnt-field-margin-top}
@@ -716,7 +716,8 @@
        ;; Used to move one parent group to another (based on the generic dialogs concept)
        [gt-content/move-group-or-entry-dialog]
 
-       ;; Used to move the entry to recycle bin
+       ;; Used only for Putback?
+       ;; Lauched by menu action with dispatch event call in 'move-group-entry-dialog-show' 
        [gt-content/move-dialog
         {:dialog-data @(move-events/move-group-entry-dialog-data :entry)
          :title "Put back"
@@ -728,6 +729,7 @@
          :ok-on-click-factory (fn [data]
                                 #(move-events/move-group-entry-ok :entry (:selected-entry-uuid data)))}]
 
+       ;; Used to move the entry to recycle bin
        [delete-permanent-dialog pd-dlg-data entry-uuid]])))
 
 (defn translated-entry-type-name [name]

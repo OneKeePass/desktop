@@ -42,6 +42,30 @@
    [reagent.core :as r]))
 (set! *warn-on-infer* true)
 
+(def ^:private group-tree-error-boundary
+  ;; React error boundaries must be class components. r/create-class produces one.
+  ;; component-did-catch is the lifecycle React calls after a child render throws.
+  ;; err-state is reset on unmount so a remount (e.g. active-db-key change) starts clean.
+  (let [err-state (r/atom nil)]
+    (r/create-class
+      {:display-name "GroupTreeErrorBoundary"
+       :component-will-unmount
+       (fn [_this] (reset! err-state nil))
+       :component-did-catch
+       (fn [_this error _info]
+         (js/console.error "GroupTree error boundary caught:" error)
+         (reset! err-state error))
+       :reagent-render
+       (fn [& children]
+         (if @err-state
+           [mui-stack {:sx {:p 2 :alignItems "flex-start"}}
+            [mui-alert {:severity "warning" :sx {:width "100%"}}
+             "Group tree failed to render. This can happen when moving groups across databases with shared UUIDs."]
+            [mui-button {:size "small" :sx {:mt 1}
+                         :on-click #(reset! err-state nil)}
+             "Retry"]]
+           (into [:<>] children)))})))
+
 ;;;;;;;;;;;;;;;;;;;;; empty-recycle-bin related ;;;;;;;;;;;;;;;;;;;;;
 (def empty-recycle-bin-confirm-dialog-data (r/atom {:dialog-show false}))
 
@@ -582,6 +606,8 @@
        [empty-recycle-bin-confirm-dialog @empty-recycle-bin-confirm-dialog-data]
 
        ;; Used to move one parent group to another (based on the generic dialogs concept)
+       ;; Triggered by menu action call which makes this dialog to come up with
+       ;; fn 'move-group-or-entry-dialog-show-with-state'
        [move-group-or-entry-dialog]
 
        ;; Shown after a successful cross-database move; on close switches to target db
@@ -589,7 +615,9 @@
 
        ;; Used to clone an entry to a different open database
        [clone-entry-to-other-db-dialog]
-       ;; Used to move a group to recycle bin
+
+       ;; Used only for Putback?
+       ;; Lauched by menu action with dispatch event call in 'move-group-entry-dialog-show'
        [move-dialog
         {:dialog-data @(move-events/move-group-entry-dialog-data :group)
          :title (tr-dlg-title putBack)
@@ -623,5 +651,6 @@
   (let [active-db-key @(cmn-events/active-db-key)]
     [mui-stack
      ^{:key active-db-key}
-     [group-tree-view]]))
+     [group-tree-error-boundary
+      [group-tree-view]]]))
 

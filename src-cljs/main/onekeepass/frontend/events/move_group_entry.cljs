@@ -8,20 +8,22 @@
                           reg-fx
                           reg-sub dispatch subscribe]]
    [onekeepass.frontend.events.common :refer [active-db-key
-                                             get-in-key-db
-                                             assoc-in-key-db
-                                             check-error
-                                             on-error]]
+                                              get-in-key-db
+                                              assoc-in-key-db
+                                              check-error
+                                              on-error]]
    [onekeepass.frontend.events.group-tree-content :as gt-events]
    [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.translation :refer [lstr-l lstr-dlg-title lstr-dlg-text lstr-error-sm lstr-sm]]))
 
-
+;; This dialog is called in putback menu action
+;; This is different from moving a group or an entry within a db or across db
+;; For that see 'move-entry-or-group'
+;; TODO: Need to rename this dialog's name and event names accordingly 
 (defn move-group-entry-dialog-show [kind-kw show?] ;; show or hide
   (dispatch [:move-group-entry-dialog-show kind-kw show?]))
 
 (defn move-group-entry-ok [kind-kw id]
-  ;;(println "entry-put-back-ok called " kind-kw id)
   (dispatch [:move-group-entry-start kind-kw id]))
 
 (defn move-group-entry-group-selected-factory
@@ -35,6 +37,7 @@
 (defn move-group-entry-dialog-data [kind-kw]
   (subscribe [:move-group-entry kind-kw]))
 
+;; Putback time use
 ;; kind-kw :entry or :group
 (reg-event-fx
  :move-group-entry-start
@@ -180,8 +183,9 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Uses generic dialogs based features. 
+;; Uses generic dialogs based features to move a group or an entry. 
 
+;; Cross db move of an entry or group
 (defn move-entry-or-group
   "The arg id is either entry uuid or group uuid"
   [kind-kw id group-selection-info]
@@ -196,6 +200,7 @@
          target-parent-uuid (:uuid group-selection-info)
          target-groups-listing (:target-db-groups-listing dialog-state)]
      #_(println "In :move-entry-or-group and flag" (some #(= id (:uuid %)) target-groups-listing))
+     ;; when the move is within a db, then source-db-key and target-db-key are same 
      (if (= source-db-key target-db-key)
        {:fx [[:bg-move-entry-or-group [source-db-key kind-kw id target-parent-uuid]]]}
        (let [source-root-uuid (get (get-in-key-db db [:groups-tree :data]) "root_uuid")
@@ -346,7 +351,6 @@
          ;; msg        (str label " moved from '" src-name "' to group '"
          ;;                 group-name "' in '" tgt-name
          ;;                 "'. Click OK to switch to the target database.")
-         
          ]
      #_(println "In :cross-db-move/move-completed-dialog-show label" label)
      (assoc db :cross-db-move-completed-dialog
@@ -357,7 +361,6 @@
              :parent-group-name group-name
              :target-db-key target-db-key
              ;;:message       msg
-             
              }))))
 
 (reg-event-fx
