@@ -1,225 +1,149 @@
 (ns onekeepass.frontend.group-form
-  (:require [clojure.string :as str]
-            [onekeepass.frontend.common-components :as cc  :refer [tags-field
-                                                                   theme-text-field-sx]]
-            [onekeepass.frontend.db-icons :as db-icons :refer [group-icon]]
-            [onekeepass.frontend.events.common :as cmn-events]
-            [onekeepass.frontend.events.group-form :as gf-events]
-            [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
-                                                              mui-box
-                                                              mui-button
-                                                              mui-checkbox
-                                                              mui-dialog
-                                                              mui-dialog-actions
-                                                              mui-dialog-content
-                                                              mui-dialog-title
-                                                              mui-divider
-                                                              mui-form-control-label
-                                                              mui-grid
-                                                              mui-icon-button
-                                                              mui-stack
-                                                              mui-tooltip
-                                                              mui-typography]]
-            [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-bl tr-dlg-title]]
-            [onekeepass.frontend.utils :as u :refer [vec->tags]]
-            [onekeepass.frontend.constants :refer [DATETIME_FORMAT]]
-            [reagent.core :as r]))
-;;(set! *warn-on-infer* true)
+  (:require
+   [clojure.string :as str]
+   [onekeepass.frontend.common-components :as cc :refer [tags-field]]
+   [onekeepass.frontend.db-icons :as db-icons :refer [group-icon]]
+   [onekeepass.frontend.entry-form.common :refer [ENTRY_DATETIME_FORMAT theme-content-sx]]
+   [onekeepass.frontend.entry-form.fields :refer [text-area-field text-field]]
+   [onekeepass.frontend.events.common :as cmn-events]
+   [onekeepass.frontend.events.group-form :as gf-events]
+   [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
+                                                     mui-box
+                                                     mui-button
+                                                     mui-checkbox
+                                                     mui-dialog
+                                                     mui-dialog-actions
+                                                     mui-dialog-content
+                                                     mui-dialog-title
+                                                     mui-form-control-label
+                                                     mui-icon-button
+                                                     mui-stack
+                                                     mui-typography]]
+   [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-bl tr-dlg-title]]
+   [onekeepass.frontend.utils :as u :refer [vec->tags]]
+   [reagent.core :as r]))
 
-(defn form-text-field
-  [field-name value on-change editing]
-  [m/text-field {:fullWidth true
-                 :label field-name :variant "standard"
-                 :sx {:margin-top cc/entry-cnt-field-margin-top}
-                 ;;:classes {:root "entry-cnt-field"}
-                 :value value
-                 :onChange on-change
-                 :slotProps {:input {:id field-name
-                                    :sx (theme-text-field-sx editing @custom-theme-atom)
-                                    :type "text"}
-                             ;;attributes for 'input' tag can be added here
-                             ;;We need to use 'readOnly' and not 'readonly'
-                             :htmlInput {:readOnly (not editing)}}}])
+(def ^:private icons-dialog-flag (r/atom false))
 
-(defn- form-readonly-item [label value]
-  [mui-grid {:container true :wrap "nowrap"}
-   [mui-grid {:size "grow"}
-    [mui-typography label]] ;;(:creation-time times) false (:last-modification-time times)
-
-   [mui-grid {:size "grow"}
-    [mui-typography value]]])
-
-(defn- form-readonly-content [times]
-  [mui-grid {:container true :spacing 0
-             ;; :classes {:root "entry-cnt-container"}
-             :sx {:width "95%" :margin-top cc/entry-cnt-field-margin-top
-                  ;;:background "white"
-                  :padding "0px 8px 24px 8px"
-                  :border ".1px solid"}
-             ;;:style {:width "95%" :margin-top "calc(2*var(--mui-theme-spacing-1))"}
-             }
-
-   [form-readonly-item (tr-l creationTime) (u/to-local-datetime-str (:creation-time times) DATETIME_FORMAT)]
-   [mui-grid {:size "grow"}
-    [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]]
-   
-   [form-readonly-item "Last Accessed" (u/to-local-datetime-str (:last-access-time times) DATETIME_FORMAT)]
-   [mui-grid {:size "grow"}
-    [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]]
-
-   [form-readonly-item (tr-l lastModificationTime) (u/to-local-datetime-str (:last-modification-time times) DATETIME_FORMAT)]
-   [mui-grid {:size "grow"}
-    [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]]])
-
-(defn- replace-newline [notes]
-  (let [s (str/split notes  #"\r\n")]
-    (reduce #(conj %1 %2 [:br]) [:div] s)))
-
-(defn- group-info-content
-  [{:keys [name tags notes times]}]
-  [mui-grid {:container true  :direction "column" :alignItems "center"}
-   [mui-grid {:container true :spacing 0
-              ;;:classes {:root "entry-cnt-container"}
-              :sx {:width "95%"
-                   :margin-top cc/entry-cnt-field-margin-top
-                   ;;:background "white"
-                   :padding "0px 8px 24px 8px"
-                   :border ".1px solid"}}
-
-    [form-readonly-item (tr-l "name") name]
-    [mui-grid {:size "grow"}
-     [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]]
-
-    [form-readonly-item (tr-l "tags") (vec->tags tags)]
-
-    [mui-grid {:size "grow"}
-     [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]]
-
-    ;;[form-readonly-item "Notes" (replace-newline notes)]
-    ;; TODO: Replace this with read only text area 
-    (when-not (empty? notes)
-      [mui-stack
-       [mui-typography (tr-l "notes")]
-       [mui-stack {:sx {:mt 1}}
-        [mui-typography notes]]])
-
-    [mui-grid {:size "grow"}
-     [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]]]
-
-   [form-readonly-content times]])
-
-(defn form-textarea-field-1
-  [value on-change editing]
-  [mui-stack
-   [m/text-field {:fullWidth true
-                  :id :notes
-                  :label (tr-l "notes")
-                  :variant "standard"
-                  :value value
-                  :onChange on-change
-                  :multiline true
-                  :rows 4
-                  :slotProps {:inputLabel {:shrink true}
-                              :input {:id :notes}
-                              :htmlInput {:readOnly (not editing)
-                                          :sx {:ml ".5em" :mr ".5em"}
-                                          :style {:resize "vertical"}}}}]])
-
-;;;;;;;;;;;;;;;;; Copied from entry form ;;;;;;;;;;;;;;;;;
-;;; Move to common place
-
-(def icons-dialog-flag (r/atom false))
-
-(defn close-icons-dialog []
+(defn- close-icons-dialog []
   (reset! icons-dialog-flag false))
 
-(defn show-icons-dialog []
+(defn- show-icons-dialog []
   (reset! icons-dialog-flag true))
 
-(defn icons-dialog []
+(defn- icons-dialog []
   (fn [dialog-open?]
     [:div [mui-dialog {:open (if (nil? dialog-open?) false dialog-open?)
                        :dir (t/dir)
-                       :on-click #(.stopPropagation ^js/Event %) ;;prevents on click for any parent components to avoid closing dialog by external clicking
+                       :on-click #(.stopPropagation ^js/Event %)
                        :sx {"& .MuiDialog-paper" {:width "85%"}}}
            [mui-dialog-title (tr-dlg-title "icons")]
            [mui-dialog-content {:dividers true}
-            [mui-grid {:container true :spacing 0}
+            [mui-box {:sx {:display "flex" :flex-wrap "wrap"}}
              (for [[idx svg-icon] db-icons/all-icons]
-               ^{:key idx} [:div {:style {:margin "4px"} ;;:border "1px solid blue"
+               ^{:key idx} [:div {:style {:margin "4px"}
                                   :on-click #(do
                                                (gf-events/update-form-data :icon-id idx)
-                                               (close-icons-dialog))} [mui-tooltip {:title "Icon"} svg-icon]])]]
+                                               (close-icons-dialog))}
+                            svg-icon])]]
            [mui-dialog-actions
             [mui-button {:variant "contained" :color "secondary"
                          :on-click close-icons-dialog} (tr-bl "close")]]]]))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn- form-readonly-item-1 [label value]
-  [mui-stack
-   [mui-stack {:direction "row"}
-    [mui-stack {:direction "row" :sx {:width "50%"}} [mui-typography label]]
-    [mui-stack {:direction "row" :sx {:width "50%"}} [mui-typography value]]]])
-
-(defn- form-readonly-content-1 [times]
-  [mui-box {:sx {:margin-top 2 :border 0.1}}
-   [mui-stack {:sx {:p "5px"}}
-    [form-readonly-item-1 (tr-l creationTime)
-     (u/to-local-datetime-str (:creation-time times) DATETIME_FORMAT)]
-    [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]
-    [form-readonly-item-1 "Last Accessed"
-     (u/to-local-datetime-str (:last-access-time times) DATETIME_FORMAT)]
-    [mui-divider {:variant "fullWidth" :style {:margin "5px 1px 5px 1px"}}]
-    [form-readonly-item-1 (tr-l lastModificationTime)
-     (u/to-local-datetime-str (:last-modification-time times) DATETIME_FORMAT)]]])
-
 (defn- group-content [{:keys [name icon-id tags notes times]}]
-  [mui-stack
-   [mui-stack {:direction "row" :spacing 1}
-    [mui-stack {:direction "row" :sx {:width "90%" :justify-content "center" :align-items "center"}}
-     [form-text-field (tr-l "name") name (gf-events/form-on-change-factory :name) true]]
+  [mui-box {:sx (theme-content-sx @custom-theme-atom)}
 
-    [mui-stack {:direction "row" :sx {:width "10%" :align-items "flex-end"}}
-     [mui-typography {:align "center" :paragraph false :variant "subtitle1"} "Icon"]
-     [mui-icon-button {:edge "end" :color "primary" :sx {:padding-bottom "5px"}
-                       :on-click show-icons-dialog}
+   ;; Name + Icon — mirrors title-with-icon-field in entry_form_ex.cljs
+   [mui-stack {:direction "row" :spacing 1}
+    [mui-stack {:direction "row" :sx {:width "88%" :justify-content "center"}}
+     [text-field {:key (tr-l "name")
+                  :value (or name "")
+                  :edit true
+                  :no-end-icons true
+                  :on-change-handler (gf-events/form-on-change-factory :name)}]]
+    [mui-stack {:direction "row" :sx {:width "12%" :justify-content "center" :align-items "center"}}
+     [mui-typography {:sx {:padding-left "5px"} :align "center" :variant "subtitle1"} (tr-l "icons")]
+     [mui-icon-button {:edge "end" :color "primary" :on-click show-icons-dialog}
       [group-icon icon-id]]]]
 
-   [mui-stack
-    [tags-field @(cmn-events/all-tags) tags gf-events/on-tags-selection true]]
+   ;; Tags — mirrors tags-selection in entry_form_ex.cljs
+   [tags-field @(cmn-events/all-tags) tags gf-events/on-tags-selection true]
 
-   [mui-stack [mui-form-control-label {:control
-                                       (r/as-element
-                                        [mui-checkbox {:checked @(gf-events/marked-as-category)
-                                                       :disabled @(gf-events/showing-groups-as-category)
-                                                       :on-change gf-events/marked-as-category-on-check}])
-                                       :label (tr-l "category")}]]
+   ;; Category checkbox
+   [mui-stack {:sx {:margin-top "8px"}}
+    [mui-form-control-label {:control (r/as-element
+                                       [mui-checkbox {:checked (boolean @(gf-events/marked-as-category))
+                                                      :disabled (boolean @(gf-events/showing-groups-as-category))
+                                                      :on-change gf-events/marked-as-category-on-check}])
+                             :label (tr-l "category")}]]
 
-   [mui-stack
-    [form-textarea-field-1 notes (gf-events/form-on-change-factory :notes) true]
-    [form-readonly-content-1 times]]
+   ;; Notes — mirrors notes-content in entry_form_ex.cljs
+   [mui-stack {:sx {:margin-top "8px"}}
+    [text-area-field {:key "notes"
+                      :value (or notes "")
+                      :edit true
+                      :on-change-handler (gf-events/form-on-change-factory :notes)}]]
+
+   ;; Timestamps (read-only) — same row pattern as uuid-times-content
+   [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-top "10px"}}
+    [mui-typography (str (tr-l "creationTime") ":")]
+    [mui-typography (u/to-local-datetime-str (:creation-time times) ENTRY_DATETIME_FORMAT)]]
+   [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-top "5px"}}
+    [mui-typography (str (tr-l "lastModificationTime") ":")]
+    [mui-typography (u/to-local-datetime-str (:last-modification-time times) ENTRY_DATETIME_FORMAT)]]
 
    [icons-dialog @icons-dialog-flag]])
+
+(defn- group-info-content [{:keys [uuid name tags notes times]}]
+  ;; Mirrors uuid-times-content layout from entry_form_ex.cljs — no Grid
+  [mui-box {:sx (theme-content-sx @custom-theme-atom)}
+
+   ;; UUID — matching entry_form_ex.cljs uuid-times-content
+   [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
+    [mui-typography (str (tr-l "uuid") ":")]
+    [mui-typography uuid]]
+
+   [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
+    [mui-typography (str (tr-l "name") ":")]
+    [mui-typography name]]
+
+   [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
+    [mui-typography (str (tr-l "tags") ":")]
+    [mui-typography (vec->tags tags)]]
+
+   (when-not (str/blank? notes)
+     [mui-stack {:sx {:margin-bottom "10px"}}
+      [mui-typography (str (tr-l "notes") ":")]
+      [text-area-field {:key "notes" :value notes :edit false}]])
+
+   [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
+    [mui-typography (str (tr-l "creationTime") ":")]
+    [mui-typography (u/to-local-datetime-str (:creation-time times) ENTRY_DATETIME_FORMAT)]]
+
+   [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
+    [mui-typography "Last Accessed:"]
+    [mui-typography (u/to-local-datetime-str (:last-access-time times) ENTRY_DATETIME_FORMAT)]]
+
+   [mui-stack {:direction "row" :sx {:justify-content "space-between"}}
+    [mui-typography (str (tr-l "lastModificationTime") ":")]
+    [mui-typography (u/to-local-datetime-str (:last-modification-time times) ENTRY_DATETIME_FORMAT)]]])
 
 (defn- group-content-dialog [flag form-data mode new-group]
   [:div
    [mui-dialog {:open (if (nil? flag) false flag)
                 :dir (t/dir)
-                :on-click #(.stopPropagation ^js/Event %) ;;prevents on click for any parent components to avoid closing dialog by external clicking
+                :on-click #(.stopPropagation ^js/Event %)
                 :sx {"& .MuiDialog-paper" {:width "85%"}}}
     [mui-dialog-title (tr-dlg-title "groupDetails")]
     [mui-dialog-content
      (if (= mode :edit)
        [group-content form-data]
        [group-info-content form-data])]
-
     (if (= mode :edit)
       (let [modified @(gf-events/form-modified)]
         [mui-dialog-actions
          [mui-button {:variant "contained" :color "secondary"
-                      :on-click
-                      gf-events/cancel-edit-on-click}
+                      :on-click gf-events/cancel-edit-on-click}
           (tr-bl "cancel")]
          [mui-button {:variant "contained" :color "secondary"
                       :on-click (if new-group gf-events/ok-new-group-on-click gf-events/ok-edit-on-click)
@@ -227,17 +151,15 @@
           (tr-bl "ok")]])
       [mui-dialog-actions
        [mui-button {:variant "contained" :color "secondary"
-                    :on-click
-                    #(gf-events/close-dialog)}
+                    :on-click #(gf-events/close-dialog)}
         (tr-bl "cancel")]
        [mui-button {:variant "contained" :color "secondary"
-                    :on-click
-                    #(gf-events/edit-form)}
+                    :on-click #(gf-events/edit-form)}
         (tr-bl "edit")]])]])
 
 (defn group-content-dialog-main []
-  (let [{:keys [dialog-open data mode new-group]} @(gf-events/dialog-form-data)]
-    [:div [group-content-dialog dialog-open data mode new-group]]))
-
-(comment
-  (require '[clojure.string :as str]))
+  (let [{:keys [dialog-show data mode new-group]} @(gf-events/dialog-form-data)]
+    ;; Guard prevents rendering content components with nil data after generic-dialog-close
+    ;; resets :data to {} (which would crash u/to-local-datetime-str on nil times)
+    (when dialog-show
+      [:div [group-content-dialog dialog-show data mode new-group]])))

@@ -18,7 +18,7 @@
 (set! *warn-on-infer* true)
 
 (defn initiate-new-blank-group-form [root-group-uuid]
-  (dispatch [:group-form-ex/create-blank-group root-group-uuid]))
+  (dispatch [:group-form/create-blank-group root-group-uuid]))
 
 (defn load-category-entry-items
   "Called to load all entries for a category that is clicked in entry category view.
