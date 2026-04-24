@@ -91,13 +91,23 @@
 
 (defn-generic-dialog-subs-events :csv-columns-mapping-dialog [[data nil]])
 
-;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  group-form-ex-dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; dialog-identifier-kw :group-form-ex-dialog
+
+(defn-generic-dialog-disp-events :group-form-ex-dialog [[close nil]
+                                                         [show-with-state state-m]
+                                                         [update-with-map state-m]])
+
+(defn-generic-dialog-subs-events :group-form-ex-dialog [[data nil]])
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; :csv-imoprt-start-dialog ;;;;;;;;;;;;;;;;;;;;;
 
 (defn-generic-dialog-disp-events :csv-imoprt-start-dialog [[close nil]])
 
 
 (defn-generic-dialog-subs-events :csv-imoprt-start-dialog [[data nil]])
-
 
 ;;;;;;
 

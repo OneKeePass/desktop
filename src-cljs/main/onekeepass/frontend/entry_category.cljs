@@ -9,9 +9,10 @@
             [onekeepass.frontend.context-menu :as ctx-menu]
             [onekeepass.frontend.db-icons :refer [entry-type-icon group-icon]]
             [onekeepass.frontend.events.common :as cmn-events]
+            ;; need to be replaced events from ec-events 
             [onekeepass.frontend.events.entry-category :as ec-events]
-            [onekeepass.frontend.events.group-form :as gf-events] ;;need to be replaced events from ec-events 
-            [onekeepass.frontend.group-form :as gf]
+            [onekeepass.frontend.events.group-form-ex :as gf-events] 
+            [onekeepass.frontend.group-form-ex :as gf]
             [onekeepass.frontend.group-tree-content :as gt]
             [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                               mui-box

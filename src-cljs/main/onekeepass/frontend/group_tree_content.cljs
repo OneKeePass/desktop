@@ -9,14 +9,14 @@
    [onekeepass.frontend.db-icons :refer [group-icon]]
    [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.events.generic-dialogs :as gd-events]
-   [onekeepass.frontend.events.group-form :as gf-events]
+   [onekeepass.frontend.events.group-form-ex :as gf-events]
    [onekeepass.frontend.events.group-tree-content :as gt-events]
    [onekeepass.frontend.dnd :as dnd]
    [onekeepass.frontend.events.move-group-entry :as move-events]
    [onekeepass.frontend.events.clone-entry-to-other-db :as clone-events]
    [re-frame.core :refer [dispatch]]
    [onekeepass.frontend.events.tauri-events :as tauri-events]
-   [onekeepass.frontend.group-form :as gf]
+   [onekeepass.frontend.group-form-ex :as gf]
    [onekeepass.frontend.mui-components :as m :refer [mui-alert mui-box
                                                      mui-button mui-dialog
                                                      mui-dialog-actions

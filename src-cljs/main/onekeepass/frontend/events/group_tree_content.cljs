@@ -15,7 +15,7 @@
 (set! *warn-on-infer* true)
 
 (defn initiate-new-blank-group-form [parent-group-uuid]
-  (dispatch [:group-form/create-blank-group parent-group-uuid]))
+  (dispatch [:group-form-ex/create-blank-group parent-group-uuid]))
 
 (defn node-on-select
   "Called when a tree item is selected with value found ':itemId' attribute of mui-tree-item.
@@ -93,7 +93,7 @@
  (fn [{:keys [db]} [_id]]
    (let [parent-group-uuid (get-in-key-db db [:groups-tree :selected-group-uuid])]
      (if-not (nil? parent-group-uuid)
-       {:fx [[:dispatch [:group-form/create-blank-group parent-group-uuid]]]}
+       {:fx [[:dispatch [:group-form-ex/create-blank-group parent-group-uuid]]]}
        {}))))
 
 ;; Called from system menu
@@ -102,7 +102,7 @@
  (fn [{:keys [db]} [_id]]
    (let [group-uuid (get-in-key-db db [:groups-tree :selected-group-uuid])]
      (if-not (nil? group-uuid)
-       {:fx [[:dispatch [:group-form/find-group-by-id group-uuid :edit]]]}
+       {:fx [[:dispatch [:group-form-ex/find-group-by-id group-uuid :edit]]]}
        {}))))
 
 ;; Called when nodes are expanded or collapsed in Treeview 
