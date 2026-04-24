@@ -72,7 +72,7 @@
                 {:name "ar - العربية" :value "ar"}
                 {:name "fi - suomi" :value "fi"}
                 {:name "ru - русский" :value "ru"}
-                
+                {:name "it - Italiano" :value "it"}
                 
                 #_{:name "fr - Français" :value "fr"}])
 
