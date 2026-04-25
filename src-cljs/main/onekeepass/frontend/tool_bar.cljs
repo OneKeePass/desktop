@@ -1,5 +1,6 @@
 (ns onekeepass.frontend.tool-bar
   (:require
+   [onekeepass.frontend.about :as about]
    [onekeepass.frontend.app-settings :refer [app-settings-dialog-main]]
    [onekeepass.frontend.auto-type :as at-form]
    [onekeepass.frontend.browser-integration :as browser-integration]
@@ -256,6 +257,7 @@
        ;; These are used here and in start_page.cljs
        [message-dialog]
        [app-settings-dialog-main]
+       [about/about-dialog-main]
        [browser-integration/browser-extension-connection-permit-dialog]
 
        [gen-form/password-generator-dialog @(gen-events/generator-dialog-data)]

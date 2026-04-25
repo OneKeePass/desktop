@@ -6,7 +6,7 @@
    [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.constants :as const :refer
     [BROWSER_CONNECTION_REQUEST_EVENT CLOSE_REQUESTED DB_FILE_CHANGED_EVENT FILE_DROP MAIN_WINDOW_EVENT
-     OTP_TOKEN_UPDATE_EVENT PASSKEY_DATA_CHANGED_EVENT TAURI_MENU_EVENT WINDOW_FOCUS_CHANGED]]
+     MENU_ID_ABOUT OTP_TOKEN_UPDATE_EVENT PASSKEY_DATA_CHANGED_EVENT TAURI_MENU_EVENT WINDOW_FOCUS_CHANGED]]
    [re-frame.core :refer [dispatch]]))
 
 (defn- to-cljs [js-event-repsonse]
@@ -88,6 +88,9 @@
 
       (= menu-id const/MENU_ID_OPEN_RECENT)
       (dispatch [:open-recent/dialog-show])
+
+      (= menu-id MENU_ID_ABOUT)
+      (dispatch [:about/dialog-show])
 
       :else
       (dispatch [:common/message-box-show "Work In Progress" (str "Menu action for " menu-id " will be implemented soon")]))))

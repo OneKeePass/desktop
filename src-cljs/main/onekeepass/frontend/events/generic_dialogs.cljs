@@ -9,6 +9,12 @@
 
 (def ^:private GENERIC-DIALOGS :generic-dialogs)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; :about-dialog ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn-generic-dialog-disp-events :about-dialog [[close nil]
+                                                [show nil]])
+
+(defn-generic-dialog-subs-events :about-dialog [[data nil]])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  merge-result-dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -64,7 +70,7 @@
 
 ; dialog-identifier-kw :external-db-change-dialog
 (defn-generic-dialog-disp-events :external-db-change-dialog [[close nil]
-                                                              [show-with-state state-m]])
+                                                             [show-with-state state-m]])
 
 (defn-generic-dialog-subs-events :external-db-change-dialog [[data nil]])
 
@@ -74,8 +80,8 @@
 ;; dialog-identifier-kw :merge-opened-dbs-dialog
 
 (defn-generic-dialog-disp-events :merge-opened-dbs-dialog [[close nil]
-                                                            [show-with-state state-m]
-                                                            [update-with-map state-m]])
+                                                           [show-with-state state-m]
+                                                           [update-with-map state-m]])
 
 (defn-generic-dialog-subs-events :merge-opened-dbs-dialog [[data nil]])
 
@@ -97,8 +103,8 @@
 ;; dialog-identifier-kw :group-form-dialog
 
 (defn-generic-dialog-disp-events :group-form-dialog [[close nil]
-                                                      [show-with-state state-m]
-                                                      [update-with-map state-m]])
+                                                     [show-with-state state-m]
+                                                     [update-with-map state-m]])
 
 (defn-generic-dialog-subs-events :group-form-dialog [[data nil]])
 

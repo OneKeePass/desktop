@@ -1,5 +1,6 @@
 (ns ^:figwheel-always onekeepass.frontend.start-page
   (:require
+   [onekeepass.frontend.about :as about]
    [onekeepass.frontend.app-settings :refer [app-settings-dialog-main]]
    [onekeepass.frontend.browser-integration :as browser-integration]
    [onekeepass.frontend.common-components :as cc :refer [message-dialog]]
@@ -125,5 +126,6 @@
    [csv-form/csv-columns-mapping-dialog]
    [csv-form/csv-imoprt-start-dialog]
    [app-settings-dialog-main]
+   [about/about-dialog-main]
    [browser-integration/browser-extension-connection-permit-dialog]
    [message-dialog]])

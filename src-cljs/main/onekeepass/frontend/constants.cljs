@@ -63,6 +63,7 @@
 (def MENU_ID_EDIT_ENTRY "EditEntry")
 (def MENU_ID_NEW_GROUP "NewGroup")
 (def MENU_ID_EDIT_GROUP "EditGroup")
+(def MENU_ID_ABOUT "About")
 
 (def MENU_ENABLE "Enable")
 (def MENU_DISABLE "Disable")

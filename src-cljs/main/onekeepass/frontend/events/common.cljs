@@ -102,6 +102,18 @@
 (defn os-name []
   (subscribe [:os-name]))
 
+(defn os-version []
+  (subscribe [:os-version]))
+
+(defn arch []
+  (subscribe [:arch]))
+
+(defn open-url [url]
+  (bg/open-url url
+               (fn [api-response]
+                 (on-error api-response)))
+  #_(dispatch [:common/bg-open-url [url]]))
+
 (defn app-preference-phrase-generator-options [app-db]
   (-> app-db :app-preference :password-gen-preference :phrase-generator-options))
 
@@ -252,6 +264,16 @@
  :os-name
  (fn [db _query-vec]
    (:os-name db)))
+
+(reg-sub
+ :os-version
+ (fn [db _query-vec]
+   (:os-version db)))
+
+(reg-sub
+ :arch
+ (fn [db _query-vec]
+   (:arch db)))
 
 (reg-sub
  :dev-mode
@@ -1242,6 +1264,7 @@
       :fx [[:dispatch [:db-settings/notify-screen-locked]]]})))
 
 ;;;;;;;;;;  Tauri shell open common calls ;;;;;;;;;;;
+
 (reg-fx
  :common/bg-open-url
  (fn [[path]]

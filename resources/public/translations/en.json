@@ -98,6 +98,7 @@
         "good": "Good",
         "generate": "Generate",
         "general": "General",
+        "github": "GitHub",
         "groupOrCategory": "Group/Category",
         "group": "Group",
         "groups": "Groups",
@@ -129,6 +130,7 @@
         "openDatabase": "Open Database",
         "oneTimePasswordTotp": "One-Time Password(TOTP)",
         "parallelism": "Parallelism",
+        "platform": "Platform",
         "password": "Password",
         "passwordPhrase": "Password Phrase",
         "period": "Period(sec)",
@@ -162,6 +164,7 @@
         "useRefForUsernamePassword": "Use references for username and password",
         "uuid": "Uuid",
         "veryDangerous": "Very Dangerous",
+        "version": "Version",
         "veryStrong": "Very Strong",
         "view": "View",
         "veryWeak": "Very Weak",
@@ -171,6 +174,7 @@
     },
     "dialog": {
         "titles": {
+            "about": "About OneKeePass",
             "applicationSettings": "Application Settings",
             "cloneEntry": "Clone entry",
             "cloneEntryToDatabase": "Clone Entry to Another Database",
@@ -217,6 +221,8 @@
             "unsavedChanges": "Unsaved Changes"
         },
         "texts": {
+            "aboutDescription": "A secure offline password manager compatible with KeePass KDBX4 format.",
+            "aboutCopyright": "Copyright © {{yearAndProuct}}",
             "confirmDiscard": "Do you want to discard your changes and close the database?",
             "confirmOverwrite": "Do you want to overwrite the externally changed database with your changes?",
             "conflictOnSaveTxt1": "The database content of the file has changed since the last opening. Please take one of the following action:",
@@ -458,6 +464,7 @@
             "Tools": "Tools"
         },
         "subMenus": {
+            "About": "About OneKeePass",
             "CloseDatabase": "Close Database",
             "EditEntry": "Edit Entry",
             "EditGroup": "Edit Group",
