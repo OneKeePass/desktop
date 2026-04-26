@@ -426,10 +426,13 @@
            error-text
            password-score
            no-end-icons
-           edit on-change-handler]
+           edit on-change-handler
+           protected visible]
     :or {edit false
          no-end-icons false
-         on-change-handler #()}
+         on-change-handler #()
+         protected false
+         visible true}
     :as kv}]
   [m/text-field {:sx (merge {:margin-top "16px"} (cc/password-helper-text-sx (:name password-score)))
                  :fullWidth true
@@ -459,7 +462,10 @@
                                                          [end-icons kv]]))}
                              :htmlInput {:readOnly (not edit)
                                          :sx {:ml ".5em" :mr ".5em"}
-                                         :style {:resize "vertical"}}}}])
+                                         ;; {:WebkitTextSecurity "disc", :resize "vertical"} or {:resize "vertical"}
+                                         :style (cond-> {:resize "vertical"}
+                                                  (and protected (not visible))
+                                                  (assoc :WebkitTextSecurity "disc"))}}}])
 
 
 (defn single-or-multiline-text-field

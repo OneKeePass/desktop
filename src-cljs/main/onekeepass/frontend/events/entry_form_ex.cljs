@@ -721,9 +721,9 @@
                                     (fn [api-response]
                                       (when-let [temp-file-name (check-error api-response)]
                                         (dispatch [:common/message-snackbar-open (lstr-sm 'launchingSystemViewer)])
-                                        (bg/open-file temp-file-name
-                                                      (fn [api-response]
-                                                        (on-error api-response))))))))
+                                        (bg/open-attachment-temp-file temp-file-name
+                                                                      (fn [api-response]
+                                                                        (on-error api-response))))))))
 
 ;; Called with the user selected full file name
 (reg-event-fx

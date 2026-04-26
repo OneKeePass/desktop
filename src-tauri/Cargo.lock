@@ -3664,6 +3664,7 @@ dependencies = [
  "notify",
  "once_cell",
  "onekeepass-core",
+ "open",
  "os_info",
  "secstr",
  "serde",

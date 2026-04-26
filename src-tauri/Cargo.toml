@@ -55,6 +55,8 @@ tauri-plugin-process = "2"
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-dialog = "2"
 
+open = "5"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

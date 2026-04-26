@@ -501,6 +501,9 @@
               dispatch-fn
               :convert-response false))
 
+(defn open-attachment-temp-file [file-path dispatch-fn]
+  (invoke-api "open_attachment_temp_file" {:file-path file-path} dispatch-fn))
+
 (defn save-attachment-as [db-key full-file-name data-hash-str dispatch-fn]
   (invoke-api "save_attachment_as" {:db-key db-key
                                     :full-file-name full-file-name

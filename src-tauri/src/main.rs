@@ -152,6 +152,7 @@ fn main() {
       commands::resolve_auto_open_properties,
       commands::save_all_modified_dbs,
       commands::save_as_kdbx,
+      commands::open_attachment_temp_file,
       commands::save_attachment_as_temp_file,
       commands::save_attachment_as,
       commands::save_kdbx,

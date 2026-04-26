@@ -631,6 +631,22 @@ pub(crate) async fn save_attachment_as_temp_file(
 }
 
 #[command]
+pub(crate) async fn open_attachment_temp_file(file_path: &str) -> Result<()> {
+    let requested = std::path::PathBuf::from(file_path);
+    let canonical = std::fs::canonicalize(&requested)
+        .map_err(|e| format!("Invalid attachment path: {e}"))?;
+
+    let allowed_root = std::fs::canonicalize(std::env::temp_dir().join("okp_cache"))
+        .map_err(|e| format!("okp_cache dir not available: {e}"))?;
+
+    if !canonical.starts_with(&allowed_root) {
+        return Err("Attachment path is outside the allowed temp directory".into());
+    }
+
+    open::that_detached(&canonical).map_err(|e| format!("Failed to open file: {e}"))
+}
+
+#[command]
 pub(crate) async fn save_attachment_as(
     db_key: &str,
     full_file_name: &str,
