@@ -5,8 +5,9 @@
    [re-frame.core :refer [reg-event-db reg-event-fx reg-fx reg-sub dispatch subscribe]]
    [onekeepass.frontend.events.common :as cmn-events :refer [active-db-key
                                                              check-error]]
+   ;; This fn is refered from other event ns. Need to watch out for any circular references
    [onekeepass.frontend.events.group-tree-content :as gt-events]
-   [onekeepass.frontend.events.generic-dialogs :as gd-events]
+   
    [onekeepass.frontend.background :as bg]))
 
 ;; ---- Public dispatch/subscribe fns (called from UI) ----
@@ -16,9 +17,6 @@
 
 (defn clone-target-db-changed [target-db-key]
   (dispatch [:clone-entry-to-other-db/target-db-changed target-db-key]))
-
-(defn clone-entry-to-other-db-dialog-data []
-  (gd-events/clone-entry-to-other-db-dialog-data))
 
 (defn other-unlocked-dbs
   "Returns a subscribed atom to the unlocked open databases excluding the

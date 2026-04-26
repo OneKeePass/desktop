@@ -123,7 +123,7 @@
                            (merging-events/merge-opened-dbs-target-changed (:db-key m))))
             :required true}]]]
         [mui-dialog-actions
-         [mui-button {:on-click gd-events/merge-opened-dbs-dialog-close} (tr-bl "cancel")]
+         [mui-button {:on-click gd-events/merge-opened-dbs-dialog-close} (t/lstr-bl 'cancel)]
          [mui-button {:disabled (or (nil? target-db-key)
                                     (= source-db-key target-db-key))
                       :on-click merging-events/merge-opened-dbs-confirm}
@@ -154,4 +154,3 @@
        (tr-bl "ignore")]]]])
   ([]
    (external-db-change-dialog @(gd-events/external-db-change-dialog-data))))
-

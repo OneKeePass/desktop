@@ -82,7 +82,7 @@
       (and multi-selected? (not deleted?))
       [(ctx-menu/action-item
         {:id "entry-delete-all"
-         :text "Delete All"
+         :text (t/lstr-bl 'deleteAll)
          :action #(el-events/delete-selected-entries-start selected-ids)})]
 
       deleted?
@@ -104,7 +104,7 @@
                   :action form-events/edit-mode-menu-clicked})
                 (ctx-menu/action-item
                  {:id "entry-clone"
-                  :text "Clone"
+                  :text (t/lstr-ml 'clone)
                   :action #(dlg-events/clone-entry-options-dialog-show uuid)})
                 (when multi-db-open?
                   (ctx-menu/action-item
@@ -113,10 +113,10 @@
                     :action #(clone-events/clone-entry-to-other-db-dialog-show uuid)}))
                 (ctx-menu/action-item
                  {:id "entry-move"
-                  :text "Move"
+                  :text (t/lstr-ml 'move)
                   :action #(gt-content/move-group-or-entry-dialog-show-with-state
                             :entry
-                            "Move entry"
+                            (t/lstr-dlg-title 'moveEntry)
                             uuid
                             parent-group-uuid
                             active-db-key)})

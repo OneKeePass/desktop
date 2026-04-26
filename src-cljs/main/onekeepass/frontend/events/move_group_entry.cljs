@@ -12,6 +12,7 @@
                                               assoc-in-key-db
                                               check-error
                                               on-error]]
+   ;; This fn is refered from other event ns. Need to watch out for any circular references
    [onekeepass.frontend.events.group-tree-content :as gt-events]
    [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.translation :refer [lstr-l lstr-dlg-title lstr-dlg-text lstr-error-sm lstr-sm]]))

@@ -43,24 +43,22 @@
    [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                      mui-alert mui-avatar
                                                      mui-box mui-button
-                                                     mui-button mui-divider
+                                                     mui-divider
                                                      mui-icon-add-circle-outline-outlined
                                                      mui-icon-article-outlined
-                                                     mui-icon-button
                                                      mui-icon-button
                                                      mui-icon-delete-outline
                                                      mui-icon-edit-outlined
                                                      mui-icon-save-as-outlined
                                                      mui-link mui-list-item
                                                      mui-list-item-avatar
-                                                     mui-list-item-text
-                                                     mui-list-item-text
+                                                     mui-list-item-text                                                     
                                                      mui-menu-item mui-stack
                                                      mui-text-field
                                                      mui-tooltip
                                                      mui-typography
                                                      theme-color]]
-   [onekeepass.frontend.translation :as t :refer [lstr-field-name] :refer-macros [tr-bl tr-l tr-h tr-t
+   [onekeepass.frontend.translation :as t :refer [lstr-field-name lstr-bl] :refer-macros [tr-bl tr-l tr-h tr-t
                                                                                   tr-entry-field-name-cv
                                                                                   tr-entry-section-name-cv
                                                                                   tr-entry-type-title-cv]]
@@ -651,19 +649,22 @@
             [:<>
              [mui-button {:variant "contained"
                           :color "secondary"
-                          :on-click #(move-events/move-group-entry-dialog-show :entry true)} "Put back"]
+                          :on-click #(move-events/move-group-entry-dialog-show :entry true)}
+              (t/lstr-ml 'putBack)]
              [mui-button {:variant "contained"
                           :color "secondary"
-                          :on-click #(move-events/delete-permanent-group-entry-dialog-show :entry true)} "Delete Permanently"]
+                          :on-click #(move-events/delete-permanent-group-entry-dialog-show :entry true)}
+              (t/lstr-ml 'deletePermanent)]
              [mui-button {:variant "contained"
                           :color "secondary"
-                          :on-click form-events/close-on-click} "Close"]]
+                          :on-click form-events/close-on-click}
+              (tr-bl close)]]
 
             edit
             [:<>
              [mui-button {:variant "contained"
                           :color "secondary"
-                          :on-click form-events/entry-update-cancel-on-click} (tr-bl cancel)]
+                          :on-click form-events/entry-update-cancel-on-click} (t/lstr-bl 'cancel)]
              [mui-button {:variant "contained"
                           :color "secondary"
                           :disabled  (not @(form-events/modified))
@@ -682,15 +683,17 @@
               [:<>
                [mui-button {:variant "contained"
                             :color "secondary"
-                            :on-click #(move-events/move-group-entry-dialog-show :entry true)} "Put back"]
+                            :on-click #(move-events/move-group-entry-dialog-show :entry true)}
+                (t/lstr-ml 'putBack)]
                [mui-button {:variant "contained"
                             :color "secondary"
-                            :on-click #(move-events/delete-permanent-group-entry-dialog-show :entry true)} "Delete Permanently"]])
+                            :on-click #(move-events/delete-permanent-group-entry-dialog-show :entry true)}
+                (t/lstr-ml 'deletePermanent)]])
           #_(if edit
               [:<>
                [mui-button {:variant "contained"
                             :color "secondary"
-                            :on-click form-events/entry-update-cancel-on-click} "Cancel"]
+                            :on-click form-events/entry-update-cancel-on-click} (t/lstr-bl 'cancel)]
                [mui-button {:variant "contained"
                             :color "secondary"
                             :disabled  (not @(form-events/modified))
@@ -812,9 +815,9 @@
       [mui-stack {:sx {:align-items "flex-end"}}
        [:div.buttons1
         [mui-button {:variant "contained" :color "secondary"
-                     :on-click form-events/new-entry-cancel-on-click} "Cancel"]
+                     :on-click form-events/new-entry-cancel-on-click} (t/lstr-bl 'cancel)]
         [mui-button {:variant "contained" :color "secondary"
-                     :on-click form-events/ok-new-entry-add} "Ok"]]]]
+                     :on-click form-events/ok-new-entry-add} (t/lstr-bl 'ok)]]]]
 
      [add-modify-section-popper @(form-events/section-name-dialog-data)]
      [add-modify-section-field-dialog @(form-events/section-field-dialog-data)]
@@ -976,7 +979,7 @@
     [mui-stack {:sx {:align-items "flex-end"}}
      [:div.buttons1
       [mui-button {:variant "contained" :color "secondary"
-                   :on-click form-events/cancel-new-custom-entry-type} (tr-bl cancel)]
+                   :on-click form-events/cancel-new-custom-entry-type} (t/lstr-bl 'cancel)]
       [mui-button {:variant "contained" :color "secondary"
                    :on-click form-events/create-custom-entry-type} (tr-bl create)]]]]
 
@@ -1170,11 +1173,11 @@
          [mui-button {:variant "text"
                       :sx popper-button-sx
                       :on-click  (fn [_e]
-                                   (form-events/section-field-dialog-update :dialog-show false))} "Cancel"]
+                                   (form-events/section-field-dialog-update :dialog-show false))} (t/lstr-bl 'cancel)]
          [mui-button {:sx popper-button-sx
                       :variant "text"
                       :on-click ok-fn}
-          "Ok"]]]]))
+          (t/lstr-bl 'ok)]]]]))
 
 #_(defn custom-field-dialog [{:keys [dialog-show
                                      field-name
@@ -1216,7 +1219,7 @@
                         [mui-alert-title "Success"] "Custom field added. You can add more field or cancel to close"]])]]
      [mui-dialog-actions
       [mui-button {:variant "contained" :color "secondary"
-                   :on-click form-events/close-custom-field-dialog} "Cancel"]
+                   :on-click form-events/close-custom-field-dialog} (t/lstr-bl 'cancel)]
       (if (= mode :add)
         [mui-button {:variant "contained" :color "secondary"
                      :on-click #(form-events/custom-field-add (select-keys m [:field-name :field-value :protected :data-type]))} "Add"]

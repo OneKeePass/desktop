@@ -1,28 +1,22 @@
 (ns onekeepass.frontend.entry-form.menus
   (:require
-   [reagent.core :as r]
-   [onekeepass.frontend.entry-form.common :refer []]
-   [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.common-components :as cc]
+   [onekeepass.frontend.constants :as const]
+   [onekeepass.frontend.events.clone-entry-to-other-db :as clone-events]
+   [onekeepass.frontend.events.common :as cmn-events]
+   [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
+   [onekeepass.frontend.events.entry-form-ex :as form-events]
+   [onekeepass.frontend.events.tauri-events :as tauri-events]
+   [onekeepass.frontend.group-tree-content :as gt-content]
    [onekeepass.frontend.mui-components :as m :refer [mui-icon-add-circle-outline-outlined
-                                                     mui-icon-button
                                                      mui-icon-button
                                                      mui-icon-check
                                                      mui-icon-more-vert
-                                                     mui-icon-more-vert
                                                      mui-list-item-icon
                                                      mui-list-item-text
-                                                     mui-list-item-text
-                                                     mui-menu
-                                                     mui-menu-item]]
-   [onekeepass.frontend.translation  :refer-macros [tr-ml]]
-   [onekeepass.frontend.events.tauri-events :as tauri-events]
-   [onekeepass.frontend.events.common :as ce]
-   [onekeepass.frontend.events.entry-form-ex :as form-events]
-   [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
-   [onekeepass.frontend.events.clone-entry-to-other-db :as clone-events]
-   [onekeepass.frontend.group-tree-content :as gt-content]
-   [onekeepass.frontend.events.common :as cmn-events]))
+                                                     mui-menu mui-menu-item]]
+   [onekeepass.frontend.translation  :refer [lstr-dlg-title lstr-ml]]
+   [reagent.core :as r]))
 
 (defn- menu-action [anchor-el action & action-args]
   (fn [^js/Event e]
@@ -35,12 +29,12 @@
    [mui-menu-item {:divider false
                    :sx {:padding-left "1px"}
                    :on-click (menu-action anchor-el form-events/perform-auto-type-start entry-uuid)}
-    [mui-list-item-text {:inset true} (tr-ml performAutoType)]]
+    [mui-list-item-text {:inset true} (lstr-ml 'performAutoType)]]
 
    [mui-menu-item {:divider true
                    :sx {:padding-left "1px"}
                    :on-click (menu-action anchor-el form-events/entry-auto-type-edit)}
-    [mui-list-item-text {:inset true} (tr-ml editAutoType)]]])
+    [mui-list-item-text {:inset true} (lstr-ml 'editAutoType)]]])
 
 (defn entry-form-top-menu-items []
   (fn [anchor-el entry-uuid favorites? os-name]
@@ -50,44 +44,43 @@
      [mui-menu-item {:sx {:padding-left "1px"}
                      :divider false
                      :on-click (menu-action anchor-el form-events/edit-mode-menu-clicked)}
-      [mui-list-item-text {:inset true} (tr-ml edit)]]
+      [mui-list-item-text {:inset true} (lstr-ml 'edit)]]
 
      [mui-menu-item {:sx {:padding-left "1px"}
                      :divider false
                      :on-click (menu-action anchor-el dlg-events/clone-entry-options-dialog-show entry-uuid)}
-      [mui-list-item-text {:inset true} "Clone"]]
+      [mui-list-item-text {:inset true} (lstr-ml 'clone)]]
 
      (when @(clone-events/multi-db-open?)
        [mui-menu-item {:sx {:padding-left "1px"}
                        :divider false
                        :on-click (menu-action anchor-el clone-events/clone-entry-to-other-db-dialog-show entry-uuid)}
-        [mui-list-item-text {:inset true} (tr-ml "cloneToDatabase")]])
+        [mui-list-item-text {:inset true} (lstr-ml "cloneToDatabase")]])
 
      [mui-menu-item {:sx {:padding-left "1px"}
                      :divider false
                      :on-click (menu-action anchor-el gt-content/move-group-or-entry-dialog-show-with-state
                                             :entry
-                                            "Move entry"
+                                            (lstr-dlg-title 'moveEntry)
                                             entry-uuid
                                             @(form-events/entry-form-data-fields :group-uuid)
-                                            @(cmn-events/active-db-key)
-                                            )}
-      [mui-list-item-text {:inset true} "Move"]]
+                                            @(cmn-events/active-db-key))}
+      [mui-list-item-text {:inset true} (lstr-ml 'move)]]
 
      [mui-menu-item {:divider true
                      :sx {:padding-left "1px"}
                      :on-click (menu-action anchor-el form-events/entry-delete-start entry-uuid)}
-      [mui-list-item-text {:inset true} (tr-ml delete)]]
+      [mui-list-item-text {:inset true} (lstr-ml 'delete)]]
 
      (if favorites?
        [mui-menu-item {:sx {:padding-left "1px"}
                        :divider true
                        :on-click (menu-action anchor-el form-events/favorite-menu-checked false)}
-        [mui-list-item-icon [mui-icon-check]] (tr-ml favorites)]
+        [mui-list-item-icon [mui-icon-check]] (lstr-ml 'favorites)]
        [mui-menu-item {:divider true
                        :sx {:padding-left "1px"}
                        :on-click (menu-action anchor-el form-events/favorite-menu-checked true)}
-        [mui-list-item-text {:inset true} (tr-ml favorites)]])
+        [mui-list-item-text {:inset true} (lstr-ml 'favorites)]])
 
      ;; Auto type related menu options are avilable only for macos
      (when (= os-name const/MACOS)
@@ -99,12 +92,12 @@
                      :sx {:padding-left "1px"}
                      :on-click (menu-action anchor-el form-events/load-history-entries-summary entry-uuid)
                      :disabled (not @(form-events/history-available))}
-      [mui-list-item-text {:inset true} (tr-ml history)]]]))
+      [mui-list-item-text {:inset true} (lstr-ml 'history)]]]))
 
 (defn entry-form-top-menu [entry-uuid]
   (let [anchor-el (r/atom nil)
         favorites? @(form-events/favorites?)
-        os-name @(ce/os-name)]
+        os-name @(cmn-events/os-name)]
     [:div
      [mui-icon-button {:edge "start"
                        :on-click (fn [^js/Event e] (reset! anchor-el (-> e .-currentTarget)))
@@ -149,12 +142,12 @@
      [mui-menu-item {:sx {:padding-left "1px"}
                      :divider false
                      :on-click (menu-action anchor-el  #(form-events/open-section-field-dialog section-name nil))}
-      [mui-list-item-text {:inset true} (tr-ml addField)]]
+      [mui-list-item-text {:inset true} (lstr-ml 'addField)]]
 
      [mui-menu-item {:sx {:padding-left "1px"}
                      :divider false
                      :on-click (menu-action anchor-el #(dlg-events/otp-settings-dialog-show section-name false))}
-      [mui-list-item-text {:inset true} (tr-ml setUpTOPT)]]]))
+      [mui-list-item-text {:inset true} (lstr-ml 'setUpTOPT)]]]))
 
 (defn add-additional-field-menu [section-name]
   (let [anchor-el (r/atom nil)]

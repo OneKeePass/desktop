@@ -277,6 +277,8 @@
         :uuid (get g "uuid")
         :icon-id 0}))))
 
+;; This fn is referred in other events ns. Need to watch out for any circular references
+;; May consider to a common group tree related util ns and used by all
 (defn flatten-groups-summary-to-listing
   "Converts a groups-summary-data response (the same shape returned by
   bg/groups-summary-data and stored under :groups-tree-data-updated) into a flat

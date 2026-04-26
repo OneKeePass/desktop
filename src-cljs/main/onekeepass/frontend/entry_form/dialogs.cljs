@@ -133,9 +133,9 @@
          api-error-text]])]]
    [mui-dialog-actions
     [mui-stack  {:sx {:justify-content "end"} :direction "row" :spacing 1}   ;;{:sx {:align-items "end"}}
-     [mui-button {:on-click  dlg-events/otp-settings-dialog-close} (tr-bl "cancel")]
+     [mui-button {:on-click  dlg-events/otp-settings-dialog-close} (t/lstr-bl 'cancel)]
      [mui-button {:on-click dlg-events/otp-settings-dialog-ok}
-      (tr-bl "ok")]]]])
+      (t/lstr-bl 'ok)]]]])
 
 ;;;;;;;;;;
 
@@ -169,11 +169,11 @@
      [mui-button {:variant "text"
                   :sx popper-button-sx
                   :on-click  #(form-events/section-name-dialog-update :dialog-show false)}
-      (tr-bl cancel)]
+      (t/lstr-bl 'cancel)]
      [mui-button {:variant "text"
                   :sx  popper-button-sx
                   :on-click #(form-events/section-name-add-modify dialog-data)}
-      (tr-bl ok)]]]])
+      (t/lstr-bl 'ok)]]]])
 
 (defn add-modify-section-field-dialog
   [{:keys [dialog-show
@@ -244,10 +244,10 @@
        [mui-button
         {:on-click  (fn [_e]
                       (form-events/section-field-dialog-update :dialog-show false))}
-        (tr-bl cancel)]
+        (t/lstr-bl 'cancel)]
        [mui-button
         {:on-click ok-fn}
-        (tr-bl ok)]]]]))
+        (t/lstr-bl 'ok)]]]]))
 
 (defn custom-field-delete-confirm [dialog-data]
   [(alert-dialog-factory
@@ -309,7 +309,7 @@
             [mui-dialog-actions
              [mui-button {:variant "contained" :color "secondary"
                           :on-click close-icons-dialog}
-              (tr-bl cancel)]]]]))
+              (t/lstr-bl 'cancel)]]]]))
   ([dialog-open?]
    [icons-dialog dialog-open? (fn [idx] (form-events/entry-form-data-update-field-value :icon-id idx))]))
 
@@ -412,7 +412,7 @@
    [mui-dialog-actions
     [mui-button
      {:on-click #(dlg-events/clone-entry-options-dialog-close)}
-     (tr-bl cancel)]
+     (t/lstr-bl 'cancel)]
     [mui-button
      {:on-click #(dlg-events/clone-entry-options-dialog-ok)}
-     (tr-bl ok)]]])
+     (t/lstr-bl 'ok)]]])

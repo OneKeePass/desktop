@@ -128,8 +128,8 @@
              title
              move-dialog-content
              ;; Actions
-             [{:label  (tr-bl cancel)  :on-click-factory cancel-on-click-factory}
-              {:label  (tr-bl ok)  :on-click-factory ok-on-click-factory}])]
+             [{:label  (t/lstr-bl 'cancel)  :on-click-factory cancel-on-click-factory}
+              {:label  (t/lstr-bl 'ok)  :on-click-factory ok-on-click-factory}])]
     ;; Returns a Form 2 reagent component
     (fn [data]
       [dlg data])))
@@ -201,10 +201,10 @@
           (when target-db-loading?
             [mui-linear-progress {:sx {:mt 2}}])]]
         [mui-dialog-actions
-         [mui-button {:on-click gd-events/move-group-or-entry-dialog-close} (tr-bl "cancel")]
+         [mui-button {:on-click gd-events/move-group-or-entry-dialog-close} (t/lstr-bl 'cancel)]
          [mui-button {:disabled (or target-db-loading? (nil? group-selection-info))
                       :on-click  (fn []
-                                   (move-events/move-entry-or-group kind-kw uuid-selected-to-move group-selection-info))} (tr-bl "ok")]]])))
+                                   (move-events/move-entry-or-group kind-kw uuid-selected-to-move group-selection-info))} (t/lstr-bl 'ok)]]])))
 
   ([]
    (move-group-or-entry-dialog @(gd-events/move-group-or-entry-dialog-data))))
@@ -243,7 +243,7 @@
                 target-db-groups-listing
                 target-db-loading?
                 group-selection-info]}
-        @(clone-events/clone-entry-to-other-db-dialog-data)]
+        @(gd-events/clone-entry-to-other-db-dialog-data)]
     (when dialog-show
       ;; other-unlocked-dbs excludes the current source database
       (let [other-dbs @(clone-events/other-unlocked-dbs)
@@ -279,12 +279,12 @@
            (when target-db-loading?
              [mui-linear-progress {:sx {:mt 2}}])]]
          [mui-dialog-actions
-          [mui-button {:on-click gd-events/clone-entry-to-other-db-dialog-close} (tr-bl "cancel")]
+          [mui-button {:on-click gd-events/clone-entry-to-other-db-dialog-close} (t/lstr-bl 'cancel)]
           [mui-button {:disabled (or target-db-loading?
                                      (nil? target-db-key)
                                      (nil? group-selection-info))
                        :on-click (fn [] (dispatch [:clone-entry-to-other-db/ok-clicked]))}
-           (tr-bl "ok")]]]))))
+           (t/lstr-bl 'ok)]]]))))
 
 (defn- cross-db-move-completed-dialog
   [{:keys [src-name tgt-name group-or-entry parent-group-name] :as data}]
@@ -293,7 +293,7 @@
     [confirm-text-dialog
      (lstr-dlg-title 'moveCompletedPendingSave)
      msg
-     [{:label (tr-bl ok) :on-click (fn [_] (move-events/move-completed-dialog-close))}]
+     [{:label (t/lstr-bl 'ok) :on-click (fn [_] (move-events/move-completed-dialog-close))}]
      data]))
 
 (defn- tree-item-menu-items []

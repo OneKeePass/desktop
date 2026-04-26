@@ -98,6 +98,7 @@
         "good": "Buono",
         "generate": "Genera",
         "general": "Generale",
+        "github": "GitHub",
         "groupOrCategory": "Gruppo/Categoria",
         "group": "Gruppo",
         "groups": "Gruppi",
@@ -129,6 +130,7 @@
         "openDatabase": "Apri Database",
         "oneTimePasswordTotp": "Password Monouso (TOTP)",
         "parallelism": "Parallelismo",
+        "platform": "Piattaforma",
         "password": "Password",
         "passwordPhrase": "Frase Password",
         "period": "Periodo (sec)",
@@ -162,6 +164,7 @@
         "useRefForUsernamePassword": "Usa riferimenti per nome utente e password",
         "uuid": "Uuid",
         "veryDangerous": "Molto Pericoloso",
+        "version": "Versione",
         "veryStrong": "Molto Forte",
         "view": "Visualizza",
         "veryWeak": "Molto Debole",
@@ -171,6 +174,7 @@
     },
     "dialog": {
         "titles": {
+            "about": "Informazioni su OneKeePass",
             "applicationSettings": "Impostazioni Applicazione",
             "cloneEntry": "Clona voce",
             "cloneEntryToDatabase": "Clona Voce in un Altro Database",
@@ -217,6 +221,7 @@
             "unsavedChanges": "Modifiche non salvate"
         },
         "texts": {
+            "aboutDescription": "Un gestore di password sicuro e offline compatibile con il formato KeePass KDBX4.",
             "confirmDiscard": "Vuoi scartare le modifiche e chiudere il database?",
             "confirmOverwrite": "Vuoi sovrascrivere il database modificato esternamente con le tue modifiche?",
             "conflictOnSaveTxt1": "Il contenuto del file del database è cambiato dall'ultima apertura. Scegli una delle seguenti azioni:",
@@ -332,6 +337,7 @@
         "changePassword": "Cambia password",
         "close": "Chiudi",
         "copyClose": "Copia e Chiudi",
+        "create": "Crea",
         "currentOpenedDatabase": "Database Attualmente Aperto",
         "delete": "Elimina",
         "deleteAll": "Elimina Tutto",
@@ -347,7 +353,7 @@
         "next": "Avanti",
         "newDatabase": "Nuovo Database",
         "no": "No",
-        "ok": "Ok",
+        "ok": "OK",
         "openCsvFile": "Apri file csv",
         "overwrite": "Sovrascrivi",
         "quit": "Esci",
@@ -458,6 +464,7 @@
             "Tools": "Strumenti"
         },
         "subMenus": {
+            "About": "Informazioni su OneKeePass",
             "CloseDatabase": "Chiudi Database",
             "EditEntry": "Modifica Voce",
             "EditGroup": "Modifica Gruppo",

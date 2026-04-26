@@ -327,11 +327,11 @@
    [mui-dialog-actions
     [mui-button {:variant "contained" :color "secondary"
                  ;;:disabled in-progress?
-                 :on-click app-settings-events/app-settings-dialog-close} (tr-bl cancel)]
+                 :on-click app-settings-events/app-settings-dialog-close} (t/lstr-bl 'cancel)]
     [mui-button {:variant "contained" :color "secondary"
                  :disabled (or (not @(app-settings-events/app-settings-modified)) (-> error-fields seq boolean))
                  ;;:disabled (or (not modified) in-progress? (-> error-fields seq boolean))
-                 :on-click app-settings-events/app-settings-save} (tr-bl ok)]]])
+                 :on-click app-settings-events/app-settings-save} (t/lstr-bl 'ok)]]])
 
 (defn app-settings-dialog-main []
   [app-settings-dialog @(app-settings-events/app-settings-dialog-data)])

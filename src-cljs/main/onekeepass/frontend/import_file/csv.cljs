@@ -40,8 +40,8 @@
   [confirm-text-dialog
    (lstr-dlg-title "import")
    csv-imoprt-start-dialog-content
-   [{:label (tr-bl cancel) :on-click (fn []
-                                       (gd-events/csv-imoprt-start-dialog-close))}
+   [{:label (lstr-bl 'cancel) :on-click (fn []
+                                            (gd-events/csv-imoprt-start-dialog-close))}
     {:label (lstr-bl 'openCsvFile) :on-click (fn []
                                                (gd-events/csv-imoprt-start-dialog-close)
                                                (csv-events/open-file-explorer-on-click))}]
@@ -98,7 +98,7 @@
                   (for [umf not-mapped-headers]
                     [mui-chip {:label umf :on-delete #(csv-events/import-csv-unmapped-header-field-delete umf)}]))])])]]]
         [mui-dialog-actions
-         [mui-button {:on-click  gd-events/csv-mapping-completed-dialog-close} (tr-bl "cancel")]
+         [mui-button {:on-click  gd-events/csv-mapping-completed-dialog-close} (t/lstr-bl 'cancel)]
          [mui-button {:on-click  csv-events/import-csv-new-database} (tr-bl newDatabase)]
          (when-not (nil? current-db-file-name)
            [mui-button {:on-click  csv-events/import-csv-into-current-db} (lstr-bl 'currentOpenedDatabase)])]])))
@@ -188,9 +188,9 @@
      [mui-dialog-actions
       [mui-button {:on-click (fn []
                                (csv-events/import-csv-clear)
-                               (gd-events/csv-columns-mapping-dialog-close))} (tr-bl "cancel")]
+                               (gd-events/csv-columns-mapping-dialog-close))} (t/lstr-bl 'cancel)]
       [mui-button {:on-click  (fn []
-                                (csv-events/import-csv-mapped mapping-options))} (tr-bl "ok")]]]
+                                (csv-events/import-csv-mapped mapping-options))} (t/lstr-bl 'ok)]]]
     [csv-mapping-completed-dialog]])
   ([]
    [csv-columns-mapping-dialog @(gd-events/csv-columns-mapping-dialog-data)]))

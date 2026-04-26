@@ -122,12 +122,12 @@
       [mui-button {:color "secondary"
                    :disabled in-progress?
                    :on-click od-events/cancel-on-click}
-       (tr-bl cancel)]
+       (t/lstr-bl 'cancel)]
       [mui-button {:color "secondary"
                    :disabled in-progress?
                    :on-click
                    ok-action}
-       (tr-bl ok)]]]))
+       (t/lstr-bl 'ok)]]]))
 
 (defn open-db-dialog-main []
   [open-db-dialog @(od-events/dialog-data) @(cmn-events/opened-db-list)])

@@ -52,7 +52,7 @@
    [mui-dialog-actions
     [mui-button {:variant "contained" :color "secondary"
                  :disabled false
-                 :on-click at-events/perform-dialog-show-close} "Cancel"]
+                 :on-click at-events/perform-dialog-show-close} (t/lstr-bl 'cancel)]
     [mui-button {:variant "contained" :color "secondary"
                  :disabled false
                  :on-click at-events/send-auto-sequence} "Send"]]])
@@ -114,7 +114,7 @@
     [mui-dialog-actions
      [mui-button {:variant "contained" :color "secondary"
                   :disabled false
-                  :on-click at-events/auto-type-edit-dialog-close} "Cancel"]
+                  :on-click at-events/auto-type-edit-dialog-close} (t/lstr-bl 'cancel)]
      [mui-button {:variant "contained" :color "secondary"
                   :disabled (not @(at-events/auto-type-modified))
-                  :on-click at-events/auto-type-edit-dialog-ok} "Ok"]]]])
+                  :on-click at-events/auto-type-edit-dialog-ok} (t/lstr-bl 'ok)]]]])

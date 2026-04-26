@@ -448,7 +448,7 @@
      [mui-dialog-content-text message]]
     [mui-dialog-actions
      [mui-button {:color "secondary"
-                  :on-click cmn-events/close-message-dialog} (tr-bl ok)]]])
+                  :on-click cmn-events/close-message-dialog} (t/lstr-bl 'ok)]]])
   ([]
    [message-dialog @(cmn-events/message-dialog-data)]))
 

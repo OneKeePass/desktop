@@ -57,7 +57,7 @@
   [confirm-text-dialog
    (tr-dlg-title unsavedChanges)
    (tr-dlg-text "unsavedChangesTxt1")
-   [{:label (tr-bl ok) :on-click #(tb-events/on-lock-ask-save-dialog-hide)}]
+   [{:label (t/lstr-bl 'ok) :on-click #(tb-events/on-lock-ask-save-dialog-hide)}]
    dialog-data])
 
 (defn ask-save-dialog [dialog-data]
@@ -66,7 +66,7 @@
    (tr-dlg-text "unsavedChangesTxt2")
    [{:label (tr-bl save) :on-click #(tb-events/on-save-click)}
     {:label (tr-bl quit) :on-click #(tb-events/on-do-not-save-click)}
-    {:label (tr-bl cancel) :on-click #(tb-events/ask-save-dialog-show false)}]
+    {:label (t/lstr-bl 'cancel) :on-click #(tb-events/ask-save-dialog-show false)}]
    dialog-data])
 
 (defn close-current-db-save-dialog [dialog-data]
@@ -75,7 +75,7 @@
    (tr-dlg-text "unsavedChangesTxt3")
    [{:label (tr-bl save) :on-click tb-events/close-current-db-on-save-click}
     {:label (tr-bl doNotSave)  :on-click tb-events/close-current-db-no-save}
-    {:label (tr-bl cancel) :on-click tb-events/close-current-db-on-cancel-click}]
+    {:label (t/lstr-bl 'cancel) :on-click tb-events/close-current-db-on-cancel-click}]
    dialog-data])
 
 (defn conflict-action-confirm-dialog [{:keys [dialog-show confirm]}]
@@ -84,13 +84,13 @@
      (tr-dlg-title confirmOverwrite)
      (tr-dlg-text confirmOverwrite)
      [{:label (tr-bl yesOverwrite) :on-click tb-events/overwrite-external-changes}
-      {:label (tr-bl cancel) :on-click tb-events/conflict-action-confirm-dialog-hide}]
+      {:label (t/lstr-bl 'cancel) :on-click tb-events/conflict-action-confirm-dialog-hide}]
      {:dialog-show dialog-show}]
     [confirm-text-dialog
      (tr-dlg-title confirmDiscard)
      (tr-dlg-text confirmDiscard)
      [{:label (tr-bl discard) :on-click tb-events/conflict-action-discard}
-      {:label (tr-bl cancel) :on-click tb-events/conflict-action-confirm-dialog-hide}]
+      {:label (t/lstr-bl 'cancel) :on-click tb-events/conflict-action-confirm-dialog-hide}]
      {:dialog-show dialog-show}]))
 
 (defn content-change-action-dialog [open?]
@@ -133,7 +133,7 @@
    [mui-dialog-actions
 
     [mui-button {:color "secondary"
-                 :on-click tb-events/save-current-db-msg-dialog-hide} (tr-bl cancel)]]])
+                 :on-click tb-events/save-current-db-msg-dialog-hide} (t/lstr-bl 'cancel)]]])
 
 (defn save-info-dialog [{:keys [status api-error-text]}]
   (if (= api-error-text DB_CHANGED)

@@ -46,7 +46,8 @@
            [mui-icon-launch {:sx {:fontSize "14px"}}]]]
          [mui-divider {:sx {:my 1}}]
          [mui-typography {:variant "caption" :sx {:color "text.secondary"}}
-          (lstr-dlg-text 'aboutCopyright {:year-and-prouct "2024–2026 OneKeePass"} )
+          "Copyright © 2024–2026 OneKeePass"
+          #_(lstr-dlg-text 'aboutCopyright {:year-and-prouct "2024–2026 OneKeePass"} )
           #_(tr-dlg-text "aboutCopyright")]]] ;;2024–2026 OneKeePass Contributors (lstr-dlg-title "sectionField2" {:section-name section-name})
        [mui-dialog-actions
         [mui-button {:on-click gd-events/about-dialog-close} (tr-bl "close")]]])))

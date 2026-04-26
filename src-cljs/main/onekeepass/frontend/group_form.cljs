@@ -21,7 +21,8 @@
                                                      mui-typography]]
    [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-bl tr-dlg-title]]
    [onekeepass.frontend.utils :as u :refer [vec->tags]]
-   [reagent.core :as r]))
+   [reagent.core :as r]
+   [onekeepass.frontend.events.generic-dialogs :as gd-events]))
 
 (def ^:private icons-dialog-flag (r/atom false))
 
@@ -143,22 +144,23 @@
       (let [modified @(gf-events/form-modified)]
         [mui-dialog-actions
          [mui-button {:variant "contained" :color "secondary"
-                      :on-click gf-events/cancel-edit-on-click}
-          (tr-bl "cancel")]
+                      :on-click gd-events/group-form-dialog-close}
+          (t/lstr-bl 'cancel)]
          [mui-button {:variant "contained" :color "secondary"
                       :on-click (if new-group gf-events/ok-new-group-on-click gf-events/ok-edit-on-click)
                       :disabled (not modified)}
-          (tr-bl "ok")]])
+          (t/lstr-bl 'ok)]])
       [mui-dialog-actions
        [mui-button {:variant "contained" :color "secondary"
-                    :on-click #(gf-events/close-dialog)}
-        (tr-bl "cancel")]
+                    :on-click
+                    gd-events/group-form-dialog-close}
+        (t/lstr-bl 'cancel)]
        [mui-button {:variant "contained" :color "secondary"
                     :on-click #(gf-events/edit-form)}
         (tr-bl "edit")]])]])
 
 (defn group-content-dialog-main []
-  (let [{:keys [dialog-show data mode new-group]} @(gf-events/dialog-form-data)]
+  (let [{:keys [dialog-show data mode new-group]} @(gd-events/group-form-dialog-data)]
     ;; Guard prevents rendering content components with nil data after generic-dialog-close
     ;; resets :data to {} (which would crash u/to-local-datetime-str on nil times)
     (when dialog-show

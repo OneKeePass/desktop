@@ -355,10 +355,10 @@
      [mui-dialog-actions
       [mui-button {:variant "contained" :color "secondary"
                    :disabled in-progress?
-                   :on-click settings-events/cancel-on-click} (tr-bl cancel)]
+                   :on-click settings-events/cancel-on-click} (t/lstr-bl 'cancel)]
       [mui-button {:variant "contained" :color "secondary"
                    :disabled (or (not modified) in-progress? (-> error-fields seq boolean))
-                   :on-click settings-events/ok-on-click} (tr-bl ok)]]]))
+                   :on-click settings-events/ok-on-click} (t/lstr-bl 'ok)]]]))
 
 (defn settings-dialog-main []
   [settings-dialog @(settings-events/dialog-data)])

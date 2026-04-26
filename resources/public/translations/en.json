@@ -222,7 +222,6 @@
         },
         "texts": {
             "aboutDescription": "A secure offline password manager compatible with KeePass KDBX4 format.",
-            "aboutCopyright": "Copyright © {{yearAndProuct}}",
             "confirmDiscard": "Do you want to discard your changes and close the database?",
             "confirmOverwrite": "Do you want to overwrite the externally changed database with your changes?",
             "conflictOnSaveTxt1": "The database content of the file has changed since the last opening. Please take one of the following action:",
@@ -338,6 +337,7 @@
         "changePassword": "Change password",
         "close": "Close",
         "copyClose": "Copy & Close",
+        "create": "Create",
         "currentOpenedDatabase": "Current Opened Database",
         "delete": "Delete",
         "deleteAll": "Delete All",

@@ -35,16 +35,13 @@
 (defn edit-form []
   (dispatch [:group-form/set-mode :edit]))
 
-(defn cancel-edit-on-click [_e]
-  (dispatch [:generic-dialog-close :group-form-dialog]))
-
 (defn ok-edit-on-click [_e]
   (dispatch [:group-form/ok-edit]))
 
 (defn ok-new-group-on-click [_e]
   (dispatch [:group-form/ok-new-group]))
 
-(defn close-dialog []
+#_(defn close-dialog []
   (dispatch [:generic-dialog-close :group-form-dialog]))
 
 (defn marked-as-category-on-check [^js/Event e]
@@ -52,7 +49,7 @@
 
 ;;; Public subscribe wrappers
 
-(defn dialog-form-data []
+#_(defn dialog-form-data []
   (subscribe [:generic-dialog-data :group-form-dialog]))
 
 (defn form-modified []
