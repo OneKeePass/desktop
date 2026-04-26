@@ -10,6 +10,7 @@
                                                          assoc-in-key-db
                                                          check-error
                                                          on-error]]
+   [onekeepass.frontend.translation :refer [lstr-sm]]
    [onekeepass.frontend.background :as bg]))
 
 #_(set! *warn-on-infer* true)
@@ -340,7 +341,8 @@
  (fn [{:keys [db]} [_event-id deleted-count]]
    {:db (assoc-in-key-db db [:entry-list :selected-entry-ids] #{})
     :fx [[:dispatch [:common/refresh-forms]]
-         [:dispatch [:common/message-snackbar-open (str deleted-count " entries deleted")]]]}))
+         [:dispatch [:common/message-snackbar-open
+                     (lstr-sm 'entriesDeletedCount {:count deleted-count})]]]}))
 
 (reg-event-fx
  :entry-list/delete-selected-entries-error

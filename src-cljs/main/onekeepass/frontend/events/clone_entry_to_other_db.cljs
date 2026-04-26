@@ -7,7 +7,7 @@
                                                              check-error]]
    ;; This fn is refered from other event ns. Need to watch out for any circular references
    [onekeepass.frontend.events.group-tree-content :as gt-events]
-   
+   [onekeepass.frontend.translation :refer [lstr-sm]]
    [onekeepass.frontend.background :as bg]))
 
 ;; ---- Public dispatch/subscribe fns (called from UI) ----
@@ -120,11 +120,11 @@
  :clone-entry-to-other-db/completed
  (fn [{:keys [db]} [_event-id _source-db-key target-db-key summary]]
    ;; Only target is modified — source entry is unchanged
-   (let [group-name (:target-parent-group-name summary)
-         msg (str "Entry cloned to '" group-name "'")]
+   (let [group-name (:target-parent-group-name summary)]
      {:db (assoc-in db [target-db-key :db-modification :save-pending] true)
       :fx [[:dispatch [:generic-dialog-close :clone-entry-to-other-db-dialog]]
-           [:dispatch [:common/message-snackbar-open msg]]
+           [:dispatch [:common/message-snackbar-open
+                       (lstr-sm 'entryClonedToGroup {:group-name group-name})]]
            ;; Switch to the target DB so the user sees the cloned entry immediately
            [:dispatch [:common/change-active-db-complete target-db-key]]
            ;; Reload all target DB data from backend memory (groups, tags,

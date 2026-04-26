@@ -10,6 +10,7 @@
                                                assoc-in-key-db
                                                on-error
                                                check-error]]
+   [onekeepass.frontend.translation :refer [lstr-sm]]
    [onekeepass.frontend.background :as bg]))
 
 (set! *warn-on-infer* true)
@@ -332,7 +333,7 @@
  :group-delete-completed
  (fn [{:keys [db]} [_event-id]]
    {:db (-> db (assoc-in-key-db  [:group-delete :status] :completed))
-    :fx [[:dispatch [:common/message-snackbar-open "Group is deleted"]]
+    :fx [[:dispatch [:common/message-snackbar-open (lstr-sm 'groupDeleted)]]
          [:dispatch [:common/refresh-forms-2]]]}))
 
 ;;;;;;;;;;;;;;;;;;;;;  Group sort ;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -361,7 +362,7 @@
  :sort-groups-completed
  (fn [{:keys [_db]} [_event-id]]
    {:fx [[:dispatch [:group-tree-content/load-groups]]
-         [:dispatch [:common/message-snackbar-open "Groups sorted"]]]}))
+         [:dispatch [:common/message-snackbar-open (lstr-sm 'groupsSorted)]]]}))
 
 ;;;;;;;;;;;;;;;;;; Group Delete End ;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;; Group Put back  ;;;;;;;;;;;;;;;;;;;;

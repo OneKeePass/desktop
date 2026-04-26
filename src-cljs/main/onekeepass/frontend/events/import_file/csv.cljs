@@ -9,6 +9,7 @@
                                                              on-error
                                                              current-opened-db
                                                              locked?]]
+   [onekeepass.frontend.translation :refer [lstr-sm]]
    [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-fx reg-sub subscribe]]))
 
 ;; Called from csv-imoprt-start-dialog
@@ -191,7 +192,8 @@
                                            (dispatch [:generic-dialog-close :csv-columns-mapping-dialog])
                                            (dispatch [:common/reload-on-merge])
                                            (dispatch [:import-csv/clear])
-                                           (dispatch [:common/message-snackbar-open "Import completed"]))))))
+                                           (dispatch [:common/message-snackbar-open
+                                                      (lstr-sm 'importCompleted)]))))))
 
 (defn import-csv-clear []
   (dispatch [:import-csv/clear]))

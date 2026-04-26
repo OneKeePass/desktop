@@ -555,7 +555,7 @@
                          (dispatch [:common/progress-message-box-hide])
                          (when-not (on-error api-response)
                            (dispatch [:common/message-snackbar-open
-                                      "Database backup saving is completed"]))))))
+                                      (lstr-sm 'dbBackupCompleted)]))))))
 
 (reg-event-fx
  :save-as-completed

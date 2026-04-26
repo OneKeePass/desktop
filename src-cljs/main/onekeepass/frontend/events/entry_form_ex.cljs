@@ -706,7 +706,7 @@
                           attachment-hash
                           (fn [api-response]
                             (when-not (on-error api-response)
-                              (dispatch [:common/message-snackbar-open "Attachment saved to the selected file"]))))
+                              (dispatch [:common/message-snackbar-open (lstr-sm 'attachmentSaved)]))))
    {}))
 
 (reg-event-fx
@@ -720,7 +720,7 @@
    (bg/save-attachment-as-temp-file db-key name attachment-hash
                                     (fn [api-response]
                                       (when-let [temp-file-name (check-error api-response)]
-                                        (dispatch [:common/message-snackbar-open "Lauching the system viewer"])
+                                        (dispatch [:common/message-snackbar-open (lstr-sm 'launchingSystemViewer)])
                                         (bg/open-file temp-file-name
                                                       (fn [api-response]
                                                         (on-error api-response))))))))
@@ -1258,7 +1258,7 @@
          [:dispatch [:entry-form-entry-type-uuid-selected-ex entry-type-uuid]]
          ;; Need to refresh entry-category as we have added a new custom entry type
          [:dispatch [:entry-category/reload-category-data]]
-         [:dispatch [:common/message-snackbar-open "New custom entry type is created"]]]}))
+         [:dispatch [:common/message-snackbar-open (lstr-sm 'customEntryTypeCreated)]]]}))
 
 
 ;; Called to delete a custom entry type from entry category view
@@ -1279,7 +1279,7 @@
  :delete-custom-entry-type-completed
  (fn [{:keys [db]} [_event-id entry-type-name]]
    {:fx [[:dispatch [:common/message-snackbar-open
-                     (str "Custom entry type " entry-type-name " is deleted")]]
+                     (lstr-sm 'customEntryTypeDeleted {:entry-type-name entry-type-name})]]
          [:dispatch [:common/load-entry-type-headers]]
          #_[:dispatch [:common/load-entry-type-names]]
          [:dispatch [:entry-category/entry-type-deleted]]]}))
@@ -1675,7 +1675,7 @@
             (assoc-in-key-db  [:entry-delete :status] :completed))
     ;; calls to refresh entry list and category  
     :fx [[:dispatch [:common/refresh-forms]]
-         [:dispatch [:common/message-snackbar-open "Entry is deleted"]]]}))
+         [:dispatch [:common/message-snackbar-open (lstr-sm 'entryDeleted)]]]}))
 
 (reg-sub
  :entry-delete
@@ -2017,4 +2017,3 @@
 ;;    (get-in-key-db db [entry-form-key :section-add])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-

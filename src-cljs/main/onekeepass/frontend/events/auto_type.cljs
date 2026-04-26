@@ -11,6 +11,7 @@
                                                              assoc-in-key-db
                                                              get-in-key-db
                                                              active-db-key]]
+   [onekeepass.frontend.translation :refer [lstr-sm]]
    [onekeepass.frontend.background :as bg]))
 
 (def DEFAULT_SEQUENCE "{USERNAME}{TAB}{PASSWORD}{ENTER}")
@@ -95,9 +96,9 @@
 
 (reg-event-fx
  :send-sequence-to-winow-completed
- (fn [{:keys [_db]} [_event-id]]
-   {:fx [[:dispatch [:perform-dialog-show-close]]
-         [:dispatch [:common/message-snackbar-open "Auto typing is completed"]]]}))
+   (fn [{:keys [_db]} [_event-id]]
+     {:fx [[:dispatch [:perform-dialog-show-close]]
+           [:dispatch [:common/message-snackbar-open (lstr-sm 'autoTypingCompleted)]]]}))
 
 ;; Backend call to get the active to which we will be sending the sequence
 ;; auto-type-m (or auto-type) is a map from struct AutoType (for tag AutoType)
@@ -261,4 +262,3 @@
 (comment
   (def db-key (:current-db-file-name @re-frame.db/app-db))
   (-> (get @re-frame.db/app-db db-key) :auto-type-edit-dialog))
-

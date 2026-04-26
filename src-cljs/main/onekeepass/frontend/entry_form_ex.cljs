@@ -30,12 +30,14 @@
                                                            restore-confirm-dialog
                                                            set-up-totp-dialog
                                                            show-icons-dialog]]
-   [onekeepass.frontend.entry-form.fields :as fields :refer [datetime-field otp-field
+   [onekeepass.frontend.entry-form.fields :as fields :refer [datetime-field
+                                                             otp-field
                                                              simple-selection-field
-                                                             text-area-field text-field]]
+                                                             text-area-field
+                                                             text-field]]
    [onekeepass.frontend.entry-form.menus :as menus]
-   [onekeepass.frontend.events.common :as ce]
    [onekeepass.frontend.events.clone-entry-to-other-db :as clone-events]
+   [onekeepass.frontend.events.common :as ce]
    [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
    [onekeepass.frontend.events.entry-form-ex :as form-events :refer [place-holder-resolved-value]]
    [onekeepass.frontend.events.move-group-entry :as move-events]
@@ -52,13 +54,14 @@
                                                      mui-icon-save-as-outlined
                                                      mui-link mui-list-item
                                                      mui-list-item-avatar
-                                                     mui-list-item-text                                                     
+                                                     mui-list-item-text
                                                      mui-menu-item mui-stack
                                                      mui-text-field
                                                      mui-tooltip
                                                      mui-typography
                                                      theme-color]]
-   [onekeepass.frontend.translation :as t :refer [lstr-field-name lstr-bl] :refer-macros [tr-bl tr-l tr-h tr-t
+   [onekeepass.frontend.translation :refer [lstr-bl lstr-dlg-title
+                                            lstr-field-name lstr-l lstr-ml] :refer-macros [tr-bl tr-l tr-h tr-t
                                                                                   tr-entry-field-name-cv
                                                                                   tr-entry-section-name-cv
                                                                                   tr-entry-type-title-cv]]
@@ -79,52 +82,52 @@
   (if deleted?
     [(ctx-menu/action-item
       {:id "entry-form-put-back"
-       :text (t/lstr-ml 'putBack)
+       :text (lstr-ml 'putBack)
        :action #(move-events/move-group-entry-dialog-show :entry true)})
      (ctx-menu/action-item
       {:id "entry-form-delete-permanently"
-       :text (t/lstr-ml 'deletePermanent)
+       :text (lstr-ml 'deletePermanent)
        :action #(move-events/delete-permanent-group-entry-dialog-show :entry true)})]
     (vec
      (remove nil?
              [(ctx-menu/action-item
                {:id "entry-form-edit"
-                :text (t/lstr-ml 'edit)
+                :text (lstr-ml 'edit)
                 :action form-events/edit-mode-menu-clicked})
               (ctx-menu/action-item
                {:id "entry-form-clone"
-                :text (t/lstr-ml 'clone)
+                :text (lstr-ml 'clone)
                 :action #(dlg-events/clone-entry-options-dialog-show entry-uuid)})
               (when multi-db-open?
                 (ctx-menu/action-item
                  {:id "entry-form-clone-to-database"
-                  :text (t/lstr-ml "cloneToDatabase")
+                  :text (lstr-ml "cloneToDatabase")
                   :action #(clone-events/clone-entry-to-other-db-dialog-show entry-uuid)}))
               (ctx-menu/action-item
                {:id "entry-form-move"
-                :text (t/lstr-ml 'move)
+                :text (lstr-ml 'move)
                 :action #(gt-content/move-group-or-entry-dialog-show-with-state
                           :entry
-                          (t/lstr-dlg-title 'moveEntry)
+                          (lstr-dlg-title 'moveEntry)
                           entry-uuid
                           group-uuid
                           active-db-key)})
               (ctx-menu/action-item
                {:id "entry-form-delete"
-                :text (t/lstr-ml 'delete)
+                :text (lstr-ml 'delete)
                 :action #(form-events/entry-delete-start entry-uuid)})
               (ctx-menu/action-item
                {:id "entry-form-favorite"
-                :text (t/lstr-ml 'favorites)
+                :text (lstr-ml 'favorites)
                 :action #(form-events/favorite-menu-checked (not favorites?))})
               (when (= os-name const/MACOS)
                 (ctx-menu/action-item
                  {:id "entry-form-auto-type"
-                  :text (t/lstr-ml 'performAutoType)
+                  :text (lstr-ml 'performAutoType)
                   :action form-events/perform-auto-type-start}))
               (ctx-menu/action-item
                {:id "entry-form-history"
-                :text (t/lstr-ml 'history)
+                :text (lstr-ml 'history)
                 :enabled? history-available?
                 :action #(form-events/load-history-entries-summary entry-uuid)})]))))
 
@@ -220,12 +223,12 @@
 
 (defn section-field-add-icon-button [section-name]
   (if (not= section-name ADDITIONAL_ONE_TIME_PASSWORDS)
-    [mui-tooltip {:title (t/lstr-ml 'addField) :enterDelay 2500}
+    [mui-tooltip {:title (lstr-ml 'addField) :enterDelay 2500}
      [mui-icon-button {:edge "end" :color "primary"
                        :on-click #(form-events/open-section-field-dialog section-name nil)}
       [mui-icon-add-circle-outline-outlined]]]
 
-    [mui-tooltip {:title (t/lstr-l 'setUpOneTimePassword) :enterDelay 2500}
+    [mui-tooltip {:title (lstr-l 'setUpOneTimePassword) :enterDelay 2500}
      [mui-icon-button {:edge "end" :color "primary"
                        :on-click #(dlg-events/otp-settings-dialog-show section-name false)}
       [mui-icon-add-circle-outline-outlined]]]))
@@ -246,12 +249,12 @@
         ;; Allow section name change only if the section name is not the standard one
         (when-not (contains-val? standard-sections section-name)
           [:<>
-           [mui-tooltip  {:title (t/lstr-l 'modifySectionName) :enterDelay 2500}
+           [mui-tooltip  {:title (lstr-l 'modifySectionName) :enterDelay 2500}
             [mui-icon-button {:edge "end"
                               :on-click  #(form-events/open-section-name-modify-dialog section-name @comp-ref)}
              [mui-icon-edit-outlined]]]
 
-           [mui-tooltip  {:title (t/lstr-l 'deleteCompleteSection) :enterDelay 2500}
+           [mui-tooltip  {:title (lstr-l 'deleteCompleteSection) :enterDelay 2500}
             [mui-icon-button {:edge "end"
                               :on-click  #(form-events/section-delete section-name)}
              [mui-icon-delete-outline]]]])
@@ -327,7 +330,7 @@
 
                (when (and edit (not standard-field) (not= data-type ONE_TIME_PASSWORD_TYPE))
                  [mui-stack {:direction "row" :sx {:width "8%" :align-items "flex-end"}}
-                  [mui-tooltip  {:title (t/lstr-l 'modifyField) :enterDelay 2500}
+                  [mui-tooltip  {:title (lstr-l 'modifyField) :enterDelay 2500}
                    [mui-icon-button {:edge "end"
                                      :on-click  #(form-events/open-section-field-modify-dialog
                                                   {:key key
@@ -336,7 +339,7 @@
                                                    :popper-anchor-el (get @refs key)
                                                    :section-name section-name})}
                     [mui-icon-edit-outlined]]]
-                  [mui-tooltip  {:title (t/lstr-l 'deleteField) :enterDelay 2500}
+                  [mui-tooltip  {:title (lstr-l 'deleteField) :enterDelay 2500}
                    [mui-icon-button {:edge "end"
                                      :on-click #(form-events/field-delete section-name key)}
                     [mui-icon-delete-outline]]]])])))
@@ -480,7 +483,7 @@
           [mui-stack {:direction "row"
                       :sx {:width "10%"
                            :justify-content "flex-end"}}
-           [mui-tooltip {:title (t/lstr-l 'uploadFile)}
+           [mui-tooltip {:title (lstr-l 'uploadFile)}
             [mui-icon-button {:edge "end" :color "primary"
                               :on-click #(form-events/upload-attachment-start)}
              [mui-icon-add-circle-outline-outlined]]]])]
@@ -506,12 +509,12 @@
                                       :sx {:width "10%"
                                            :align-items "flex-end"
                                            :justify-content "flex-end"}}
-                           [mui-tooltip  {:title (t/lstr-l 'view) :enterDelay 2500}
+                           [mui-tooltip  {:title (lstr-l 'view) :enterDelay 2500}
                             [mui-icon-button {:sx {:margin-right 0}
                                               :edge "end"
                                               :on-click #(form-events/view-attachment value data-hash)}
                              [mui-icon-article-outlined]]]
-                           [mui-tooltip  {:title (t/lstr-l 'saveAs) :enterDelay 2500}
+                           [mui-tooltip  {:title (lstr-l 'saveAs) :enterDelay 2500}
                             [mui-icon-button {:sx {:margin-right 0}
                                               :edge "end"
                                               :on-click #(form-events/save-attachment value data-hash)}
@@ -528,7 +531,7 @@
                                       :sx {:width "8%"
                                            :align-items "flex-end"
                                            :justify-content "flex-end"}}
-                           [mui-tooltip  {:title (t/lstr-l 'delete) :enterDelay 2500}
+                           [mui-tooltip  {:title (lstr-l 'delete) :enterDelay 2500}
                             [mui-icon-button {:sx {:margin-right 0}
                                               :edge "end"
                                               :on-click #(form-events/attachment-delete-confirm-dialog-open data-hash)}
@@ -547,14 +550,14 @@
                          (reset! comp-ref e))}
          [mui-stack {:direction "row" :sx {:justify-content "center"}}
           [mui-stack {:direction "row"}
-           [mui-tooltip  {:title (t/lstr-l 'addSectionAndFields) :enterDelay 2500}
+           [mui-tooltip  {:title (lstr-l 'addSectionAndFields) :enterDelay 2500}
             [mui-icon-button {:edge "end"
                               :on-click #(form-events/open-section-name-dialog @comp-ref)
                               #_(fn [^js/Event _e]
                                   (reset! anchor-el @comp-ref #_(-> e .-currentTarget)))}
              [mui-icon-add-circle-outline-outlined]]]]
           [mui-stack {:direction "row" :sx {:align-items "center" :margin-left "10px"}}
-           [mui-tooltip  {:title (t/lstr-l 'addSectionAndFields) :enterDelay 2500}
+           [mui-tooltip  {:title (lstr-l 'addSectionAndFields) :enterDelay 2500}
             [mui-link {:sx {:color "primary.dark"}
                        :underline "hover"
                        :on-click  #(form-events/open-section-name-dialog @comp-ref)
@@ -650,11 +653,11 @@
              [mui-button {:variant "contained"
                           :color "secondary"
                           :on-click #(move-events/move-group-entry-dialog-show :entry true)}
-              (t/lstr-ml 'putBack)]
+              (lstr-ml 'putBack)]
              [mui-button {:variant "contained"
                           :color "secondary"
                           :on-click #(move-events/delete-permanent-group-entry-dialog-show :entry true)}
-              (t/lstr-ml 'deletePermanent)]
+              (lstr-ml 'deletePermanent)]
              [mui-button {:variant "contained"
                           :color "secondary"
                           :on-click form-events/close-on-click}
@@ -664,7 +667,7 @@
             [:<>
              [mui-button {:variant "contained"
                           :color "secondary"
-                          :on-click form-events/entry-update-cancel-on-click} (t/lstr-bl 'cancel)]
+                          :on-click form-events/entry-update-cancel-on-click} (lstr-bl 'cancel)]
              [mui-button {:variant "contained"
                           :color "secondary"
                           :disabled  (not @(form-events/modified))
@@ -684,16 +687,16 @@
                [mui-button {:variant "contained"
                             :color "secondary"
                             :on-click #(move-events/move-group-entry-dialog-show :entry true)}
-                (t/lstr-ml 'putBack)]
+                (lstr-ml 'putBack)]
                [mui-button {:variant "contained"
                             :color "secondary"
                             :on-click #(move-events/delete-permanent-group-entry-dialog-show :entry true)}
-                (t/lstr-ml 'deletePermanent)]])
+                (lstr-ml 'deletePermanent)]])
           #_(if edit
               [:<>
                [mui-button {:variant "contained"
                             :color "secondary"
-                            :on-click form-events/entry-update-cancel-on-click} (t/lstr-bl 'cancel)]
+                            :on-click form-events/entry-update-cancel-on-click} (lstr-bl 'cancel)]
                [mui-button {:variant "contained"
                             :color "secondary"
                             :disabled  (not @(form-events/modified))
@@ -723,7 +726,7 @@
        ;; Lauched by menu action with dispatch event call in 'move-group-entry-dialog-show' 
        [gt-content/move-dialog
         {:dialog-data @(move-events/move-group-entry-dialog-data :entry)
-         :title (t/lstr-dlg-title 'putBack)
+         :title (lstr-dlg-title 'putBack)
          :groups-listing @(form-events/groups-listing)
          :selected-entry-uuid entry-uuid
          :on-change (move-events/move-group-entry-group-selected-factory :entry)
@@ -771,7 +774,7 @@
                    :sx {:width "10%"
                         :align-items "center"
                         :justify-content "center"}}
-        [mui-tooltip {:title (t/lstr-l 'addCustomEntryType) :enterDelay 2500}
+        [mui-tooltip {:title (lstr-l 'addCustomEntryType) :enterDelay 2500}
          [mui-icon-button {:edge "end"
                            :color "primary"
                            :on-click form-events/new-custom-entry-type}
@@ -815,9 +818,9 @@
       [mui-stack {:sx {:align-items "flex-end"}}
        [:div.buttons1
         [mui-button {:variant "contained" :color "secondary"
-                     :on-click form-events/new-entry-cancel-on-click} (t/lstr-bl 'cancel)]
+                     :on-click form-events/new-entry-cancel-on-click} (lstr-bl 'cancel)]
         [mui-button {:variant "contained" :color "secondary"
-                     :on-click form-events/ok-new-entry-add} (t/lstr-bl 'ok)]]]]
+                     :on-click form-events/ok-new-entry-add} (lstr-bl 'ok)]]]]
 
      [add-modify-section-popper @(form-events/section-name-dialog-data)]
      [add-modify-section-field-dialog @(form-events/section-field-dialog-data)]
@@ -884,7 +887,7 @@
                                          :placeholder "Some field value"
                                          :on-change-handler #())]]
                      [mui-stack {:direction "row" :sx {:width "8%" :align-items "flex-end"}}
-                      [mui-tooltip  {:title (t/lstr-l 'modifyField) :enterDelay 2500}
+                      [mui-tooltip  {:title (lstr-l 'modifyField) :enterDelay 2500}
                        [mui-icon-button {:edge "end"
                                          :on-click  #(form-events/open-section-field-modify-dialog
                                                       {:key key
@@ -892,7 +895,7 @@
                                                        :required required
                                                        :section-name section-name})}
                         [mui-icon-edit-outlined]]]
-                      [mui-tooltip  {:title (t/lstr-l 'deleteField) :enterDelay 2500}
+                      [mui-tooltip  {:title (lstr-l 'deleteField) :enterDelay 2500}
                        [mui-icon-button {:edge "end"
                                          :on-click #(form-events/field-delete section-name key)}
                         [mui-icon-delete-outline]]]]]))
@@ -943,7 +946,7 @@
                        :align-items "center"}}
        [mui-typography {:align "center"
                         :paragraph false
-                        :variant "subtitle1"} "Icon"]
+                        :variant "subtitle1"} (tr-l "icons")]
        [mui-icon-button {:edge "end" :color "primary" :sx {}
                          :on-click  show-icons-dialog}
         [entry-type-icon entry-type-name entry-type-icon-name]]]
@@ -979,7 +982,7 @@
     [mui-stack {:sx {:align-items "flex-end"}}
      [:div.buttons1
       [mui-button {:variant "contained" :color "secondary"
-                   :on-click form-events/cancel-new-custom-entry-type} (t/lstr-bl 'cancel)]
+                   :on-click form-events/cancel-new-custom-entry-type} (lstr-bl 'cancel)]
       [mui-button {:variant "contained" :color "secondary"
                    :on-click form-events/create-custom-entry-type} (tr-bl create)]]]]
 
@@ -1173,11 +1176,11 @@
          [mui-button {:variant "text"
                       :sx popper-button-sx
                       :on-click  (fn [_e]
-                                   (form-events/section-field-dialog-update :dialog-show false))} (t/lstr-bl 'cancel)]
+                                   (form-events/section-field-dialog-update :dialog-show false))} (lstr-bl 'cancel)]
          [mui-button {:sx popper-button-sx
                       :variant "text"
                       :on-click ok-fn}
-          (t/lstr-bl 'ok)]]]]))
+          (lstr-bl 'ok)]]]]))
 
 #_(defn custom-field-dialog [{:keys [dialog-show
                                      field-name
@@ -1219,7 +1222,7 @@
                         [mui-alert-title "Success"] "Custom field added. You can add more field or cancel to close"]])]]
      [mui-dialog-actions
       [mui-button {:variant "contained" :color "secondary"
-                   :on-click form-events/close-custom-field-dialog} (t/lstr-bl 'cancel)]
+                   :on-click form-events/close-custom-field-dialog} (lstr-bl 'cancel)]
       (if (= mode :add)
         [mui-button {:variant "contained" :color "secondary"
                      :on-click #(form-events/custom-field-add (select-keys m [:field-name :field-value :protected :data-type]))} "Add"]
