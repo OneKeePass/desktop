@@ -16,7 +16,7 @@
 - Backup file naming normalised and adjusted
 - Additional translations of texts
     - Italian — Thanks to contributors
-    - Russian — Thanks to contributors
+    - Russian — Thanks [yudindm](https://github.com/yudindm)
 
 #### Fixed
 - Tree View duplicate UUIDs causing crashes resolved
