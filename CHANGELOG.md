@@ -24,6 +24,7 @@
 - Group tree view stability improved by adding React error boundaries
 - Group tree mount/unmount issue on group move action fixed
 - Group form refactored to include UUID and corrected display when showing read-only details
+- Password content visibility in multiline fields fixed
 
 ### 0.19.0
 - Added Passkey support and browser integration/proxy modules updated accordingly
