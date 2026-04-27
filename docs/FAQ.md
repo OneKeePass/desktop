@@ -147,9 +147,33 @@ After opening a database, you can use the application menu "Database -> Merge Da
 
 Then choose any of a valid keepass database file to merge with the currently opened file
 
-## Does import of any exported passwords from another application ?
+## Can I import passwords from other password managers?
 
-Yes. But only a generic comma separated values can now be imported into OneKeePass. 
+Yes. OneKeePass supports a basic importing passwords from CSV (Comma Separated Values) files. This is useful when migrating from another password manager or importing passwords you have exported.
+
+**How to import a CSV file:**
+
+1. Open or create a database where you want to import the passwords
+2. Use the menu option **Database -> Import from CSV**
+3. Select the CSV file you want to import
+4. OneKeePass will process the CSV file and create entries in your database
+
+**CSV file format:**
+
+Your CSV file should contain password data with appropriate columns. The first row should contain column headers. Common column names include:
+- `Title` or `Name` - entry title
+- `UserName` or `Username` - username/login
+- `Password` - password
+- `URL` or `Url` - website URL
+- `Notes` - additional notes or comments
+
+**Supported features:**
+
+- Multiple entries can be imported in a single CSV file
+- Standard password fields (title, username, password, URL, notes) are recognized
+- Additional custom fields can be included and will be created as part of the entry
+
+**Note:** OneKeePass currently imports generic CSV formats. If you're exporting from another password manager, you may need to format the export to match the expected CSV structure, or the exported file may already be in a compatible format. 
 
 
 ## Does OneKeePass provide any Browser Extension?
@@ -169,6 +193,38 @@ Application Settings -> Browser Integration -> Enable browser Integration -> Ena
   <br>
 </h1>
 </details>
+
+## How can I quickly reopen recently used databases?
+
+OneKeePass maintains a list of recently opened databases. You can access this list from the **File -> Open Recent** menu option. This allows you to quickly reopen databases you frequently use without having to navigate to their file locations.
+
+## Can I manage multiple databases at the same time?
+
+Yes. You can open multiple databases, and each one appears in its own tab. You can easily switch between databases by clicking on the tabs. Tabs can be rearranged by dragging and dropping them to your preferred order.
+
+## How can I clone an entry to another database?
+
+When you have multiple databases open, you can clone an entry from one database to another. Right-click on an entry in the entry list and select **Clone to Database** from the context menu. Choose the destination database from the list, and the entry will be copied to that database. This is useful for sharing entries across databases without manually recreating them.
+
+## How can I move entries between groups using drag and drop?
+
+You can select one or more entries and drag them to a different group in the group tree. Simply click and hold on a selected entry (or multiple selected entries) and drag them over the target group. The target group will be highlighted to indicate where the entries will be moved.
+
+## What happens if my database file is changed externally?
+
+OneKeePass automatically detects when a database file is modified by another application or instance. When this happens, the changes are automatically merged into your current session. You'll be notified of any conflicts, and the changes are seamlessly integrated into your open database.
+
+## How do I configure database backups?
+
+You can configure backup settings using the **File Management** panel accessible from the application menu. Here you can:
+- Enable or disable automatic backup file creation
+- Specify the directory where backup files should be stored
+
+Backups are created whenever you save changes to your database.
+
+## How do I merge two open databases?
+
+If you have two similar databases open, you can merge them together. Use the application menu **Database -> Merge Database...** option. OneKeePass will combine entries and groups from both databases. This is particularly useful when you want to consolidate multiple password databases into one.
 
 ## Can I use OneKeePass to autofill passwords or use passkeys on websites?
 
