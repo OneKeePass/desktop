@@ -297,6 +297,22 @@ impl AppState {
     }
 }
 
+fn format_os_version(info: &os_info::Info) -> String {
+    let version_str = info.version().to_string();
+
+    if info.os_type() == os_info::Type::Windows {
+        if let Some(build_str) = version_str.split('.').nth(2) {
+            if let Ok(build) = build_str.parse::<u32>() {
+                if build >= 22000 {
+                    return "11".to_string();
+                }
+            }
+        }
+    }
+
+    version_str
+}
+
 #[derive(Serialize, Deserialize)]
 pub(crate) struct StandardDirs {
     document_dir: Option<String>,
@@ -324,7 +340,7 @@ impl SystemInfoWithPreference {
         let pref = app_state.preference.lock().unwrap();
 
         let os_name = std::env::consts::OS.into();
-        let os_version = os_info::get().version().to_string();
+        let os_version = format_os_version(&os_info::get());
         let arch = std::env::consts::ARCH.to_string();
 
         info!(
