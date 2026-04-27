@@ -4,7 +4,7 @@ use log::info;
 use onekeepass_core::db_service as kp_service;
 use serde::{Deserialize, Serialize};
 use tauri::menu::{
-  AboutMetadata, MenuBuilder, MenuEvent, MenuItem, MenuItemBuilder, Submenu, SubmenuBuilder,
+  MenuBuilder, MenuEvent, MenuItem, MenuItemBuilder, Submenu, SubmenuBuilder,
 };
 use tauri::{AppHandle, Emitter, Runtime};
 
@@ -28,7 +28,10 @@ pub mod menu_ids {
   pub const LOCK_DATABASE: &str = "LockDatabase";
   pub const LOCK_ALL_DATABASES: &str = "LockAllDatabases";
 
+  pub const OPEN_RECENT: &str = "OpenRecent";
+
   pub const MERGE_DATABASE: &str = "MergeDatabase";
+  pub const MERGE_OPENED_DATABASES: &str = "MergeOpenedDatabases";
   pub const IMPORT: &str = "Import";
 
   pub const NEW_GROUP: &str = "NewGroup";
@@ -38,12 +41,13 @@ pub mod menu_ids {
   pub const NEW_ENTRY: &str = "NewEntry";
   pub const EDIT_ENTRY: &str = "EditEntry";
   pub const PASSWORD_GENERATOR: &str = "PasswordGenerator";
+
+  pub const ABOUT: &str = "About";
 }
 use menu_ids::*;
 
 pub(crate) fn build_menus<R: Runtime>(app_handle: &AppHandle<R>) -> Result<(), tauri::Error> {
   let app_name = "OneKeePass";
-  let about_name = "About OneKeePass";
 
   let pref_str = app_state::read_preference_file();
   let language = app_state::read_language_selection(&pref_str);
@@ -62,11 +66,13 @@ pub(crate) fn build_menus<R: Runtime>(app_handle: &AppHandle<R>) -> Result<(), t
     .accelerator("CmdOrControl+Q")
     .build(app_handle)?;
 
-  // let mut ab = AboutMetadata::default();
-  // ab.name = Some(app_name.to_string());
+  let about_menu_item =
+    MenuItemBuilder::new(system_menu_translation.sub_menu(ABOUT, "About OneKeePass"))
+      .id(ABOUT)
+      .build(app_handle)?;
 
   let app_submenu = SubmenuBuilder::with_id(app_handle, app_name, app_name)
-    .about_with_text(about_name, Some(AboutMetadata::default()))
+    .item(&about_menu_item)
     .separator()
     .item(&app_settings)
     .separator()
@@ -135,6 +141,13 @@ fn build_database_menus<R: Runtime>(
     )?,
     &MenuItem::with_id(
       app_handle,
+      OPEN_RECENT,
+      system_menu_translation.sub_menu(OPEN_RECENT, "Open Recent"),
+      true,
+      None::<&str>,
+    )?,
+    &MenuItem::with_id(
+      app_handle,
       SAVE_DATABASE,
       system_menu_translation.sub_menu(SAVE_DATABASE, "Save Database"),
       false,
@@ -185,6 +198,13 @@ fn build_database_menus<R: Runtime>(
       app_handle,
       MERGE_DATABASE,
       system_menu_translation.sub_menu(MERGE_DATABASE, "Merge Database..."),
+      false,
+      None::<&str>,
+    )?,
+    &MenuItem::with_id(
+      app_handle,
+      MERGE_OPENED_DATABASES,
+      system_menu_translation.sub_menu(MERGE_OPENED_DATABASES, "Merge Opened Databases"),
       false,
       None::<&str>,
     )?,
@@ -367,7 +387,7 @@ pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app_handle:
       toggle_enable_disable(app_handle, MAIN_MENU_EDIT, menu_id, menu_enabled);
     }
     LOCK_DATABASE | LOCK_ALL_DATABASES | CLOSE_DATABASE | SAVE_DATABASE | SAVE_DATABASE_AS
-    | SAVE_DATABASE_BACKUP | MERGE_DATABASE => {
+    | SAVE_DATABASE_BACKUP | MERGE_DATABASE | MERGE_OPENED_DATABASES  => {
       toggle_enable_disable(app_handle, MAIN_MENU_DATABASE, menu_id, menu_enabled);
     }
     EDIT_ENTRY | NEW_ENTRY => {

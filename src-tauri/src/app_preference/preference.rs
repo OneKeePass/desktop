@@ -4,9 +4,7 @@ use crate::app_preference::password_gen_preference::PasswordGeneratorPreference;
 
 use crate::app_preference::{BackupPreference, PreferenceData};
 
-use crate::app_preference::browser_ext_preference::{
-    BrowserExtSupport, BrowserExtSupportData,
-};
+use crate::app_preference::browser_ext_preference::{BrowserExtSupport, BrowserExtSupportData};
 
 use crate::{
     app_paths::app_backup_dir,
@@ -22,7 +20,7 @@ use serde::{Deserialize, Serialize};
 /////
 // To be Removed
 // Old preference used in the earlier version v0.14.0
-/* 
+/*
 #[derive(Clone, Serialize, Deserialize, Debug)]
 struct Preference2 {
     pub(crate) version: String,
@@ -100,12 +98,11 @@ pub(crate) struct Preference {
 
     // Introduced browser ext releated preference in v0.17.0
     browser_ext_support: BrowserExtSupport,
-
     // For now this feature is not used in the UI
     // This will be used in future to allow user to select which database to use with browser extension
     // Typically user will enable browser ext support for one or more databases in the database settings
     // When user enables browser ext support for a database, we will add that database key to this list
-    // and remove when user disables the browser ext support for that database   
+    // and remove when user disables the browser ext support for that database
     // browser_ext_supported_databases: Vec<DatabaseBrowserExtSupport>,
 }
 
@@ -115,7 +112,7 @@ impl Default for Preference {
             // Same as in tauri.conf.json. This is for doc purpose only as
             // this will be reset to the latest version from tauri.conf.json
             // after parsing the toml pref file in read_toml and pref file is updated accordingly
-            version: "0.19.0".into(),
+            version: "0.20.0".into(),
             session_timeout: (15 as u8),
             clipboard_timeout: (30 as u16),
             theme: LIGHT.into(),
@@ -126,14 +123,20 @@ impl Default for Preference {
             password_gen_preference: PasswordGeneratorPreference::default(),
 
             browser_ext_support: BrowserExtSupport::default(),
-
-            
             // browser_ext_supported_databases: vec![],
         }
     }
 }
 
 impl Preference {
+    fn is_pre_0_20_version(version: &str) -> bool {
+        let mut parts = version.split('.');
+        let major = parts.next().and_then(|v| v.parse::<u32>().ok());
+        let minor = parts.next().and_then(|v| v.parse::<u32>().ok());
+
+        matches!((major, minor), (Some(0), Some(m)) if m < 20)
+    }
+
     // Reads the previously stored preference if any and returns the newly created Preference instance
     pub(crate) fn read_toml(version: String) -> Self {
         // As read_toml is called before log setup, any log calls will not work.
@@ -189,6 +192,14 @@ impl Preference {
         if pref.version != version {
             // The read preference from file system has version which is not the same as current one
             // So we need to write the new one
+
+            // This is a temporary arrangement. 
+            // Should it be removed after 4 or 5 future releases?
+            if Self::is_pre_0_20_version(&pref.version) {
+                pref.backup.enabled = false;
+                pref.backup.dir = None;
+            }
+
             pref.version = version;
             pref.write_toml();
         }
@@ -223,7 +234,7 @@ impl Preference {
     // The arg pref_file_content_str is the previously read preference.toml as string
     pub(crate) fn read_language_selection(pref_file_content_str: &str) -> Option<String> {
         // log::debug!("In read_language_selection: pref_file_content_str {}",pref_file_content_str);
-        
+
         // let tvalue = pref_file_content_str.parse::<toml::Table>().unwrap();
         // log::debug!("In read_language_selection: toml value {:?}", &tvalue);
 
@@ -232,7 +243,7 @@ impl Preference {
         // log::debug!("In read_language_selection: language {:?}", &lv);
 
         // Parsing with toml::Value and extracting 'language' from preference did not work
-        // However, using toml::Table worked 
+        // However, using toml::Table worked
         // Ref https://docs.rs/toml/latest/toml/#parsing-toml
         if let Ok(value) = pref_file_content_str.parse::<toml::Table>() {
             if let Some(s) = value.get("language") {
@@ -295,6 +306,11 @@ impl Preference {
             updated = true;
         }
 
+        if let Some(v) = preference_data.backup {
+            self.backup = v;
+            updated = true;
+        }
+
         if let Some(v) = preference_data.pass_phrase_options {
             self.password_gen_preference.update_pass_phrase_options(v);
             updated = true;
@@ -307,7 +323,6 @@ impl Preference {
 
         // For now this feature is not used in the UI
         // This will be used in future to allow user to select which database to use with browser extension
-        
 
         // if let Some(v) = preference_data.browser_ext_supported_databases {
         //     self.browser_ext_supported_databases = v;
@@ -400,5 +415,23 @@ impl Preference {
                 log::error!("Prefernce write failed and error is {}", err.to_string());
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Preference;
+
+    #[test]
+    fn pre_0_20_versions_are_detected() {
+        assert!(Preference::is_pre_0_20_version("0.19.9"));
+        assert!(Preference::is_pre_0_20_version("0.18.3"));
+    }
+
+    #[test]
+    fn version_0_20_and_later_are_not_detected_as_older() {
+        assert!(!Preference::is_pre_0_20_version("0.20.0"));
+        assert!(!Preference::is_pre_0_20_version("0.21.1"));
+        assert!(!Preference::is_pre_0_20_version("1.0.0"));
     }
 }

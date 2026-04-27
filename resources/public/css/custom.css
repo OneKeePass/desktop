@@ -93,9 +93,6 @@ body {
   font-size: 1.25em;
 }
 
-.pwd-dlg-root, .group-form-flg-root {
-  width: 85%;
-}
 
 .custom-field-dlg-root {
   width: 40%;

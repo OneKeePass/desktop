@@ -159,6 +159,11 @@ pub(crate) async fn load_kdbx(
         .unwrap()
         .add_recent_file(db_file_name);
 
+    // Start watching for external changes on successful open
+    if r.is_ok() {
+        app_state.db_file_watcher.start_watching(db_file_name);
+    }
+
     Ok(r?)
 }
 
@@ -223,6 +228,15 @@ pub(crate) async fn clear_recent_files(app_state: State<'_, app_state::AppState>
     Ok(app_state.clear_recent_files())
 }
 
+// remove_recent_file
+#[tauri::command]
+pub(crate) async fn remove_recent_file(
+    file_name: &str,
+    app_state: State<'_, app_state::AppState>,
+) -> Result<()> {
+    Ok(app_state.remove_recent_file(file_name))
+}
+
 #[tauri::command]
 pub(crate) async fn get_db_settings(db_key: &str) -> Result<kp_service::DbSettings> {
     Ok(kp_service::get_db_settings(db_key)?)
@@ -275,6 +289,51 @@ pub(crate) async fn move_entry_to_recycle_bin(db_key: &str, entry_uuid: Uuid) ->
 #[command]
 pub(crate) async fn move_entry(db_key: &str, entry_uuid: Uuid, new_parent_id: Uuid) -> Result<()> {
     Ok(kp_service::move_entry(db_key, entry_uuid, new_parent_id)?)
+}
+
+#[command]
+pub(crate) async fn move_entry_to_other_db(
+    source_db_key: &str,
+    entry_uuid: Uuid,
+    target_db_key: &str,
+    target_parent_group_uuid: Uuid,
+) -> Result<kp_service::CrossDbMoveSummary> {
+    Ok(kp_service::move_entry_to_other_db(
+        source_db_key,
+        &entry_uuid,
+        target_db_key,
+        &target_parent_group_uuid,
+    )?)
+}
+
+#[command]
+pub(crate) async fn move_group_to_other_db(
+    source_db_key: &str,
+    group_uuid: Uuid,
+    target_db_key: &str,
+    target_parent_group_uuid: Uuid,
+) -> Result<kp_service::CrossDbMoveSummary> {
+    Ok(kp_service::move_group_to_other_db(
+        source_db_key,
+        &group_uuid,
+        target_db_key,
+        &target_parent_group_uuid,
+    )?)
+}
+
+#[command]
+pub(crate) async fn clone_entry_to_other_db(
+    source_db_key: &str,
+    entry_uuid: Uuid,
+    target_db_key: &str,
+    target_parent_group_uuid: Uuid,
+) -> Result<kp_service::CrossDbCloneSummary> {
+    Ok(kp_service::clone_entry_to_other_db(
+        source_db_key,
+        &entry_uuid,
+        target_db_key,
+        &target_parent_group_uuid,
+    )?)
 }
 
 #[command]
@@ -572,6 +631,22 @@ pub(crate) async fn save_attachment_as_temp_file(
 }
 
 #[command]
+pub(crate) async fn open_attachment_temp_file(file_path: &str) -> Result<()> {
+    let requested = std::path::PathBuf::from(file_path);
+    let canonical = std::fs::canonicalize(&requested)
+        .map_err(|e| format!("Invalid attachment path: {e}"))?;
+
+    let allowed_root = std::fs::canonicalize(std::env::temp_dir().join("okp_cache"))
+        .map_err(|e| format!("okp_cache dir not available: {e}"))?;
+
+    if !canonical.starts_with(&allowed_root) {
+        return Err("Attachment path is outside the allowed temp directory".into());
+    }
+
+    open::that_detached(&canonical).map_err(|e| format!("Failed to open file: {e}"))
+}
+
+#[command]
 pub(crate) async fn save_attachment_as(
     db_key: &str,
     full_file_name: &str,
@@ -643,8 +718,32 @@ pub(crate) async fn save_all_modified_dbs(
 }
 
 #[command]
-pub(crate) async fn close_kdbx(db_key: &str) -> Result<()> {
+pub(crate) async fn close_kdbx(
+    db_key: &str,
+    app_state: State<'_, app_state::AppState>,
+) -> Result<()> {
+    app_state.db_file_watcher.stop_watching(db_key);
     kp_service::close_kdbx(db_key)?;
+    app_state.remove_app_home_backup_file(db_key);
+    Ok(())
+}
+
+#[command]
+pub(crate) async fn merge_kdbx_with_disk_version(
+    db_key: &str,
+    app_state: State<'_, app_state::AppState>,
+) -> Result<kp_service::MergeResult> {
+    let result = kp_service::merge_kdbx_with_disk_version(db_key)?;
+    app_state.db_file_watcher.clear_notification_pending(db_key);
+    Ok(result)
+}
+
+#[command]
+pub(crate) async fn acknowledge_db_file_change(
+    db_key: &str,
+    app_state: State<'_, app_state::AppState>,
+) -> Result<()> {
+    app_state.db_file_watcher.clear_notification_pending(db_key);
     Ok(())
 }
 

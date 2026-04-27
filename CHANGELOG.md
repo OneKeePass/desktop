@@ -1,3 +1,31 @@
+### 0.20.0
+
+#### Changes
+- Recently opened databases list added — quickly reopen previously used databases from the menu; old entries can be removed from the list
+- Tabs can now be rearranged by drag and drop
+- Entries can be selected and moved to a different group using drag and drop
+- Right-click context menus added for entry list items — separate menus for single and multi-selection
+- An entry can now be cloned to another open database (cross-database cloning)
+- Merge Opened Databases option added — allows merging two databases that are currently open
+- External database change detection and auto-merge: if the database file is changed externally by another instance or sync tool, the changes are detected and merged automatically
+- File Management panel added — configure backup file flag and the directory where backups are stored
+- Clipboard timeout now also applies when copying protected fields via the system menu
+- Moving a group or entry to a copy of the same database is now prevented; the user is advised to use Merge Database instead
+- Destination database list in Move Entry dialog now marks the current database for clarity
+- Tab tooltip shows the full database file path
+- Backup file naming normalised and adjusted
+- Additional translations of texts
+    - Italian — Thanks to contributors
+    - Russian — Thanks [yudindm](https://github.com/yudindm)
+
+#### Fixed
+- Tree View duplicate UUIDs causing crashes resolved
+- Split-pane auto-expansion beyond `maxSize` fixed
+- Group tree view stability improved by adding React error boundaries
+- Group tree mount/unmount issue on group move action fixed
+- Group form refactored to include UUID and corrected display when showing read-only details
+- Password content visibility in multiline fields fixed
+
 ### 0.19.0
 - Added Passkey support and browser integration/proxy modules updated accordingly
 - With the latest OneKeePass-Browser extension, user should be able to create a passkey for any site that allows passkey creation and similarly can do passkey authentication

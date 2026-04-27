@@ -1,38 +1,18 @@
-alias r := run-repl
-alias acs := advanced-compile-start-server
+
 alias td := run-tauri-dev
-
-# Using 'just run-repl' will start nrepl server and then we need to click jack-in or connect to the REPL server
-# in MS Code to start the cljs compiling and connect to the REPL 
-run-repl:
-    clojure  -M:frontend:fw:nrepl
-
-# Before calling target 'run-tauri-dev', we need to do the above 'just run-repl' in a terminal and
-# then do the following in another terminal
 
 # We need to use 'tauri dev' with feature 'onekeepass-dev' enabled
 # Expecting the front end http server is running or will wait for it to start 
 run-tauri-dev:
     cargo tauri dev -f onekeepass-dev
 
-# Compiles the UI code in advanced mode 
-# Bundles cljs compiled code and all dependent packages 
-# using webpack (--mode=production) to /desktop/target/public/cljs-out/dev/main_bundle.js
-# And then starts the http server 
-# Once the http server starts, we can then use 'just td' to connect to this build
-advanced-compile-start-server:
-    clojure -M:frontend:fw  -m figwheel.main -O advanced  -bo dev -s
+# Compiles the cljs UI code during devtime
+compile-cljs:
+    just -f ./src-cljs/justfile shadow-cljs-compile
 
-advanced-compile:
-    clojure -M:frontend:fw  -m figwheel.main -O advanced  -bo dev
-
-## Default is now "simple" instead of "advanced", because of issue with compiling of the package 'react-window'
-## See the comments in src/main/onekeepass/frontend/mui_components.cljs
-build-cljs-bundle type="simple":
-    rm -rf target
-    clojure -M:frontend:fw  -m figwheel.main -O {{type}} -bo dev
-    mkdir  -p ./resources/public/cljs-out/dev
-    cp  ./target/public/cljs-out/dev/main_bundle.js  ./resources/public/cljs-out/dev/main_bundle.js
+# Compiles the cljs UI code for the production release build (avanced mode)
+build-cljs-bundle:
+    just -f ./src-cljs/justfile shadow-cljs-clean-release
 
 mac-aarch64-bundle-build-only:
     #!/usr/bin/env bash

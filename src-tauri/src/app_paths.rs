@@ -19,6 +19,9 @@ pub(crate) fn init_app_paths() {
 
   if !backups_dir.exists() {
     let _ = fs::create_dir_all(&backups_dir);
+  } else {
+    // Internal app-home backups are transient and should not survive app restarts.
+    let _r = file_util::remove_dir_files(&backups_dir);
   }
 
   if !log_dir.exists() {

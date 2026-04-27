@@ -1,0 +1,39 @@
+alias shcr := shadow-cljs-clean-watch
+alias shre := shadow-cljs-clean-release
+alias shres := shadow-cljs-release-serve
+## As we are using npx, we may not need package.json in src-cljs dir
+## We may see this WARNING: shadow-cljs not installed in project
+
+## We are using explicitly installed shadow-cljs in this project
+
+## Another options is to use npx 
+shadow_cljs_version := "3.4.4"
+## npx shadow-cljs@{{shadow_cljs_version}} compile app
+
+shadow_cljs_bin := "../node_modules/.bin/shadow-cljs"
+
+shadow-cljs-compile:
+    # npx shadow-cljs compile app
+    {{shadow_cljs_bin}} compile app
+
+shadow-cljs-clean-compile:
+    rm -rf ../resources/public/cljs-out/dev
+    {{shadow_cljs_bin}} compile app
+
+shadow-cljs-clean-watch:
+    rm -rf ../resources/public/cljs-out/dev
+    npx shadow-cljs@{{shadow_cljs_version}} watch app
+    ## {{shadow_cljs_bin}} watch app
+
+shadow-cljs-clean-release:
+    rm -rf ../resources/public/cljs-out/dev
+    {{shadow_cljs_bin}} release app
+
+# Compiles the UI code in advanced mode 
+# Bundles cljs compiled code and all dependent packages 
+# And then starts the http server 
+# Once the http server starts, we can then use 'just td' to connect to this build
+shadow-cljs-release-serve:
+    rm -rf ../resources/public/cljs-out/dev
+    {{shadow_cljs_bin}} release app
+    cd ../resources/public && python3 -m http.server 9500

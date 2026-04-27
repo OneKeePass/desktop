@@ -25,7 +25,8 @@ pom.xml.asc
 .lsp/
 .calva/
 .cpcache/
-.clj-kondo/.cache
+**/.clj-kondo/.cache
+**/.clj-kondo/imports
 src/.clj-kondo/.cache/
 .rebel_readline_history
 figwheel-main.log.lck

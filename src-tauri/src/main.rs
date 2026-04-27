@@ -7,6 +7,7 @@ mod app_paths;
 mod app_preference;
 mod app_state;
 mod auto_open;
+mod db_file_watcher;
 mod auto_type;
 mod biometric;
 mod browser_service;
@@ -33,6 +34,7 @@ pub type Result<T> = std::result::Result<T, String>;
 struct WindowEventPayload {
   action: String,
   focused: Option<bool>,
+  file_path: Option<String>,
 }
 
 impl WindowEventPayload {
@@ -40,6 +42,7 @@ impl WindowEventPayload {
     Self {
       action: action.to_string(),
       focused: None,
+      file_path: None,
     }
   }
 }
@@ -79,6 +82,7 @@ fn main() {
     .invoke_handler(tauri::generate_handler![
   
       // Sorted alphabetically
+      commands::acknowledge_db_file_change,
       commands::active_window_to_auto_type,
       commands::analyzed_password,
       commands::authenticate_with_biometric,
@@ -125,10 +129,14 @@ fn main() {
       commands::mark_group_as_category,
       commands::menu_action_requested,
       commands::merge_databases,
+      commands::merge_kdbx_with_disk_version,
       // commands::menu_titles_change_requested,
+      commands::clone_entry_to_other_db,
       commands::move_entry,
+      commands::move_entry_to_other_db,
       commands::move_entry_to_recycle_bin,
       commands::move_group,
+      commands::move_group_to_other_db,
       commands::move_group_to_recycle_bin,
       commands::new_blank_group,
       commands::new_entry_form_data,
@@ -140,9 +148,11 @@ fn main() {
       commands::reload_kdbx,
       commands::remove_entry_permanently,
       commands::remove_group_permanently,
+      commands::remove_recent_file,
       commands::resolve_auto_open_properties,
       commands::save_all_modified_dbs,
       commands::save_as_kdbx,
+      commands::open_attachment_temp_file,
       commands::save_attachment_as_temp_file,
       commands::save_attachment_as,
       commands::save_kdbx,
@@ -213,6 +223,20 @@ fn main() {
           // use the exposed close api, and prevent the event loop to close
           // The window will be closed when UI side finally send the "Quit" event
           api.prevent_close();
+        }
+        tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) => {
+          // Find the first .kdbx file in the dropped paths
+          if let Some(kdbx_path) = paths.iter().find(|p| {
+            p.extension()
+              .map(|ext| ext.eq_ignore_ascii_case("kdbx"))
+              .unwrap_or(false)
+          }) {
+            let app_handle = app_handle.clone();
+            let window = app_handle.get_webview_window(&label).unwrap();
+            let mut payload = WindowEventPayload::new(FILE_DROP);
+            payload.file_path = Some(kdbx_path.to_string_lossy().to_string());
+            let _r = window.emit(MAIN_WINDOW_EVENT, payload);
+          }
         }
         _ => {}
       }

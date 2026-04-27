@@ -110,21 +110,18 @@ pub(crate) struct AppState {
     // Here we're using an Arc to share memory among threads,
     // and the data - Preference struct - inside the Arc is protected with a mutex.
     pub(crate) preference: Arc<Mutex<Preference>>,
-    backup_files: Mutex<HashMap<String, String>>,
     timers_init_completed: Mutex<bool>,
     resource_dir_path: Mutex<Option<PathBuf>>,
+    pub(crate) db_file_watcher: crate::db_file_watcher::DbFileWatcherState,
 }
 
 impl AppState {
     pub(crate) fn new() -> Self {
         Self {
             preference: Arc::new(Mutex::new(Preference::default())),
-            // We keep any previously determined backup file name for easy lookup and avoids
-            // generating the name again
-            // TODO: How to handle this when we want to include time info in the file name
-            backup_files: Mutex::new(HashMap::default()),
             timers_init_completed: Mutex::new(false),
             resource_dir_path: Mutex::new(None),
+            db_file_watcher: crate::db_file_watcher::DbFileWatcherState::new(),
         }
     }
 
@@ -187,16 +184,14 @@ impl AppState {
     // Gets the full backupfile name
     pub(crate) fn get_backup_file(&self, db_file_name: &str) -> Option<String> {
         let store_pref = self.preference.lock().unwrap();
-        if !store_pref.backup.enabled {
-            return None;
-        }
-
-        debug!("backup_dir set is {:?}", &store_pref.backup.dir);
-
-        let backup_dir_path = if let Some(pa) = &store_pref.backup.dir {
-            PathBuf::from(pa)
+        let (backup_dir_path, use_timestamped_name) = if store_pref.backup.enabled {
+            let backup_dir = store_pref.backup.dir.as_ref()?.trim();
+            if backup_dir.is_empty() {
+                return None;
+            }
+            (PathBuf::from(backup_dir), true)
         } else {
-            app_paths::app_backup_dir()
+            (app_paths::app_backup_dir(), false)
         };
 
         // Ensure that the backup dir exists. If not, there will not any backup written
@@ -206,17 +201,15 @@ impl AppState {
             Err(_e) => return None,
         };
 
-        let mut backup_files = self.backup_files.lock().unwrap();
+        debug!(
+            "Resolved backup path mode. enabled={} dir={:?}",
+            store_pref.backup.enabled, &store_pref.backup.dir
+        );
 
-        match backup_files.get(db_file_name) {
-            Some(s) => Some(s.clone()),
-            None => match file_util::generate_backup_file_name(backup_dir_path, db_file_name) {
-                Some(v) => {
-                    backup_files.insert(db_file_name.into(), v.clone());
-                    Some(v)
-                }
-                None => None,
-            },
+        if use_timestamped_name {
+            file_util::generate_timestamped_backup_file_name(backup_dir_path, db_file_name)
+        } else {
+            file_util::generate_backup_file_name(backup_dir_path, db_file_name)
         }
     }
 }
@@ -238,6 +231,17 @@ impl AppState {
     pub(crate) fn update_preference(&self, preference_data: PreferenceData) -> Result<()> {
         let mut store_pref = self.preference.lock().unwrap();
         store_pref.update(preference_data)
+    }
+
+    pub(crate) fn remove_app_home_backup_file(&self, db_file_name: &str) {
+        let backup_file_name =
+            file_util::generate_backup_file_name(app_paths::app_backup_dir(), db_file_name);
+
+        if let Some(path) = backup_file_name {
+            if let Err(err) = file_util::remove_file_if_exists(&path) {
+                log::error!("Removing internal backup file failed for {:?}: {}", path, err);
+            }
+        }
     }
 
     pub(crate) fn update_browser_ext_support(
@@ -282,10 +286,31 @@ impl AppState {
         store_pref.clear_recent_files();
     }
 
+    pub(crate) fn remove_recent_file(&self, file_name: &str) {
+        let mut store_pref = self.preference.lock().unwrap();
+        store_pref.remove_recent_file(file_name);
+    }
+
     pub(crate) fn app_version(&self) -> String {
         let store_pref = self.preference.lock().unwrap();
         store_pref.version().to_string()
     }
+}
+
+fn format_os_version(info: &os_info::Info) -> String {
+    let version_str = info.version().to_string();
+
+    if info.os_type() == os_info::Type::Windows {
+        if let Some(build_str) = version_str.split('.').nth(2) {
+            if let Ok(build) = build_str.parse::<u32>() {
+                if build >= 22000 {
+                    return "11".to_string();
+                }
+            }
+        }
+    }
+
+    version_str
 }
 
 #[derive(Serialize, Deserialize)]
@@ -315,7 +340,7 @@ impl SystemInfoWithPreference {
         let pref = app_state.preference.lock().unwrap();
 
         let os_name = std::env::consts::OS.into();
-        let os_version = os_info::get().version().to_string();
+        let os_version = format_os_version(&os_info::get());
         let arch = std::env::consts::ARCH.to_string();
 
         info!(
@@ -398,7 +423,7 @@ mod tests {
     use std::{collections::HashMap, fs, path::PathBuf};
     use toml::Value;
 
-    use crate::file_util::generate_backup_file_name;
+    use crate::file_util::{generate_backup_file_name, generate_timestamped_backup_file_name};
     #[test]
     fn verify_preference_reading() {
         let pref_file_name = "/Users/jeyasankar/.onekeepass/dev/preference.toml";
@@ -424,6 +449,18 @@ mod tests {
             "/Users/jeyasankar/mytemp/Keepass-sample/RustDevSamples/PasswordsXC1-Tags-1.kdbx",
         );
         println!("backup_file_name is {:#?}", backup_file_name);
+    }
+
+    #[test]
+    fn verify_timestamped_backup_file_name() {
+        let backup_file_name = generate_timestamped_backup_file_name(
+            PathBuf::from("/mybackups"),
+            "/path/to/db_file/MY_All_Passwords.kdbx",
+        )
+        .unwrap();
+
+        assert!(backup_file_name.starts_with("/mybackups/MY_All_Passwords-"));
+        assert!(backup_file_name.ends_with(".kdbx"));
     }
 
     #[test]

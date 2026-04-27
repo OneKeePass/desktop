@@ -1,0 +1,28 @@
+{:source-paths ["main"]
+
+ :dependencies
+ [[reagent "2.0.1"]
+  [re-frame "1.4.5"]
+  [camel-snake-kebab/camel-snake-kebab "0.4.3"]
+  [hickory/hickory "0.7.1"]
+  [org.clojure/core.async "1.5.648"]
+  [org.clojure/data.xml "0.0.8"]]
+
+ :dev-http {9500 "../resources/public"}
+
+ :builds
+ {:app
+  {:target :browser
+   :modules {:main {:init-fn onekeepass.frontend.core/init}}
+   :output-dir "../resources/public/cljs-out/dev"
+   :asset-path "/cljs-out/dev"
+   :js-options {:js-package-dirs ["../node_modules"]}
+   :devtools {:after-load onekeepass.frontend.core/start}
+
+   ;; Here is some production config
+   ;; :optimizations :simple
+   ;; :optimizations :advanced
+   ;; :release {:compiler-options {:optimizations :advanced
+   ;;                              :pretty-print true
+   ;;                              :pseudo-names true}}
+   }}}

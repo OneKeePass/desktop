@@ -46,12 +46,17 @@
   },
   "productName": "OneKeePass",
   "mainBinaryName": "OneKeePass",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "identifier": "com.onekeepass",
-  "plugins": {},
+  "plugins": {
+    "shell": {
+      "open": "https://**|http://**"
+    }
+  },
   "app": {
     "security": {
-      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'; connect-src ipc: http://ipc.localhost"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src ipc: http://ipc.localhost; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      "devCsp": "default-src 'self' http://localhost:9500 ws://localhost:9500; script-src 'self' 'unsafe-eval' http://localhost:9500; style-src 'self' 'unsafe-inline' http://localhost:9500; img-src 'self' data: blob: http://localhost:9500; font-src 'self' data: http://localhost:9500; connect-src ipc: http://ipc.localhost http://localhost:9500 ws://localhost:9500; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
     },
     "windows": [
       {
