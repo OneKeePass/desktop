@@ -19,7 +19,9 @@
       "../resources/public/translations",
       "../resources/public/wordlists"
     ],
-    "externalBin": ["../onekeepass-proxy/binaries/onekeepass-proxy"],
+    "externalBin": [
+      "../onekeepass-proxy/binaries/onekeepass-proxy"
+    ],
     "copyright": "",
     "category": "Productivity",
     "shortDescription": "Password Manager",
