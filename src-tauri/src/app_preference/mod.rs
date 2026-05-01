@@ -14,14 +14,37 @@ pub(crate) use crate::app_preference::browser_ext_preference::{BrowserExtSupport
 pub(crate) struct BackupPreference {
     pub(crate) enabled: bool,
     pub(crate) dir: Option<String>,
+    // Base64-encoded security-scoped bookmark for `dir`, used under macOS App Sandbox
+    // to reopen access on subsequent launches when the user-picked dir is outside
+    // the per-app container. None for default container-relative dirs and on
+    // non-macOS / non-sandboxed builds.
+    #[serde(default)]
+    pub(crate) dir_bookmark: Option<String>,
 }
 
 impl Default for BackupPreference {
     fn default() -> Self {
         Self {
-            enabled: true,
+            enabled: false,
             dir: None,
+            dir_bookmark: None,
         }
+    }
+}
+
+// One entry in the recent-files list. Replaces the previous `Vec<String>`.
+// Under macOS App Sandbox, raw paths cannot be reopened across launches —
+// resolving the security-scoped `bookmark` is required to regain file access.
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub(crate) struct RecentFile {
+    pub(crate) path: String,
+    #[serde(default)]
+    pub(crate) bookmark: Option<String>,
+}
+
+impl RecentFile {
+    pub(crate) fn new(path: String, bookmark: Option<String>) -> Self {
+        Self { path, bookmark }
     }
 }
 

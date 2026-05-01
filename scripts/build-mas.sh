@@ -136,10 +136,20 @@ yarn tauri build --target "$TARGET" \
     --bundles app \
     -- --features mas-build
 
+# Tauri 2 with --target sometimes places the bundled .app at the host-default
+# path (target/release/bundle/...) instead of target/<triple>/release/bundle/.
+# Accept either layout — the binary inside is identical (cargo did honor the
+# target for compilation; only the bundling output path is inconsistent).
 APP="src-tauri/target/$TARGET/release/bundle/macos/OneKeePass.app"
 if [ ! -d "$APP" ]; then
-    echo "ERROR: expected app bundle not found at $APP" >&2
-    exit 1
+    FALLBACK_APP="src-tauri/target/release/bundle/macos/OneKeePass.app"
+    if [ -d "$FALLBACK_APP" ]; then
+        echo "==> .app not at $APP, using $FALLBACK_APP (Tauri target-bundling quirk)"
+        APP="$FALLBACK_APP"
+    else
+        echo "ERROR: expected app bundle not found at $APP or $FALLBACK_APP" >&2
+        exit 1
+    fi
 fi
 
 echo "==> Embedding provisioning profile"

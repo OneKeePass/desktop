@@ -33,6 +33,7 @@ figwheel-main.log.lck
 figwheel-main.log*
 
 **/.swiftpm/*
+**/swift-lib/.build/*
 
 *.bak
 

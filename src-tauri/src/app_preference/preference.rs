@@ -2,7 +2,7 @@ use std::fs;
 
 use crate::app_preference::password_gen_preference::PasswordGeneratorPreference;
 
-use crate::app_preference::{BackupPreference, PreferenceData};
+use crate::app_preference::{BackupPreference, PreferenceData, RecentFile};
 
 use crate::app_preference::browser_ext_preference::{BrowserExtSupport, BrowserExtSupportData};
 
@@ -16,31 +16,6 @@ use onekeepass_core::error::Result;
 
 use crate::app_paths::app_home_dir;
 use serde::{Deserialize, Serialize};
-
-/////
-// To be Removed
-// Old preference used in the earlier version v0.14.0
-/*
-#[derive(Clone, Serialize, Deserialize, Debug)]
-struct Preference2 {
-    pub(crate) version: String,
-    // In minutes
-    pub(crate) session_timeout: u8,
-    // In seconds
-    pub(crate) clipboard_timeout: u16,
-    // Determines the theme colors etc
-    pub(crate) theme: String,
-    // Should be a two letters language id
-    pub(crate) language: String,
-    //Valid values one of Types,Categories,Groups,Tags
-    pub(crate) default_entry_category_groupings: String,
-
-    pub(crate) recent_files: Vec<String>,
-
-    pub(crate) backup: BackupPreference,
-}
-*/
-/////
 
 // Old preference used in the earlier version v0.17.0
 
@@ -71,6 +46,23 @@ pub(crate) struct Preference1 {
     password_gen_preference: PasswordGeneratorPreference,
 }
 
+// Old preference used through v0.20.x: recent_files were plain strings.
+// Kept around so existing user TOMLs deserialize during migration to the
+// current `Preference` (which carries security-scoped bookmarks per file).
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub(crate) struct Preference2 {
+    version: String,
+    session_timeout: u8,
+    clipboard_timeout: u16,
+    theme: String,
+    pub(crate) language: String,
+    pub(crate) default_entry_category_groupings: String,
+    recent_files: Vec<String>,
+    pub(crate) backup: BackupPreference,
+    password_gen_preference: PasswordGeneratorPreference,
+    browser_ext_support: BrowserExtSupport,
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub(crate) struct Preference {
     version: String,
@@ -90,7 +82,10 @@ pub(crate) struct Preference {
     // Valid values one of Types,Categories,Groups,Tags
     pub(crate) default_entry_category_groupings: String,
 
-    recent_files: Vec<String>,
+    // Each entry carries the file path plus an optional macOS security-scoped
+    // bookmark. Bookmark is consumed only on sandboxed builds; populated on
+    // any macOS build for forward-compat with later sandboxed installs.
+    recent_files: Vec<RecentFile>,
 
     pub(crate) backup: BackupPreference,
 
@@ -207,16 +202,44 @@ impl Preference {
     }
 
     fn read_previous_preference(pref_str: &str) -> Option<Preference> {
+        // Try the most recent legacy schema first (v0.20.x — Vec<String> recent_files,
+        // no per-file bookmarks). Convert each path to a bookmark-less RecentFile.
+        if let Ok(p2) = toml::from_str::<Preference2>(&pref_str) {
+            #[cfg(feature = "onekeepass-dev")]
+            println!("Found Preference2 (v0.20.x) and migrating");
+
+            let mut p = Preference::default();
+            p.version = p2.version;
+            p.session_timeout = p2.session_timeout;
+            p.clipboard_timeout = p2.clipboard_timeout;
+            p.theme = p2.theme;
+            p.language = p2.language;
+            p.default_entry_category_groupings = p2.default_entry_category_groupings;
+            p.recent_files = p2
+                .recent_files
+                .into_iter()
+                .map(|path| RecentFile::new(path, None))
+                .collect();
+            p.backup = p2.backup;
+            p.password_gen_preference = p2.password_gen_preference;
+            p.browser_ext_support = p2.browser_ext_support;
+            return Some(p);
+        }
+
         if let Ok(p1) = toml::from_str::<Preference1>(&pref_str) {
             // As the logging is not enabled, we will see this logging output
             // info!("Found previous version of Preference and using that");
             #[cfg(feature = "onekeepass-dev")]
-            println!("Found previous version of Preference and using that");
+            println!("Found Preference1 (v0.17.x) and migrating");
 
             let mut p = Preference::default();
             p.session_timeout = p1.session_timeout;
             p.backup = p1.backup;
-            p.recent_files = p1.recent_files;
+            p.recent_files = p1
+                .recent_files
+                .into_iter()
+                .map(|path| RecentFile::new(path, None))
+                .collect();
             p.default_entry_category_groupings = p1.default_entry_category_groupings;
             p.version = p1.version;
             p.language = p1.language;
@@ -306,7 +329,15 @@ impl Preference {
             updated = true;
         }
 
-        if let Some(v) = preference_data.backup {
+        if let Some(mut v) = preference_data.backup {
+            // The frontend never sends `dir_bookmark` — it doesn't know about
+            // sandbox bookmarks. Re-derive one here from the picked dir while
+            // the file-picker grant for that path is still active in this
+            // process. None for empty / default container-relative paths.
+            v.dir_bookmark = match v.dir.as_deref() {
+                Some(dir) if !dir.trim().is_empty() => crate::bookmarks::create(dir),
+                _ => None,
+            };
             self.backup = v;
             updated = true;
         }
@@ -358,19 +389,74 @@ impl Preference {
         log::debug!("browser_ext_use_user_permission update is saved to TOML ");
     }
 
-    pub(crate) fn add_recent_file(&mut self, file_name: &str) -> &mut Self {
-        // First we need to remove any previously added if any
-        self.recent_files.retain(|s| s != file_name);
-        // most recent file goes to the top - 0 index
-        self.recent_files.insert(0, file_name.into());
-        // Write the preference to the file system immediately
+    pub(crate) fn add_recent_file(&mut self, file_name: &str, bookmark: Option<String>) -> &mut Self {
+        // Preserve a previously-stored bookmark if no fresh one was supplied,
+        // so a re-open from a fresh file picker (no new bookmark created) does
+        // not wipe out the bookmark stored on a prior open.
+        let prior_bookmark = self
+            .recent_files
+            .iter()
+            .find(|r| r.path == file_name)
+            .and_then(|r| r.bookmark.clone());
+        self.recent_files.retain(|r| r.path != file_name);
+        let bookmark = bookmark.or(prior_bookmark);
+        self.recent_files
+            .insert(0, RecentFile::new(file_name.to_string(), bookmark));
         self.write_toml();
         self
     }
 
     pub(crate) fn remove_recent_file(&mut self, file_name: &str) -> &mut Self {
-        self.recent_files.retain(|s| s != file_name);
+        self.recent_files.retain(|r| r.path != file_name);
         self.write_toml();
+        self
+    }
+
+    // Returns the stored security-scoped bookmark blob (base64) for `file_name`
+    // if a recent entry exists with one. Used at load time to regain sandbox
+    // access before the kp_service file read.
+    pub(crate) fn recent_file_bookmark(&self, file_name: &str) -> Option<String> {
+        self.recent_files
+            .iter()
+            .find(|r| r.path == file_name)
+            .and_then(|r| r.bookmark.clone())
+    }
+
+    // True if the given path is currently tracked in recents. Used to decide
+    // whether a kp_service load failure should trigger the sandbox re-pick
+    // recovery flow vs. just propagating the raw error.
+    pub(crate) fn is_in_recent_files(&self, file_name: &str) -> bool {
+        self.recent_files.iter().any(|r| r.path == file_name)
+    }
+
+    // Replaces the backup-dir bookmark blob in-place and persists. Called
+    // when a stale-refresh of the backup-dir bookmark produced a fresh blob
+    // at app startup, or when the user re-picks the backup directory.
+    pub(crate) fn update_backup_dir_bookmark(&mut self, bookmark: Option<String>) -> &mut Self {
+        self.backup.dir_bookmark = bookmark;
+        self.write_toml();
+        self
+    }
+
+    // Replaces just the bookmark on an existing entry. No-op if the entry is
+    // not present. Called when a resolve flagged the prior bookmark as stale
+    // and the OS gave us a refreshed blob to persist.
+    pub(crate) fn update_recent_file_bookmark(
+        &mut self,
+        file_name: &str,
+        bookmark: String,
+    ) -> &mut Self {
+        let mut updated = false;
+        for entry in &mut self.recent_files {
+            if entry.path == file_name {
+                entry.bookmark = Some(bookmark.clone());
+                updated = true;
+                break;
+            }
+        }
+        if updated {
+            self.write_toml();
+        }
         self
     }
 

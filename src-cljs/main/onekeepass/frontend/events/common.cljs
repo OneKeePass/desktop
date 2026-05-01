@@ -207,8 +207,9 @@
 (reg-event-db
  :open-recent/remove-file-done
  (fn [db [_event-id file-name]]
+   ;; recent-files entries are now {:path "..." :bookmark "..."} — match by :path.
    (update-in db [:app-preference :recent-files]
-              (fn [files] (vec (remove #(= % file-name) files))))))
+              (fn [files] (vec (remove #(= (:path %) file-name) files))))))
 
 (reg-sub
  :open-recent/dialog-data
@@ -219,7 +220,10 @@
  :recent-files
  :<- [:app-preference]
  (fn [pref _query-vec]
-   (:recent-files pref)))
+   ;; The Rust side stores entries as {:path "..." :bookmark "..."} so the
+   ;; macOS sandbox can reopen the file. Frontend only needs the paths;
+   ;; flatten here so all consumers see a vector of strings unchanged.
+   (mapv :path (:recent-files pref))))
 
 (reg-sub
  :app-theme

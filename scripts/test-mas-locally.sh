@@ -19,7 +19,12 @@ case "$HOST_ARCH" in
     arm64)  TARGET="${TARGET:-aarch64-apple-darwin}" ;;
     x86_64) TARGET="${TARGET:-x86_64-apple-darwin}" ;;
 esac
+# Mirror build-mas.sh's fallback — Tauri 2 sometimes drops the .app at the
+# host-default bundle path even when --target was passed.
 APP="src-tauri/target/$TARGET/release/bundle/macos/OneKeePass.app"
+if [ ! -d "$APP" ] && [ -d "src-tauri/target/release/bundle/macos/OneKeePass.app" ]; then
+    APP="src-tauri/target/release/bundle/macos/OneKeePass.app"
+fi
 
 cat <<EOF
 

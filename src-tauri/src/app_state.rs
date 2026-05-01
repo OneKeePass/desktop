@@ -17,8 +17,10 @@ use tauri::{path::BaseDirectory, App, Manager, Runtime};
 
 use crate::app_preference::{BrowserExtSupportData, Preference, PreferenceData};
 use crate::biometric;
+use crate::bookmarks::{self, BookmarkHandle};
 use crate::constants::standard_file_names::APP_PREFERENCE_FILE;
 use crate::key_secure;
+use crate::sandbox;
 use crate::translation::current_locale_language;
 use crate::{app_paths, file_util};
 
@@ -50,6 +52,11 @@ pub(crate) fn init_app(app: &App) {
 
     init_log(&app_paths::app_logs_dir());
     // Now onwards all loggings calls will be effective
+
+    // Restore scoped access to a user-picked backup directory under macOS
+    // sandbox if a bookmark was persisted on a prior run. Held for the entire
+    // app process lifetime; released implicitly on shutdown.
+    state.init_backup_dir_scoped_access();
 
     // Set the resource path for latter use
     let resource_path = app_paths::app_resources_dir(app.app_handle())
@@ -103,6 +110,16 @@ fn init_log(log_dir: &PathBuf) {
 
 static GLOBAL_TAURI_APP_HANDLE: std::sync::OnceLock<AppHandle> = std::sync::OnceLock::new();
 
+// Identifies an entry in `AppState.scoped_access`. Handles for opened DBs are
+// keyed by the file path (matching the existing `db_key`); the backup directory
+// has at most one active scoped access per app process and uses the BackupDir
+// sentinel.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum ScopedAccessKey {
+    Db(String),
+    BackupDir,
+}
+
 // IMPORTANT:
 // Need to keep all state fields behind Mutex if we need to mutuate as
 // we cann't get &mut self of 'AppState'
@@ -113,6 +130,9 @@ pub(crate) struct AppState {
     timers_init_completed: Mutex<bool>,
     resource_dir_path: Mutex<Option<PathBuf>>,
     pub(crate) db_file_watcher: crate::db_file_watcher::DbFileWatcherState,
+    // macOS App Sandbox security-scoped bookmark handles currently held open.
+    // Empty on non-macOS / non-sandboxed builds. See `crate::bookmarks`.
+    scoped_access: Mutex<HashMap<ScopedAccessKey, BookmarkHandle>>,
 }
 
 impl AppState {
@@ -122,6 +142,7 @@ impl AppState {
             timers_init_completed: Mutex::new(false),
             resource_dir_path: Mutex::new(None),
             db_file_watcher: crate::db_file_watcher::DbFileWatcherState::new(),
+            scoped_access: Mutex::new(HashMap::new()),
         }
     }
 
@@ -229,8 +250,30 @@ impl AppState {
     }
 
     pub(crate) fn update_preference(&self, preference_data: PreferenceData) -> Result<()> {
-        let mut store_pref = self.preference.lock().unwrap();
-        store_pref.update(preference_data)
+        let prior_dir = self.preference.lock().unwrap().backup.dir.clone();
+
+        let result = {
+            let mut store_pref = self.preference.lock().unwrap();
+            store_pref.update(preference_data)
+        };
+
+        // If the backup dir actually changed, rotate the scoped-access handle
+        // so the new dir's bookmark backs file writes for the rest of the
+        // session. No-op outside macOS sandbox.
+        let (current_dir, current_bookmark) = {
+            let pref = self.preference.lock().unwrap();
+            (pref.backup.dir.clone(), pref.backup.dir_bookmark.clone())
+        };
+        if prior_dir != current_dir {
+            self.release_scoped_access(&ScopedAccessKey::BackupDir);
+            if let Some(b64) = &current_bookmark {
+                if let Ok((handle, _)) = bookmarks::resolve_and_start(b64) {
+                    self.store_scoped_access(ScopedAccessKey::BackupDir, handle);
+                }
+            }
+        }
+
+        result
     }
 
     pub(crate) fn remove_app_home_backup_file(&self, db_file_name: &str) {
@@ -294,6 +337,74 @@ impl AppState {
     pub(crate) fn app_version(&self) -> String {
         let store_pref = self.preference.lock().unwrap();
         store_pref.version().to_string()
+    }
+}
+
+// Scoped-access lifecycle for macOS App Sandbox security-scoped bookmarks.
+// On non-sandboxed / non-macOS builds these calls are still safe (the
+// underlying bookmark FFI is a no-op) so call sites do not need to gate.
+impl AppState {
+    // Records a scoped-access handle and releases any prior handle stored under
+    // the same key (defensive — prevents leaks if a second open of the same db
+    // occurs without an intervening close).
+    pub(crate) fn store_scoped_access(&self, key: ScopedAccessKey, handle: BookmarkHandle) {
+        let prior = {
+            let mut store = self.scoped_access.lock().unwrap();
+            store.insert(key, handle)
+        };
+        if let Some(h) = prior {
+            bookmarks::release(h);
+        }
+    }
+
+    // Releases (and forgets) the handle for `key` if one is held. No-op if the
+    // key is not present.
+    pub(crate) fn release_scoped_access(&self, key: &ScopedAccessKey) {
+        let prior = {
+            let mut store = self.scoped_access.lock().unwrap();
+            store.remove(key)
+        };
+        if let Some(h) = prior {
+            bookmarks::release(h);
+        }
+    }
+
+    // Resolves the user-picked backup directory bookmark (if any) and starts
+    // scoped access for the lifetime of the process. Called once at app boot.
+    // No-op outside macOS sandbox or when the user's `backup.dir` is the
+    // default (container-relative) path that doesn't need a bookmark.
+    pub(crate) fn init_backup_dir_scoped_access(&self) {
+        if !sandbox::is_sandboxed() {
+            return;
+        }
+        let bookmark_b64 = {
+            let pref = self.preference.lock().unwrap();
+            if !pref.backup.enabled {
+                return;
+            }
+            pref.backup.dir_bookmark.clone()
+        };
+        let Some(b64) = bookmark_b64 else {
+            return;
+        };
+
+        match bookmarks::resolve_and_start(&b64) {
+            Ok((handle, refreshed)) => {
+                if let Some(refreshed_b64) = refreshed {
+                    let mut pref = self.preference.lock().unwrap();
+                    pref.update_backup_dir_bookmark(Some(refreshed_b64));
+                    debug!("Refreshed stale backup-dir bookmark and persisted");
+                }
+                self.store_scoped_access(ScopedAccessKey::BackupDir, handle);
+            }
+            Err(e) => {
+                log::warn!(
+                    "Failed to resolve backup-dir bookmark; backup writes to a non-default \
+                     dir will be skipped until the user re-picks. Cause: {}",
+                    e
+                );
+            }
+        }
     }
 }
 
