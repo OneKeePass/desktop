@@ -16,7 +16,9 @@ use crate::app_state::SystemInfoWithPreference;
 use crate::auto_open::{self, AutoOpenProperties, AutoOpenPropertiesResolved};
 use crate::menu::MenuActionRequest;
 use crate::{app_preference, app_state};
-use crate::{auto_type, biometric, OTP_TOKEN_UPDATE_EVENT};
+use crate::{biometric, OTP_TOKEN_UPDATE_EVENT};
+#[cfg(not(feature = "mas-build"))]
+use crate::auto_type;
 use crate::{menu, pass_phrase, translation};
 use onekeepass_core::async_service as kp_async_service;
 use onekeepass_core::db_service as kp_service;
@@ -941,6 +943,7 @@ pub async fn authenticate_with_biometric(db_key: &str) -> Result<bool> {
 
 ///--------------   All auto typing command calls
 
+#[cfg(not(feature = "mas-build"))]
 #[tauri::command]
 pub async fn parse_auto_type_sequence(
     sequence: &str,
@@ -949,17 +952,20 @@ pub async fn parse_auto_type_sequence(
     auto_type::parse_auto_type_sequence(sequence, &entry_fields)
 }
 
+#[cfg(not(feature = "mas-build"))]
 #[tauri::command]
 pub async fn platform_window_titles() -> Result<Vec<auto_type::WindowInfo>> {
     Ok(auto_type::window_titles()?)
 }
 
+#[cfg(not(feature = "mas-build"))]
 #[tauri::command]
 pub async fn active_window_to_auto_type() -> Option<auto_type::WindowInfo> {
     // None is returned if there is no other window is open other than the app
     auto_type::active_window_to_auto_type()
 }
 
+#[cfg(not(feature = "mas-build"))]
 #[tauri::command]
 pub async fn send_sequence_to_winow_async(
     db_key: &str,

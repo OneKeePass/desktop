@@ -1,6 +1,7 @@
 mod proxy_client;
+mod sandbox;
 
-use std::{fs, path::Path};
+use std::{fs, path::{Path, PathBuf}};
 
 use log::LevelFilter;
 use log4rs::{
@@ -36,16 +37,22 @@ fn init_log() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Log directory in the system temp directory
-    let log_dir = std::env::temp_dir().join("okp");
-    let log_dir = Path::new(&log_dir);
+    // Log directory:
+    //   - Sandboxed (Mac App Store): App Group container's Logs/ subdir, so the
+    //     parent app and developer can locate logs at a known shared path.
+    //     Requires the application-groups entitlement.
+    //   - Non-sandboxed (DMG / Linux / Windows): system temp dir, current behavior.
+    let log_dir: PathBuf = match sandbox::group_container_path() {
+        Some(group) => group.join("Logs"),
+        None => std::env::temp_dir().join("okp"),
+    };
 
     // Ensure the log directory exists
     if !log_dir.exists() {
         fs::create_dir_all(&log_dir)?;
     }
 
-    let log_file_path = Path::new(log_dir).join(log_file_name);
+    let log_file_path = Path::new(&log_dir).join(log_file_name);
 
     // --- Pattern Encoder ---
     // Defines the format for each log entry.
@@ -128,7 +135,15 @@ async fn main() {
         return;
     }
 
-    let Ok(connection_to_server) = Endpoint::connect(ServerId::new(NATIVE_MESSAGE_CONNECTION_NAME)).await else {
+    // Under sandbox the parent app binds inside the App Group container; we must
+    // connect to the same path. parent_folder() is a no-op on Windows (named pipes
+    // ignore parent dir).
+    let server_id = match sandbox::group_container_path() {
+        Some(parent) => ServerId::new(NATIVE_MESSAGE_CONNECTION_NAME).parent_folder(parent),
+        None => ServerId::new(NATIVE_MESSAGE_CONNECTION_NAME),
+    };
+
+    let Ok(connection_to_server) = Endpoint::connect(server_id).await else {
         log::error!("Failed to connect to the server and sending error msg");
         send_app_connection_not_available_error();
         return;

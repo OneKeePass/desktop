@@ -39,3 +39,11 @@ figwheel-main.log*
 onekeepass-proxy/target/*
 onekeepass-proxy/binaries
 onekeepass-proxy/.clj-kondo
+
+# Local Mac App Store build secrets and resolved templates.
+# The .in templates are committed; the resolved files are generated at build time.
+.env.local
+src-tauri/entitlements.mas.plist
+src-tauri/entitlements.proxy.mas.plist
+src-tauri/tauri.mas.conf.json
+OneKeePass.pkg

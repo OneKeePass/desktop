@@ -11,6 +11,7 @@ use crate::browser_service::{
     key_share::{BrowserServiceRx, BrowserServiceTx},
     message::Request,
 };
+use crate::sandbox;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "onekeepass-dev")] {
@@ -152,7 +153,16 @@ fn is_endpoint_server_running() -> bool {
 async fn run_server(path: String) {
     log::info!("Proxy listener - Run server is called with path {}, ", &path);
 
-    let endpoint = Endpoint::new(ServerId::new(path), OnConflict::Overwrite).unwrap();
+    // Under macOS App Sandbox (Mac App Store build), tipsy's default location
+    // ($TMPDIR) is per-process and unreachable from the browser-spawned proxy.
+    // Bind the socket inside the shared App Group container instead. Both ends
+    // must hold the application-groups entitlement for this path to be writable.
+    let server_id = match sandbox::group_container_path() {
+        Some(parent) => ServerId::new(path).parent_folder(parent),
+        None => ServerId::new(path),
+    };
+
+    let endpoint = Endpoint::new(server_id, OnConflict::Overwrite).unwrap();
 
     let incoming = match endpoint.incoming() {
         Ok(incoming) => incoming,
