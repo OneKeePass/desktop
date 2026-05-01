@@ -439,6 +439,11 @@ pub(crate) struct SystemInfoWithPreference {
     biometric_type_available: String,
     preference: Preference,
     dev_mode: bool,
+    // True when this binary was compiled with the `mas-build` Cargo feature
+    // (Mac App Store variant). Used by the cljs UI to hide features that are
+    // either kernel-blocked under App Sandbox (auto-type) or otherwise
+    // unavailable in the MAS build, so users don't see non-functional UI.
+    mas_build: bool,
 }
 //app_state: State<'_, app_state::AppState>
 // app: tauri::AppHandle<R>,
@@ -474,6 +479,7 @@ impl SystemInfoWithPreference {
             // document_dir().and_then(|d| Some(d.as_os_str().to_string_lossy().to_string())),
             preference: pref.clone(),
             dev_mode: cfg!(feature = "onekeepass-dev"),
+            mas_build: cfg!(feature = "mas-build"),
         }
     }
 }

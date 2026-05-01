@@ -96,6 +96,13 @@
 (defn is-dev-mode? []
   (subscribe [:dev-mode]))
 
+;; True when the running binary was compiled with the `mas-build` Cargo
+;; feature (Mac App Store variant). Used to hide UI affordances that map to
+;; functionality kernel-blocked under App Sandbox or otherwise unavailable
+;; in MAS — currently the entry-context "Auto-type" menu item.
+(defn is-mas-build? []
+  (subscribe [:mas-build]))
+
 (defn biometric-type-available []
   (subscribe [:biometric-type-available]))
 
@@ -146,6 +153,7 @@
                                       path-sep
                                       biometric-type-available
                                       dev-mode
+                                      mas-build
                                       preference]}]]
    (set-session-timeout (:session-timeout preference))
    (set-clipboard-timeout (:clipboard-timeout preference))
@@ -159,6 +167,7 @@
             (assoc :os-version os-version)
             (assoc :arch arch)
             (assoc :dev-mode dev-mode)
+            (assoc :mas-build mas-build)
             (assoc-in [:background-loading-statuses :app-preference] true))}))
 
 (reg-event-db
@@ -283,6 +292,11 @@
  :dev-mode
  (fn [db _query-vec]
    (:dev-mode db)))
+
+(reg-sub
+ :mas-build
+ (fn [db _query-vec]
+   (:mas-build db)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
