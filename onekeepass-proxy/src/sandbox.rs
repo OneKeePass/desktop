@@ -29,9 +29,10 @@ fn real_home_dir() -> Option<PathBuf> {
 
 #[cfg(target_os = "macos")]
 pub fn group_container_path() -> Option<PathBuf> {
-    if !is_sandboxed() {
-        return None;
-    }
+    // Always return the group container path on macOS. The proxy is spawned by the
+    // browser (not the main sandboxed app) so is_sandboxed() is false here, but the
+    // main app (sandboxed for MAS builds) binds the IPC socket in the group container.
+    // A non-sandboxed process can access this directory freely without any entitlement.
     let home = real_home_dir()?;
     Some(home.join("Library/Group Containers").join(APP_GROUP_ID))
 }

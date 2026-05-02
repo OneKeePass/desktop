@@ -162,6 +162,8 @@ async fn run_server(path: String) {
         None => ServerId::new(path),
     };
 
+    log::info!("App side end point connection path (server_id) is {:?}",&server_id);
+
     let endpoint = Endpoint::new(server_id, OnConflict::Overwrite).unwrap();
 
     let incoming = match endpoint.incoming() {

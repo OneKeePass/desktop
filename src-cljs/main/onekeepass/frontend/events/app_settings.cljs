@@ -201,10 +201,16 @@
  :bg-update-preference
  (fn [preference-data]
    (bg/update-preference preference-data
-                         (fn [api-reponse]
-                           (when-not (on-error api-reponse)
-                             (dispatch [:common/load-app-preference])
-                             (dispatch [:app-settings-dialog-close]))))))
+                         (fn [api-response]
+                           (let [error (:error api-response)]
+                             (if (and error (str/starts-with? error "BrowserManifestNeedsUserGrant:"))
+                               ;; MAS sandbox: manifest directory needs a one-time NSOpenPanel grant.
+                               ;; Extract the browser-id from the error and show the explainer dialog.
+                               (let [browser-id (str/trim (subs error (count "BrowserManifestNeedsUserGrant:")))]
+                                 (dispatch [:browser-integration/needs-user-grant browser-id]))
+                               (when-not (on-error api-response)
+                                 (dispatch [:common/load-app-preference])
+                                 (dispatch [:app-settings-dialog-close]))))))))
 
 (reg-sub
  :app-settings-dialog-data

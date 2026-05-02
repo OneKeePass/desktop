@@ -469,6 +469,26 @@ impl Preference {
         &self.browser_ext_support
     }
 
+    // Stores a security-scoped folder bookmark for `browser_id` and persists.
+    // Called after the user picks a folder via NSOpenPanel so future manifest
+    // writes can resolve the bookmark without a new picker dialog.
+    pub(crate) fn store_browser_dir_bookmark(&mut self, browser_id: &str, b64: String) {
+        self.browser_ext_support
+            .store_browser_dir_bookmark(browser_id, b64);
+        self.write_toml();
+    }
+
+    // Writes the native-messaging manifest for `browser_id` using the stored
+    // security-scoped folder bookmark. The bookmark must already be present
+    // (stored via `store_browser_dir_bookmark`). Persists preference on success
+    // so any stale-refresh of the bookmark is durable.
+    pub(crate) fn write_browser_manifest(&mut self, browser_id: &str) -> onekeepass_core::error::Result<()> {
+        self.browser_ext_support
+            .write_browser_manifest_for(browser_id)?;
+        self.write_toml();
+        Ok(())
+    }
+
     pub(crate) fn version(&self) -> &str {
         &self.version
     }

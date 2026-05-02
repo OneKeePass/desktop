@@ -7,12 +7,17 @@
 # Run from desktop/ root or via desktop/scripts/test-mas-locally.sh
 # Override the mode if needed: BUILD_FOR=mas ./scripts/test-mas-locally.sh
 # (but a mas-signed .app cannot be launched directly outside TestFlight.)
+#
+# For faster local signing loops, pass through build-mas skip options:
+#   ./scripts/test-mas-locally.sh --skip-cljs
+#   ./scripts/test-mas-locally.sh --skip-proxy
+#   ./scripts/test-mas-locally.sh --skip-prebuilds
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-BUILD_FOR="${BUILD_FOR:-dev}" ./scripts/build-mas.sh
+BUILD_FOR="${BUILD_FOR:-dev}" ./scripts/build-mas.sh "$@"
 
 HOST_ARCH=$(uname -m)
 case "$HOST_ARCH" in
@@ -48,4 +53,4 @@ App Group container (shared with proxy) will be at:
 Opening $APP ...
 EOF
 
-open "$APP"
+# open "$APP"

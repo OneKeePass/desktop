@@ -128,4 +128,5 @@
    [app-settings-dialog-main]
    [about/about-dialog-main]
    [browser-integration/browser-extension-connection-permit-dialog]
+   [browser-integration/browser-extension-install-grant-dialog]
    [message-dialog]])

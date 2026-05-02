@@ -323,6 +323,20 @@ pub(crate) async fn browser_ext_use_user_permission(
     Ok(app_state.browser_ext_use_user_permission(browser_id, confirmed))
 }
 
+// Opens a folder picker (Powerbox-vended NSOpenPanel under macOS App Sandbox)
+// pre-targeted at the browser's standard NativeMessagingHosts directory.
+// On confirmation: creates a security-scoped bookmark for the picked folder,
+// persists it, and writes the native-messaging manifest within the granted scope.
+// On cancellation: returns Ok(()) — the cljs side may re-attempt on next save.
+#[tauri::command]
+pub(crate) async fn browser_ext_pick_install_dir<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    app_state: State<'_, app_state::AppState>,
+    browser_id: String,
+) -> Result<()> {
+    Ok(app_state.browser_ext_pick_install_dir(&app, &browser_id)?)
+}
+
 //clear_recent_files
 #[tauri::command]
 pub(crate) async fn clear_recent_files(app_state: State<'_, app_state::AppState>) -> Result<()> {

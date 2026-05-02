@@ -138,13 +138,24 @@ async fn main() {
     // Under sandbox the parent app binds inside the App Group container; we must
     // connect to the same path. parent_folder() is a no-op on Windows (named pipes
     // ignore parent dir).
+    //
+    // Defensively ensure the group container dir exists before connecting.
+    // The proxy is browser-spawned and may start before the parent app has
+    // had a chance to create it. An entitled process can mkdir inside the
+    // container directly without needing the NSFileManager API.
     let server_id = match sandbox::group_container_path() {
-        Some(parent) => ServerId::new(NATIVE_MESSAGE_CONNECTION_NAME).parent_folder(parent),
+        Some(parent) => {
+            let _ = std::fs::create_dir_all(&parent);
+            ServerId::new(NATIVE_MESSAGE_CONNECTION_NAME).parent_folder(parent)
+        }
         None => ServerId::new(NATIVE_MESSAGE_CONNECTION_NAME),
     };
 
+
+    log::info!("Proxy side end point connection pat (server_id) is {:?}",&server_id);
+
     let Ok(connection_to_server) = Endpoint::connect(server_id).await else {
-        log::error!("Failed to connect to the server and sending error msg");
+        log::error!("Failed to connect to the server and sending error msg.....");
         send_app_connection_not_available_error();
         return;
     };

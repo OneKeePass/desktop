@@ -28,7 +28,7 @@
 #   7. Re-sign the parent .app (mandatory after modifying nested signatures)
 #   8. (mas only) productbuild a signed .pkg ready for App Store Connect upload
 #
-# Requires: yarn, cargo, just, envsubst (gettext), codesign, productbuild.
+# Requires: cargo, cargo-tauri, just, envsubst (gettext), codesign, productbuild.
 #
 # Common required env (sourced from desktop/.env.local — see .env.local.example):
 #   APPLE_TEAM_ID                10-character developer team identifier
@@ -47,11 +47,70 @@
 #   TARGET                       cargo target triple (default: native host arch)
 #   PKG_OUT                      output .pkg path (default: OneKeePass.pkg in cwd)
 #                                (ignored when BUILD_FOR=dev)
+#   SKIP_CLJS_BUILD              true/1/yes to skip src-cljs release build
+#   SKIP_PROXY_BUILD             true/1/yes to skip onekeepass-proxy rebuild
+#
+# Optional args:
+#   --skip-cljs                  skip src-cljs release build
+#   --skip-proxy                 skip onekeepass-proxy rebuild
+#   --skip-prebuilds             skip both src-cljs and proxy rebuilds
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 DESKTOP_DIR="$(pwd)"
+
+usage() {
+    cat <<'EOF'
+Usage: scripts/build-mas.sh [--skip-cljs] [--skip-proxy] [--skip-prebuilds]
+
+Environment:
+  BUILD_FOR=mas|dev            Build distribution package or local dev app.
+  SKIP_CLJS_BUILD=true         Skip src-cljs release build.
+  SKIP_PROXY_BUILD=true        Skip onekeepass-proxy rebuild.
+
+Options:
+  --skip-cljs                  Skip src-cljs release build.
+  --skip-proxy                 Skip onekeepass-proxy rebuild.
+  --skip-prebuilds             Skip both src-cljs and proxy rebuilds.
+  -h, --help                   Show this help.
+EOF
+}
+
+truthy() {
+    case "${1:-}" in
+        1|true|TRUE|yes|YES|y|Y) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+SKIP_CLJS_BUILD="${SKIP_CLJS_BUILD:-false}"
+SKIP_PROXY_BUILD="${SKIP_PROXY_BUILD:-false}"
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --skip-cljs|--skip-cljs-build)
+            SKIP_CLJS_BUILD=true
+            ;;
+        --skip-proxy|--skip-proxy-build)
+            SKIP_PROXY_BUILD=true
+            ;;
+        --skip-prebuilds)
+            SKIP_CLJS_BUILD=true
+            SKIP_PROXY_BUILD=true
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "ERROR: unknown argument: $1" >&2
+            usage >&2
+            exit 1
+            ;;
+    esac
+    shift
+done
 
 # Source local env if present
 if [ -f .env.local ]; then
@@ -89,23 +148,27 @@ fi
 
 HOST_ARCH=$(uname -m)
 case "$HOST_ARCH" in
-    arm64)
-        DEFAULT_TARGET="aarch64-apple-darwin"
+    arm64)  DEFAULT_TARGET="aarch64-apple-darwin" ;;
+    x86_64) DEFAULT_TARGET="x86_64-apple-darwin" ;;
+    *) echo "ERROR: unsupported host arch: $HOST_ARCH" >&2; exit 1 ;;
+esac
+TARGET="${TARGET:-$DEFAULT_TARGET}"
+
+case "$TARGET" in
+    aarch64-apple-darwin)
         PROXY_JUST_RECIPE="build-cp-mac-aarch64"
         BOTAN_CPU="arm64"
         BOTAN_ABI="-arch arm64"
         ;;
-    x86_64)
-        DEFAULT_TARGET="x86_64-apple-darwin"
+    x86_64-apple-darwin)
         PROXY_JUST_RECIPE="build-cp-mac-x86_64"
         BOTAN_CPU="x86_64"
         BOTAN_ABI="-arch x86_64"
         ;;
     *)
-        echo "ERROR: unsupported host arch: $HOST_ARCH" >&2; exit 1
+        echo "ERROR: unsupported macOS target: $TARGET" >&2; exit 1
         ;;
 esac
-TARGET="${TARGET:-$DEFAULT_TARGET}"
 PKG_OUT="${PKG_OUT:-$DESKTOP_DIR/OneKeePass.pkg}"
 
 export BOTAN_CONFIGURE_OS='macos'
@@ -124,14 +187,22 @@ for base in entitlements.mas.plist entitlements.proxy.mas.plist tauri.mas.conf.j
     envsubst '${APPLE_TEAM_ID}' < "$src" > "$dst"
 done
 
-echo "==> Compiling cljs UI in release/advanced mode"
-just -f src-cljs/justfile shadow-cljs-clean-release
+if truthy "$SKIP_CLJS_BUILD"; then
+    echo "==> Skipping cljs UI release/advanced build"
+else
+    echo "==> Compiling cljs UI in release/advanced mode"
+    just -f src-cljs/justfile shadow-cljs-clean-release
+fi
 
-echo "==> Rebuilding sidecar onekeepass-proxy ($TARGET, release)"
-just -f onekeepass-proxy/justfile "$PROXY_JUST_RECIPE" true
+if truthy "$SKIP_PROXY_BUILD"; then
+    echo "==> Skipping sidecar onekeepass-proxy rebuild"
+else
+    echo "==> Rebuilding sidecar onekeepass-proxy ($TARGET, release)"
+    just -f onekeepass-proxy/justfile "$PROXY_JUST_RECIPE" true
+fi
 
 echo "==> Building MAS .app for $TARGET"
-yarn tauri build --target "$TARGET" \
+cargo tauri build --target "$TARGET" \
     --config src-tauri/tauri.mas.conf.json \
     --bundles app \
     -- --features mas-build

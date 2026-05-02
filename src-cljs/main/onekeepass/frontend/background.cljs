@@ -610,6 +610,14 @@
   [browser-id confirmed dispatch-fn]
   (invoke-api "browser_ext_use_user_permission" {:browser-id browser-id :confirmed confirmed} dispatch-fn :convert-response false))
 
+(defn browser-ext-pick-install-dir
+  "Opens a folder picker (NSOpenPanel under MAS sandbox) so the user can grant
+  write access to the browser's NativeMessagingHosts directory. On selection,
+  persists a security-scoped bookmark and writes the manifest. On cancel, the
+  command returns without error."
+  [browser-id dispatch-fn]
+  (invoke-api "browser_ext_pick_install_dir" {:browser-id browser-id} dispatch-fn :convert-response false))
+
 (defn clear-recent-files [dispatch-fn]
   (invoke-api "clear_recent_files" {} dispatch-fn))
 

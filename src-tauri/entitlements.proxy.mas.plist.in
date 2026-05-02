@@ -2,15 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>com.apple.security.app-sandbox</key>
-    <true/>
-    <key>com.apple.security.application-groups</key>
-    <array>
-        <string>group.com.onekeepass.desktop</string>
-    </array>
-    <key>com.apple.application-identifier</key>
-    <string>${APPLE_TEAM_ID}.com.onekeepass</string>
-    <key>com.apple.developer.team-identifier</key>
-    <string>${APPLE_TEAM_ID}</string>
+    <!-- onekeepass-proxy is a native-messaging host spawned directly by Chrome or Firefox,
+         not by the sandboxed main app. Restricted entitlements (app-sandbox,
+         application-identifier, team-identifier, application-groups) require an embedded
+         provisioning profile; amfid cannot locate one when the binary is launched by the
+         browser rather than from inside our app container. The proxy connects to the App
+         Group container IPC socket as a non-sandboxed process with normal user filesystem
+         access — no entitlement is required to read/write a directory the user owns. -->
 </dict>
 </plist>

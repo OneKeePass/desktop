@@ -24,7 +24,7 @@ pub fn is_sandboxed() -> bool {
 // where $HOME is redirected to the per-app container. Strips the
 // /Library/Containers/<bundle>/Data suffix when present.
 #[cfg(target_os = "macos")]
-fn real_home_dir() -> Option<PathBuf> {
+pub(crate) fn real_home_dir() -> Option<PathBuf> {
     let home = std::env::var("HOME").ok()?;
     if let Some(idx) = home.find("/Library/Containers/") {
         Some(PathBuf::from(&home[..idx]))
@@ -34,19 +34,36 @@ fn real_home_dir() -> Option<PathBuf> {
 }
 
 // Path to the macOS App Group container shared by OneKeePass.app and
-// onekeepass-proxy. Returns Some only on macOS when running sandboxed.
-// Both processes must hold the application-groups entitlement for this
-// path to be writable; without it, file ops will be sandbox-denied.
+// onekeepass-proxy. Always returns Some on macOS (sandboxed or not) so the
+// IPC socket location is consistent between the main app and the proxy across
+// both MAS and DMG builds. Under App Sandbox the application-groups entitlement
+// authorises writes here; non-sandboxed DMG builds can write here freely.
 #[cfg(target_os = "macos")]
 pub fn group_container_path() -> Option<PathBuf> {
-    if !is_sandboxed() {
-        return None;
-    }
     let home = real_home_dir()?;
     Some(home.join("Library/Group Containers").join(APP_GROUP_ID))
 }
 
 #[cfg(not(target_os = "macos"))]
 pub fn group_container_path() -> Option<PathBuf> {
+    None
+}
+
+// Standard directory where the native-messaging manifest for `browser_id`
+// must be placed. Uses the real home dir even under sandbox so the path
+// always points to where the browser looks for manifests. Returns None for
+// unknown browser ids or on non-macOS.
+#[cfg(target_os = "macos")]
+pub(crate) fn browser_manifest_dir(browser_id: &str) -> Option<PathBuf> {
+    let home = real_home_dir()?;
+    match browser_id.to_ascii_lowercase().as_str() {
+        "firefox" => Some(home.join("Library/Application Support/Mozilla/NativeMessagingHosts")),
+        "chrome" => Some(home.join("Library/Application Support/Google/Chrome/NativeMessagingHosts")),
+        _ => None,
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn browser_manifest_dir(_browser_id: &str) -> Option<PathBuf> {
     None
 }

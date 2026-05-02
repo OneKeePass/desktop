@@ -259,6 +259,7 @@
        [app-settings-dialog-main]
        [about/about-dialog-main]
        [browser-integration/browser-extension-connection-permit-dialog]
+       [browser-integration/browser-extension-install-grant-dialog]
 
        [gen-form/password-generator-dialog @(gen-events/generator-dialog-data)]
 

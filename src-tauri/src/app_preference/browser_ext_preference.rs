@@ -1,8 +1,8 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
-use onekeepass_core::error::Result;
+use onekeepass_core::error::{self, Result};
 
 use crate::browser_service::{
     self, start_proxy_handler, ChromeNativeMessagingConfig, FirefoxNativeMessagingConfig, CHROME,
@@ -31,6 +31,17 @@ pub(crate) struct BrowserExtSupport {
     // We update this field through 'user_confirmation' fn separately
     #[serde(skip)]
     user_confirmed_browsers: HashSet<String>,
+
+    // Per-browser security-scoped folder bookmarks (base64-encoded) used when
+    // the app is running under macOS App Sandbox (MAS build). The bookmark
+    // gives persistent write access to the browser's NativeMessagingHosts dir
+    // without requiring a new NSOpenPanel grant on every launch.
+    // Key: browser id (e.g. "firefox", "chrome"). Value: base64 bookmark blob.
+    // Absent on non-macOS and on DMG/Developer-ID builds; #[serde(default)]
+    // ensures old preference.toml files without this key deserialize to an
+    // empty map.
+    #[serde(default)]
+    browser_dir_bookmarks: HashMap<String, String>,
 }
 
 impl BrowserExtSupport {
@@ -49,6 +60,41 @@ impl BrowserExtSupport {
         self.allowed_browsers.contains(&browser_id.to_string())
     }
 
+    pub(crate) fn store_browser_dir_bookmark(&mut self, browser_id: &str, b64: String) {
+        self.browser_dir_bookmarks.insert(browser_id.to_string(), b64);
+    }
+
+    pub(crate) fn clear_browser_dir_bookmark(&mut self, browser_id: &str) {
+        self.browser_dir_bookmarks.remove(browser_id);
+    }
+
+    pub(crate) fn has_dir_bookmark(&self, browser_id: &str) -> bool {
+        self.browser_dir_bookmarks.contains_key(browser_id)
+    }
+
+    // Writes the native-messaging manifest for `browser_id`, establishing the
+    // scoped folder access if sandboxed. Called after the user has picked the
+    // folder via NSOpenPanel and the bookmark has already been stored.
+    // Also (re)starts the proxy handler on success.
+    pub(crate) fn write_browser_manifest_for(&mut self, browser_id: &str) -> Result<()> {
+        match browser_id {
+            FIREFOX => {
+                self.write_manifest_with_scope(FIREFOX, FirefoxNativeMessagingConfig::write)?;
+            }
+            CHROME => {
+                self.write_manifest_with_scope(CHROME, ChromeNativeMessagingConfig::write)?;
+            }
+            _ => {
+                return Err(error::Error::UnexpectedError(format!(
+                    "Unknown browser id '{}'",
+                    browser_id
+                )));
+            }
+        }
+        start_proxy_handler();
+        Ok(())
+    }
+
     // Need user's permission first time the browser extension tries to connect
     // It is assumed that the user has already checked the browsers to use with app after enabling the ap level extension use
     pub(super) fn user_confirmation(&mut self, browser_id: &str, confirmed: bool) {
@@ -63,36 +109,94 @@ impl BrowserExtSupport {
         }
     }
 
+    // Wraps a manifest file operation (write or remove) with a security-scoped
+    // folder access grant when running under macOS App Sandbox.
+    //
+    // Non-sandboxed: calls `op` directly.
+    // Sandboxed, bookmark present: resolves the bookmark, calls `op`, releases.
+    //   If the OS flagged the bookmark as stale, the refreshed blob is persisted.
+    // Sandboxed, bookmark absent: returns BrowserManifestNeedsUserGrant so
+    //   the caller can surface a folder-picker dialog to the user.
+    fn write_manifest_with_scope(
+        &mut self,
+        browser_id: &str,
+        op: impl FnOnce() -> Result<()>,
+    ) -> Result<()> {
+        if !crate::sandbox::is_sandboxed() {
+            return op();
+        }
+
+        let b64 = match self.browser_dir_bookmarks.get(browser_id) {
+            Some(b) => b.clone(),
+            None => {
+                // Sentinel prefix parsed by the cljs bg-update-preference callback to
+                // distinguish this from a generic error and show the folder-picker dialog.
+                return Err(error::Error::UnexpectedError(format!(
+                    "BrowserManifestNeedsUserGrant: {}",
+                    browser_id
+                )));
+            }
+        };
+
+        let (handle, refreshed) = crate::bookmarks::resolve_and_start(&b64)
+            .map_err(|e| error::Error::UnexpectedError(e.to_string()))?;
+
+        if let Some(new_b64) = refreshed {
+            self.browser_dir_bookmarks
+                .insert(browser_id.to_string(), new_b64);
+        }
+
+        let result = op();
+        crate::bookmarks::release(handle);
+        result
+    }
+
     // Called when the app level "Browser extension support" settings are changed
     pub(super) fn update(&mut self, other: BrowserExtSupportData) -> Result<()> {
         log::debug!("BrowserExtSupport update is called - existing allowed_browsers {:?}, new allowed_browsers {:?}",
             &self.allowed_browsers, &other.allowed_browsers, );
 
+        // Save prior state so we can roll back if writing the manifest fails.
+        let orig_enabled = self.extension_use_enabled;
+
         self.extension_use_enabled = other.extension_use_enabled;
 
         let allowed_browsers = self.allowed_browsers.clone();
 
-        if self.extension_use_enabled {
+        let result = if self.extension_use_enabled {
             // We call browser specific config file writing/removal first
-            self.firefox_ext_add_or_remove(&allowed_browsers, &other.allowed_browsers)?;
-            self.chrome_ext_add_or_remove(&allowed_browsers, &other.allowed_browsers)?;
+            let r = self
+                .firefox_ext_add_or_remove(&allowed_browsers, &other.allowed_browsers)
+                .and_then(|_| {
+                    self.chrome_ext_add_or_remove(&allowed_browsers, &other.allowed_browsers)
+                });
 
-            // Finally update the allowed browsers list. This is done assuming the above calls are successful
-            self.allowed_browsers = other.allowed_browsers;
+            if r.is_ok() {
+                // Finally update the allowed browsers list. Done only when all writes succeeded.
+                self.allowed_browsers = other.allowed_browsers;
+            }
+            r
         } else {
             self.allowed_browsers = vec![];
             self.user_confirmed_browsers = HashSet::default();
 
-            // log::debug!("Removing the firefox config as extension_use_enabled is disabled");
+            // Remove all existing browser native messaging config files as app level
+            // extension use is disabled. Bookmark scope is used if sandboxed.
+            let _ = self.write_manifest_with_scope(FIREFOX, FirefoxNativeMessagingConfig::remove);
+            let _ = self.write_manifest_with_scope(CHROME, ChromeNativeMessagingConfig::remove);
 
-            // Reove all existing browser native messaging config files as app level extension use is disabled
-            // TODO: Should we remove only those config files which are in the existing allowed_browsers list?
-            let _ = FirefoxNativeMessagingConfig::remove();
+            // Clear the stored bookmarks when integration is fully disabled so that
+            // the next enable re-prompts via NSOpenPanel (fresh grant).
+            self.browser_dir_bookmarks.clear();
 
-            let _ = ChromeNativeMessagingConfig::remove();
+            Ok(())
+        };
+
+        if result.is_err() {
+            self.extension_use_enabled = orig_enabled;
         }
 
-        Ok(())
+        result
     }
 
     // Called onetime to start the extension proxy listener from app side when the app starts
@@ -119,7 +223,7 @@ impl BrowserExtSupport {
 
             log::debug!("Writing the firefox config....");
 
-            FirefoxNativeMessagingConfig::write()?;
+            self.write_manifest_with_scope(FIREFOX, FirefoxNativeMessagingConfig::write)?;
 
             // As app level ext is enabled, we need to start the app side Endpoint to listen messages from proxy
             start_proxy_handler();
@@ -134,7 +238,7 @@ impl BrowserExtSupport {
             self.user_confirmed_browsers.remove(FIREFOX);
 
             log::debug!("Removing the firefox config...");
-            let r = FirefoxNativeMessagingConfig::remove();
+            let r = self.write_manifest_with_scope(FIREFOX, FirefoxNativeMessagingConfig::remove);
             log::debug!(
                 "After remove call for firefox native messaging config with result {:?}",
                 &r
@@ -157,7 +261,7 @@ impl BrowserExtSupport {
 
             log::debug!("Writing the chrome config....");
 
-            ChromeNativeMessagingConfig::write()?;
+            self.write_manifest_with_scope(CHROME, ChromeNativeMessagingConfig::write)?;
 
             // As app level ext is enabled, we need to start the app side Endpoint to listen messages from proxy
             start_proxy_handler();
@@ -172,7 +276,7 @@ impl BrowserExtSupport {
             self.user_confirmed_browsers.remove(CHROME);
 
             log::debug!("Removing the chrome config...");
-            let r = ChromeNativeMessagingConfig::remove();
+            let r = self.write_manifest_with_scope(CHROME, ChromeNativeMessagingConfig::remove);
             log::debug!(
                 "After remove call for chrome native messaging config with result {:?}",
                 &r
@@ -192,72 +296,3 @@ impl BrowserExtSupport {
 //     // List of browsers granted to use extension to connect to this database in 'db_key'
 //     allowed_browsers: Vec<String>,
 // }
-
-/*
-// TODO: Need to call browser specific config file writing
-            if self.allowed_browsers.contains(&FIREFOX.to_string()) {
-                // Extension is enabled at the app level and browser Firefox is ext support enabled
-
-                log::debug!("Writing the firefox config....");
-
-                FirefoxNativeMessagingConfig::write()?;
-
-                // As app level ext is enabled, we need to start the app side Endpoint to listen messages from proxy
-                start_proxy_handler();
-            } else {
-                // Extension is enabled at the app level and but browser Firefox ext support is disabled
-                // log::debug!("Removing the firefox config...");
-                let _ = FirefoxNativeMessagingConfig::remove();
-
-                // If firefox is removed from the allowed list, we need to remove it from user confirmed list also
-                // So that next time if user enables firefox in the allowed list, we will ask for permission again
-                // log::debug!("Removing the firefox from user confirmed list as it is removed from allowed list");
-                self.user_confirmed_browsers.remove(&FIREFOX.to_string());
-            }
-
-*/
-
-/*
-fn firefox_ext_add_or_remove(&self) -> Result<()> {
-        if self.extension_use_enabled && self.allowed_browsers.contains(&FIREFOX.to_string()) {
-            // Extension is enabled at the app level and browser Firefox is ext support enabled
-
-            log::debug!("Writing the firefox config....");
-
-            FirefoxNativeMessagingConfig::write()?;
-
-            // As app level ext is enabled, we need to start the app side Endpoint to listen messages from proxy
-            start_proxy_handler();
-        } else {
-            // This means browser Firefox ext support is disabled and the allowed list does not have firefox
-            // Then we remove the any previous config written so that next time
-            // if user enables firefox in the allowed list, the config is written again
-            log::debug!("Removing the firefox config...");
-            FirefoxNativeMessagingConfig::remove()?;
-        }
-
-        Ok(())
-    }
-
-
-    fn chrome_ext_add_or_remove(&self) -> Result<()> {
-        if self.extension_use_enabled && self.allowed_browsers.contains(&CHROME.to_string()) {
-            // Extension is enabled at the app level and browser Chrome is ext support enabled
-
-            log::debug!("Writing the chrome config....");
-
-            ChromeNativeMessagingConfig::write()?;
-
-            // As app level ext is enabled, we need to start the app side Endpoint to listen messages from proxy
-            start_proxy_handler();
-        } else {
-            // This means browser Chrome ext support is disabled and the allowed list does not have Chrome
-            // Then we remove the any previous config written so that next time
-            // if user enables Chrome in the allowed list, the config is written again
-            log::debug!("Removing the chrome config...");
-            ChromeNativeMessagingConfig::remove()?;
-        }
-
-        Ok(())
-    }
-*/

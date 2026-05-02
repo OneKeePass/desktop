@@ -44,6 +44,16 @@ pub(crate) fn init_app(app: &App) {
     // Ensure that all app dir paths are created if required and available
     app_paths::init_app_paths();
 
+    // Do we need this?
+    // Defensively create the App Group container and its Logs sub-directory
+    // before any IPC or logging code tries to write there. Under sandbox, an
+    // entitled process can create directories inside the group container
+    // directly; this is simpler than calling NSFileManager from Swift.
+    if let Some(gc) = sandbox::group_container_path() {
+        let _ = std::fs::create_dir_all(&gc);
+        let _ = std::fs::create_dir_all(gc.join("Logs"));
+    }
+
     let state = app.state::<AppState>();
 
     // Reads the app preference from a toml config file
@@ -314,6 +324,68 @@ impl AppState {
     pub(crate) fn browser_ext_use_user_permission(&self, browser_id: &str, confirmed: bool) {
         let mut store_pref = self.preference.lock().unwrap();
         store_pref.browser_ext_use_user_permission(browser_id, confirmed);
+    }
+
+    // Shows a folder picker (via tauri-plugin-dialog) pre-targeted at the
+    // browser's standard NativeMessagingHosts directory. On user confirmation,
+    // creates a security-scoped bookmark for that folder, persists it into the
+    // browser_dir_bookmarks preference field, and performs the manifest write
+    // within the just-granted scope. On cancellation (None returned by the
+    // picker), returns Ok(()) so the cljs side can re-try later.
+    // Only meaningful on macOS when sandboxed; on other platforms it is a no-op.
+    pub(crate) fn browser_ext_pick_install_dir<R: Runtime>(
+        &self,
+        app: &AppHandle<R>,
+        browser_id: &str,
+    ) -> Result<()> {
+        use tauri_plugin_dialog::DialogExt;
+
+        let default_dir = sandbox::browser_manifest_dir(browser_id);
+
+        let mut builder = app.dialog().file();
+        if let Some(dir) = default_dir {
+            builder = builder.set_directory(dir);
+        }
+
+        let picked = builder
+            .set_title("Allow OneKeePass to install the browser-extension manifest")
+            .blocking_pick_folder();
+
+        let picked_path = match picked {
+            Some(p) => p,
+            None => {
+                log::info!("browser_ext_pick_install_dir: user cancelled for {}", browser_id);
+                return Ok(());
+            }
+        };
+
+        let path_str = picked_path.to_string();
+
+        // Create a security-scoped bookmark while the panel grant is still active.
+        let b64 = match crate::bookmarks::create(&path_str) {
+            Some(b) => b,
+            None => {
+                log::error!("browser_ext_pick_install_dir: bookmark creation failed for {}", &path_str);
+                return Err(onekeepass_core::error::Error::UnexpectedError(
+                    "Failed to create a security-scoped bookmark for the selected folder".into(),
+                ));
+            }
+        };
+
+        // Persist the bookmark so future writes resolve it without a new picker.
+        {
+            let mut store_pref = self.preference.lock().unwrap();
+            store_pref.store_browser_dir_bookmark(browser_id, b64);
+        }
+
+        // Now re-run the manifest write; the stored bookmark will be resolved
+        // by write_manifest_with_scope inside browser_ext_support.update.
+        {
+            let mut store_pref = self.preference.lock().unwrap();
+            store_pref.write_browser_manifest(browser_id)?;
+        }
+
+        Ok(())
     }
 
     // Called onetime when the app starts
