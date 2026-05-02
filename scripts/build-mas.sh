@@ -51,6 +51,7 @@
 #   SKIP_PROXY_BUILD             true/1/yes to skip onekeepass-proxy rebuild
 #
 # Optional args:
+#   --target <triple>            target triple, e.g. aarch64-apple-darwin
 #   --skip-cljs                  skip src-cljs release build
 #   --skip-proxy                 skip onekeepass-proxy rebuild
 #   --skip-prebuilds             skip both src-cljs and proxy rebuilds
@@ -62,14 +63,16 @@ DESKTOP_DIR="$(pwd)"
 
 usage() {
     cat <<'EOF'
-Usage: scripts/build-mas.sh [--skip-cljs] [--skip-proxy] [--skip-prebuilds]
+Usage: scripts/build-mas.sh [--target <triple>] [--skip-cljs] [--skip-proxy] [--skip-prebuilds]
 
 Environment:
   BUILD_FOR=mas|dev            Build distribution package or local dev app.
+  TARGET=aarch64-apple-darwin  Target triple. Defaults from uname -m.
   SKIP_CLJS_BUILD=true         Skip src-cljs release build.
   SKIP_PROXY_BUILD=true        Skip onekeepass-proxy rebuild.
 
 Options:
+  --target <triple>            Target triple, e.g. aarch64-apple-darwin.
   --skip-cljs                  Skip src-cljs release build.
   --skip-proxy                 Skip onekeepass-proxy rebuild.
   --skip-prebuilds             Skip both src-cljs and proxy rebuilds.
@@ -89,6 +92,18 @@ SKIP_PROXY_BUILD="${SKIP_PROXY_BUILD:-false}"
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
+        --target|-t)
+            if [ "$#" -lt 2 ]; then
+                echo "ERROR: --target requires a value" >&2
+                usage >&2
+                exit 1
+            fi
+            TARGET="$2"
+            shift
+            ;;
+        --target=*)
+            TARGET="${1#--target=}"
+            ;;
         --skip-cljs|--skip-cljs-build)
             SKIP_CLJS_BUILD=true
             ;;
@@ -164,6 +179,11 @@ case "$TARGET" in
         PROXY_JUST_RECIPE="build-cp-mac-x86_64"
         BOTAN_CPU="x86_64"
         BOTAN_ABI="-arch x86_64"
+        ;;
+    universal-apple-darwin)
+        PROXY_JUST_RECIPE="build-cp-mac-universal"
+        BOTAN_CPU="arm64"
+        BOTAN_ABI="-arch arm64"
         ;;
     *)
         echo "ERROR: unsupported macOS target: $TARGET" >&2; exit 1
