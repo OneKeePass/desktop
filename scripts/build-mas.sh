@@ -246,6 +246,9 @@ fi
 echo "==> Embedding provisioning profile"
 cp "$PROVISION_PROFILE" "$APP/Contents/embedded.provisionprofile"
 
+echo "==> Embedding privacy manifest"
+cp "src-tauri/PrivacyInfo.xcprivacy" "$APP/Contents/PrivacyInfo.xcprivacy"
+
 echo "==> Re-signing embedded onekeepass-proxy"
 codesign --force --sign "$SIGNING_IDENTITY" \
     --entitlements src-tauri/entitlements.proxy.mas.plist \
