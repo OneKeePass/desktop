@@ -256,7 +256,11 @@ echo "==> Embedding provisioning profile"
 cp "$PROVISION_PROFILE" "$APP/Contents/embedded.provisionprofile"
 
 echo "==> Embedding privacy manifest"
-cp "src-tauri/PrivacyInfo.xcprivacy" "$APP/Contents/PrivacyInfo.xcprivacy"
+# macOS convention (matching what Xcode does for macOS targets): resources go in
+# Contents/Resources/, not Contents/. Placing it directly under Contents/ causes
+# codesign --verify --deep --strict to report "code object is not signed at all"
+# because codesign treats unknown files at the Contents/ level as code objects.
+cp "src-tauri/PrivacyInfo.xcprivacy" "$APP/Contents/Resources/PrivacyInfo.xcprivacy"
 
 echo "==> Re-signing embedded onekeepass-proxy"
 codesign --force --sign "$SIGNING_IDENTITY" \

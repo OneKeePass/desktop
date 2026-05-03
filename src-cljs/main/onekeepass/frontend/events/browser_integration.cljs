@@ -1,7 +1,6 @@
 (ns onekeepass.frontend.events.browser-integration
 
   (:require
-   [clojure.string :as str]
    [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.events.common :refer [on-error]]
    [re-frame.core :refer [dispatch reg-event-fx reg-fx]]))
@@ -43,12 +42,13 @@
 
 ;; Shown when the MAS sandbox requires a folder-picker grant before the
 ;; native-messaging manifest can be written for the given browser.
+;; actual-dir is the real expanded path from the Rust side (may be nil on non-mac).
 (reg-event-fx
  :browser-integration/needs-user-grant
- (fn [{:keys [_db]} [_event-id browser-id]]
+ (fn [{:keys [_db]} [_event-id browser-id actual-dir]]
    {:fx [[:dispatch [:generic-dialog-show-with-state
                      :browser-extension-install-grant-dialog
-                     {:browser-id browser-id}]]]}))
+                     {:browser-id browser-id :actual-dir actual-dir}]]]}))
 
 ;; Dispatched when the user clicks Allow in the explainer dialog.
 ;; Calls browser_ext_pick_install_dir on the Tauri side, then re-dispatches

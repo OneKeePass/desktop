@@ -55,12 +55,13 @@
   "Dialog shown on macOS App Sandbox builds when the app needs the user to
   click Allow on a folder picker so it can write the browser-extension manifest
   to the browser's NativeMessagingHosts directory."
-  [{:keys [dialog-show browser-id]}]
+  [{:keys [dialog-show browser-id actual-dir]}]
   (when dialog-show
-    (let [dir-hint (case browser-id
-                     "firefox" "~/Library/Application Support/Mozilla/NativeMessagingHosts"
-                     "chrome"  "~/Library/Application Support/Google/Chrome/NativeMessagingHosts"
-                     "the browser's NativeMessagingHosts folder")]
+    (let [dir-hint (or actual-dir
+                       (case browser-id
+                         "firefox" "~/Library/Application Support/Mozilla/NativeMessagingHosts"
+                         "chrome"  "~/Library/Application Support/Google/Chrome/NativeMessagingHosts"
+                         "the browser's NativeMessagingHosts folder"))]
       [mui-dialog {:open dialog-show
                    :dir (t/dir)
                    :maxWidth "sm"

@@ -340,7 +340,17 @@ impl AppState {
     ) -> Result<()> {
         use tauri_plugin_dialog::DialogExt;
 
-        let default_dir = sandbox::browser_manifest_dir(browser_id);
+        // NSOpenPanel ignores set_directory when the target doesn't exist yet.
+        // Walk up to the nearest existing ancestor so the picker opens nearby
+        // rather than falling back to whatever the user last opened elsewhere.
+        let default_dir = sandbox::browser_manifest_dir(browser_id).and_then(|mut path| loop {
+            if path.exists() {
+                break Some(path);
+            }
+            if !path.pop() {
+                break None;
+            }
+        });
 
         let mut builder = app.dialog().file();
         if let Some(dir) = default_dir {

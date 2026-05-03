@@ -131,9 +131,14 @@ impl BrowserExtSupport {
             None => {
                 // Sentinel prefix parsed by the cljs bg-update-preference callback to
                 // distinguish this from a generic error and show the folder-picker dialog.
+                // Append the actual (non-~-abbreviated) manifest dir after "|||" so the
+                // cljs explainer dialog can show the real path to the user.
+                let actual_dir = crate::sandbox::browser_manifest_dir(browser_id)
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .unwrap_or_default();
                 return Err(error::Error::UnexpectedError(format!(
-                    "BrowserManifestNeedsUserGrant: {}",
-                    browser_id
+                    "BrowserManifestNeedsUserGrant:{}|||{}",
+                    browser_id, actual_dir
                 )));
             }
         };

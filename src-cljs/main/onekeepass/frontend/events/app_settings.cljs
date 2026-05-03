@@ -205,9 +205,12 @@
                            (let [error (:error api-response)]
                              (if (and error (str/starts-with? error "BrowserManifestNeedsUserGrant:"))
                                ;; MAS sandbox: manifest directory needs a one-time NSOpenPanel grant.
-                               ;; Extract the browser-id from the error and show the explainer dialog.
-                               (let [browser-id (str/trim (subs error (count "BrowserManifestNeedsUserGrant:")))]
-                                 (dispatch [:browser-integration/needs-user-grant browser-id]))
+                               ;; Payload format: "BrowserManifestNeedsUserGrant:<browser-id>|||<actual-dir>"
+                               (let [payload  (subs error (count "BrowserManifestNeedsUserGrant:"))
+                                     parts    (str/split payload #"\|\|\|" 2)
+                                     browser-id (str/trim (first parts))
+                                     actual-dir (some-> (second parts) str/trim not-empty)]
+                                 (dispatch [:browser-integration/needs-user-grant browser-id actual-dir]))
                                (when-not (on-error api-response)
                                  (dispatch [:common/load-app-preference])
                                  (dispatch [:app-settings-dialog-close]))))))))
