@@ -182,11 +182,8 @@ case "$TARGET" in
         ;;
     universal-apple-darwin)
         PROXY_JUST_RECIPE="build-cp-mac-universal"
-        # For the universal build Tauri runs two separate cargo invocations
-        # (aarch64 then x86_64). botan-src derives --cpu from CARGO_CFG_TARGET_ARCH
-        # automatically, so each sub-build gets the right CPU. Do NOT force a
-        # single --cc-abi-flags here: if "-arch arm64" were exported globally the
-        # x86_64 sub-build would compile Botan for arm64 and fail at link time.
+        # Tauri runs two cargo invocations for universal builds. The cargo
+        # runner below sets Botan's clang -arch flag separately for each slice.
         BOTAN_CPU=""
         BOTAN_ABI=""
         ;;
@@ -198,13 +195,12 @@ PKG_OUT="${PKG_OUT:-$DESKTOP_DIR/OneKeePass.pkg}"
 
 export BOTAN_CONFIGURE_OS='macos'
 export BOTAN_CONFIGURE_CC='clang'
-# BOTAN_CONFIGURE_CPU is a no-op: botan-src overrides --cpu with CARGO_CFG_TARGET_ARCH.
-# Kept for documentation; harmless for single-arch builds.
+# botan-src always passes --cpu from CARGO_CFG_TARGET_ARCH. The MAS cargo
+# runner sets BOTAN_CONFIGURE_CC_ABI_FLAGS per target slice so universal builds
+# do not leak a single clang -arch value into both architectures.
 [ -n "$BOTAN_CPU" ] && export BOTAN_CONFIGURE_CPU="$BOTAN_CPU"
-# Only export CC_ABI_FLAGS for single-arch builds. The universal build leaves
-# BOTAN_ABI empty so each per-arch sub-build uses its natural arch from --cpu.
-[ -n "$BOTAN_ABI" ] && export BOTAN_CONFIGURE_CC_ABI_FLAGS="$BOTAN_ABI"
 export BOTAN_CONFIGURE_DISABLE_MODULES='tls,pkcs11,sodium,filters'
+CARGO_BOTAN_RUNNER="$DESKTOP_DIR/scripts/cargo-botan-target.sh"
 
 echo "==> Building for: $BUILD_FOR (target: $TARGET)"
 
@@ -231,7 +227,8 @@ else
 fi
 
 echo "==> Building MAS .app for $TARGET"
-cargo tauri build --target "$TARGET" \
+cargo tauri build --runner "$CARGO_BOTAN_RUNNER" \
+    --target "$TARGET" \
     --config src-tauri/tauri.mas.conf.json \
     --bundles app \
     -- --features mas-build

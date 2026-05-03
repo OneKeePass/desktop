@@ -26,8 +26,15 @@ build-cp-mac-x86_64 release="":(build-mac-x86_64 release)
 
 build-cp-mac-universal release="":(build-mac-aarch64 release) (build-mac-x86_64 release)
     mkdir -p ./binaries
+    rm -f ./binaries/onekeepass-proxy-aarch64-apple-darwin
+    rm -f ./binaries/onekeepass-proxy-x86_64-apple-darwin
     rm -f ./binaries/onekeepass-proxy-universal-apple-darwin
-    lipo -create         ./target/aarch64-apple-darwin/{{ if release == "true" {"release"} else {"debug"} }}/onekeepass-proxy         ./target/x86_64-apple-darwin/{{ if release == "true" {"release"} else {"debug"} }}/onekeepass-proxy         -output ./binaries/onekeepass-proxy-universal-apple-darwin
+    cp ./target/aarch64-apple-darwin/{{ if release == "true" {"release"} else {"debug"} }}/onekeepass-proxy ./binaries/onekeepass-proxy-aarch64-apple-darwin
+    cp ./target/x86_64-apple-darwin/{{ if release == "true" {"release"} else {"debug"} }}/onekeepass-proxy ./binaries/onekeepass-proxy-x86_64-apple-darwin
+    lipo -create \
+        ./binaries/onekeepass-proxy-aarch64-apple-darwin \
+        ./binaries/onekeepass-proxy-x86_64-apple-darwin \
+        -output ./binaries/onekeepass-proxy-universal-apple-darwin
     lipo -info ./binaries/onekeepass-proxy-universal-apple-darwin
 
 to-running-td release="":(build-mac-aarch64 release)
