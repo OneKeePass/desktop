@@ -85,6 +85,7 @@ pub(crate) struct Preference {
     // Each entry carries the file path plus an optional macOS security-scoped
     // bookmark. Bookmark is consumed only on sandboxed builds; populated on
     // any macOS build for forward-compat with later sandboxed installs.
+    // Introduced in MAS release 0.21.0
     recent_files: Vec<RecentFile>,
 
     pub(crate) backup: BackupPreference,
@@ -107,7 +108,7 @@ impl Default for Preference {
             // Same as in tauri.conf.json. This is for doc purpose only as
             // this will be reset to the latest version from tauri.conf.json
             // after parsing the toml pref file in read_toml and pref file is updated accordingly
-            version: "0.20.0".into(),
+            version: "0.21.0".into(),
             session_timeout: (15 as u8),
             clipboard_timeout: (30 as u16),
             theme: LIGHT.into(),
@@ -190,6 +191,8 @@ impl Preference {
 
             // This is a temporary arrangement. 
             // Should it be removed after 4 or 5 future releases?
+            // Next expected DMG release 0.22.0, this should be removed after verifying the 'Preference2'
+            // loading works as introduced for MAS release 0.21.0 (which added RecentFile struct, BackupPreference changed)
             if Self::is_pre_0_20_version(&pref.version) {
                 pref.backup.enabled = false;
                 pref.backup.dir = None;

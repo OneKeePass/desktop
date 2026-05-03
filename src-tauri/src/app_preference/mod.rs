@@ -18,6 +18,7 @@ pub(crate) struct BackupPreference {
     // to reopen access on subsequent launches when the user-picked dir is outside
     // the per-app container. None for default container-relative dirs and on
     // non-macOS / non-sandboxed builds.
+    // Introduced in MAS release 0.21.0
     #[serde(default)]
     pub(crate) dir_bookmark: Option<String>,
 }

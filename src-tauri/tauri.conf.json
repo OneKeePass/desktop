@@ -28,7 +28,7 @@
     "longDescription": "A secure offline password manager",
     "macOS": {
       "frameworks": [],
-      "minimumSystemVersion": "12.0",
+      "minimumSystemVersion": "11.0",
       "exceptionDomain": "",
       "signingIdentity": null,
       "providerShortName": null,
@@ -48,7 +48,7 @@
   },
   "productName": "OneKeePass",
   "mainBinaryName": "OneKeePass",
-  "version": "0.20.1",
+  "version": "0.21.0",
   "identifier": "com.onekeepass",
   "plugins": {
     "shell": {
