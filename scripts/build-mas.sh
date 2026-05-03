@@ -182,8 +182,13 @@ case "$TARGET" in
         ;;
     universal-apple-darwin)
         PROXY_JUST_RECIPE="build-cp-mac-universal"
-        BOTAN_CPU="arm64"
-        BOTAN_ABI="-arch arm64"
+        # For the universal build Tauri runs two separate cargo invocations
+        # (aarch64 then x86_64). botan-src derives --cpu from CARGO_CFG_TARGET_ARCH
+        # automatically, so each sub-build gets the right CPU. Do NOT force a
+        # single --cc-abi-flags here: if "-arch arm64" were exported globally the
+        # x86_64 sub-build would compile Botan for arm64 and fail at link time.
+        BOTAN_CPU=""
+        BOTAN_ABI=""
         ;;
     *)
         echo "ERROR: unsupported macOS target: $TARGET" >&2; exit 1
@@ -193,8 +198,12 @@ PKG_OUT="${PKG_OUT:-$DESKTOP_DIR/OneKeePass.pkg}"
 
 export BOTAN_CONFIGURE_OS='macos'
 export BOTAN_CONFIGURE_CC='clang'
-export BOTAN_CONFIGURE_CPU="$BOTAN_CPU"
-export BOTAN_CONFIGURE_CC_ABI_FLAGS="$BOTAN_ABI"
+# BOTAN_CONFIGURE_CPU is a no-op: botan-src overrides --cpu with CARGO_CFG_TARGET_ARCH.
+# Kept for documentation; harmless for single-arch builds.
+[ -n "$BOTAN_CPU" ] && export BOTAN_CONFIGURE_CPU="$BOTAN_CPU"
+# Only export CC_ABI_FLAGS for single-arch builds. The universal build leaves
+# BOTAN_ABI empty so each per-arch sub-build uses its natural arch from --cpu.
+[ -n "$BOTAN_ABI" ] && export BOTAN_CONFIGURE_CC_ABI_FLAGS="$BOTAN_ABI"
 export BOTAN_CONFIGURE_DISABLE_MODULES='tls,pkcs11,sodium,filters'
 
 echo "==> Building for: $BUILD_FOR (target: $TARGET)"
