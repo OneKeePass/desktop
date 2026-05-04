@@ -22,6 +22,7 @@
         "passwordIsChanged": "La password è stata rimossa e non viene utilizzata nella chiave master",
         "passwordNotUsed": "La password è stata rimossa e non viene utilizzata nella chiave master",
         "passwordWillBeChanged": "La password verrà modificata..",
+        "directoryUsedForDatabaseBackups": "Directory utilizzata per i backup del database",
         "requiresApplicationRestart": "Richiede il riavvio dell'applicazione",
         "selectAValidGroup": "Seleziona un gruppo valido",
         "selectTag": "Seleziona un tag o inizia a digitarne uno nuovo e aggiungilo"
@@ -40,6 +41,9 @@
         "start": "Avvio",
         "security": "Sicurezza",
         "selectAGroup": "Seleziona un gruppo",
+        "backups": "Backup",
+        "extensions": "Estensioni",
+        "supportedBrowsers": "Browser supportati",
         "timeouts": "Timeout",
         "userInterface": "Interfaccia Utente",
         "unlockDatabase": "Sblocca Database"
@@ -169,6 +173,11 @@
         "view": "Visualizza",
         "veryWeak": "Molto Debole",
         "weak": "Debole",
+        "backupDir": "Directory di backup",
+        "browserIntegration": "Integrazione browser",
+        "enableBackup": "Abilita backup",
+        "enableBrowserIntegration": "Abilita integrazione browser",
+        "fileManagement": "Gestione file",
         "wordList": "Lista di parole",
         "words": "Parole"
     },
@@ -218,6 +227,7 @@
             "search": "Cerca",
             "sectionField1": "Aggiungi campo in {{sectionName}}",
             "sectionField2": "Modifica campo in {{sectionName}}",
+            "allowFolderAccess": "Consenti accesso alla cartella",
             "unsavedChanges": "Modifiche non salvate"
         },
         "texts": {
@@ -259,6 +269,8 @@
             "reloadingFromDiskTxt": "Ricaricamento dal disco...",
             "restoreEntry": "La voce esistente verrà sostituita con questa voce della cronologia",
             "saveBothDatabases": "Sia il database sorgente che quello di destinazione sono stati modificati. Salvarli adesso?",
+            "installGrantTxt1": "macOS richiede che OneKeePass abbia il permesso esplicito di scrivere il file manifest dell'estensione del browser. Nella finestra di dialogo successiva, naviga su:",
+            "installGrantTxt2": "Fai clic su «Consenti» per concedere l'accesso. Questa è una richiesta una tantum per browser.",
             "unsavedChangesTxt1": "Ci sono modifiche ancora da salvare. Salva prima di bloccare il database",
             "unsavedChangesTxt2": "Ci sono modifiche ancora da salvare. Vuoi salvare e poi uscire?",
             "unsavedChangesTxt3": "Ci sono modifiche ancora da salvare. Vuoi salvare prima di chiudere il database?"
@@ -363,6 +375,8 @@
         "removePassword": "Rimuovi password",
         "restore": "Ripristina",
         "saveAs": "Salva Come",
+        "allow": "Consenti",
+        "later": "Più tardi",
         "save": "Salva",
         "yes": "Sì",
         "yesOverwrite": "Sì, Sovrascrivi"

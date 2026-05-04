@@ -22,6 +22,7 @@
         "passwordIsChanged": "Salasana vaihdetaan, eikä sitä käytetä pääavaimessa",
         "passwordNotUsed": "Salasana poistetaan, eikä sitä käytetä pääavaimessa",
         "passwordWillBeChanged": "Salasanaa aiotaan muuttaa..",
+        "directoryUsedForDatabaseBackups": "Hakemisto tietokantavarmuuskopioita varten",
         "requiresApplicationRestart": "Vaatii sovelluksen uudelleen käynnistyksen",
         "selectAValidGroup": "Ole hyvä ja valitse sopiva ryhmä",
         "selectTag": "Valitse tunniste tai aloita uuden tunnisteen syöttäminen ja lisää"
@@ -40,6 +41,9 @@
         "start": "Aloita",
         "security": "Turvallisuus",
         "selectAGroup": "Valitse ryhmä",
+        "backups": "Varmuuskopiot",
+        "extensions": "Laajennukset",
+        "supportedBrowsers": "Tuetut selaimet",
         "timeouts": "Aikakatkaisut",
         "userInterface": "Käyttöliittymä",
         "unlockDatabase": "Avaa tietokanta"
@@ -169,6 +173,11 @@
         "view": "Näytä",
         "veryWeak": "Erittäin heikko",
         "weak": "Heikko",
+        "backupDir": "Varmuuskopion hakemisto",
+        "browserIntegration": "Selaimen integraatio",
+        "enableBackup": "Ota varmuuskopiointi käyttöön",
+        "enableBrowserIntegration": "Ota selaimen integraatio käyttöön",
+        "fileManagement": "Tiedostojen hallinta",
         "wordList": "Sanalista",
         "words": "Sanat"
     },
@@ -218,6 +227,7 @@
             "search": "Etsi",
             "sectionField1": "Lisää kenttä {{sectionName}}",
             "sectionField2": "Muokkaa kenttää {{sectionName}}",
+            "allowFolderAccess": "Salli kansion käyttö",
             "unsavedChanges": "Muutoksia ei tallennettu"
         },
         "texts": {
@@ -259,6 +269,8 @@
             "reloadingFromDiskTxt": "Ladataan uudelleen levyltä...",
             "restoreEntry": "Nykyinen merkintä korvataa tällä merkinnällä",
             "saveBothDatabases": "Sekä lähde- että kohdetietokanta on muutettu. Tallennetaanko ne nyt?",
+            "installGrantTxt1": "macOS vaatii OneKeePassia saamaan nimenomaisen luvan kirjoittaa selaimen laajennusmanifestin. Seuraavassa valintaikkunassa siirry:",
+            "installGrantTxt2": "Napsauta \"Salli\" myöntääksesi käyttöoikeus. Tämä on kertaluonteinen kehotus per selain.",
             "unsavedChangesTxt1": "Muutoksia on vielä tallennettavana. Tallenna ennen tietokanna lukitsemista",
             "unsavedChangesTxt2": "Muutoksia on vielä tallennettavana.Haluatko tallentaa ja lopettaat?",
             "unsavedChangesTxt3": "Muutoksia on vielä tallennettavana. Haluatko tallentaa ennen tietokannan sulkemista?"
@@ -363,6 +375,8 @@
         "removePassword": "Poista salasana",
         "restore": "Palauta",
         "saveAs": "Tallenna nimellä",
+        "allow": "Salli",
+        "later": "Myöhemmin",
         "save": "Tallenna",
         "yes": "Kyllä",
         "yesOverwrite": "Kyllä, ylikirjoita"

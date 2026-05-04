@@ -22,6 +22,7 @@
         "passwordIsChanged": "تمت إزالة كلمة المرور ولم يتم استخدامها في المفتاح الرئيسي",
         "passwordNotUsed": "تمت إزالة كلمة المرور ولم يتم استخدامها في المفتاح الرئيسي",
         "passwordWillBeChanged": "سيتم تغيير كلمة المرور..",
+        "directoryUsedForDatabaseBackups": "المجلد المستخدم لنسخ قاعدة البيانات احتياطياً",
         "requiresApplicationRestart": "يتطلب إعادة تشغيل التطبيق",
         "selectAValidGroup": "الرجاء تحديد مجموعة صالحة",
         "selectTag": "حدد علامة أو ابدأ في إدخال علامة جديدة وأضف"
@@ -40,6 +41,9 @@
         "start": "ابدأ",
         "security": "الأمان",
         "selectAGroup": "اختر مجموعة",
+        "backups": "النسخ الاحتياطية",
+        "extensions": "الامتدادات",
+        "supportedBrowsers": "المتصفحات المدعومة",
         "timeouts": "المهل الزمنية",
         "userInterface": "واجهة المستخدم",
         "unlockDatabase": "فتح قفل قاعدة البيانات"
@@ -169,6 +173,11 @@
         "view": "عرض",
         "veryWeak": "ضعيف جدًا",
         "weak": "اسبوع",
+        "backupDir": "مجلد النسخ الاحتياطي",
+        "browserIntegration": "تكامل المتصفح",
+        "enableBackup": "تفعيل النسخ الاحتياطي",
+        "enableBrowserIntegration": "تفعيل تكامل المتصفح",
+        "fileManagement": "إدارة الملفات",
         "wordList": "قائمة الكلمات",
         "words": "كلمات"
     },
@@ -218,6 +227,7 @@
             "search": "بحث",
             "sectionField1": "إضافة حقل في {{sectionName}}",
             "sectionField2": "تعديل حقل في {{sectionName}}",
+            "allowFolderAccess": "السماح بالوصول إلى المجلد",
             "unsavedChanges": "تغييرات غير محفوظة"
         },
         "texts": {
@@ -259,6 +269,8 @@
             "reloadingFromDiskTxt": "إعادة التحميل من القرص...",
             "restoreEntry": "سيتم استبدال الإدخال الحالي بإدخال السجل هذا",
             "saveBothDatabases": "تم تعديل كلتا قاعدتي البيانات المصدر والهدف. هل تريد حفظهما الآن؟",
+            "installGrantTxt1": "يتطلب نظام macOS من OneKeePass الحصول على إذن صريح لكتابة ملف بيان امتداد المتصفح. في الحوار التالي، انتقل إلى:",
+            "installGrantTxt2": "انقر على «السماح» لمنح الوصول. هذا طلب لمرة واحدة لكل متصفح.",
             "unsavedChangesTxt1": "هناك تغييرات لم يتم حفظها بعد. يرجى الحفظ قبل غلق قاعدة البيانات",
             "unsavedChangesTxt2": "هناك تغييرات لم يتم حفظها بعد. هل تريد الحفظ ثم الإنهاء؟",
             "unsavedChangesTxt3": "هناك تغييرات لم يتم حفظها بعد. هل تريد الحفظ قبل إغلاق قاعدة البيانات؟"
@@ -363,6 +375,8 @@
         "removePassword": "إزالة كلمة المرور",
         "restore": "استعادة",
         "saveAs": "حفظ باسم",
+        "allow": "السماح",
+        "later": "لاحقاً",
         "save": "حفظ",
         "yes": "نعم",
         "yesOverwrite": "نعم، اكتب فوق"

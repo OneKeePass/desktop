@@ -22,6 +22,7 @@
         "passwordIsChanged": "Password is removed and is not used in master key",
         "passwordNotUsed": "Password is removed and is not used in master key",
         "passwordWillBeChanged": "Password is going to be changed..",
+        "directoryUsedForDatabaseBackups": "Directory used for database backups",
         "requiresApplicationRestart": "Requires application restart",
         "selectAValidGroup": "Please select a valid group",
         "selectTag": "Select a tag or start entering a new tag and add"
@@ -40,6 +41,9 @@
         "start": "Start",
         "security": "Security",
         "selectAGroup": "Select a group",
+        "backups": "Backups",
+        "extensions": "Extensions",
+        "supportedBrowsers": "Supported Browsers",
         "timeouts": "Timeouts",
         "userInterface": "User Interface",
         "unlockDatabase": "Unlock Database"
@@ -169,6 +173,11 @@
         "view": "View",
         "veryWeak": "Very Weak",
         "weak": "Weak",
+        "backupDir": "Backup dir",
+        "browserIntegration": "Browser Integration",
+        "enableBackup": "Enable backup",
+        "enableBrowserIntegration": "Enable browser Integration",
+        "fileManagement": "File Management",
         "wordList": "Word list",
         "words": "Words"
     },
@@ -218,6 +227,7 @@
             "search": "Search",
             "sectionField1": "Add field in {{sectionName}}",
             "sectionField2": "Modify field in {{sectionName}}",
+            "allowFolderAccess": "Allow folder access",
             "unsavedChanges": "Unsaved Changes"
         },
         "texts": {
@@ -259,6 +269,8 @@
             "reloadingFromDiskTxt": "Reloading from disk...",
             "restoreEntry": "The existing entry will be replaced with this histrory entry",
             "saveBothDatabases": "Both source and target databases are modified. Save them now?",
+            "installGrantTxt1": "macOS requires OneKeePass to have explicit permission to write the browser-extension manifest file. In the next dialog, navigate to:",
+            "installGrantTxt2": "Click “Allow” to grant access. This is a one-time prompt per browser.",
             "unsavedChangesTxt1": "There are changes yet to be saved. Please save before locking the database",
             "unsavedChangesTxt2": "There are changes yet to be saved. Do you want to save and then quit?",
             "unsavedChangesTxt3": "There are changes yet to be saved. Do you want to save before closing the database?"
@@ -363,6 +375,8 @@
         "removePassword": "Remove password",
         "restore": "Restore",
         "saveAs": "Save As",
+        "allow": "Allow",
+        "later": "Later",
         "save": "Save",
         "yes": "Yes",
         "yesOverwrite": "Yes,Overwrite"

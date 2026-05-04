@@ -49,12 +49,12 @@
     [mui-list-item-button {:on-click #(app-settings-events/app-settings-panel-select :file-management)
                            :selected (= panel :file-management)}
      [mui-list-item-icon [mui-icon-folder-outlined]]
-     [mui-list-item-text text-style-m "File Management"]]
+     [mui-list-item-text text-style-m (tr-l fileManagement)]]
 
     [mui-list-item-button {:on-click #(app-settings-events/app-settings-panel-select :browser-integration)
                            :selected (= panel :browser-integration)}
      [mui-list-item-icon [mui-icon-open-in-browser]]
-     [mui-list-item-text text-style-m "Browser Integration" #_(tr-l security)]]]])
+     [mui-list-item-text text-style-m (tr-l browserIntegration)]]]])
 
 
 (def themes [{:name "Light" :value "light"} {:name "Dark" :value "dark"}])
@@ -73,6 +73,7 @@
                 {:name "fi - suomi" :value "fi"}
                 {:name "ru - русский" :value "ru"}
                 {:name "it - Italiano" :value "it"}
+                {:name "pt-BR - Português do Brasil" :value "pt-BR"}
                 
                 #_{:name "fr - Français" :value "fr"}])
 
@@ -174,7 +175,7 @@
     [mui-stack
      [mui-stack {:sx {:pt 1 :pb 1}}
       [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
-       "Backups"]]
+       (tr-t "backups")]]
 
      [mui-stack {:spacing 2 :sx {:alignItems "center"}}
       [mui-box {:sx {:width "80%"}}
@@ -186,14 +187,14 @@
                                   (app-settings-events/field-update
                                    [:preference-data :backup :enabled]
                                    (-> e .-target .-checked)))}])
-         :label "Enable backup"}]]
+         :label (tr-l enableBackup)}]]
 
       [mui-box {:sx {:width "80%"}}
-       [m/text-field {:label "Backup dir"
+       [m/text-field {:label (tr-l backupDir)
                       :value (or dir "")
                       :disabled (not enabled)
                       :error (contains? error-fields :backup-dir)
-                      :helperText (get error-fields :backup-dir "Directory used for database backups")
+                      :helperText (get error-fields :backup-dir (tr-h directoryUsedForDatabaseBackups))
                       :on-change (app-settings-events/field-update-factory [:preference-data :backup :dir])
                       :variant "standard" :fullWidth true
                       :slotProps {:input {:endAdornment (r/as-element
@@ -210,7 +211,7 @@
   [mui-stack
    [mui-stack {:sx {:pt 1 :pb 1}}
     [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
-     "Extensions" #_(tr-t "browserIntegration")]]
+     (tr-t "extensions")]]
 
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
     [mui-box {:sx {:width "80%"}}
@@ -226,7 +227,7 @@
                                      (app-settings-events/field-update
                                       [:preference-data :browser-ext-support :allowed-browsers] []))
                                    (app-settings-events/field-update [:preference-data :browser-ext-support :extension-use-enabled] checked?)))}])
-        :label "Enable browser Integration"}]]]]])
+        :label (tr-l enableBrowserIntegration)}]]]]])
 
 (def ^:private FIREFOX "Firefox")
 (def ^:private CHROME "Chrome")
@@ -249,7 +250,7 @@
     [mui-stack
      [mui-stack {:sx {:pt 1 :pb 1}}
       [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
-       "Supported Browsers"]]
+       (tr-t "supportedBrowsers")]]
 
      [mui-stack {:spacing 2 :sx {:alignItems "center"}}
       [mui-box {:sx {:width "80%"}}

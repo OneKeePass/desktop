@@ -22,6 +22,7 @@
         "passwordIsChanged": "La contraseña se elimina y no se utiliza en la llave maestra",
         "passwordNotUsed": "La contraseña se elimina y no se utiliza en la llave maestra",
         "passwordWillBeChanged": "La contraseña se va a cambiar ..",
+        "directoryUsedForDatabaseBackups": "Directorio utilizado para las copias de seguridad de la base de datos",
         "requiresApplicationRestart": "Requiere reiniciar la aplicación",
         "selectAValidGroup": "Seleccione un grupo válido",
         "selectTag": "Selecciona una etiqueta o empieza a introducir una nueva y añade"
@@ -40,6 +41,9 @@
         "start": "Inicio",
         "security": "Seguridad",
         "selectAGroup": "Seleccione un grupo",
+        "backups": "Copias de seguridad",
+        "extensions": "Extensiones",
+        "supportedBrowsers": "Navegadores compatibles",
         "timeouts": "Tiempos muertos",
         "userInterface": "Interfaz de usuario",
         "unlockDatabase": "Desbloquear base de datos"
@@ -169,6 +173,11 @@
         "view": "Ver",
         "veryWeak": "Muy débil",
         "weak": "Débil",
+        "backupDir": "Directorio de copia de seguridad",
+        "browserIntegration": "Integración con el navegador",
+        "enableBackup": "Activar copia de seguridad",
+        "enableBrowserIntegration": "Activar integración con el navegador",
+        "fileManagement": "Gestión de archivos",
         "wordList": "Lista de palabras",
         "words": "Palabras"
     },
@@ -218,6 +227,7 @@
             "search": "Buscar",
             "sectionField1": "Añadir campo en {{sección Nombre}}",
             "sectionField2": "Modificar campo en {{sección Nombre }}",
+            "allowFolderAccess": "Permitir acceso a la carpeta",
             "unsavedChanges": "Cambios no guardados"
         },
         "texts": {
@@ -259,6 +269,8 @@
             "reloadingFromDiskTxt": "Recargando desde disco...",
             "restoreEntry": "La entrada existente se sustituirá por esta entrada histórica",
             "saveBothDatabases": "Tanto la base de datos de origen como la de destino han sido modificadas. ¿Guardarlas ahora?",
+            "installGrantTxt1": "macOS requiere que OneKeePass tenga permiso explícito para escribir el archivo de manifiesto de la extensión del navegador. En el siguiente diálogo, navegue a:",
+            "installGrantTxt2": "Haga clic en «Permitir» para conceder acceso. Esta es una solicitud única por navegador.",
             "unsavedChangesTxt1": "Hay cambios pendientes de guardar. Por favor, guarde antes de bloquear la base de datos",
             "unsavedChangesTxt2": "Hay cambios pendientes de guardar. Quieres guardar y luego salir?",
             "unsavedChangesTxt3": "Hay cambios pendientes de guardar. Quieres guardar antes de cerrar la base de datos?"
@@ -363,6 +375,8 @@
         "removePassword": "Eliminar contraseña",
         "restore": "Restaurar",
         "saveAs": "Guardar como",
+        "allow": "Permitir",
+        "later": "Más tarde",
         "save": "Guardar",
         "yes": "Sí",
         "yesOverwrite": "Sí, sobrescribir"

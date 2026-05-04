@@ -22,6 +22,7 @@
         "passwordIsChanged": "Passwort wurde entfernt und wird im Hauptschlüssel nicht verwendet",
         "passwordNotUsed": "Passwort wurde entfernt und wird im Hauptschlüssel nicht verwendet",
         "passwordWillBeChanged": "Passwort wird geändert...",
+        "directoryUsedForDatabaseBackups": "Verzeichnis für Datenbanksicherungen",
         "requiresApplicationRestart": "Erfordert Neustart der Anwendung",
         "selectAValidGroup": "Bitte wählen Sie eine gültige Gruppe",
         "selectTag": "Wählen Sie ein Tag aus oder beginnen Sie, ein neues einzugeben und hinzufügen"
@@ -40,6 +41,9 @@
         "start": "Start",
         "security": "Sicherheit",
         "selectAGroup": "Wählen Sie eine Gruppe",
+        "backups": "Sicherungen",
+        "extensions": "Erweiterungen",
+        "supportedBrowsers": "Unterstützte Browser",
         "timeouts": "Zeitlimits",
         "userInterface": "Benutzeroberfläche",
         "unlockDatabase": "Datenbank entsperren"
@@ -169,6 +173,11 @@
         "view": "Anzeigen",
         "veryWeak": "Sehr schwach",
         "weak": "Schwach",
+        "backupDir": "Sicherungsverzeichnis",
+        "browserIntegration": "Browser-Integration",
+        "enableBackup": "Sicherung aktivieren",
+        "enableBrowserIntegration": "Browser-Integration aktivieren",
+        "fileManagement": "Dateiverwaltung",
         "wordList": "Wortliste",
         "words": "Wörter"
     },
@@ -218,6 +227,7 @@
             "search": "Suche",
             "sectionField1": "Feld hinzufügen in {{sectionName}}",
             "sectionField2": "Feld bearbeiten in {{sectionName}}",
+            "allowFolderAccess": "Ordnerzugriff erlauben",
             "unsavedChanges": "Ungespeicherte Änderungen"
         },
         "texts": {
@@ -259,6 +269,8 @@
             "reloadingFromDiskTxt": "Wird von der Festplatte neu geladen...",
             "restoreEntry": "Der vorhandene Eintrag wird durch diesen Historieneintrag ersetzt",
             "saveBothDatabases": "Sowohl die Quell- als auch die Zieldatenbank wurden geändert. Jetzt speichern?",
+            "installGrantTxt1": "macOS erfordert, dass OneKeePass die ausdrückliche Berechtigung hat, die Browser-Erweiterungs-Manifestdatei zu schreiben. Navigieren Sie im nächsten Dialog zu:",
+            "installGrantTxt2": "Klicken Sie auf „Erlauben", um den Zugriff zu gewähren. Dies ist eine einmalige Aufforderung pro Browser.",
             "unsavedChangesTxt1": "Es gibt noch ungespeicherte Änderungen. Bitte speichern Sie, bevor Sie die Datenbank sperren",
             "unsavedChangesTxt2": "Es gibt noch ungespeicherte Änderungen. Möchten Sie speichern und dann beenden?",
             "unsavedChangesTxt3": "Es gibt noch ungespeicherte Änderungen. Möchten Sie speichern, bevor Sie die Datenbank schließen?"
@@ -363,6 +375,8 @@
         "removePassword": "Passwort entfernen",
         "restore": "Wiederherstellen",
         "saveAs": "Speichern unter",
+        "allow": "Erlauben",
+        "later": "Später",
         "save": "Speichern",
         "yes": "Ja",
         "yesOverwrite": "Ja, überschreiben"

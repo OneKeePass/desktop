@@ -22,6 +22,7 @@
         "passwordIsChanged": "密码已经移除且不在，不在用于主密钥",
         "passwordNotUsed": "密码已经移除且不在，不在用于主密钥",
         "passwordWillBeChanged": "密码将会被改变",
+        "directoryUsedForDatabaseBackups": "用于数据库备份的目录",
         "requiresApplicationRestart": "应用需要重启",
         "selectAValidGroup": "请选择有效的组",
         "selectTag": "选择一个标签或者添加一个新的标签"
@@ -40,6 +41,9 @@
         "start": "开始",
         "security": "安全",
         "selectAGroup": "选择一个组",
+        "backups": "备份",
+        "extensions": "扩展程序",
+        "supportedBrowsers": "支持的浏览器",
         "timeouts": "超时设置",
         "userInterface": "用户界面",
         "unlockDatabase": "解锁数据库"
@@ -169,6 +173,11 @@
         "view": "查看",
         "veryWeak": "非常弱",
         "weak": "弱",
+        "backupDir": "备份目录",
+        "browserIntegration": "浏览器集成",
+        "enableBackup": "启用备份",
+        "enableBrowserIntegration": "启用浏览器集成",
+        "fileManagement": "文件管理",
         "wordList": "单词列表",
         "words": "单词"
     },
@@ -218,6 +227,7 @@
             "search": "搜索",
             "sectionField1": "Add field in {{sectionName}}",
             "sectionField2": "Modify field in {{sectionName}}",
+            "allowFolderAccess": "允许文件夹访问",
             "unsavedChanges": "为保存的改变"
         },
         "texts": {
@@ -259,6 +269,8 @@
             "reloadingFromDiskTxt": "正在从磁盘重新加载...",
             "restoreEntry": "现有的密码项将被历史密码项替代",
             "saveBothDatabases": "源数据库和目标数据库都已修改。现在保存它们？",
+            "installGrantTxt1": "macOS 要求 OneKeePass 获得明确权限才能写入浏览器扩展清单文件。在下一个对话框中，请导航到：",
+            "installGrantTxt2": "点击「允许」以授予访问权限。每个浏览器只需操作一次。",
             "unsavedChangesTxt1": "这些修改还未保存。请在锁定数据库之前进行保存",
             "unsavedChangesTxt2": "这些修改还未保存。你想保存并退出么？",
             "unsavedChangesTxt3": "这些修改还未保存. 你想在关闭数据库之前保存么？"
@@ -363,6 +375,8 @@
         "removePassword": "移除密码",
         "restore": "恢复",
         "saveAs": "另存为",
+        "allow": "允许",
+        "later": "稍后",
         "save": "保存",
         "yes": "是",
         "yesOverwrite": "是，重写"
