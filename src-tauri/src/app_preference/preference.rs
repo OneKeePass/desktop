@@ -7,7 +7,6 @@ use crate::app_preference::{BackupPreference, PreferenceData, RecentFile};
 use crate::app_preference::browser_ext_preference::{BrowserExtSupport, BrowserExtSupportData};
 
 use crate::{
-    app_paths::app_backup_dir,
     constants::{standard_file_names::APP_PREFERENCE_FILE, themes::LIGHT},
     translation,
 };
@@ -171,7 +170,6 @@ impl Preference {
                     // In that case, we start using the default one
                     let mut p = Preference::default();
                     p.version = version.clone();
-                    p.backup.dir = Some(app_backup_dir().as_os_str().to_string_lossy().to_string());
                     // Let us write back the default as what is read from file system is not a valid pref
                     p.write_toml();
                     p
@@ -196,9 +194,16 @@ impl Preference {
             if Self::is_pre_0_20_version(&pref.version) {
                 pref.backup.enabled = false;
                 pref.backup.dir = None;
+                pref.backup.dir_bookmark = None;
             }
 
             pref.version = version;
+            pref.write_toml();
+        }
+
+        if !pref.backup.enabled && (pref.backup.dir.is_some() || pref.backup.dir_bookmark.is_some()) {
+            pref.backup.dir = None;
+            pref.backup.dir_bookmark = None;
             pref.write_toml();
         }
         pref
@@ -333,14 +338,19 @@ impl Preference {
         }
 
         if let Some(mut v) = preference_data.backup {
-            // The frontend never sends `dir_bookmark` — it doesn't know about
-            // sandbox bookmarks. Re-derive one here from the picked dir while
-            // the file-picker grant for that path is still active in this
-            // process. None for empty / default container-relative paths.
-            v.dir_bookmark = match v.dir.as_deref() {
-                Some(dir) if !dir.trim().is_empty() => crate::bookmarks::create(dir),
-                _ => None,
-            };
+            if v.enabled {
+                // The frontend never sends `dir_bookmark` — it doesn't know about
+                // sandbox bookmarks. Re-derive one here from the picked dir while
+                // the file-picker grant for that path is still active in this
+                // process. None for empty paths.
+                v.dir_bookmark = match v.dir.as_deref() {
+                    Some(dir) if !dir.trim().is_empty() => crate::bookmarks::create(dir),
+                    _ => None,
+                };
+            } else {
+                v.dir = None;
+                v.dir_bookmark = None;
+            }
             self.backup = v;
             updated = true;
         }

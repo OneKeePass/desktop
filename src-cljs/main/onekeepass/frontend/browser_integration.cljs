@@ -26,25 +26,21 @@
                  :maxWidth "sm"
                  :fullWidth true}
      [mui-dialog-title {}
-      [mui-typography {:variant "h6"} "Permit browser connection"]]
+      [mui-typography {:variant "h6"} (t/lstr-dlg-title "permitBrowserConnection")]]
      [mui-divider {:sx {:border-color (get-theme-color :divider-color1)}}]
      [mui-dialog-content {:dividers true
                           :sx {:p 2}}
       [mui-box {}
-       [mui-typography {:sx {:mb 2}} (str "A browser extension is requesting permission to connect to OneKeepass. "
-                                          "If you trust this extension, please click 'Allow'. "
-                                          "Otherwise, click 'Reject'.")]]]
+       [mui-typography {:sx {:mb 2}} (t/lstr-dlg-text "permitBrowserConnectionTxt")]]]
      [mui-divider {:sx {:border-color (get-theme-color :divider-color1)}}]
      [mui-dialog-actions {}
       [mui-button {:onClick
                    (fn []
-                     (br-int-events/brower-use-verified browser-id true))} "Allow"]
+                     (br-int-events/brower-use-verified browser-id true))} (t/lstr-bl "allow")]
 
       [mui-button {:onClick
                    (fn []
-                     (br-int-events/brower-use-verified browser-id false))
-                   #_(fn []
-                       #_(gd-events/browser-extension-connection-permit-dialog-close))}  "Reject"]]]))
+                     (br-int-events/brower-use-verified browser-id false))} (t/lstr-bl "reject")]]]))
 
 
 (defn browser-extension-connection-permit-dialog []

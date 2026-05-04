@@ -511,6 +511,23 @@ pub(crate) struct StandardDirs {
     document_dir: Option<String>,
 }
 
+fn user_documents_dir<R: Runtime>(app: &tauri::AppHandle<R>) -> Option<String> {
+    #[cfg(target_os = "macos")]
+    if let Some(home) = sandbox::real_home_dir() {
+        return Some(
+            home.join("Documents")
+                .as_os_str()
+                .to_string_lossy()
+                .to_string(),
+        );
+    }
+
+    app.path().document_dir().map_or_else(
+        |_| None,
+        |d| Some(d.as_os_str().to_string_lossy().to_string()),
+    )
+}
+
 #[derive(Serialize, Deserialize)]
 pub(crate) struct SystemInfoWithPreference {
     os_name: String,
@@ -552,10 +569,7 @@ impl SystemInfoWithPreference {
             arch,
             path_sep: std::path::MAIN_SEPARATOR.to_string(),
             standard_dirs: StandardDirs {
-                document_dir: app.path().document_dir().map_or_else(
-                    |_| None,
-                    |d| Some(d.as_os_str().to_string_lossy().to_string()),
-                ),
+                document_dir: user_documents_dir(&app),
             },
             biometric_type_available: biometric::supported_biometric_type(),
             // document_dir().and_then(|d| Some(d.as_os_str().to_string_lossy().to_string())),
