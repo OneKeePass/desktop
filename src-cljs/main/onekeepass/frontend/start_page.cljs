@@ -20,6 +20,7 @@
                                                      theme-color]]
    [onekeepass.frontend.new-database :as nd-form]
    [onekeepass.frontend.open-db-form :as od-form]
+   [onekeepass.frontend.open-recent :as open-recent]
    [onekeepass.frontend.password-generator :as gen-form]
    [onekeepass.frontend.translation :as t :refer-macros [tr tr-l tr-t]]
    [reagent.core :as r]))
@@ -129,4 +130,5 @@
    [about/about-dialog-main]
    [browser-integration/browser-extension-connection-permit-dialog]
    [browser-integration/browser-extension-install-grant-dialog]
+   [open-recent/open-recent-dialog-main]
    [message-dialog]])

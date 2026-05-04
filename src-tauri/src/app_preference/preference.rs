@@ -194,16 +194,14 @@ impl Preference {
             if Self::is_pre_0_20_version(&pref.version) {
                 pref.backup.enabled = false;
                 pref.backup.dir = None;
-                pref.backup.dir_bookmark = None;
             }
 
             pref.version = version;
             pref.write_toml();
         }
 
-        if !pref.backup.enabled && (pref.backup.dir.is_some() || pref.backup.dir_bookmark.is_some()) {
+        if !pref.backup.enabled && pref.backup.dir.is_some() {
             pref.backup.dir = None;
-            pref.backup.dir_bookmark = None;
             pref.write_toml();
         }
         pref
@@ -226,7 +224,7 @@ impl Preference {
             p.recent_files = p2
                 .recent_files
                 .into_iter()
-                .map(|path| RecentFile::new(path, None))
+                .map(RecentFile::new)
                 .collect();
             p.backup = p2.backup;
             p.password_gen_preference = p2.password_gen_preference;
@@ -246,7 +244,7 @@ impl Preference {
             p.recent_files = p1
                 .recent_files
                 .into_iter()
-                .map(|path| RecentFile::new(path, None))
+                .map(RecentFile::new)
                 .collect();
             p.default_entry_category_groupings = p1.default_entry_category_groupings;
             p.version = p1.version;
@@ -339,17 +337,13 @@ impl Preference {
 
         if let Some(mut v) = preference_data.backup {
             if v.enabled {
-                // The frontend never sends `dir_bookmark` — it doesn't know about
-                // sandbox bookmarks. Re-derive one here from the picked dir while
-                // the file-picker grant for that path is still active in this
-                // process. None for empty paths.
-                v.dir_bookmark = match v.dir.as_deref() {
-                    Some(dir) if !dir.trim().is_empty() => crate::bookmarks::create(dir),
-                    _ => None,
-                };
+                if let Some(dir) = v.dir.as_deref().filter(|dir| !dir.trim().is_empty()) {
+                    if let Some(b64) = crate::bookmarks::create(dir) {
+                        crate::bookmarks::store_backup_dir(dir, &b64);
+                    }
+                }
             } else {
                 v.dir = None;
-                v.dir_bookmark = None;
             }
             self.backup = v;
             updated = true;
@@ -402,37 +396,19 @@ impl Preference {
         log::debug!("browser_ext_use_user_permission update is saved to TOML ");
     }
 
-    pub(crate) fn add_recent_file(&mut self, file_name: &str, bookmark: Option<String>) -> &mut Self {
-        // Preserve a previously-stored bookmark if no fresh one was supplied,
-        // so a re-open from a fresh file picker (no new bookmark created) does
-        // not wipe out the bookmark stored on a prior open.
-        let prior_bookmark = self
-            .recent_files
-            .iter()
-            .find(|r| r.path == file_name)
-            .and_then(|r| r.bookmark.clone());
+    pub(crate) fn add_recent_file(&mut self, file_name: &str) -> &mut Self {
         self.recent_files.retain(|r| r.path != file_name);
-        let bookmark = bookmark.or(prior_bookmark);
         self.recent_files
-            .insert(0, RecentFile::new(file_name.to_string(), bookmark));
+            .insert(0, RecentFile::new(file_name.to_string()));
         self.write_toml();
         self
     }
 
     pub(crate) fn remove_recent_file(&mut self, file_name: &str) -> &mut Self {
         self.recent_files.retain(|r| r.path != file_name);
+        crate::bookmarks::remove_db_file(file_name);
         self.write_toml();
         self
-    }
-
-    // Returns the stored security-scoped bookmark blob (base64) for `file_name`
-    // if a recent entry exists with one. Used at load time to regain sandbox
-    // access before the kp_service file read.
-    pub(crate) fn recent_file_bookmark(&self, file_name: &str) -> Option<String> {
-        self.recent_files
-            .iter()
-            .find(|r| r.path == file_name)
-            .and_then(|r| r.bookmark.clone())
     }
 
     // True if the given path is currently tracked in recents. Used to decide
@@ -442,39 +418,10 @@ impl Preference {
         self.recent_files.iter().any(|r| r.path == file_name)
     }
 
-    // Replaces the backup-dir bookmark blob in-place and persists. Called
-    // when a stale-refresh of the backup-dir bookmark produced a fresh blob
-    // at app startup, or when the user re-picks the backup directory.
-    pub(crate) fn update_backup_dir_bookmark(&mut self, bookmark: Option<String>) -> &mut Self {
-        self.backup.dir_bookmark = bookmark;
-        self.write_toml();
-        self
-    }
-
-    // Replaces just the bookmark on an existing entry. No-op if the entry is
-    // not present. Called when a resolve flagged the prior bookmark as stale
-    // and the OS gave us a refreshed blob to persist.
-    pub(crate) fn update_recent_file_bookmark(
-        &mut self,
-        file_name: &str,
-        bookmark: String,
-    ) -> &mut Self {
-        let mut updated = false;
-        for entry in &mut self.recent_files {
-            if entry.path == file_name {
-                entry.bookmark = Some(bookmark.clone());
-                updated = true;
-                break;
-            }
-        }
-        if updated {
-            self.write_toml();
-        }
-        self
-    }
-
     pub(crate) fn clear_recent_files(&mut self) -> &mut Self {
         self.recent_files.clear();
+        crate::bookmarks::clear_db_files();
+        self.write_toml();
         self
     }
 
@@ -482,19 +429,8 @@ impl Preference {
         &self.browser_ext_support
     }
 
-    // Stores a security-scoped folder bookmark for `browser_id` and persists.
-    // Called after the user picks a folder via NSOpenPanel so future manifest
-    // writes can resolve the bookmark without a new picker dialog.
-    pub(crate) fn store_browser_dir_bookmark(&mut self, browser_id: &str, b64: String) {
-        self.browser_ext_support
-            .store_browser_dir_bookmark(browser_id, b64);
-        self.write_toml();
-    }
-
     // Writes the native-messaging manifest for `browser_id` using the stored
-    // security-scoped folder bookmark. The bookmark must already be present
-    // (stored via `store_browser_dir_bookmark`). Persists preference on success
-    // so any stale-refresh of the bookmark is durable.
+    // security-scoped folder bookmark from the App Group bookmark store.
     pub(crate) fn write_browser_manifest(&mut self, browser_id: &str) -> onekeepass_core::error::Result<()> {
         self.browser_ext_support
             .write_browser_manifest_for(browser_id)?;

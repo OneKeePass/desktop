@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
@@ -32,16 +32,6 @@ pub(crate) struct BrowserExtSupport {
     #[serde(skip)]
     user_confirmed_browsers: HashSet<String>,
 
-    // Per-browser security-scoped folder bookmarks (base64-encoded) used when
-    // the app is running under macOS App Sandbox (MAS build). The bookmark
-    // gives persistent write access to the browser's NativeMessagingHosts dir
-    // without requiring a new NSOpenPanel grant on every launch.
-    // Key: browser id (e.g. "firefox", "chrome"). Value: base64 bookmark blob.
-    // Absent on non-macOS and on DMG/Developer-ID builds; #[serde(default)]
-    // ensures old preference.toml files without this key deserialize to an
-    // empty map.
-    #[serde(default)]
-    browser_dir_bookmarks: HashMap<String, String>,
 }
 
 impl BrowserExtSupport {
@@ -58,18 +48,6 @@ impl BrowserExtSupport {
 
     pub(crate) fn _is_allowed_browser(&self, browser_id: &str) -> bool  {
         self.allowed_browsers.contains(&browser_id.to_string())
-    }
-
-    pub(crate) fn store_browser_dir_bookmark(&mut self, browser_id: &str, b64: String) {
-        self.browser_dir_bookmarks.insert(browser_id.to_string(), b64);
-    }
-
-    pub(crate) fn clear_browser_dir_bookmark(&mut self, browser_id: &str) {
-        self.browser_dir_bookmarks.remove(browser_id);
-    }
-
-    pub(crate) fn has_dir_bookmark(&self, browser_id: &str) -> bool {
-        self.browser_dir_bookmarks.contains_key(browser_id)
     }
 
     // Writes the native-messaging manifest for `browser_id`, establishing the
@@ -126,7 +104,7 @@ impl BrowserExtSupport {
             return op();
         }
 
-        let b64 = match self.browser_dir_bookmarks.get(browser_id) {
+        let b64 = match crate::bookmarks::load_browser_dir(browser_id) {
             Some(b) => b.clone(),
             None => {
                 // Sentinel prefix parsed by the cljs bg-update-preference callback to
@@ -147,8 +125,13 @@ impl BrowserExtSupport {
             .map_err(|e| error::Error::UnexpectedError(e.to_string()))?;
 
         if let Some(new_b64) = refreshed {
-            self.browser_dir_bookmarks
-                .insert(browser_id.to_string(), new_b64);
+            if let Some(path) = crate::sandbox::browser_manifest_dir(browser_id) {
+                crate::bookmarks::store_browser_dir(
+                    browser_id,
+                    &path.to_string_lossy(),
+                    &new_b64,
+                );
+            }
         }
 
         let result = op();
@@ -190,9 +173,9 @@ impl BrowserExtSupport {
             let _ = self.write_manifest_with_scope(FIREFOX, FirefoxNativeMessagingConfig::remove);
             let _ = self.write_manifest_with_scope(CHROME, ChromeNativeMessagingConfig::remove);
 
-            // Clear the stored bookmarks when integration is fully disabled so that
+            // Clear the stored bookmark files when integration is fully disabled so that
             // the next enable re-prompts via NSOpenPanel (fresh grant).
-            self.browser_dir_bookmarks.clear();
+            crate::bookmarks::clear_browser_dirs();
 
             Ok(())
         };
@@ -244,6 +227,7 @@ impl BrowserExtSupport {
 
             log::debug!("Removing the firefox config...");
             let r = self.write_manifest_with_scope(FIREFOX, FirefoxNativeMessagingConfig::remove);
+            crate::bookmarks::remove_browser_dir(FIREFOX);
             log::debug!(
                 "After remove call for firefox native messaging config with result {:?}",
                 &r
@@ -282,6 +266,7 @@ impl BrowserExtSupport {
 
             log::debug!("Removing the chrome config...");
             let r = self.write_manifest_with_scope(CHROME, ChromeNativeMessagingConfig::remove);
+            crate::bookmarks::remove_browser_dir(CHROME);
             log::debug!(
                 "After remove call for chrome native messaging config with result {:?}",
                 &r

@@ -108,8 +108,22 @@
                             :panel :general-info
                             :api-error-text nil
                             :error-fields nil
+                            :backup-dir-user-selected false
                             :undo-data nil
                             :preference-data {}})
+
+(defn- backup-dir-needs-user-grant?
+  [db]
+  (let [mas-build? (:mas-build db)
+        backup (get-in db [:app-settings :preference-data :backup])
+        undo-backup (get-in db [:app-settings :undo-data :backup])
+        {:keys [enabled dir]} backup
+        picked? (get-in db [:app-settings :backup-dir-user-selected])]
+    (and mas-build?
+         enabled
+         (not (str/blank? dir))
+         (not picked?)
+         (not= dir (:dir undo-backup)))))
 
 #_(defn init-dialog-data [app-db])
 
@@ -155,6 +169,9 @@
          val (convert-value ks value)
          ;; Set the updated value 
          db (assoc-in db ks val)
+         db (if (= ks [:app-settings :preference-data :backup :dir])
+              (assoc-in db [:app-settings :backup-dir-user-selected] false)
+              db)
          errors  (validate-required-fields db current-panel)
          db (-> db (assoc-in [:app-settings :error-fields] errors))]
      db)))
@@ -162,24 +179,26 @@
 (reg-event-fx
  :app-settings-save
  (fn [{:keys [db]} [_event-id]]
-   (let [{:keys [theme
-                 language
-                 session-timeout
-                 clipboard-timeout
-                 backup
-                 browser-ext-support
-                 default-entry-category-groupings]} (-> db :app-settings :preference-data)]
-     {:fx [[:bg-update-preference (as-map [theme
-                                           language
-                                           session-timeout
-                                           clipboard-timeout
-                                           backup
-                                           browser-ext-support
-                                           default-entry-category-groupings])]]})))
+   (if (backup-dir-needs-user-grant? db)
+     {:dispatch [:app-settings/open-backup-dir-dialog true]}
+     (let [{:keys [theme
+                   language
+                   session-timeout
+                   clipboard-timeout
+                   backup
+                   browser-ext-support
+                   default-entry-category-groupings]} (-> db :app-settings :preference-data)]
+       {:fx [[:bg-update-preference (as-map [theme
+                                             language
+                                             session-timeout
+                                             clipboard-timeout
+                                             backup
+                                             browser-ext-support
+                                             default-entry-category-groupings])]]}))))
 
 (reg-event-fx
  :app-settings/open-backup-dir-dialog
- (fn [{:keys [db]} [_event-id]]
+ (fn [{:keys [db]} [_event-id save-after-select?]]
    (let [default-path (get-in db [:app-settings :preference-data :backup :dir])]
      (bg/open-directory-dialog
       (cond-> {}
@@ -187,13 +206,16 @@
         (assoc :default-path default-path))
       (fn [api-response]
         (when-let [selected-dir (check-error api-response)]
-          (dispatch [:app-settings/backup-dir-selected selected-dir]))))
+          (dispatch [:app-settings/backup-dir-selected selected-dir])
+          (when save-after-select?
+            (dispatch [:app-settings-save])))))
      {})))
 
 (reg-event-db
  :app-settings/backup-dir-selected
  (fn [db [_event-id selected-dir]]
    (let [db (assoc-in db [:app-settings :preference-data :backup :dir] selected-dir)
+         db (assoc-in db [:app-settings :backup-dir-user-selected] true)
          errors (validate-required-fields db (get-in db [:app-settings :panel]))]
      (assoc-in db [:app-settings :error-fields] errors))))
 

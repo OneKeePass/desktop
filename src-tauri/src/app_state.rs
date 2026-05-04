@@ -270,15 +270,21 @@ impl AppState {
         // If the backup dir actually changed, rotate the scoped-access handle
         // so the new dir's bookmark backs file writes for the rest of the
         // session. No-op outside macOS sandbox.
-        let (current_dir, current_bookmark) = {
+        let current_dir = {
             let pref = self.preference.lock().unwrap();
-            (pref.backup.dir.clone(), pref.backup.dir_bookmark.clone())
+            pref.backup.dir.clone()
         };
         if prior_dir != current_dir {
             self.release_scoped_access(&ScopedAccessKey::BackupDir);
-            if let Some(b64) = &current_bookmark {
-                if let Ok((handle, _)) = bookmarks::resolve_and_start(b64) {
-                    self.store_scoped_access(ScopedAccessKey::BackupDir, handle);
+            if let Some(dir) = prior_dir.as_deref() {
+                bookmarks::remove_backup_dir(dir);
+            }
+            if let Some(dir) = current_dir.as_deref() {
+                let b64 = bookmarks::load_backup_dir(dir);
+                if let Some(b64) = &b64 {
+                    if let Ok((handle, _)) = bookmarks::resolve_and_start(b64) {
+                        self.store_scoped_access(ScopedAccessKey::BackupDir, handle);
+                    }
                 }
             }
         }
@@ -329,7 +335,7 @@ impl AppState {
     // Shows a folder picker (via tauri-plugin-dialog) pre-targeted at the
     // browser's standard NativeMessagingHosts directory. On user confirmation,
     // creates a security-scoped bookmark for that folder, persists it into the
-    // browser_dir_bookmarks preference field, and performs the manifest write
+    // App Group bookmark store, and performs the manifest write
     // within the just-granted scope. On cancellation (None returned by the
     // picker), returns Ok(()) so the cljs side can re-try later.
     // Only meaningful on macOS when sandboxed; on other platforms it is a no-op.
@@ -383,10 +389,7 @@ impl AppState {
         };
 
         // Persist the bookmark so future writes resolve it without a new picker.
-        {
-            let mut store_pref = self.preference.lock().unwrap();
-            store_pref.store_browser_dir_bookmark(browser_id, b64);
-        }
+        crate::bookmarks::store_browser_dir(browser_id, &path_str, &b64);
 
         // Now re-run the manifest write; the stored bookmark will be resolved
         // by write_manifest_with_scope inside browser_ext_support.update.
@@ -459,22 +462,24 @@ impl AppState {
         if !sandbox::is_sandboxed() {
             return;
         }
-        let bookmark_b64 = {
+        let backup_dir = {
             let pref = self.preference.lock().unwrap();
             if !pref.backup.enabled {
                 return;
             }
-            pref.backup.dir_bookmark.clone()
+            pref.backup.dir.clone()
         };
-        let Some(b64) = bookmark_b64 else {
+        let Some(dir) = backup_dir else {
+            return;
+        };
+        let Some(b64) = bookmarks::load_backup_dir(&dir) else {
             return;
         };
 
         match bookmarks::resolve_and_start(&b64) {
             Ok((handle, refreshed)) => {
                 if let Some(refreshed_b64) = refreshed {
-                    let mut pref = self.preference.lock().unwrap();
-                    pref.update_backup_dir_bookmark(Some(refreshed_b64));
+                    bookmarks::store_backup_dir(&dir, &refreshed_b64);
                     debug!("Refreshed stale backup-dir bookmark and persisted");
                 }
                 self.store_scoped_access(ScopedAccessKey::BackupDir, handle);

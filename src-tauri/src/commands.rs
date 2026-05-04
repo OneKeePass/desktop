@@ -7,7 +7,6 @@ use std::collections::HashMap;
 use std::io::ErrorKind;
 
 use log::{debug, info};
-use serde::{Deserialize, Serialize};
 use std::fs::read_to_string;
 use std::path::Path;
 use uuid::Uuid;
@@ -142,11 +141,7 @@ pub(crate) async fn load_kdbx(
     // Phase 1: if a stored security-scoped bookmark exists for this path,
     // resolve it and start scoped access. Required under macOS App Sandbox to
     // reopen files picked in a prior session. Outside macOS this is a no-op.
-    let stored_bookmark = app_state
-        .preference
-        .lock()
-        .unwrap()
-        .recent_file_bookmark(db_file_name);
+    let stored_bookmark = bookmarks::load_db_file(db_file_name);
 
     let mut prepared_handle: Option<bookmarks::BookmarkHandle> = None;
     if let Some(b64) = stored_bookmark {
@@ -154,11 +149,7 @@ pub(crate) async fn load_kdbx(
             Ok((handle, refreshed)) => {
                 prepared_handle = Some(handle);
                 if let Some(refreshed_b64) = refreshed {
-                    app_state
-                        .preference
-                        .lock()
-                        .unwrap()
-                        .update_recent_file_bookmark(db_file_name, refreshed_b64);
+                    bookmarks::store_db_file(db_file_name, &refreshed_b64);
                 }
             }
             Err(e) => {
@@ -222,18 +213,20 @@ pub(crate) async fn load_kdbx(
     // stays in recents. Create a fresh bookmark on success when no prior one
     // resolved, so future opens can re-grant access without re-prompting.
     let new_bookmark_b64 = if r.is_ok() && prepared_handle.is_none() {
-        bookmarks::create(db_file_name)
+        let b64 = bookmarks::create(db_file_name);
+        if let Some(b64) = &b64 {
+            bookmarks::store_db_file(db_file_name, b64);
+        }
+        b64
     } else {
         None
     };
 
-    // Bump-to-top of recents. add_recent_file preserves the existing stored
-    // bookmark when the second arg is None; the new-bookmark case passes Some.
     app_state
         .preference
         .lock()
         .unwrap()
-        .add_recent_file(db_file_name, new_bookmark_b64.clone());
+        .add_recent_file(db_file_name);
 
     // If we just created a bookmark for a fresh open, resolve it now to obtain
     // a session-bound scoped-access handle. The current panel-grant access is
@@ -381,11 +374,14 @@ pub(crate) async fn create_kdbx(
     // a session-bound bookmark + scoped-access handle, and store both with the
     // recent entry. No-op outside macOS.
     let new_bookmark_b64 = bookmarks::create(&r.db_key);
+    if let Some(b64) = &new_bookmark_b64 {
+        bookmarks::store_db_file(&r.db_key, b64);
+    }
     app_state
         .preference
         .lock()
         .unwrap()
-        .add_recent_file(&r.db_key, new_bookmark_b64.clone());
+        .add_recent_file(&r.db_key);
     if let Some(b64) = &new_bookmark_b64 {
         if let Ok((handle, _)) = bookmarks::resolve_and_start(b64) {
             app_state.store_scoped_access(
@@ -802,11 +798,14 @@ pub(crate) async fn save_as_kdbx(
     // capture a fresh bookmark + session handle while access is granted, and
     // attach to the recent entry so future opens regain access. No-op off macOS.
     let new_bookmark_b64 = bookmarks::create(db_file_name);
+    if let Some(b64) = &new_bookmark_b64 {
+        bookmarks::store_db_file(db_file_name, b64);
+    }
     app_state
         .preference
         .lock()
         .unwrap()
-        .add_recent_file(db_file_name, new_bookmark_b64.clone());
+        .add_recent_file(db_file_name);
     if let Some(b64) = &new_bookmark_b64 {
         // Replace any stale handle for this db_key (rare but possible if
         // save-as was invoked while the source DB is still open).
@@ -963,11 +962,14 @@ pub(crate) async fn create_new_db_with_imported_csv(
     // Mirror the bookmark/scoped-access capture from create_kdbx — same grant
     // lifecycle (the new file was just written under a save-dialog grant).
     let new_bookmark_b64 = bookmarks::create(&r.db_key);
+    if let Some(b64) = &new_bookmark_b64 {
+        bookmarks::store_db_file(&r.db_key, b64);
+    }
     app_state
         .preference
         .lock()
         .unwrap()
-        .add_recent_file(&r.db_key, new_bookmark_b64.clone());
+        .add_recent_file(&r.db_key);
     if let Some(b64) = &new_bookmark_b64 {
         if let Ok((handle, _)) = bookmarks::resolve_and_start(b64) {
             app_state.store_scoped_access(
