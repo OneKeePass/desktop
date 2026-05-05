@@ -30,7 +30,7 @@
 #
 # Requires: cargo, cargo-tauri, just, envsubst (gettext), codesign, productbuild.
 #
-# Common required env (sourced from desktop/.env.local — see .env.local.example):
+# Common required env (export before running this script):
 #   APPLE_TEAM_ID                10-character developer team identifier
 #
 # Required when BUILD_FOR=mas:
@@ -87,6 +87,23 @@ truthy() {
     esac
 }
 
+require_env_vars() {
+    local missing=()
+    local var
+    for var in "$@"; do
+        if [ -z "${!var:-}" ]; then
+            missing+=("$var")
+        fi
+    done
+
+    if [ "${#missing[@]}" -gt 0 ]; then
+        echo "ERROR: missing required environment variable(s): ${missing[*]}" >&2
+        echo >&2
+        echo "Export the Apple signing environment in this terminal, then run this script again." >&2
+        exit 1
+    fi
+}
+
 SKIP_CLJS_BUILD="${SKIP_CLJS_BUILD:-false}"
 SKIP_PROXY_BUILD="${SKIP_PROXY_BUILD:-false}"
 
@@ -127,13 +144,14 @@ while [ "$#" -gt 0 ]; do
     shift
 done
 
-# Source local env if present
-if [ -f .env.local ]; then
-    set -a
-    # shellcheck disable=SC1091
-    . .env.local
-    set +a
-fi
+# Signing values are intentionally not loaded from .env.local.
+# Export the Apple signing environment in the terminal before invoking this script.
+# if [ -f .env.local ]; then
+#     set -a
+#     # shellcheck disable=SC1091
+#     . .env.local
+#     set +a
+# fi
 
 BUILD_FOR="${BUILD_FOR:-mas}"
 case "$BUILD_FOR" in
@@ -141,17 +159,12 @@ case "$BUILD_FOR" in
     *) echo "ERROR: BUILD_FOR must be 'mas' or 'dev' (got: $BUILD_FOR)" >&2; exit 1 ;;
 esac
 
-: "${APPLE_TEAM_ID:?APPLE_TEAM_ID is required}"
-
 if [ "$BUILD_FOR" = "dev" ]; then
-    : "${APPLE_DEV_SIGNING_IDENTITY:?APPLE_DEV_SIGNING_IDENTITY is required for BUILD_FOR=dev}"
-    : "${MAS_DEV_PROVISION_PROFILE:?MAS_DEV_PROVISION_PROFILE is required for BUILD_FOR=dev}"
+    require_env_vars APPLE_TEAM_ID APPLE_DEV_SIGNING_IDENTITY MAS_DEV_PROVISION_PROFILE
     SIGNING_IDENTITY="$APPLE_DEV_SIGNING_IDENTITY"
     PROVISION_PROFILE="$MAS_DEV_PROVISION_PROFILE"
 else
-    : "${APPLE_SIGNING_IDENTITY:?APPLE_SIGNING_IDENTITY is required for BUILD_FOR=mas}"
-    : "${APPLE_INSTALLER_IDENTITY:?APPLE_INSTALLER_IDENTITY is required for BUILD_FOR=mas}"
-    : "${MAS_PROVISION_PROFILE:?MAS_PROVISION_PROFILE is required for BUILD_FOR=mas}"
+    require_env_vars APPLE_TEAM_ID APPLE_SIGNING_IDENTITY APPLE_INSTALLER_IDENTITY MAS_PROVISION_PROFILE
     SIGNING_IDENTITY="$APPLE_SIGNING_IDENTITY"
     PROVISION_PROFILE="$MAS_PROVISION_PROFILE"
 fi
