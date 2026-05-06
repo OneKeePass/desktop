@@ -1,4 +1,7 @@
 fn main() {
+  // This was added so that editor makes available code mas-build feature available for navigating
+  println!("cargo::rustc-check-cfg=cfg(rust_analyzer)");
+
   #[cfg(target_os = "macos")]
   {
     use swift_rs::SwiftLinker;
