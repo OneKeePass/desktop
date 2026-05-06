@@ -17,6 +17,8 @@ pub(crate) struct BookmarkHandle(i64);
 #[derive(Debug, Clone, Copy)]
 enum StoreKind {
     DbFile,
+    DbDir,
+    KeyFile,
     BackupDir,
     BrowserDir,
 }
@@ -25,6 +27,8 @@ impl StoreKind {
     fn dir_name(self) -> &'static str {
         match self {
             Self::DbFile => "db-files",
+            Self::DbDir => "db-dirs",
+            Self::KeyFile => "key-files",
             Self::BackupDir => "backup-dirs",
             Self::BrowserDir => "browser-dirs",
         }
@@ -68,6 +72,22 @@ pub(crate) fn remove_db_file(path: &str) {
 
 pub(crate) fn clear_db_files() {
     clear(StoreKind::DbFile);
+}
+
+pub(crate) fn load_db_dir(path: &str) -> Option<String> {
+    load(StoreKind::DbDir, path)
+}
+
+pub(crate) fn store_db_dir(path: &str, b64: &str) {
+    store(StoreKind::DbDir, path, b64);
+}
+
+pub(crate) fn load_key_file(path: &str) -> Option<String> {
+    load(StoreKind::KeyFile, path)
+}
+
+pub(crate) fn store_key_file(path: &str, b64: &str) {
+    store(StoreKind::KeyFile, path, b64);
 }
 
 pub(crate) fn load_backup_dir(path: &str) -> Option<String> {

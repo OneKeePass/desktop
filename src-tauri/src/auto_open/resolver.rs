@@ -23,6 +23,9 @@ pub(crate) struct AutoOpenPropertiesResolved {
 
 impl AutoOpenProperties {
   pub(crate) fn resolve(&self) -> Result<AutoOpenPropertiesResolved> {
+
+    log::info!("In AutoOpenProperties resolve {:?}",&self);
+
     let mut out = AutoOpenPropertiesResolved::default();
 
     self.apply_if_device_condition(&mut out);

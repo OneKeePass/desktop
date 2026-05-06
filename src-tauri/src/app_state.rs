@@ -127,6 +127,8 @@ static GLOBAL_TAURI_APP_HANDLE: std::sync::OnceLock<AppHandle> = std::sync::Once
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum ScopedAccessKey {
     Db(String),
+    DbDir(String),
+    KeyFile(String),
     BackupDir,
 }
 

@@ -8,7 +8,7 @@ use std::io::ErrorKind;
 
 use log::{debug, info};
 use std::fs::read_to_string;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 use crate::app_state::SystemInfoWithPreference;
@@ -161,6 +161,48 @@ pub(crate) async fn load_kdbx(
         }
     }
 
+    let mut prepared_key_file_handle: Option<bookmarks::BookmarkHandle> = None;
+    if let Some(key_file_name) = key_file_name {
+        if let Some(b64) = bookmarks::load_key_file(key_file_name) {
+            match bookmarks::resolve_and_start(&b64) {
+                Ok((handle, refreshed)) => {
+                    prepared_key_file_handle = Some(handle);
+                    if let Some(refreshed_b64) = refreshed {
+                        bookmarks::store_key_file(key_file_name, &refreshed_b64);
+                    }
+                }
+                Err(e) => {
+                    log::warn!(
+                        "Key-file bookmark resolve failed for {}: {}. Attempting direct read.",
+                        key_file_name,
+                        e
+                    );
+                }
+            }
+        }
+    }
+
+    let db_parent_dir = parent_dir_string(db_file_name);
+    let mut prepared_db_dir_handle: Option<bookmarks::BookmarkHandle> =
+        db_parent_dir.as_deref().and_then(|dir| {
+            bookmarks::load_db_dir(dir).and_then(|b64| match bookmarks::resolve_and_start(&b64) {
+                Ok((handle, refreshed)) => {
+                    if let Some(refreshed_b64) = refreshed {
+                        bookmarks::store_db_dir(dir, &refreshed_b64);
+                    }
+                    Some(handle)
+                }
+                Err(e) => {
+                    log::warn!(
+                        "DB parent-dir bookmark resolve failed for {}: {}. Attempting direct read.",
+                        dir,
+                        e
+                    );
+                    None
+                }
+            })
+        });
+
     // key_file_name.as_deref() converts Option<&str>; same conversion the prior
     // implementation used.
     let r = kp_service::load_kdbx(db_file_name, password, key_file_name.as_deref());
@@ -171,6 +213,12 @@ pub(crate) async fn load_kdbx(
     if let Err(kp_service::error::Error::DbFileIoError(m, ioe)) = &r {
         if let ("Database file opening failed", ErrorKind::NotFound) = (m.as_str(), ioe.kind()) {
             if let Some(h) = prepared_handle.take() {
+                bookmarks::release(h);
+            }
+            if let Some(h) = prepared_key_file_handle.take() {
+                bookmarks::release(h);
+            }
+            if let Some(h) = prepared_db_dir_handle.take() {
                 bookmarks::release(h);
             }
             app_state
@@ -204,6 +252,12 @@ pub(crate) async fn load_kdbx(
                 if let Some(h) = prepared_handle.take() {
                     bookmarks::release(h);
                 }
+                if let Some(h) = prepared_key_file_handle.take() {
+                    bookmarks::release(h);
+                }
+                if let Some(h) = prepared_db_dir_handle.take() {
+                    bookmarks::release(h);
+                }
                 return Err("BookmarkPermissionDenied".into());
             }
         }
@@ -218,6 +272,29 @@ pub(crate) async fn load_kdbx(
             bookmarks::store_db_file(db_file_name, b64);
         }
         b64
+    } else {
+        None
+    };
+    let new_key_file_bookmark_b64 =
+        if r.is_ok() && prepared_key_file_handle.is_none() {
+            key_file_name.and_then(|key_file_name| {
+                let b64 = bookmarks::create(key_file_name);
+                if let Some(b64) = &b64 {
+                    bookmarks::store_key_file(key_file_name, b64);
+                }
+                b64
+            })
+        } else {
+            None
+        };
+    let new_db_dir_bookmark_b64 = if r.is_ok() && prepared_db_dir_handle.is_none() {
+        db_parent_dir.as_deref().and_then(|dir| {
+            let b64 = bookmarks::create(dir);
+            if let Some(b64) = &b64 {
+                bookmarks::store_db_dir(dir, b64);
+            }
+            b64
+        })
     } else {
         None
     };
@@ -242,6 +319,28 @@ pub(crate) async fn load_kdbx(
             }
         }
     }
+    if let Some(b64) = &new_key_file_bookmark_b64 {
+        match bookmarks::resolve_and_start(b64) {
+            Ok((handle, _)) => prepared_key_file_handle = Some(handle),
+            Err(e) => {
+                log::warn!(
+                    "Resolve of freshly-created key-file bookmark failed: {}",
+                    e
+                );
+            }
+        }
+    }
+    if let Some(b64) = &new_db_dir_bookmark_b64 {
+        match bookmarks::resolve_and_start(b64) {
+            Ok((handle, _)) => prepared_db_dir_handle = Some(handle),
+            Err(e) => {
+                log::warn!(
+                    "Resolve of freshly-created DB parent-dir bookmark failed: {}",
+                    e
+                );
+            }
+        }
+    }
 
     if r.is_ok() {
         if let Some(handle) = prepared_handle {
@@ -250,15 +349,41 @@ pub(crate) async fn load_kdbx(
                 handle,
             );
         }
+        if let (Some(key_file_name), Some(handle)) = (key_file_name, prepared_key_file_handle) {
+            app_state.store_scoped_access(
+                app_state::ScopedAccessKey::KeyFile(key_file_name.to_string()),
+                handle,
+            );
+        }
+        if let (Some(db_parent_dir), Some(handle)) = (db_parent_dir, prepared_db_dir_handle) {
+            app_state.store_scoped_access(
+                app_state::ScopedAccessKey::DbDir(db_parent_dir),
+                handle,
+            );
+        }
         app_state.db_file_watcher.start_watching(db_file_name);
-    } else if let Some(h) = prepared_handle {
+    } else {
         // Failure path with a held handle (e.g., wrong password). The user
         // will likely retry, but we shouldn't leak scoped access in the
         // meantime. The next attempt will resolve again from the stored bookmark.
-        bookmarks::release(h);
+        if let Some(h) = prepared_handle {
+            bookmarks::release(h);
+        }
+        if let Some(h) = prepared_key_file_handle {
+            bookmarks::release(h);
+        }
+        if let Some(h) = prepared_db_dir_handle {
+            bookmarks::release(h);
+        }
     }
 
     Ok(r?)
+}
+
+fn parent_dir_string(file_name: &str) -> Option<String> {
+    PathBuf::from(file_name)
+        .parent()
+        .map(|p| p.to_string_lossy().to_string())
 }
 
 /// UI layer redirects any backend menu actions

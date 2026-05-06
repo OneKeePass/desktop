@@ -1,5 +1,6 @@
 mod resolver;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use log::debug;
 pub(crate) use resolver::{AutoOpenProperties, AutoOpenPropertiesResolved};
@@ -13,7 +14,7 @@ use onekeepass_core::error::Result;
 use serde::Serialize;
 use tauri::State;
 
-use crate::app_state;
+use crate::{app_state, bookmarks};
 
 #[derive(Default, Serialize)]
 pub(crate) struct AutoOpenDbsInfo {
@@ -45,7 +46,16 @@ pub(crate) fn open_all_auto_open_dbs(
   let grouping_kind: EntryCategoryGrouping =
     app_state.default_entry_category_groupings().as_str().into();
 
-  inner_open_all_auto_open_dbs(auto_open_db_key, &mut auto_open_dbs_info, &grouping_kind);
+  let root_dir_handle = start_db_parent_dir_access(auto_open_db_key);
+
+  inner_open_all_auto_open_dbs(
+    auto_open_db_key,
+    &mut auto_open_dbs_info,
+    &grouping_kind,
+    &app_state,
+  );
+
+  release_if_some(root_dir_handle);
 
   Ok(auto_open_dbs_info)
 }
@@ -54,6 +64,7 @@ fn inner_open_all_auto_open_dbs(
   auto_open_db_key: &str,
   auto_open_dbs_info: &mut AutoOpenDbsInfo,
   grouping_kind: &EntryCategoryGrouping,
+  app_state: &app_state::AppState,
 ) {
   // Get all entries of "AutoOpen" group for this db_key
   // Here we are assuming all entries under auto open group are of auto open type
@@ -126,17 +137,53 @@ fn inner_open_all_auto_open_dbs(
     if let Some(db_key_to_open) = ao_resolved.url_field_value {
       // Condider only the dbs that are not yet opened
       if !kp_service::is_db_opened(&db_key_to_open) {
+        let mut db_handle = start_db_file_access(&db_key_to_open);
+        let mut key_file_handle = kf_path.and_then(start_key_file_access);
+
         // Note: load_kdbx will add this db_key to 'all_kdbx_cache'
         match kp_service::load_kdbx(&db_key_to_open, password, kf_path) {
           // On opening, load all init data
           Ok(kdbx_loaded) => match load_init_data(&grouping_kind, &kdbx_loaded) {
             Ok(auto_open_db) => {
+              persist_new_bookmarks_if_needed(
+                &db_key_to_open,
+                kf_path,
+                db_handle.is_none(),
+                key_file_handle.is_none(),
+              );
+              if db_handle.is_none() {
+                db_handle = start_db_file_access(&db_key_to_open);
+              }
+              if key_file_handle.is_none() {
+                key_file_handle = kf_path.and_then(start_key_file_access);
+              }
+              if let Some(handle) = db_handle.take() {
+                app_state.store_scoped_access(
+                  app_state::ScopedAccessKey::Db(db_key_to_open.clone()),
+                  handle,
+                );
+              }
+              if let (Some(key_file_path), Some(handle)) = (kf_path, key_file_handle.take()) {
+                app_state.store_scoped_access(
+                  app_state::ScopedAccessKey::KeyFile(key_file_path.to_string()),
+                  handle,
+                );
+              }
+              app_state.db_file_watcher.start_watching(&db_key_to_open);
+
               auto_open_dbs_info.opened_dbs.push(auto_open_db);
               // recursive call to check that the newly opened db has 'AutoOpen' group or not
-              inner_open_all_auto_open_dbs(&kdbx_loaded.db_key, auto_open_dbs_info, grouping_kind);
+              inner_open_all_auto_open_dbs(
+                &kdbx_loaded.db_key,
+                auto_open_dbs_info,
+                grouping_kind,
+                app_state,
+              );
             }
             // Init data loading of opened child db failed
             Err(e) => {
+              release_if_some(db_handle.take());
+              release_if_some(key_file_handle.take());
               auto_open_dbs_info
                 .opening_failed_dbs
                 .insert(db_key_to_open, e.to_string());
@@ -144,6 +191,8 @@ fn inner_open_all_auto_open_dbs(
           },
           // load_kdbx call of child db failed
           Err(e) => {
+            release_if_some(db_handle.take());
+            release_if_some(key_file_handle.take());
             auto_open_dbs_info
               .opening_failed_dbs
               .insert(db_key_to_open, e.to_string());
@@ -158,6 +207,101 @@ fn inner_open_all_auto_open_dbs(
       debug!("{}", &msg);
       auto_open_dbs_info.error_messages.push(msg);
     }
+  }
+}
+
+fn start_db_file_access(db_file_name: &str) -> Option<bookmarks::BookmarkHandle> {
+  let Some(b64) = bookmarks::load_db_file(db_file_name) else {
+    return None;
+  };
+  match bookmarks::resolve_and_start(&b64) {
+    Ok((handle, refreshed)) => {
+      if let Some(refreshed_b64) = refreshed {
+        bookmarks::store_db_file(db_file_name, &refreshed_b64);
+      }
+      Some(handle)
+    }
+    Err(e) => {
+      log::warn!(
+        "Auto-open DB bookmark resolve failed for {}: {}. Attempting direct read.",
+        db_file_name,
+        e
+      );
+      None
+    }
+  }
+}
+
+fn start_db_parent_dir_access(db_file_name: &str) -> Option<bookmarks::BookmarkHandle> {
+  let dir = PathBuf::from(db_file_name)
+    .parent()
+    .map(|p| p.to_string_lossy().to_string())?;
+  let Some(b64) = bookmarks::load_db_dir(&dir) else {
+    return None;
+  };
+  match bookmarks::resolve_and_start(&b64) {
+    Ok((handle, refreshed)) => {
+      if let Some(refreshed_b64) = refreshed {
+        bookmarks::store_db_dir(&dir, &refreshed_b64);
+      }
+      Some(handle)
+    }
+    Err(e) => {
+      log::warn!(
+        "Auto-open DB parent-dir bookmark resolve failed for {}: {}. Attempting direct read.",
+        dir,
+        e
+      );
+      None
+    }
+  }
+}
+
+fn start_key_file_access(key_file_name: &str) -> Option<bookmarks::BookmarkHandle> {
+  let Some(b64) = bookmarks::load_key_file(key_file_name) else {
+    return None;
+  };
+  match bookmarks::resolve_and_start(&b64) {
+    Ok((handle, refreshed)) => {
+      if let Some(refreshed_b64) = refreshed {
+        bookmarks::store_key_file(key_file_name, &refreshed_b64);
+      }
+      Some(handle)
+    }
+    Err(e) => {
+      log::warn!(
+        "Auto-open key-file bookmark resolve failed for {}: {}. Attempting direct read.",
+        key_file_name,
+        e
+      );
+      None
+    }
+  }
+}
+
+fn persist_new_bookmarks_if_needed(
+  db_file_name: &str,
+  key_file_name: Option<&str>,
+  should_store_db_file: bool,
+  should_store_key_file: bool,
+) {
+  if should_store_db_file {
+    if let Some(b64) = bookmarks::create(db_file_name) {
+      bookmarks::store_db_file(db_file_name, &b64);
+    }
+  }
+  if should_store_key_file {
+    if let Some(key_file_name) = key_file_name {
+      if let Some(b64) = bookmarks::create(key_file_name) {
+        bookmarks::store_key_file(key_file_name, &b64);
+      }
+    }
+  }
+}
+
+fn release_if_some(handle: Option<bookmarks::BookmarkHandle>) {
+  if let Some(handle) = handle {
+    bookmarks::release(handle);
   }
 }
 
