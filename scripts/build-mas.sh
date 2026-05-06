@@ -37,14 +37,18 @@
 #   APPLE_SIGNING_IDENTITY       e.g. "3rd Party Mac Developer Application: Name (TEAMID)"
 #   APPLE_INSTALLER_IDENTITY     e.g. "3rd Party Mac Developer Installer: Name (TEAMID)"
 #   MAS_PROVISION_PROFILE        absolute path to the MAS .provisionprofile for com.onekeepass
+#   MAS_PROXY_PROVISION_PROFILE  absolute path to the MAS .provisionprofile for com.onekeepass.proxy
 #
 # Required when BUILD_FOR=dev:
 #   APPLE_DEV_SIGNING_IDENTITY   e.g. "Apple Development: Name (TEAMID)"
 #   MAS_DEV_PROVISION_PROFILE    absolute path to the Mac Development .provisionprofile
+#   MAS_DEV_PROXY_PROVISION_PROFILE
+#                                absolute path to the Mac Development .provisionprofile for com.onekeepass.proxy
 #
 # Optional env:
 #   BUILD_FOR                    "mas" (default) or "dev"
 #   TARGET                       cargo target triple (default: native host arch)
+#   PROXY_APP_ID                 proxy signing identifier (default: com.onekeepass.proxy)
 #   PKG_OUT                      output .pkg path (default: OneKeePass.pkg in cwd)
 #                                (ignored when BUILD_FOR=dev)
 #   SKIP_CLJS_BUILD              true/1/yes to skip src-cljs release build
@@ -160,17 +164,23 @@ case "$BUILD_FOR" in
 esac
 
 if [ "$BUILD_FOR" = "dev" ]; then
-    require_env_vars APPLE_TEAM_ID APPLE_DEV_SIGNING_IDENTITY MAS_DEV_PROVISION_PROFILE
+    require_env_vars APPLE_TEAM_ID APPLE_DEV_SIGNING_IDENTITY MAS_DEV_PROVISION_PROFILE MAS_DEV_PROXY_PROVISION_PROFILE
     SIGNING_IDENTITY="$APPLE_DEV_SIGNING_IDENTITY"
     PROVISION_PROFILE="$MAS_DEV_PROVISION_PROFILE"
+    PROXY_PROVISION_PROFILE="$MAS_DEV_PROXY_PROVISION_PROFILE"
 else
-    require_env_vars APPLE_TEAM_ID APPLE_SIGNING_IDENTITY APPLE_INSTALLER_IDENTITY MAS_PROVISION_PROFILE
+    require_env_vars APPLE_TEAM_ID APPLE_SIGNING_IDENTITY APPLE_INSTALLER_IDENTITY MAS_PROVISION_PROFILE MAS_PROXY_PROVISION_PROFILE
     SIGNING_IDENTITY="$APPLE_SIGNING_IDENTITY"
     PROVISION_PROFILE="$MAS_PROVISION_PROFILE"
+    PROXY_PROVISION_PROFILE="$MAS_PROXY_PROVISION_PROFILE"
 fi
 
 if [ ! -f "$PROVISION_PROFILE" ]; then
     echo "ERROR: provisioning profile does not exist: $PROVISION_PROFILE" >&2
+    exit 1
+fi
+if [ ! -f "$PROXY_PROVISION_PROFILE" ]; then
+    echo "ERROR: proxy provisioning profile does not exist: $PROXY_PROVISION_PROFILE" >&2
     exit 1
 fi
 
@@ -205,6 +215,7 @@ case "$TARGET" in
         ;;
 esac
 PKG_OUT="${PKG_OUT:-$DESKTOP_DIR/OneKeePass.pkg}"
+PROXY_APP_ID="${PROXY_APP_ID:-com.onekeepass.proxy}"
 
 export BOTAN_CONFIGURE_OS='macos'
 export BOTAN_CONFIGURE_CC='clang'
@@ -219,10 +230,11 @@ echo "==> Building for: $BUILD_FOR (target: $TARGET)"
 
 echo "==> Resolving templates"
 export APPLE_TEAM_ID
+export PROXY_APP_ID
 for base in entitlements.mas.plist entitlements.proxy.mas.plist tauri.mas.conf.json; do
     src="src-tauri/$base.in"
     dst="src-tauri/$base"
-    envsubst '${APPLE_TEAM_ID}' < "$src" > "$dst"
+    envsubst '${APPLE_TEAM_ID} ${PROXY_APP_ID}' < "$src" > "$dst"
 done
 
 if truthy "$SKIP_CLJS_BUILD"; then
@@ -264,6 +276,8 @@ fi
 
 echo "==> Embedding provisioning profile"
 cp "$PROVISION_PROFILE" "$APP/Contents/embedded.provisionprofile"
+chmod 644 "$APP/Contents/embedded.provisionprofile"
+xattr -dr com.apple.quarantine "$APP/Contents/embedded.provisionprofile" 2>/dev/null || true
 
 echo "==> Embedding privacy manifest"
 # macOS convention (matching what Xcode does for macOS targets): resources go in
@@ -272,11 +286,64 @@ echo "==> Embedding privacy manifest"
 # because codesign treats unknown files at the Contents/ level as code objects.
 cp "src-tauri/PrivacyInfo.xcprivacy" "$APP/Contents/Resources/PrivacyInfo.xcprivacy"
 
-echo "==> Re-signing embedded onekeepass-proxy"
+echo "==> Packaging onekeepass-proxy as nested helper app"
+PROXY_SRC="$APP/Contents/MacOS/onekeepass-proxy"
+PROXY_HELPER="$APP/Contents/Helpers/onekeepass-proxy.app"
+PROXY_HELPER_CONTENTS="$PROXY_HELPER/Contents"
+PROXY_HELPER_MACOS="$PROXY_HELPER_CONTENTS/MacOS"
+PROXY_HELPER_RESOURCES="$PROXY_HELPER_CONTENTS/Resources"
+
+if [ ! -f "$PROXY_SRC" ]; then
+    echo "ERROR: expected proxy binary not found at $PROXY_SRC" >&2
+    exit 1
+fi
+
+rm -rf "$PROXY_HELPER"
+mkdir -p "$PROXY_HELPER_MACOS" "$PROXY_HELPER_RESOURCES"
+cp "$PROXY_SRC" "$PROXY_HELPER_MACOS/onekeepass-proxy"
+chmod 755 "$PROXY_HELPER_MACOS/onekeepass-proxy"
+rm -f "$PROXY_SRC"
+
+APP_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
+APP_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")"
+
+cat > "$PROXY_HELPER_CONTENTS/Info.plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>onekeepass-proxy</string>
+    <key>CFBundleIdentifier</key>
+    <string>$PROXY_APP_ID</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>OneKeePass Proxy</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$APP_VERSION</string>
+    <key>CFBundleVersion</key>
+    <string>$APP_BUILD</string>
+    <key>LSBackgroundOnly</key>
+    <true/>
+</dict>
+</plist>
+EOF
+
+cp "$PROXY_PROVISION_PROFILE" "$PROXY_HELPER_CONTENTS/embedded.provisionprofile"
+chmod 644 "$PROXY_HELPER_CONTENTS/embedded.provisionprofile"
+xattr -dr com.apple.quarantine "$PROXY_HELPER_CONTENTS/embedded.provisionprofile" 2>/dev/null || true
+
+echo "==> Signing onekeepass-proxy helper app"
 codesign --force --sign "$SIGNING_IDENTITY" \
+    --identifier "$PROXY_APP_ID" \
     --entitlements src-tauri/entitlements.proxy.mas.plist \
     --options runtime --timestamp \
-    "$APP/Contents/MacOS/onekeepass-proxy"
+    "$PROXY_HELPER"
 
 echo "==> Re-signing parent .app bundle"
 codesign --force --sign "$SIGNING_IDENTITY" \
@@ -292,7 +359,10 @@ echo "--- entitlements (parent) ---"
 codesign --display --entitlements :- "$APP" | plutil -p -
 echo
 echo "--- entitlements (proxy) ---"
-codesign --display --entitlements :- "$APP/Contents/MacOS/onekeepass-proxy" | plutil -p -
+codesign --display --entitlements :- "$PROXY_HELPER" | plutil -p -
+
+echo "==> Removing quarantine attributes from .app bundle"
+xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
 
 if [ "$BUILD_FOR" = "mas" ]; then
     echo "==> Building installer .pkg at $PKG_OUT"

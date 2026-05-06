@@ -39,6 +39,21 @@ fn proxy_full_path() -> Result<PathBuf> {
         .parent()
         .ok_or_else(|| error::Error::DataError("No parent dir is found"))?;
 
+    #[cfg(all(target_os = "macos", feature = "mas-build"))]
+    {
+        let contents_dir = parent
+            .parent()
+            .ok_or_else(|| error::Error::DataError("No Contents dir is found"))?;
+        return Ok(contents_dir
+            .join("Helpers")
+            .join("onekeepass-proxy.app")
+            .join("Contents")
+            .join("MacOS")
+            .join("onekeepass-proxy"));
+    }
+
+    #[cfg(not(all(target_os = "macos", feature = "mas-build")))]
+    {
     let bin = match std::env::consts::OS {
         "windows" => "onekeepass-proxy.exe",
         _ => "onekeepass-proxy",
@@ -46,6 +61,7 @@ fn proxy_full_path() -> Result<PathBuf> {
     let full_path = parent.join(bin);
 
     Ok(full_path)
+    }
 }
 
 #[derive(Serialize)]
