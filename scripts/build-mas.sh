@@ -51,6 +51,8 @@
 #   PROXY_APP_ID                 proxy signing identifier (default: com.onekeepass.proxy)
 #   PKG_OUT                      output .pkg path (default: OneKeePass.pkg in cwd)
 #                                (ignored when BUILD_FOR=dev)
+#   APP_BUILD_VERSION            CFBundleVersion override for App Store/TestFlight
+#                                uploads, e.g. 1 , 2, 3.. for each build in the same app version while app version remains 0.21.0
 #   SKIP_CLJS_BUILD              true/1/yes to skip src-cljs release build
 #   SKIP_PROXY_BUILD             true/1/yes to skip onekeepass-proxy rebuild
 #
@@ -72,6 +74,7 @@ Usage: scripts/build-mas.sh [--target <triple>] [--skip-cljs] [--skip-proxy] [--
 Environment:
   BUILD_FOR=mas|dev            Build distribution package or local dev app.
   TARGET=aarch64-apple-darwin  Target triple. Defaults from uname -m.
+  APP_BUILD_VERSION=0.21.1     Override CFBundleVersion for App Store/TestFlight.
   SKIP_CLJS_BUILD=true         Skip src-cljs release build.
   SKIP_PROXY_BUILD=true        Skip onekeepass-proxy rebuild.
 
@@ -272,6 +275,17 @@ if [ ! -d "$APP" ]; then
         echo "ERROR: expected app bundle not found at $APP or $FALLBACK_APP" >&2
         exit 1
     fi
+fi
+
+if [ -n "${APP_BUILD_VERSION:-}" ]; then
+    case "$APP_BUILD_VERSION" in
+        *[!0-9.]*|.*|*..*|*.)
+            echo "ERROR: APP_BUILD_VERSION must contain only dot-separated digits (got: $APP_BUILD_VERSION)" >&2
+            exit 1
+            ;;
+    esac
+    echo "==> Setting CFBundleVersion to $APP_BUILD_VERSION"
+    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $APP_BUILD_VERSION" "$APP/Contents/Info.plist"
 fi
 
 echo "==> Embedding provisioning profile"

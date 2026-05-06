@@ -8,6 +8,7 @@ use super::bookmarks;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum ScopedAccessKey {
     Db(String),
+    // TODO: Need to verify its use is required (AutoOpen specifc)
     DbDir(String),
     KeyFile(String),
     BackupDir,
@@ -16,6 +17,8 @@ pub(crate) enum ScopedAccessKey {
 #[derive(Default)]
 pub(crate) struct LoadKdbxAccess {
     db_file: Option<BookmarkHandle>,
+    // TODO: Need to verify its use is required (AutoOpen specifc). 
+    // May be useful when UI we ask user to open a db folder for future use.
     db_dir: Option<BookmarkHandle>,
     key_file: Option<BookmarkHandle>,
 }
