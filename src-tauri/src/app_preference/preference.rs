@@ -396,7 +396,13 @@ impl Preference {
 
     pub(crate) fn remove_recent_file(&mut self, file_name: &str) -> &mut Self {
         self.recent_files.retain(|r| r.path != file_name);
-        crate::mas::bookmarks::remove_db_file(file_name);
+        // MAS: Keep the DB security-scoped bookmark even when the recent-list
+        // entry is removed. The bookmark is durable file access, not display
+        // history; child auto-open databases may need it later without another
+        // file picker round-trip.
+        // TODO: Add a MAS-specific UI flow for reviewing/clearing saved file
+        // access separately from recents, including stale bookmark cleanup.
+        // crate::mas::bookmarks::remove_db_file(file_name);
         self.write_toml();
         self
     }
@@ -410,7 +416,12 @@ impl Preference {
 
     pub(crate) fn clear_recent_files(&mut self) -> &mut Self {
         self.recent_files.clear();
-        crate::mas::bookmarks::clear_db_files();
+        // MAS: Clearing recents should not revoke saved DB file permissions.
+        // Auto-open child DBs can rely on these bookmarks after app relaunch,
+        // while direct main DB opens can still recover through a re-pick flow.
+        // TODO: Add a MAS-specific UI flow for reviewing/clearing saved file
+        // access separately from recents, including stale bookmark cleanup.
+        // crate::mas::bookmarks::clear_db_files();
         self.write_toml();
         self
     }
