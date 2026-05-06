@@ -187,7 +187,7 @@ impl Preference {
             // The read preference from file system has version which is not the same as current one
             // So we need to write the new one
 
-            // This is a temporary arrangement. 
+            // This is a temporary arrangement.
             // Should it be removed after 4 or 5 future releases?
             // Next expected DMG release 0.22.0, this should be removed after verifying the 'Preference2'
             // loading works as introduced for MAS release 0.21.0 (which added RecentFile struct, BackupPreference changed)
@@ -221,11 +221,7 @@ impl Preference {
             p.theme = p2.theme;
             p.language = p2.language;
             p.default_entry_category_groupings = p2.default_entry_category_groupings;
-            p.recent_files = p2
-                .recent_files
-                .into_iter()
-                .map(RecentFile::new)
-                .collect();
+            p.recent_files = p2.recent_files.into_iter().map(RecentFile::new).collect();
             p.backup = p2.backup;
             p.password_gen_preference = p2.password_gen_preference;
             p.browser_ext_support = p2.browser_ext_support;
@@ -241,11 +237,7 @@ impl Preference {
             let mut p = Preference::default();
             p.session_timeout = p1.session_timeout;
             p.backup = p1.backup;
-            p.recent_files = p1
-                .recent_files
-                .into_iter()
-                .map(RecentFile::new)
-                .collect();
+            p.recent_files = p1.recent_files.into_iter().map(RecentFile::new).collect();
             p.default_entry_category_groupings = p1.default_entry_category_groupings;
             p.version = p1.version;
             p.language = p1.language;
@@ -338,9 +330,7 @@ impl Preference {
         if let Some(mut v) = preference_data.backup {
             if v.enabled {
                 if let Some(dir) = v.dir.as_deref().filter(|dir| !dir.trim().is_empty()) {
-                    if let Some(b64) = crate::bookmarks::create(dir) {
-                        crate::bookmarks::store_backup_dir(dir, &b64);
-                    }
+                    crate::mas::create_backup_dir_bookmark(dir);
                 }
             } else {
                 v.dir = None;
@@ -406,7 +396,7 @@ impl Preference {
 
     pub(crate) fn remove_recent_file(&mut self, file_name: &str) -> &mut Self {
         self.recent_files.retain(|r| r.path != file_name);
-        crate::bookmarks::remove_db_file(file_name);
+        crate::mas::bookmarks::remove_db_file(file_name);
         self.write_toml();
         self
     }
@@ -420,7 +410,7 @@ impl Preference {
 
     pub(crate) fn clear_recent_files(&mut self) -> &mut Self {
         self.recent_files.clear();
-        crate::bookmarks::clear_db_files();
+        crate::mas::bookmarks::clear_db_files();
         self.write_toml();
         self
     }
@@ -431,7 +421,10 @@ impl Preference {
 
     // Writes the native-messaging manifest for `browser_id` using the stored
     // security-scoped folder bookmark from the App Group bookmark store.
-    pub(crate) fn write_browser_manifest(&mut self, browser_id: &str) -> onekeepass_core::error::Result<()> {
+    pub(crate) fn write_browser_manifest(
+        &mut self,
+        browser_id: &str,
+    ) -> onekeepass_core::error::Result<()> {
         self.browser_ext_support
             .write_browser_manifest_for(browser_id)?;
         self.write_toml();

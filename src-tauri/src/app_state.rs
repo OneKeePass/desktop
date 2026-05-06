@@ -17,9 +17,9 @@ use tauri::{path::BaseDirectory, App, Manager, Runtime};
 
 use crate::app_preference::{BrowserExtSupportData, Preference, PreferenceData};
 use crate::biometric;
-use crate::bookmarks::{self, BookmarkHandle};
 use crate::constants::standard_file_names::APP_PREFERENCE_FILE;
 use crate::key_secure;
+use crate::mas;
 use crate::sandbox;
 use crate::translation::current_locale_language;
 use crate::{app_paths, file_util};
@@ -120,18 +120,6 @@ fn init_log(log_dir: &PathBuf) {
 
 static GLOBAL_TAURI_APP_HANDLE: std::sync::OnceLock<AppHandle> = std::sync::OnceLock::new();
 
-// Identifies an entry in `AppState.scoped_access`. Handles for opened DBs are
-// keyed by the file path (matching the existing `db_key`); the backup directory
-// has at most one active scoped access per app process and uses the BackupDir
-// sentinel.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) enum ScopedAccessKey {
-    Db(String),
-    DbDir(String),
-    KeyFile(String),
-    BackupDir,
-}
-
 // IMPORTANT:
 // Need to keep all state fields behind Mutex if we need to mutuate as
 // we cann't get &mut self of 'AppState'
@@ -143,8 +131,8 @@ pub(crate) struct AppState {
     resource_dir_path: Mutex<Option<PathBuf>>,
     pub(crate) db_file_watcher: crate::db_file_watcher::DbFileWatcherState,
     // macOS App Sandbox security-scoped bookmark handles currently held open.
-    // Empty on non-macOS / non-sandboxed builds. See `crate::bookmarks`.
-    scoped_access: Mutex<HashMap<ScopedAccessKey, BookmarkHandle>>,
+    // Empty on non-MAS builds. See `crate::mas`.
+    scoped_access: Mutex<HashMap<mas::ScopedAccessKey, mas::BookmarkHandle>>,
 }
 
 impl AppState {
@@ -277,15 +265,15 @@ impl AppState {
             pref.backup.dir.clone()
         };
         if prior_dir != current_dir {
-            self.release_scoped_access(&ScopedAccessKey::BackupDir);
+            self.release_scoped_access(&mas::ScopedAccessKey::BackupDir);
             if let Some(dir) = prior_dir.as_deref() {
-                bookmarks::remove_backup_dir(dir);
+                mas::bookmarks::remove_backup_dir(dir);
             }
             if let Some(dir) = current_dir.as_deref() {
-                let b64 = bookmarks::load_backup_dir(dir);
+                let b64 = mas::bookmarks::load_backup_dir(dir);
                 if let Some(b64) = &b64 {
-                    if let Ok((handle, _)) = bookmarks::resolve_and_start(b64) {
-                        self.store_scoped_access(ScopedAccessKey::BackupDir, handle);
+                    if let Ok((handle, _)) = mas::bookmarks::resolve_and_start(b64) {
+                        self.store_scoped_access(mas::ScopedAccessKey::BackupDir, handle);
                     }
                 }
             }
@@ -300,7 +288,11 @@ impl AppState {
 
         if let Some(path) = backup_file_name {
             if let Err(err) = file_util::remove_file_if_exists(&path) {
-                log::error!("Removing internal backup file failed for {:?}: {}", path, err);
+                log::error!(
+                    "Removing internal backup file failed for {:?}: {}",
+                    path,
+                    err
+                );
             }
         }
     }
@@ -372,7 +364,10 @@ impl AppState {
         let picked_path = match picked {
             Some(p) => p,
             None => {
-                log::info!("browser_ext_pick_install_dir: user cancelled for {}", browser_id);
+                log::info!(
+                    "browser_ext_pick_install_dir: user cancelled for {}",
+                    browser_id
+                );
                 return Ok(());
             }
         };
@@ -380,10 +375,13 @@ impl AppState {
         let path_str = picked_path.to_string();
 
         // Create a security-scoped bookmark while the panel grant is still active.
-        let b64 = match crate::bookmarks::create(&path_str) {
+        let b64 = match mas::bookmarks::create(&path_str) {
             Some(b) => b,
             None => {
-                log::error!("browser_ext_pick_install_dir: bookmark creation failed for {}", &path_str);
+                log::error!(
+                    "browser_ext_pick_install_dir: bookmark creation failed for {}",
+                    &path_str
+                );
                 return Err(onekeepass_core::error::Error::UnexpectedError(
                     "Failed to create a security-scoped bookmark for the selected folder".into(),
                 ));
@@ -391,7 +389,7 @@ impl AppState {
         };
 
         // Persist the bookmark so future writes resolve it without a new picker.
-        crate::bookmarks::store_browser_dir(browser_id, &path_str, &b64);
+        mas::bookmarks::store_browser_dir(browser_id, &path_str, &b64);
 
         // Now re-run the manifest write; the stored bookmark will be resolved
         // by write_manifest_with_scope inside browser_ext_support.update.
@@ -434,25 +432,29 @@ impl AppState {
     // Records a scoped-access handle and releases any prior handle stored under
     // the same key (defensive — prevents leaks if a second open of the same db
     // occurs without an intervening close).
-    pub(crate) fn store_scoped_access(&self, key: ScopedAccessKey, handle: BookmarkHandle) {
+    pub(crate) fn store_scoped_access(
+        &self,
+        key: mas::ScopedAccessKey,
+        handle: mas::BookmarkHandle,
+    ) {
         let prior = {
             let mut store = self.scoped_access.lock().unwrap();
             store.insert(key, handle)
         };
         if let Some(h) = prior {
-            bookmarks::release(h);
+            mas::release_scoped_handle(h);
         }
     }
 
     // Releases (and forgets) the handle for `key` if one is held. No-op if the
     // key is not present.
-    pub(crate) fn release_scoped_access(&self, key: &ScopedAccessKey) {
+    pub(crate) fn release_scoped_access(&self, key: &mas::ScopedAccessKey) {
         let prior = {
             let mut store = self.scoped_access.lock().unwrap();
             store.remove(key)
         };
         if let Some(h) = prior {
-            bookmarks::release(h);
+            mas::release_scoped_handle(h);
         }
     }
 
@@ -461,39 +463,7 @@ impl AppState {
     // No-op outside macOS sandbox or when the user's `backup.dir` is the
     // default (container-relative) path that doesn't need a bookmark.
     pub(crate) fn init_backup_dir_scoped_access(&self) {
-        if !sandbox::is_sandboxed() {
-            return;
-        }
-        let backup_dir = {
-            let pref = self.preference.lock().unwrap();
-            if !pref.backup.enabled {
-                return;
-            }
-            pref.backup.dir.clone()
-        };
-        let Some(dir) = backup_dir else {
-            return;
-        };
-        let Some(b64) = bookmarks::load_backup_dir(&dir) else {
-            return;
-        };
-
-        match bookmarks::resolve_and_start(&b64) {
-            Ok((handle, refreshed)) => {
-                if let Some(refreshed_b64) = refreshed {
-                    bookmarks::store_backup_dir(&dir, &refreshed_b64);
-                    debug!("Refreshed stale backup-dir bookmark and persisted");
-                }
-                self.store_scoped_access(ScopedAccessKey::BackupDir, handle);
-            }
-            Err(e) => {
-                log::warn!(
-                    "Failed to resolve backup-dir bookmark; backup writes to a non-default \
-                     dir will be skipped until the user re-picks. Cause: {}",
-                    e
-                );
-            }
-        }
+        mas::init_backup_dir_scoped_access(self);
     }
 }
 

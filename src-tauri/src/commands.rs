@@ -8,22 +8,21 @@ use std::io::ErrorKind;
 
 use log::{debug, info};
 use std::fs::read_to_string;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use uuid::Uuid;
 
 use crate::app_state::SystemInfoWithPreference;
 use crate::auto_open::{self, AutoOpenProperties, AutoOpenPropertiesResolved};
-use crate::bookmarks;
+#[cfg(not(feature = "mas-build"))]
+use crate::auto_type;
 use crate::menu::MenuActionRequest;
 use crate::{app_preference, app_state};
 use crate::{biometric, OTP_TOKEN_UPDATE_EVENT};
-#[cfg(not(feature = "mas-build"))]
-use crate::auto_type;
-use crate::{menu, pass_phrase, translation};
+use crate::{mas, menu, pass_phrase, translation};
 use onekeepass_core::async_service as kp_async_service;
 use onekeepass_core::db_service as kp_service;
 
-/* 
+/*
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum UpdateType {
@@ -138,70 +137,7 @@ pub(crate) async fn load_kdbx(
     key_file_name: Option<&str>,
     app_state: State<'_, app_state::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
-    // Phase 1: if a stored security-scoped bookmark exists for this path,
-    // resolve it and start scoped access. Required under macOS App Sandbox to
-    // reopen files picked in a prior session. Outside macOS this is a no-op.
-    let stored_bookmark = bookmarks::load_db_file(db_file_name);
-
-    let mut prepared_handle: Option<bookmarks::BookmarkHandle> = None;
-    if let Some(b64) = stored_bookmark {
-        match bookmarks::resolve_and_start(&b64) {
-            Ok((handle, refreshed)) => {
-                prepared_handle = Some(handle);
-                if let Some(refreshed_b64) = refreshed {
-                    bookmarks::store_db_file(db_file_name, &refreshed_b64);
-                }
-            }
-            Err(e) => {
-                log::warn!(
-                    "Bookmark resolve failed for {}: {}. Attempting direct read.",
-                    db_file_name, e
-                );
-            }
-        }
-    }
-
-    let mut prepared_key_file_handle: Option<bookmarks::BookmarkHandle> = None;
-    if let Some(key_file_name) = key_file_name {
-        if let Some(b64) = bookmarks::load_key_file(key_file_name) {
-            match bookmarks::resolve_and_start(&b64) {
-                Ok((handle, refreshed)) => {
-                    prepared_key_file_handle = Some(handle);
-                    if let Some(refreshed_b64) = refreshed {
-                        bookmarks::store_key_file(key_file_name, &refreshed_b64);
-                    }
-                }
-                Err(e) => {
-                    log::warn!(
-                        "Key-file bookmark resolve failed for {}: {}. Attempting direct read.",
-                        key_file_name,
-                        e
-                    );
-                }
-            }
-        }
-    }
-
-    let db_parent_dir = parent_dir_string(db_file_name);
-    let mut prepared_db_dir_handle: Option<bookmarks::BookmarkHandle> =
-        db_parent_dir.as_deref().and_then(|dir| {
-            bookmarks::load_db_dir(dir).and_then(|b64| match bookmarks::resolve_and_start(&b64) {
-                Ok((handle, refreshed)) => {
-                    if let Some(refreshed_b64) = refreshed {
-                        bookmarks::store_db_dir(dir, &refreshed_b64);
-                    }
-                    Some(handle)
-                }
-                Err(e) => {
-                    log::warn!(
-                        "DB parent-dir bookmark resolve failed for {}: {}. Attempting direct read.",
-                        dir,
-                        e
-                    );
-                    None
-                }
-            })
-        });
+    let mut scoped_access = mas::LoadKdbxAccess::prepare(db_file_name, key_file_name);
 
     // key_file_name.as_deref() converts Option<&str>; same conversion the prior
     // implementation used.
@@ -212,15 +148,7 @@ pub(crate) async fn load_kdbx(
     // session to bind it to.
     if let Err(kp_service::error::Error::DbFileIoError(m, ioe)) = &r {
         if let ("Database file opening failed", ErrorKind::NotFound) = (m.as_str(), ioe.kind()) {
-            if let Some(h) = prepared_handle.take() {
-                bookmarks::release(h);
-            }
-            if let Some(h) = prepared_key_file_handle.take() {
-                bookmarks::release(h);
-            }
-            if let Some(h) = prepared_db_dir_handle.take() {
-                bookmarks::release(h);
-            }
+            scoped_access.release_all();
             app_state
                 .preference
                 .lock()
@@ -229,75 +157,11 @@ pub(crate) async fn load_kdbx(
             return Ok(r?);
         }
 
-        // Sandbox-only: PermissionDenied means the OS blocked the read despite
-        // an existing recent entry. Three sub-cases all funnel here: the
-        // bookmark resolved but became unusable (rare), the bookmark was
-        // missing (common after the Vec<String> → Vec<RecentFile> migration),
-        // or no bookmark was ever created (fresh-from-old-build entries).
-        // Surface a marker so the cljs side can re-pick the file via the
-        // OS panel — the fresh grant lets the next attempt succeed and
-        // creates a working bookmark for future launches. Keep the recent
-        // entry intact; a successful re-pick will replace its bookmark.
-        #[cfg(target_os = "macos")]
-        {
-            let in_recents = app_state
-                .preference
-                .lock()
-                .unwrap()
-                .is_in_recent_files(db_file_name);
-            if ioe.kind() == ErrorKind::PermissionDenied
-                && crate::sandbox::is_sandboxed()
-                && in_recents
-            {
-                if let Some(h) = prepared_handle.take() {
-                    bookmarks::release(h);
-                }
-                if let Some(h) = prepared_key_file_handle.take() {
-                    bookmarks::release(h);
-                }
-                if let Some(h) = prepared_db_dir_handle.take() {
-                    bookmarks::release(h);
-                }
-                return Err("BookmarkPermissionDenied".into());
-            }
+        if mas::should_request_db_repick(ioe.kind(), db_file_name, &app_state) {
+            scoped_access.release_all();
+            return Err("BookmarkPermissionDenied".into());
         }
     }
-
-    // Phase 3: on success (or recoverable errors like wrong password) the entry
-    // stays in recents. Create a fresh bookmark on success when no prior one
-    // resolved, so future opens can re-grant access without re-prompting.
-    let new_bookmark_b64 = if r.is_ok() && prepared_handle.is_none() {
-        let b64 = bookmarks::create(db_file_name);
-        if let Some(b64) = &b64 {
-            bookmarks::store_db_file(db_file_name, b64);
-        }
-        b64
-    } else {
-        None
-    };
-    let new_key_file_bookmark_b64 =
-        if r.is_ok() && prepared_key_file_handle.is_none() {
-            key_file_name.and_then(|key_file_name| {
-                let b64 = bookmarks::create(key_file_name);
-                if let Some(b64) = &b64 {
-                    bookmarks::store_key_file(key_file_name, b64);
-                }
-                b64
-            })
-        } else {
-            None
-        };
-    let new_db_dir_bookmark_b64 = if r.is_ok() && prepared_db_dir_handle.is_none() {
-        db_parent_dir.as_deref().and_then(|dir| {
-            let b64 = bookmarks::create(dir);
-            if let Some(b64) = &b64 {
-                bookmarks::store_db_dir(dir, b64);
-            }
-            b64
-        })
-    } else {
-        None
-    };
 
     app_state
         .preference
@@ -305,85 +169,17 @@ pub(crate) async fn load_kdbx(
         .unwrap()
         .add_recent_file(db_file_name);
 
-    // If we just created a bookmark for a fresh open, resolve it now to obtain
-    // a session-bound scoped-access handle. The current panel-grant access is
-    // independent and will unwind on its own.
-    if let Some(b64) = &new_bookmark_b64 {
-        match bookmarks::resolve_and_start(b64) {
-            Ok((handle, _)) => prepared_handle = Some(handle),
-            Err(e) => {
-                log::warn!(
-                    "Resolve of freshly-created bookmark failed for {}: {}",
-                    db_file_name, e
-                );
-            }
-        }
-    }
-    if let Some(b64) = &new_key_file_bookmark_b64 {
-        match bookmarks::resolve_and_start(b64) {
-            Ok((handle, _)) => prepared_key_file_handle = Some(handle),
-            Err(e) => {
-                log::warn!(
-                    "Resolve of freshly-created key-file bookmark failed: {}",
-                    e
-                );
-            }
-        }
-    }
-    if let Some(b64) = &new_db_dir_bookmark_b64 {
-        match bookmarks::resolve_and_start(b64) {
-            Ok((handle, _)) => prepared_db_dir_handle = Some(handle),
-            Err(e) => {
-                log::warn!(
-                    "Resolve of freshly-created DB parent-dir bookmark failed: {}",
-                    e
-                );
-            }
-        }
-    }
-
     if r.is_ok() {
-        if let Some(handle) = prepared_handle {
-            app_state.store_scoped_access(
-                app_state::ScopedAccessKey::Db(db_file_name.to_string()),
-                handle,
-            );
-        }
-        if let (Some(key_file_name), Some(handle)) = (key_file_name, prepared_key_file_handle) {
-            app_state.store_scoped_access(
-                app_state::ScopedAccessKey::KeyFile(key_file_name.to_string()),
-                handle,
-            );
-        }
-        if let (Some(db_parent_dir), Some(handle)) = (db_parent_dir, prepared_db_dir_handle) {
-            app_state.store_scoped_access(
-                app_state::ScopedAccessKey::DbDir(db_parent_dir),
-                handle,
-            );
-        }
+        scoped_access.store_success_handles(db_file_name, key_file_name, &app_state);
         app_state.db_file_watcher.start_watching(db_file_name);
     } else {
         // Failure path with a held handle (e.g., wrong password). The user
         // will likely retry, but we shouldn't leak scoped access in the
         // meantime. The next attempt will resolve again from the stored bookmark.
-        if let Some(h) = prepared_handle {
-            bookmarks::release(h);
-        }
-        if let Some(h) = prepared_key_file_handle {
-            bookmarks::release(h);
-        }
-        if let Some(h) = prepared_db_dir_handle {
-            bookmarks::release(h);
-        }
+        scoped_access.release_all();
     }
 
     Ok(r?)
-}
-
-fn parent_dir_string(file_name: &str) -> Option<String> {
-    PathBuf::from(file_name)
-        .parent()
-        .map(|p| p.to_string_lossy().to_string())
 }
 
 /// UI layer redirects any backend menu actions
@@ -495,26 +291,12 @@ pub(crate) async fn create_kdbx(
     app_state: State<'_, app_state::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
     let r = kp_service::create_kdbx(new_db)?;
-    // The save dialog grant is currently active for this path — capture it as
-    // a session-bound bookmark + scoped-access handle, and store both with the
-    // recent entry. No-op outside macOS.
-    let new_bookmark_b64 = bookmarks::create(&r.db_key);
-    if let Some(b64) = &new_bookmark_b64 {
-        bookmarks::store_db_file(&r.db_key, b64);
-    }
+    mas::record_user_granted_db_file(&r.db_key, &app_state);
     app_state
         .preference
         .lock()
         .unwrap()
         .add_recent_file(&r.db_key);
-    if let Some(b64) = &new_bookmark_b64 {
-        if let Ok((handle, _)) = bookmarks::resolve_and_start(b64) {
-            app_state.store_scoped_access(
-                app_state::ScopedAccessKey::Db(r.db_key.clone()),
-                handle,
-            );
-        }
-    }
     Ok(r)
 }
 
@@ -880,8 +662,8 @@ pub(crate) async fn save_attachment_as_temp_file(
 #[command]
 pub(crate) async fn open_attachment_temp_file(file_path: &str) -> Result<()> {
     let requested = std::path::PathBuf::from(file_path);
-    let canonical = std::fs::canonicalize(&requested)
-        .map_err(|e| format!("Invalid attachment path: {e}"))?;
+    let canonical =
+        std::fs::canonicalize(&requested).map_err(|e| format!("Invalid attachment path: {e}"))?;
 
     let allowed_root = std::fs::canonicalize(std::env::temp_dir().join("okp_cache"))
         .map_err(|e| format!("okp_cache dir not available: {e}"))?;
@@ -919,28 +701,12 @@ pub(crate) async fn save_as_kdbx(
 
     //key_secure::delete_key(db_key);
 
-    // save_as_kdbx writes to a path the user just picked via a save dialog —
-    // capture a fresh bookmark + session handle while access is granted, and
-    // attach to the recent entry so future opens regain access. No-op off macOS.
-    let new_bookmark_b64 = bookmarks::create(db_file_name);
-    if let Some(b64) = &new_bookmark_b64 {
-        bookmarks::store_db_file(db_file_name, b64);
-    }
+    mas::record_user_granted_db_file(db_file_name, &app_state);
     app_state
         .preference
         .lock()
         .unwrap()
         .add_recent_file(db_file_name);
-    if let Some(b64) = &new_bookmark_b64 {
-        // Replace any stale handle for this db_key (rare but possible if
-        // save-as was invoked while the source DB is still open).
-        if let Ok((handle, _)) = bookmarks::resolve_and_start(b64) {
-            app_state.store_scoped_access(
-                app_state::ScopedAccessKey::Db(db_file_name.to_string()),
-                handle,
-            );
-        }
-    }
     Ok(r)
 }
 
@@ -988,7 +754,7 @@ pub(crate) async fn close_kdbx(
     app_state.db_file_watcher.stop_watching(db_key);
     // Release the scoped-access handle paired with this DB's load_kdbx (if any).
     // Safe to call on non-macOS / non-sandboxed paths — it's a HashMap remove.
-    app_state.release_scoped_access(&app_state::ScopedAccessKey::Db(db_key.to_string()));
+    app_state.release_scoped_access(&mas::ScopedAccessKey::Db(db_key.to_string()));
     kp_service::close_kdbx(db_key)?;
     app_state.remove_app_home_backup_file(db_key);
     Ok(())
@@ -1084,25 +850,12 @@ pub(crate) async fn create_new_db_with_imported_csv(
     app_state: State<'_, app_state::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
     let r = mapping.create_new_db(new_db)?;
-    // Mirror the bookmark/scoped-access capture from create_kdbx — same grant
-    // lifecycle (the new file was just written under a save-dialog grant).
-    let new_bookmark_b64 = bookmarks::create(&r.db_key);
-    if let Some(b64) = &new_bookmark_b64 {
-        bookmarks::store_db_file(&r.db_key, b64);
-    }
+    mas::record_user_granted_db_file(&r.db_key, &app_state);
     app_state
         .preference
         .lock()
         .unwrap()
         .add_recent_file(&r.db_key);
-    if let Some(b64) = &new_bookmark_b64 {
-        if let Ok((handle, _)) = bookmarks::resolve_and_start(b64) {
-            app_state.store_scoped_access(
-                app_state::ScopedAccessKey::Db(r.db_key.clone()),
-                handle,
-            );
-        }
-    }
     Ok(r)
 }
 

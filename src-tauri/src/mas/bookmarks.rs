@@ -147,8 +147,11 @@ pub(crate) fn clear_browser_dirs() {
 }
 
 fn store_dir(kind: StoreKind) -> Option<PathBuf> {
-    crate::sandbox::group_container_path()
-        .map(|dir| dir.join("OKP-SHARED").join("bookmarks").join(kind.dir_name()))
+    crate::sandbox::group_container_path().map(|dir| {
+        dir.join("OKP-SHARED")
+            .join("bookmarks")
+            .join(kind.dir_name())
+    })
 }
 
 fn store_file_path(kind: StoreKind, key: &str) -> Option<PathBuf> {
@@ -232,8 +235,8 @@ mod imp {
         if json.is_empty() {
             return Err("bookmark resolve failed (see Console.app for the underlying NSError)");
         }
-        let parsed: ResolveResult = serde_json::from_str(&json)
-            .map_err(|_| "bookmark resolve returned malformed JSON")?;
+        let parsed: ResolveResult =
+            serde_json::from_str(&json).map_err(|_| "bookmark resolve returned malformed JSON")?;
         Ok((BookmarkHandle(parsed.handle), parsed.refreshed_b64))
     }
 

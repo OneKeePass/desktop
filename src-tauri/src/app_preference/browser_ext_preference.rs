@@ -31,7 +31,6 @@ pub(crate) struct BrowserExtSupport {
     // We update this field through 'user_confirmation' fn separately
     #[serde(skip)]
     user_confirmed_browsers: HashSet<String>,
-
 }
 
 impl BrowserExtSupport {
@@ -42,11 +41,11 @@ impl BrowserExtSupport {
             && self.user_confirmed_browsers.contains(&val)
     }
 
-    pub(crate) fn _extension_use_enabled(&self,) -> bool {
+    pub(crate) fn _extension_use_enabled(&self) -> bool {
         self.extension_use_enabled
     }
 
-    pub(crate) fn _is_allowed_browser(&self, browser_id: &str) -> bool  {
+    pub(crate) fn _is_allowed_browser(&self, browser_id: &str) -> bool {
         self.allowed_browsers.contains(&browser_id.to_string())
     }
 
@@ -104,7 +103,7 @@ impl BrowserExtSupport {
             return op();
         }
 
-        let b64 = match crate::bookmarks::load_browser_dir(browser_id) {
+        let b64 = match crate::mas::bookmarks::load_browser_dir(browser_id) {
             Some(b) => b.clone(),
             None => {
                 // Sentinel prefix parsed by the cljs bg-update-preference callback to
@@ -121,12 +120,12 @@ impl BrowserExtSupport {
             }
         };
 
-        let (handle, refreshed) = crate::bookmarks::resolve_and_start(&b64)
+        let (handle, refreshed) = crate::mas::bookmarks::resolve_and_start(&b64)
             .map_err(|e| error::Error::UnexpectedError(e.to_string()))?;
 
         if let Some(new_b64) = refreshed {
             if let Some(path) = crate::sandbox::browser_manifest_dir(browser_id) {
-                crate::bookmarks::store_browser_dir(
+                crate::mas::bookmarks::store_browser_dir(
                     browser_id,
                     &path.to_string_lossy(),
                     &new_b64,
@@ -135,7 +134,7 @@ impl BrowserExtSupport {
         }
 
         let result = op();
-        crate::bookmarks::release(handle);
+        crate::mas::bookmarks::release(handle);
         result
     }
 
@@ -175,7 +174,7 @@ impl BrowserExtSupport {
 
             // Clear the stored bookmark files when integration is fully disabled so that
             // the next enable re-prompts via NSOpenPanel (fresh grant).
-            crate::bookmarks::clear_browser_dirs();
+            crate::mas::bookmarks::clear_browser_dirs();
 
             Ok(())
         };
@@ -227,7 +226,7 @@ impl BrowserExtSupport {
 
             log::debug!("Removing the firefox config...");
             let r = self.write_manifest_with_scope(FIREFOX, FirefoxNativeMessagingConfig::remove);
-            crate::bookmarks::remove_browser_dir(FIREFOX);
+            crate::mas::bookmarks::remove_browser_dir(FIREFOX);
             log::debug!(
                 "After remove call for firefox native messaging config with result {:?}",
                 &r
@@ -266,7 +265,7 @@ impl BrowserExtSupport {
 
             log::debug!("Removing the chrome config...");
             let r = self.write_manifest_with_scope(CHROME, ChromeNativeMessagingConfig::remove);
-            crate::bookmarks::remove_browser_dir(CHROME);
+            crate::mas::bookmarks::remove_browser_dir(CHROME);
             log::debug!(
                 "After remove call for chrome native messaging config with result {:?}",
                 &r

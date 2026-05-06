@@ -11,12 +11,12 @@ mod db_file_watcher;
 #[cfg(not(feature = "mas-build"))]
 mod auto_type;
 mod biometric;
-mod bookmarks;
 mod browser_service;
 mod commands;
 mod constants;
 mod file_util;
 mod key_secure;
+mod mas;
 mod menu;
 mod pass_phrase;
 mod sandbox;
