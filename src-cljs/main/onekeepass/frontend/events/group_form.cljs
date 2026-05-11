@@ -104,6 +104,14 @@
    {:fx [[:dispatch [:generic-dialog-update :group-form-dialog
                      [[:data field-name-kw] value]]]]}))
 
+;; Single-arg wrapper used as the on-success-event prefix when adding a
+;; custom icon from the group form's icon picker — the new icon's uuid is
+;; appended by ci-events and arrives here as `uuid`.
+(reg-event-fx
+ :group-form/set-custom-icon-uuid
+ (fn [_cofx [_eid uuid]]
+   {:fx [[:dispatch [:group-form/update-field [:custom-icon-uuid uuid]]]]}))
+
 (reg-event-fx
  :group-form/tags-selected
  (fn [_cofx [_eid tags]]
@@ -123,11 +131,12 @@
 (reg-event-fx
  :group-form/ok-edit
  (fn [{:keys [db]} [_eid]]
-   (let [{:keys [uuid icon-id parent-group-uuid name tags notes marked-category]}
+   (let [{:keys [uuid icon-id custom-icon-uuid parent-group-uuid name tags notes marked-category]}
          (get-in db [:generic-dialogs :group-form-dialog :data])]
      (bg/update-group (active-db-key db)
                       {:uuid uuid
                        :icon-id icon-id
+                       :custom-icon-uuid custom-icon-uuid
                        :parent-group-uuid parent-group-uuid
                        :name name
                        :tags (vec->tags tags)
@@ -139,11 +148,12 @@
 (reg-event-fx
  :group-form/ok-new-group
  (fn [{:keys [db]} [_eid]]
-   (let [{:keys [uuid icon-id parent-group-uuid name tags notes marked-category]}
+   (let [{:keys [uuid icon-id custom-icon-uuid parent-group-uuid name tags notes marked-category]}
          (get-in db [:generic-dialogs :group-form-dialog :data])]
      (bg/insert-group (active-db-key db)
                       {:uuid uuid
                        :icon-id icon-id
+                       :custom-icon-uuid custom-icon-uuid
                        :parent-group-uuid parent-group-uuid
                        :name name
                        :tags (vec->tags tags)

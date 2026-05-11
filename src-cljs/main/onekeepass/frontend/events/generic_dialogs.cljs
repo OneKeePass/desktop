@@ -9,6 +9,13 @@
 
 (def ^:private GENERIC-DIALOGS :generic-dialogs)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; :custom-icons-delete-confirm-dialog ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn-generic-dialog-disp-events :custom-icons-delete-confirm-dialog [[close nil]
+                                                                      [show-with-state state-m]])
+
+(defn-generic-dialog-subs-events :custom-icons-delete-confirm-dialog [[data nil]])
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; :about-dialog ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn-generic-dialog-disp-events :about-dialog [[close nil]
@@ -71,7 +78,7 @@
 ; native-messaging manifest for a browser. dialog-identifier-kw:
 ; :browser-extension-install-grant-dialog
 (defn-generic-dialog-disp-events :browser-extension-install-grant-dialog [[close nil]
-                                                                           [show-with-state state-m]])
+                                                                          [show-with-state state-m]])
 
 (defn-generic-dialog-subs-events :browser-extension-install-grant-dialog [[data nil]])
 

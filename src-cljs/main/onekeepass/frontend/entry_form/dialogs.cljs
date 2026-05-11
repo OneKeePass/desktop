@@ -7,16 +7,17 @@
             [onekeepass.frontend.db-icons :as db-icons]
             [onekeepass.frontend.entry-form.common :as ef-cmn :refer [popper-button-sx
                                                                       theme-popper-box-sx]]
+            [onekeepass.frontend.events.custom-icons :as ci-events]
             [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
             [onekeepass.frontend.events.entry-form-ex :as form-events]
             [onekeepass.frontend.events.move-group-entry :as move-events]
             [onekeepass.frontend.mui-components :as m
              :refer [custom-theme-atom mui-alert mui-alert-title mui-box
-                     mui-button mui-button mui-checkbox mui-dialog
+                     mui-button mui-divider mui-checkbox mui-dialog
                      mui-dialog-actions mui-dialog-content mui-dialog-title
                      mui-form-control-label mui-grid mui-link mui-menu-item
-                     mui-popper mui-stack mui-text-field mui-tooltip
-                     mui-typography]]
+                     mui-popper mui-stack mui-tab mui-tabs mui-text-field
+                     mui-tooltip mui-typography]]
             [onekeepass.frontend.translation :as t
              :refer [lstr-dlg-title]
              :refer-macros [tr-l tr-dlg-title tr-dlg-text tr-h tr-bl tr-m]]
@@ -284,32 +285,93 @@
 ;;;;;;;;;;;;;;;;;;;;; icons dialog ;;;;;;;;;;;;;;;;;;;
 
 (def icons-dialog-flag (r/atom false))
+(def ^:private icon-dialog-tab (r/atom 0))
+(def ^:private icon-url-input (r/atom ""))
 
 (defn close-icons-dialog []
-  (reset! icons-dialog-flag false))
+  (reset! icons-dialog-flag false)
+  (reset! icon-dialog-tab 0)
+  (reset! icon-url-input ""))
 
-(defn show-icons-dialog []
-  (reset! icons-dialog-flag true))
+(defn show-icons-dialog
+  "Opens the icons dialog. The optional `prefill-url` is used to seed the
+   'Add from URL' text field on the Custom Icons tab — typically the entry's
+   own URL field value, so the user can one-click fetch its favicon."
+  ([] (reset! icons-dialog-flag true))
+  ([prefill-url]
+   (reset! icon-url-input (or prefill-url ""))
+   (reset! icons-dialog-flag true)))
 
 (defn icons-dialog
   ([_dialog-open? _call-on-icon-selection]
    (fn [dialog-open? call-on-icon-selection]
-     [:div [mui-dialog {:open (if (nil? dialog-open?) false dialog-open?)
-                        :on-click #(.stopPropagation ^js/Event %) ;;prevents on click for any parent components to avoid closing dialog by external clicking
-                        :sx {"& .MuiDialog-paper" {:width "85%"}}}
-            [mui-dialog-title (tr-dlg-title "icons")]
-            [mui-dialog-content {:dividers true}
-             [mui-grid {:container true :spacing 0}
-              (for [[idx svg-icon] db-icons/all-icons]
-                ^{:key idx} [:div {:style {:margin "4px"} ;;:border "1px solid blue"
-                                   :on-click #(do
-                                                (call-on-icon-selection idx)
-                                                #_(form-events/entry-form-data-update-field-value :icon-id idx)
-                                                (close-icons-dialog))} [mui-tooltip {:title "Icon"} svg-icon]])]]
-            [mui-dialog-actions
-             [mui-button {:variant "contained" :color "secondary"
-                          :on-click close-icons-dialog}
-              (t/lstr-bl 'cancel)]]]]))
+     (let [icons @(ci-events/icons-list)]
+       [:div [mui-dialog {:open (if (nil? dialog-open?) false dialog-open?)
+                          :on-click #(.stopPropagation ^js/Event %)
+                          :sx {"& .MuiDialog-paper" {:width "85%"}}}
+              [mui-dialog-title (tr-dlg-title "icons")]
+              [mui-tabs {:value @icon-dialog-tab :on-change #(reset! icon-dialog-tab %2)
+                         :sx {:border-bottom 1 :border-color "divider"}}
+               [mui-tab {:label (t/lstr-l 'builtIn)}]
+               [mui-tab {:label (t/lstr-l 'customIcons)}]]
+              [mui-dialog-content {:dividers true}
+               (if (= @icon-dialog-tab 0)
+                 ;; Built-in icons grid
+                 [mui-grid {:container true :spacing 0}
+                  (for [[idx svg-icon] db-icons/all-icons]
+                    ^{:key idx} [:div {:style {:margin "4px"}
+                                       :on-click #(do
+                                                    (call-on-icon-selection idx)
+                                                    (form-events/entry-form-data-update-field-value :custom-icon-uuid nil)
+                                                    (close-icons-dialog))}
+                                 [mui-tooltip {:title "Icon"} svg-icon]])]
+                 ;; Custom icons panel
+                 [mui-stack {:spacing 2}
+                  [mui-stack {:direction "row" :spacing 1 :sx {:align-items "center"}}
+                   [m/text-field {:label (t/lstr-l 'addFromUrl)
+                                  :value @icon-url-input
+                                  :variant "standard"
+                                  :fullWidth true
+                                  :sx {:flex-grow 1}
+                                  :on-change #(reset! icon-url-input (-> % .-target .-value))}]
+                   [mui-stack {:direction "row"  }
+                    [mui-button { :sx {:mt 2}
+                                 :variant "contained" 
+                                 :color "primary"
+                                 :disabled (str/blank? @icon-url-input)
+                                 :on-click #(do (ci-events/add-icon-from-url
+                                                 @icon-url-input
+                                                 [:entry-form-data-update-field-value :custom-icon-uuid])
+                                                (close-icons-dialog))}
+                     (t/lstr-bl 'add)]
+                    ]
+                   ]
+                  [mui-stack {:sx {:align-items "center"}}
+                   [mui-button {:variant "outlined"
+                                :on-click #(do (ci-events/add-icon-from-file
+                                                [:entry-form-data-update-field-value :custom-icon-uuid])
+                                               (close-icons-dialog))}
+                    (t/lstr-l 'addFromFile)]
+                   ]
+                  [mui-divider]
+                  [mui-box {:sx {:display "flex" :flex-wrap "wrap"}}
+                   (for [{:keys [uuid name]} icons]
+                     (let [data-url @(ci-events/icon-data-url uuid)]
+                       ^{:key uuid}
+                       [:div {:style {:margin "4px" :cursor "pointer" :text-align "center"}
+                              :on-click #(do
+                                           (form-events/entry-form-data-update-field-value :custom-icon-uuid uuid)
+                                           (close-icons-dialog))}
+                        (if (seq data-url)
+                          [:img {:src data-url :style {:width "32px" :height "32px"}}]
+                          [mui-typography {:variant "caption"} name])]))]
+                  (when (empty? icons)
+                    [mui-typography {:variant "body2" :color "text.secondary"}
+                     (t/lstr-l 'noCustomIcons)])])]
+              [mui-dialog-actions
+               [mui-button {:variant "contained" :color "secondary"
+                            :on-click close-icons-dialog}
+                (t/lstr-bl 'cancel)]]]])))
   ([dialog-open?]
    [icons-dialog dialog-open? (fn [idx] (form-events/entry-form-data-update-field-value :icon-id idx))]))
 

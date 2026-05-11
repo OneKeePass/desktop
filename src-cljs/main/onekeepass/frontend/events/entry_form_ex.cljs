@@ -15,6 +15,7 @@
                                                                            entry-form-key
                                                                            extract-form-field-names-values
                                                                            extract-form-otp-fields
+                                                                           form-data-kv-data
                                                                            get-form-data
                                                                            is-field-exist
                                                                            merge-section-key-value]]
@@ -257,15 +258,21 @@
   (subscribe [:entry-form-showing-ex]))
 
 (defn entry-form-data-fields
-  " 
-  Called to get value of one more of form 'data' level fields. 
-  The arg is a single field name or  fields in a vector of two more field 
+  "
+  Called to get value of one more of form 'data' level fields.
+  The arg is a single field name or  fields in a vector of two more field
   names (Keywords) like [:title :icon-id]
   Returns an atom which resolves to a single value  or a map when derefenced
   e.g {:title 'value'} or {:tags 'value} or {:title 'value' :icon-id 'value}
    "
   [fields]
   (subscribe [:entry-form-data-fields fields]))
+
+(defn entry-form-url-value
+  "Returns an atom that resolves to the value of the 'URL' field across all
+   sections of the entry form, or nil if no such field exists."
+  []
+  (subscribe [:entry-form-url-value]))
 
 (defn entry-form-field
   "Gets the value of any field at the top level in entry-form itself. See other subs to get the field
@@ -624,6 +631,14 @@
      (get data fields)
      ;; a vector field names
      (select-keys data fields))))
+
+;; Returns the value of the standard "URL" field (looked up across all sections)
+;; or nil if no such field exists.
+(reg-sub
+ :entry-form-url-value
+ :<- [:entry-form-data-ex]
+ (fn [data _query-vec]
+   (:value (form-data-kv-data data "URL"))))
 
 ;; Gets the value of a field at top level 'entry-form' itself
 (reg-sub
