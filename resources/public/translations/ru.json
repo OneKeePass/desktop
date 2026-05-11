@@ -204,6 +204,7 @@
             "databaseSettings": "Настройки базы данных",
             "deleteAllHistories": "Удалить всю историю",
             "deleteAttachment": "Удалить вложение",
+            "deleteCustomIcon": "Удалить пользовательскую иконку",
             "deleteField": "Удалить поле",
             "deleteHistory": "Удалить элемент из истории",
             "deleteSectionAndField": "Удалить секцию",

@@ -204,6 +204,7 @@
             "databaseSettings": "Tirtokannan asetukset",
             "deleteAllHistories": "Poista kaikki  merkinnät historiasta",
             "deleteAttachment": "Poista liite",
+            "deleteCustomIcon": "Poista mukautettu kuvake",
             "deleteField": "Poista kenttä",
             "deleteHistory": "Poista merkinnän historia",
             "deleteSectionAndField": "Poista osio",
