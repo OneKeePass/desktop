@@ -475,6 +475,7 @@
          [:dispatch [:entry-category/category-data-load-start
                      (-> db :app-preference :default-entry-category-groupings)]]
          [:dispatch [:common/load-entry-type-headers]]
+         [:dispatch [:custom-icons/load]]
          [:dispatch [:common/message-snackbar-open
                      (lstr-sm 'dbOpened {:dbFileName db-key})]]
          ;; This db may have AutoOpen group
@@ -489,6 +490,7 @@
          [:dispatch [:entry-category/category-data-load-start
                      (-> db :app-preference :default-entry-category-groupings)]]
          [:dispatch [:common/load-entry-type-headers]]
+         [:dispatch [:custom-icons/refresh]]
          [:dispatch [:entry-list/entry-updated]]]}))
 
 ;; A common refresh all forms after an entry form changes - delete, put back , delete permanent
@@ -966,7 +968,7 @@
   (subscribe [:progress-message-box]))
 
 ;; IMPORTANT: Need to ensure that :common/progress-message-box-hide is called for every
-;; :common/progress-message-box-show. Otherwise user can not do anhything on the page
+;; :common/progress-message-box-show. Otherwise user can not do anything on the page
 (reg-event-db
  :common/progress-message-box-show
  (fn [db [_event-id title message]]
@@ -1123,7 +1125,8 @@
 
    "merge_databases"
    ;;"merge_kdbx_with_disk_version"
-   "update_db_with_imported_csv"])
+   "update_db_with_imported_csv"
+   "remove_custom_icon"])
 
 (defn db-save-pending?
   "Checks whether there is any unsaved changes for the current db

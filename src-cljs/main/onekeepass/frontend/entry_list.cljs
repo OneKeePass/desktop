@@ -7,7 +7,7 @@
                                                              MODIFIED_TIME
                                                              TITLE
                                                              UUID_OF_ENTRY_TYPE_LOGIN]]
-            [onekeepass.frontend.db-icons :refer [entry-icon]]
+            [onekeepass.frontend.db-icons :refer [entry-icon render-entry-icon]]
             [onekeepass.frontend.dnd :as dnd]
             [onekeepass.frontend.entry-form-ex :as entry-form-ex]
             [onekeepass.frontend.events.clone-entry-to-other-db :as clone-events]
@@ -225,7 +225,9 @@
        (assoc :on-key-down (.-onKeyDown listeners)))
      
      [mui-list-item-avatar
-      [mui-avatar [entry-icon (:icon-id item)]]]
+      [mui-avatar [render-entry-icon {:db-key active-db-key
+                                      :icon-id (:icon-id item)
+                                      :custom-icon-uuid (:custom-icon-uuid item)}]]]
      [mui-list-item-text
       {:primaryTypographyProps {:max-width 155
                                 :white-space "nowrap"

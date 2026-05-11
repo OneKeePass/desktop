@@ -476,6 +476,7 @@
   FavoriteBorder
   FeedOutlined
   FlightTakeoffOutlined
+  Image
   Launch
   LoginOutlined
   LockOpenOutlined

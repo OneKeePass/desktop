@@ -2,6 +2,8 @@
   (:require
    [onekeepass.frontend.about :as about]
    [onekeepass.frontend.app-settings :refer [app-settings-dialog-main]]
+   [onekeepass.frontend.manage-custom-icons :refer [manage-custom-icons-dialog-main custom-icons-delete-confirm-dialog]]
+   [onekeepass.frontend.events.custom-icons :as ci-events]
    [onekeepass.frontend.auto-type :as at-form]
    [onekeepass.frontend.browser-integration :as browser-integration]
    [onekeepass.frontend.common-components :refer [confirm-text-dialog
@@ -38,6 +40,7 @@
                                                      mui-icon-save-as
                                                      mui-icon-search
                                                      mui-icon-settings-outlined
+                                                     mui-icon-image
                                                      mui-linear-progress
                                                      mui-stack mui-toolbar
                                                      mui-tooltip
@@ -232,6 +235,15 @@
               [mui-icon-lock-open-outlined]]])]
          [:span  {:style {:flex-grow "1"}}]
 
+         [mui-tooltip {:title "Manage Custom Icons" :enterDelay 2000}
+          [mui-icon-button {:edge "end"
+                            :disabled locked?
+                            :color "inherit"
+                            :on-click #(do (ci-events/refresh-icons-for-db)
+                                           (ci-events/show-manage-dialog))}
+           ;;"🖼"
+           [mui-icon-image]]]
+
          [mui-tooltip {:title "Settings" :enterDelay 2000}
           [mui-icon-button {:edge "end"
                             :disabled locked?
@@ -249,7 +261,7 @@
 
        ;; Include all dialogs that we need to use when the toll bar is visibible
        ;; Also see start_page.cljs for other dialogs  
-       
+
        ;; Auto type dialogs
        [at-form/perform-auto-type-dialog @(at-events/auto-type-perform-dialog-data)]
        [at-form/auto-type-edit-dialog @(at-events/auto-type-edit-dialog-data)]
@@ -279,4 +291,6 @@
        [csv/csv-imoprt-start-dialog]
        [merging/merge-result-dialog]
        [merging/merge-opened-dbs-dialog]
-       [merging/external-db-change-dialog]])))
+       [merging/external-db-change-dialog]
+       [manage-custom-icons-dialog-main]
+       [custom-icons-delete-confirm-dialog]])))

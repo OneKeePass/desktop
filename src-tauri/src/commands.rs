@@ -1042,6 +1042,86 @@ pub async fn send_sequence_to_winow_async(
 // }
 //
 
+///-------------- Custom icon commands
+
+#[tauri::command]
+pub async fn list_custom_icons(db_key: &str) -> Result<Vec<kp_service::CustomIconSummary>> {
+    Ok(kp_service::list_custom_icons(db_key)?)
+}
+
+#[tauri::command]
+pub async fn get_custom_icon_data(db_key: &str, custom_icon_uuid: &str) -> Result<String> {
+    let data = kp_service::get_custom_icon(db_key, custom_icon_uuid)?.data;
+    Ok(data_encoding::BASE64.encode(&data))
+}
+
+#[tauri::command]
+pub async fn add_custom_icon_from_url(db_key: &str, url: &str) -> Result<kp_service::CustomIconSummary> {
+    let png = onekeepass_core::favicon::download_favicon(url)
+        .await
+        .map_err(|e| e.to_string())?;
+    // Extract hostname as icon name without pulling in the url crate.
+    // Strip scheme ("https://"), then take up to the first '/' or end of string.
+    let name = url
+        .split("://")
+        .nth(1)
+        .unwrap_or(url)
+        .split('/')
+        .next()
+        .unwrap_or(url)
+        .to_string();
+    let uuid = kp_service::add_custom_icon(db_key, name, png)?;
+    let icons = kp_service::list_custom_icons(db_key)?;
+    icons
+        .into_iter()
+        .find(|i| i.uuid == uuid)
+        .ok_or_else(|| "Icon not found after add".to_string())
+}
+
+#[tauri::command]
+pub async fn add_custom_icon_from_file(
+    db_key: &str,
+    file_path: &str,
+) -> Result<kp_service::CustomIconSummary> {
+    let bytes = std::fs::read(file_path).map_err(|e| e.to_string())?;
+    let png = onekeepass_core::favicon::normalize_image_to_png(&bytes, 64)
+        .map_err(|e| e.to_string())?;
+    let name = std::path::Path::new(file_path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("icon")
+        .to_string();
+    let uuid = kp_service::add_custom_icon(db_key, name, png)?;
+    let icons = kp_service::list_custom_icons(db_key)?;
+    icons
+        .into_iter()
+        .find(|i| i.uuid == uuid)
+        .ok_or_else(|| "Icon not found after add".to_string())
+}
+
+#[tauri::command]
+pub async fn remove_custom_icon(db_key: &str, custom_icon_uuid: &str) -> Result<()> {
+    Ok(kp_service::remove_custom_icon(db_key, custom_icon_uuid)?)
+}
+
+#[tauri::command]
+pub async fn set_entry_custom_icon(
+    db_key: &str,
+    entry_uuid: &str,
+    custom_icon_uuid: Option<String>,
+) -> Result<()> {
+    Ok(kp_service::set_entry_custom_icon(db_key, entry_uuid, custom_icon_uuid)?)
+}
+
+#[tauri::command]
+pub async fn set_group_custom_icon(
+    db_key: &str,
+    group_uuid: &str,
+    custom_icon_uuid: Option<String>,
+) -> Result<()> {
+    Ok(kp_service::set_group_custom_icon(db_key, group_uuid, custom_icon_uuid)?)
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////
 // Tried these to use with macOS 13 and macOS 10. Only the async version will work with all macOS
 /*

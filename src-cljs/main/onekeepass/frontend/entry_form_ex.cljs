@@ -426,7 +426,8 @@
 
 (defn title-with-icon-field  []
   ;;(println "title-with-icon-field called ")
-  (let [fields @(form-events/entry-form-data-fields [:title :icon-id])
+  (let [fields @(form-events/entry-form-data-fields [:title :icon-id :custom-icon-uuid])
+        url-value @(form-events/entry-form-url-value)
         edit @(form-events/form-edit-mode)
         errors @(form-events/entry-form-field :error-fields)]
     (when edit
@@ -446,8 +447,9 @@
           (tr-l "icons")]
          [mui-icon-button {:edge "end" :color "primary"
                            :sx {} #_{:margin-top "16px" :margin-right "-8px"}
-                           :on-click  show-icons-dialog}
-          [entry-icon (:icon-id fields)]]]
+                           :on-click #(show-icons-dialog url-value)}
+          [db-icons/render-entry-icon {:icon-id (:icon-id fields)
+                                       :custom-icon-uuid (:custom-icon-uuid fields)}]]]
         [icons-dialog @icons-dialog-flag]]])))
 
 (defn tags-selection []
@@ -592,6 +594,7 @@
           title (place-holder-resolved-value parsed-fields :title  title)
 
           icon-id @(form-events/entry-form-data-fields :icon-id)
+          custom-icon-uuid @(form-events/entry-form-data-fields :custom-icon-uuid)
           entry-uuid  @(form-events/entry-form-data-fields :uuid)
           group-uuid @(form-events/entry-form-data-fields :group-uuid)
           active-db-key @(ce/active-db-key)
@@ -627,10 +630,11 @@
        [:div {:class "gheader" :style {:background  (theme-color @custom-theme-atom :bg-default)}}
         (when-not edit
           [mui-stack {:direction "row"}
-           [mui-stack {:direction "row"  :sx {:width "95%" :justify-content "center"}}
-            [entry-icon icon-id]
+           [mui-stack {:direction "row"  :sx {:width "95%" :justify-content "center" :align-items "center"}}
+            [db-icons/render-entry-icon {:icon-id icon-id
+                                         :custom-icon-uuid custom-icon-uuid}]
             [mui-typography {;; Need to use this margin value so that text aligns properly with icon
-                             :style {:margin-left 2 :margin-top 2}
+                             :style {:margin-left 4 :margin-top 2}
                              ;; If we use :sx, we need to use "2px" instead of 2
                              ;; Otherwise mui will interpret as 16px
                              ;;:sx {:margin-left "2px" :margin-top "2px"}
