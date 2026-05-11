@@ -204,6 +204,7 @@
             "databaseSettings": "Configuración de la base de datos",
             "deleteAllHistories": "Borrar todas las entradas del historial",
             "deleteAttachment": "Eliminar archivo adjunto",
+            "deleteCustomIcon": "Eliminar icono personalizado",
             "deleteField": "Borrar campo",
             "deleteHistory": "Borrar entrada del historial",
             "deleteSectionAndField": "Suprimir sección",

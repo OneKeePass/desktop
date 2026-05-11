@@ -204,6 +204,7 @@
             "databaseSettings": "Configurações do banco de dados",
             "deleteAllHistories": "Excluir todas as entradas do histórico",
             "deleteAttachment": "Excluir anexo",
+            "deleteCustomIcon": "Excluir ícone personalizado",
             "deleteField": "Excluir campo",
             "deleteHistory": "Excluir entrada do histórico",
             "deleteSectionAndField": "Excluir seção",

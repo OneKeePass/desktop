@@ -204,6 +204,7 @@
             "databaseSettings": "Database Settings",
             "deleteAllHistories": "Delete all history entries",
             "deleteAttachment": "Delete attachment",
+            "deleteCustomIcon": "Delete custom icon",
             "deleteField": "Delete Field",
             "deleteHistory": "Delete history entry",
             "deleteSectionAndField": "Delete Section",

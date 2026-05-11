@@ -204,6 +204,7 @@
             "databaseSettings": "Datenbankeinstellungen",
             "deleteAllHistories": "Alle Historieneinträge löschen",
             "deleteAttachment": "Anhang löschen",
+            "deleteCustomIcon": "Benutzerdefiniertes Symbol löschen",
             "deleteField": "Feld löschen",
             "deleteHistory": "Historieneintrag löschen",
             "deleteSectionAndField": "Abschnitt löschen",

@@ -37,7 +37,7 @@
 
   ([{:keys [uuid] :as dialog-data}]
    [confirm-text-dialog
-    "Delete custom icon"
+    (t/lstr-dlg-title 'deleteCustomIcon)
     (lstr-l 'confirmDeleteCustomIcon)
     [{:label (lstr-bl 'cancel) :on-click (fn []
                                            (gd-events/custom-icons-delete-confirm-dialog-close))}

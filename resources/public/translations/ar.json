@@ -204,6 +204,7 @@
             "databaseSettings": "إعدادات قاعدة البيانات",
             "deleteAllHistories": "حذف جميع إدخالات السجل",
             "deleteAttachment": "حذف المرفق",
+            "deleteCustomIcon": "حذف الأيقونة المخصصة",
             "deleteField": "حذف الحقل",
             "deleteHistory": "حذف إدخال السجل",
             "deleteSectionAndField": "حذف القسم",

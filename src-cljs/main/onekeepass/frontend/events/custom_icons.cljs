@@ -6,6 +6,7 @@
    ["@tauri-apps/plugin-dialog" :refer [open]]
    [re-frame.core :refer [reg-event-db reg-event-fx reg-fx reg-sub dispatch subscribe]]
    [onekeepass.frontend.background :as bg]
+   [onekeepass.frontend.background-custom-icons :as bg-ci]
    [onekeepass.frontend.events.common :as cmn-events :refer [active-db-key
                                                              assoc-in-key-db
                                                              get-in-key-db
@@ -42,55 +43,55 @@
    stored, it is dispatched with the newly-created icon's uuid appended as
    the last argument. Use this to assign the new icon to the form being
    edited (entry/group)."
-  ([url] (dispatch [:custom-icons/add-from-url url nil]))
+  ([url] (dispatch [:custom-icons-add-from-url url nil]))
   ([url on-success-event]
-   (dispatch [:custom-icons/add-from-url url on-success-event])))
+   (dispatch [:custom-icons-add-from-url url on-success-event])))
 
 (defn add-icon-from-file
   "Open file picker and store the chosen image as a custom icon.
    on-success-event (optional): see `add-icon-from-url`."
-  ([] (dispatch [:custom-icons/add-from-file nil]))
+  ([] (dispatch [:custom-icons-add-from-file nil]))
   ([on-success-event]
-   (dispatch [:custom-icons/add-from-file on-success-event])))
+   (dispatch [:custom-icons-add-from-file on-success-event])))
 
 (defn remove-icon [uuid]
-  (dispatch [:custom-icons/remove uuid]))
+  (dispatch [:custom-icons-remove uuid]))
 
 (defn show-manage-dialog []
-  (dispatch [:custom-icons/show-manage-dialog]))
+  (dispatch [:custom-icons-show-manage-dialog]))
 
 (defn close-manage-dialog []
-  (dispatch [:custom-icons/close-manage-dialog]))
+  (dispatch [:custom-icons-close-manage-dialog]))
 
 (defn show-add-url-dialog []
-  (dispatch [:custom-icons/show-add-url-dialog]))
+  (dispatch [:custom-icons-show-add-url-dialog]))
 
 (defn close-add-url-dialog []
-  (dispatch [:custom-icons/close-add-url-dialog]))
+  (dispatch [:custom-icons-close-add-url-dialog]))
 
 (defn set-entry-icon
   "Assign or clear a custom icon on an entry. Pass nil to clear."
   [entry-uuid custom-icon-uuid]
-  (dispatch [:custom-icons/set-entry-icon entry-uuid custom-icon-uuid]))
+  (dispatch [:custom-icons-set-entry-icon entry-uuid custom-icon-uuid]))
 
 (defn set-group-icon
   "Assign or clear a custom icon on a group. Pass nil to clear."
   [group-uuid custom-icon-uuid]
-  (dispatch [:custom-icons/set-group-icon group-uuid custom-icon-uuid]))
+  (dispatch [:custom-icons-set-group-icon group-uuid custom-icon-uuid]))
 
 ;;; ── Subscriptions API ────────────────────────────────────────────────────────
 
 (defn icons-list []
-  (subscribe [:custom-icons/list]))
+  (subscribe [:custom-icons-list]))
 
 (defn icon-data-url [uuid]
-  (subscribe [:custom-icons/data-url uuid]))
+  (subscribe [:custom-icons-data-url uuid]))
 
 (defn manage-dialog-open? []
-  (subscribe [:custom-icons/manage-dialog-open]))
+  (subscribe [:custom-icons-manage-dialog-open]))
 
 (defn add-url-dialog-state []
-  (subscribe [:custom-icons/add-url-dialog-state]))
+  (subscribe [:custom-icons-add-url-dialog-state]))
 
 (defn custom-svg-icons-status []
   (subscribe [:custom-svg-icons-status]))
@@ -122,7 +123,7 @@
     :fx [[:bg-list-custom-icons (active-db-key db)]]}))
 
 (reg-event-fx
- :custom-icons/loaded
+ :custom-icons-loaded
  (fn [{:keys [db]} [_event-id icons]]
    (let [db-key (active-db-key db)
          existing (or (get-in-key-db db [:custom-icons :data-urls]) {})
@@ -133,12 +134,12 @@
       :fx (mapv (fn [uuid] [:bg-get-custom-icon-data [db-key uuid]]) to-fetch)})))
 
 (reg-event-db
- :custom-icons/data-url-ready
+ :custom-icons-data-url-ready
  (fn [db [_event-id uuid data-url]]
    (assoc-in-key-db db [:custom-icons :data-urls uuid] data-url)))
 
 (reg-event-fx
- :custom-icons/add-from-url
+ :custom-icons-add-from-url
  (fn [{:keys [db]} [_event-id url on-success-event]]
    {:db (assoc-in db [:custom-icons-ui :add-url-dialog :url] url)
     :fx [[:dispatch [:common/progress-message-box-show
@@ -148,43 +149,43 @@
           [(active-db-key db) url on-success-event]]]}))
 
 (reg-event-fx
- :custom-icons/add-from-file
+ :custom-icons-add-from-file
  (fn [{:keys [db]} [_event-id on-success-event]]
    {:fx [[:bg-add-custom-icon-from-file
           [(active-db-key db) on-success-event]]]}))
 
 (reg-event-fx
- :custom-icons/remove
+ :custom-icons-remove
  (fn [{:keys [db]} [_event-id uuid]]
    {:fx [[:bg-remove-custom-icon [(active-db-key db) uuid]]]}))
 
 (reg-event-fx
- :custom-icons/set-entry-icon
+ :custom-icons-set-entry-icon
  (fn [{:keys [db]} [_event-id entry-uuid custom-icon-uuid]]
    {:fx [[:bg-set-entry-custom-icon [(active-db-key db) entry-uuid custom-icon-uuid]]]}))
 
 (reg-event-fx
- :custom-icons/set-group-icon
+ :custom-icons-set-group-icon
  (fn [{:keys [db]} [_event-id group-uuid custom-icon-uuid]]
    {:fx [[:bg-set-group-custom-icon [(active-db-key db) group-uuid custom-icon-uuid]]]}))
 
 (reg-event-db
- :custom-icons/show-manage-dialog
+ :custom-icons-show-manage-dialog
  (fn [db [_event-id]]
    (assoc-in db [:custom-icons-ui :manage-dialog :show] true)))
 
 (reg-event-db
- :custom-icons/close-manage-dialog
+ :custom-icons-close-manage-dialog
  (fn [db [_event-id]]
    (assoc-in db [:custom-icons-ui :manage-dialog :show] false)))
 
 (reg-event-db
- :custom-icons/show-add-url-dialog
+ :custom-icons-show-add-url-dialog
  (fn [db [_event-id]]
    (assoc-in db [:custom-icons-ui :add-url-dialog] {:show true :url "" :error nil})))
 
 (reg-event-db
- :custom-icons/close-add-url-dialog
+ :custom-icons-close-add-url-dialog
  (fn [db [_event-id]]
    (assoc-in db [:custom-icons-ui :add-url-dialog :show] false)))
 
@@ -206,18 +207,18 @@
 (reg-fx
  :bg-list-custom-icons
  (fn [db-key]
-   (bg/list-custom-icons db-key
+   (bg-ci/list-custom-icons db-key
                          (fn [response]
                            (when-let [icons (check-error response)]
-                             (dispatch [:custom-icons/loaded icons]))))))
+                             (dispatch [:custom-icons-loaded icons]))))))
 
 (reg-fx
  :bg-get-custom-icon-data
  (fn [[db-key uuid]]
-   (bg/get-custom-icon-data db-key uuid
+   (bg-ci/get-custom-icon-data db-key uuid
                             (fn [response]
                               (when-let [b64 (check-error response)]
-                                (dispatch [:custom-icons/data-url-ready uuid
+                                (dispatch [:custom-icons-data-url-ready uuid
                                            (str "data:image/png;base64," b64)]))))))
 
 (defn- on-icon-added
@@ -238,7 +239,7 @@
 (reg-fx
  :bg-add-custom-icon-from-url
  (fn [[db-key url on-success-event]]
-   (bg/add-custom-icon-from-url db-key url
+   (bg-ci/add-custom-icon-from-url db-key url
                                 #(on-icon-added % on-success-event))))
 
 (reg-fx
@@ -253,14 +254,14 @@
            (dispatch [:common/progress-message-box-show
                       (t/lstr-dlg-title 'addCustomIcon)
                       (t/lstr-dlg-text 'addingCustomIcon)])
-           (bg/add-custom-icon-from-file db-key path
+           (bg-ci/add-custom-icon-from-file db-key path
                                          #(on-icon-added % on-success-event))))
        (catch js/Error _err nil)))))
 
 (reg-fx
  :bg-remove-custom-icon
  (fn [[db-key uuid]]
-   (bg/remove-custom-icon db-key uuid
+   (bg-ci/remove-custom-icon db-key uuid
                           (fn [response]
                             (when-not (on-error response)
                               ;; Backend cleared :custom-icon-uuid from every
@@ -276,13 +277,13 @@
 (reg-fx
  :bg-set-entry-custom-icon
  (fn [[db-key entry-uuid custom-icon-uuid]]
-   (bg/set-entry-custom-icon db-key entry-uuid custom-icon-uuid
+   (bg-ci/set-entry-custom-icon db-key entry-uuid custom-icon-uuid
                              #(check-error %))))
 
 (reg-fx
  :bg-set-group-custom-icon
  (fn [[db-key group-uuid custom-icon-uuid]]
-   (bg/set-group-custom-icon db-key group-uuid custom-icon-uuid
+   (bg-ci/set-group-custom-icon db-key group-uuid custom-icon-uuid
                              #(check-error %))))
 
 (reg-fx
@@ -294,22 +295,22 @@
 ;;; ── Subscriptions ────────────────────────────────────────────────────────────
 
 (reg-sub
- :custom-icons/list
+ :custom-icons-list
  (fn [db _query-vec]
    (or (get-in-key-db db [:custom-icons :icons]) [])))
 
 (reg-sub
- :custom-icons/data-url
+ :custom-icons-data-url
  (fn [db [_query-id uuid]]
    (get-in-key-db db [:custom-icons :data-urls uuid])))
 
 (reg-sub
- :custom-icons/manage-dialog-open
+ :custom-icons-manage-dialog-open
  (fn [db _query-vec]
    (get-in db [:custom-icons-ui :manage-dialog :show] false)))
 
 (reg-sub
- :custom-icons/add-url-dialog-state
+ :custom-icons-add-url-dialog-state
  (fn [db _query-vec]
    (get-in db [:custom-icons-ui :add-url-dialog] {:show false :url "" :error nil})))
 

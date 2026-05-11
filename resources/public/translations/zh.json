@@ -204,6 +204,7 @@
             "databaseSettings": "数据库设置",
             "deleteAllHistories": "删除所有历史密码项",
             "deleteAttachment": "删除附件",
+            "deleteCustomIcon": "删除自定义图标",
             "deleteField": "删除字段",
             "deleteHistory": "删除历史条目",
             "deleteSectionAndField": "删除section",
