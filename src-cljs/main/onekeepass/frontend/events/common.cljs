@@ -1123,7 +1123,10 @@
    "delete_custom_entry_type"
    "set_db_settings"
 
-   "merge_databases"
+   ;; "merge_databases" is intentionally NOT in this list. A merge call may
+   ;; complete without changing the target db (merge_done = false), in which
+   ;; case the save icon should stay off. The merge-complete handlers in
+   ;; events/merging.cljs set save-pending themselves, gated on :merge-done.
    ;;"merge_kdbx_with_disk_version"
    "update_db_with_imported_csv"
    "remove_custom_icon"])
