@@ -58,6 +58,36 @@ build-mac-aarch64-bundle:build-cljs-bundle
     just mac-aarch64-bundle-build-only 
 
 
+#################### Mac App Store ####################
+
+# Local sandbox/MAS smoke test. Defaults to Apple Silicon on arm64 Macs.
+mas-dev target="aarch64-apple-darwin" args="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    TARGET="{{target}}" BUILD_FOR=dev ./scripts/test-mas-locally.sh {{args}}
+
+mas-dev-aarch64 args="":
+    just mas-dev aarch64-apple-darwin "{{args}}"
+
+mas-dev-x86_64 args="":
+    just mas-dev x86_64-apple-darwin "{{args}}"
+
+# Distribution package for App Store Connect upload.
+mas-build target="aarch64-apple-darwin" args="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    TARGET="{{target}}" BUILD_FOR=mas ./scripts/build-mas.sh {{args}}
+
+mas-build-aarch64 args="":
+    just mas-build aarch64-apple-darwin "{{args}}"
+
+mas-build-x86_64 args="":
+    just mas-build x86_64-apple-darwin "{{args}}"
+
+mas-build-universal args="":
+    just mas-build universal-apple-darwin "{{args}}"
+
+
 ################
 
 # This will build linux "release" bundle when called in a Linux terminal

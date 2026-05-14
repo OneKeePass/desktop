@@ -8,6 +8,7 @@ mod app_preference;
 mod app_state;
 mod auto_open;
 mod db_file_watcher;
+#[cfg(not(feature = "mas-build"))]
 mod auto_type;
 mod biometric;
 mod browser_service;
@@ -15,8 +16,10 @@ mod commands;
 mod constants;
 mod file_util;
 mod key_secure;
+mod mas;
 mod menu;
 mod pass_phrase;
+mod sandbox;
 mod translation;
 // mod callback_service_provider;
 
@@ -83,10 +86,12 @@ fn main() {
   
       // Sorted alphabetically
       commands::acknowledge_db_file_change,
+      #[cfg(not(feature = "mas-build"))]
       commands::active_window_to_auto_type,
       commands::analyzed_password,
       commands::authenticate_with_biometric,
       commands::auto_open_group_uuid,
+      commands::browser_ext_pick_install_dir,
       commands::browser_ext_use_user_permission,
       commands::clear_csv_data_cache,
       commands::clear_recent_files,
@@ -141,7 +146,9 @@ fn main() {
       commands::new_blank_group,
       commands::new_entry_form_data,
       commands::open_all_auto_open_dbs,
+      #[cfg(not(feature = "mas-build"))]
       commands::parse_auto_type_sequence,
+      #[cfg(not(feature = "mas-build"))]
       commands::platform_window_titles,
       commands::read_and_verify_db_file,
       commands::read_app_preference,
@@ -162,6 +169,7 @@ fn main() {
       commands::set_db_settings,
       // commands::send_sequence_to_winow,
       // commands::send_sequence_to_winow_sync,
+      #[cfg(not(feature = "mas-build"))]
       commands::send_sequence_to_winow_async,
       commands::sort_sub_groups,
       // commands::standard_paths,

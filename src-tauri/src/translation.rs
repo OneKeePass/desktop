@@ -14,17 +14,47 @@ use crate::app_state::AppState;
 use onekeepass_core::db_service as kp_service;
 
 #[inline]
+fn normalize_language_id(language: &str) -> String {
+  let normalized = language.trim().replace('_', "-");
+  let mut parts = normalized.splitn(3, '-');
+  let language = parts.next().unwrap_or("en").to_lowercase();
+
+  if let Some(region) = parts.next() {
+    if !region.is_empty() {
+      return format!("{}-{}", language, region.to_uppercase());
+    }
+  }
+
+  language
+}
+
+#[inline]
+fn app_language_from_locale(locale: &str) -> String {
+  let normalized = normalize_language_id(locale);
+
+  if normalized.eq_ignore_ascii_case("pt-BR") {
+    String::from("pt-BR")
+  } else {
+    normalized
+      .split('-')
+      .next()
+      .map(|s| s.to_string())
+      .unwrap_or_else(|| String::from("en"))
+  }
+}
+
+#[inline]
+fn translation_file_name(language: &str) -> String {
+  format!("{}.json", normalize_language_id(language))
+}
+
+#[inline]
 pub fn current_locale_language() -> String {
   // "en-US" language+region
-  // We use the language part only to locate translation json files
+  // We usually use the language part only, except for locale-specific
+  // translations such as pt-BR.
   let lng = get_locale().unwrap_or_else(|| String::from("en"));
-
-  // Returns the language id ( two letters)
-  lng
-    .split("-")
-    .map(|s| s.to_string())
-    .next()
-    .unwrap_or_else(|| String::from("en"))
+  app_language_from_locale(&lng)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -84,7 +114,8 @@ pub fn load_language_translations<R: Runtime>(
   let mut translations: HashMap<String, String> = HashMap::new();
 
   for lng in language_ids_to_load {
-    let p = path.join(format!("{}.json", &lng));
+    let normalized_lng = normalize_language_id(&lng);
+    let p = path.join(translation_file_name(&normalized_lng));
     //debug!("Going to load translation file  {:?} ",&p);
 
     let data = fs::read_to_string(p)
@@ -92,7 +123,7 @@ pub fn load_language_translations<R: Runtime>(
       .map_or_else(|| "{}".to_string(), |d| d);
     //let data = fs::read_to_string(p)?;
 
-    translations.insert(lng, data);
+    translations.insert(normalized_lng, data);
   }
 
   Ok(TranslationResource {
@@ -151,7 +182,7 @@ pub(crate) fn load_system_menu_translations<R:Runtime>(
     return system_menu_tr;
   };
 
-  let p = path.join(format!("{}.json", &language));
+  let p = path.join(translation_file_name(language));
 
   let data = fs::read_to_string(p)
     .ok()

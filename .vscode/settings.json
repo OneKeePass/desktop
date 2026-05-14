@@ -1,0 +1,21 @@
+
+// {
+//   "rust-analyzer.linkedProjects": [
+//     "src-tauri/Cargo.toml"
+//   ]
+// }
+
+// {
+//   "rust-analyzer.cargo.features": ["mas-build"]
+// }
+
+// {
+//   "rust-analyzer.linkedProjects": [
+//     "src-tauri/Cargo.toml"
+//   ],
+//   "rust-analyzer.cargo.features": [
+//     "mas-build"
+//   ],
+//   "rust-analyzer.cargo.target": "aarch64-apple-darwin"
+// }
+

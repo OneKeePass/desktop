@@ -1,5 +1,4 @@
 use serde::Serialize;
-use std::env;
 use std::path::PathBuf;
 
 use onekeepass_core::error::{self, Result};
@@ -40,6 +39,21 @@ fn proxy_full_path() -> Result<PathBuf> {
         .parent()
         .ok_or_else(|| error::Error::DataError("No parent dir is found"))?;
 
+    #[cfg(all(target_os = "macos", feature = "mas-build"))]
+    {
+        let contents_dir = parent
+            .parent()
+            .ok_or_else(|| error::Error::DataError("No Contents dir is found"))?;
+        return Ok(contents_dir
+            .join("Helpers")
+            .join("onekeepass-proxy.app")
+            .join("Contents")
+            .join("MacOS")
+            .join("onekeepass-proxy"));
+    }
+
+    #[cfg(not(all(target_os = "macos", feature = "mas-build")))]
+    {
     let bin = match std::env::consts::OS {
         "windows" => "onekeepass-proxy.exe",
         _ => "onekeepass-proxy",
@@ -47,6 +61,7 @@ fn proxy_full_path() -> Result<PathBuf> {
     let full_path = parent.join(bin);
 
     Ok(full_path)
+    }
 }
 
 #[derive(Serialize)]
@@ -129,12 +144,13 @@ impl<'a> FirefoxNativeMessagingConfig<'a> {
 
         cfg_if::cfg_if! {
             if #[cfg(target_os = "macos")] {
-                if let Some(mut home) = env::home_dir() {
+                if let Some(mut home) = crate::sandbox::real_home_dir() {
                     home.push("Library/Application Support/Mozilla/NativeMessagingHosts");
-                    // It is seen that when the firefox installation does not have
-                    // any NativeMessagingHosts sub dir, the config writting failed
-                    // We need to create the sub dir it does not exist
-                    if !home.exists() {
+                    // Under sandbox, writing to this path requires a security-scoped
+                    // folder grant (handled by the caller); do not create the dir here
+                    // since the sandbox kernel would deny it anyway. Outside sandbox
+                    // the dir may not exist yet (fresh Firefox install), so we create it.
+                    if !crate::sandbox::is_sandboxed() && !home.exists() {
                         let r = std::fs::create_dir_all(&home);
                         log::info!("Created mozilla native messaging config dir {:?} with result {:?}",&home,&r);
                     }
@@ -142,7 +158,7 @@ impl<'a> FirefoxNativeMessagingConfig<'a> {
                     full_name = path.to_string_lossy().to_string();
                 }
             } else if #[cfg(target_os = "linux")] {
-                if let Some(mut home) = env::home_dir() {
+                if let Some(mut home) = std::env::home_dir() {
                     home.push(".mozilla/native-messaging-hosts");
                     if !home.exists() {
                         let r = std::fs::create_dir_all(&home);
@@ -296,10 +312,12 @@ impl<'a> ChromeNativeMessagingConfig<'a> {
 
         cfg_if::cfg_if! {
             if #[cfg(target_os = "macos")] {
-                if let Some(mut home) = env::home_dir() {
+                if let Some(mut home) = crate::sandbox::real_home_dir() {
                     home.push("Library/Application Support/Google/Chrome/NativeMessagingHosts");
 
-                    if !home.exists() {
+                    // Same as Firefox: skip create_dir_all under sandbox; the bookmark
+                    // grant guarantees the path is writable and the dir already exists.
+                    if !crate::sandbox::is_sandboxed() && !home.exists() {
                         let r = std::fs::create_dir_all(&home);
                         log::info!("Created chrome native messaging config dir {:?} with result {:?}",&home,&r);
                     }
@@ -308,7 +326,7 @@ impl<'a> ChromeNativeMessagingConfig<'a> {
                     full_name = path.to_string_lossy().to_string();
                 }
             } else if #[cfg(target_os = "linux")] {
-                if let Some(mut home) = env::home_dir() {
+                if let Some(mut home) = std::env::home_dir() {
                     home.push(".config/google-chrome/NativeMessagingHosts");
                     if !home.exists() {
                         let r = std::fs::create_dir_all(&home);

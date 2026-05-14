@@ -159,8 +159,18 @@
 
 (declare unlock-response-handler)
 
+;; Marker error returned by the Rust load_kdbx command when a recent entry
+;; cannot be opened under macOS App Sandbox because the stored security-scoped
+;; bookmark is missing or no longer grants access. Surfacing this as a distinct
+;; signal lets us auto-open a file picker so the user can re-grant access via
+;; a fresh NSOpenPanel — instead of showing the cryptic raw POSIX error.
+(def ^:private bookmark-permission-denied "BookmarkPermissionDenied")
+
 (defn- on-file-loading [api-response]
-  (let [error-fn (fn [err] (dispatch [:open-db-error err]))]
+  (let [error-fn (fn [err]
+                   (if (= err bookmark-permission-denied)
+                     (dispatch [:open-db/sandbox-repick-required])
+                     (dispatch [:open-db-error err])))]
     (when-let [kdbx-loaded (check-error api-response error-fn)]
       (dispatch [:open-db-file-loading-done kdbx-loaded]))))
 
@@ -219,6 +229,35 @@
  :bg-load-kdbx-file
  (fn [[file-name pwd key-file-name on-file-loading]]
    (bg/load-kdbx file-name pwd key-file-name on-file-loading)))
+
+;; Sandbox re-pick recovery: a recent-list click failed with the
+;; BookmarkPermissionDenied marker. The previously-entered password and
+;; key-file are still in :open-db state. Open a file picker so the user can
+;; re-grant access via a fresh NSOpenPanel, then retry the load using the
+;; just-picked path with the same credentials. On cancel we clear the
+;; in-progress spinner and leave the dialog open so the user can either
+;; retry manually or hit Cancel themselves.
+(reg-event-fx
+ :open-db/sandbox-repick-required
+ (fn [{:keys [db]} [_event-id]]
+   {:db (assoc-in db [:open-db :status] nil)
+    :fx [[:dispatch [:common/message-snackbar-open
+                     "macOS sandbox requires reselecting this file. Please pick it again in the next dialog."]]
+         [:bg-sandbox-repick-open-file-dialog
+          [(get-in db [:open-db :password])
+           (get-in db [:open-db :key-file-name])]]]}))
+
+(reg-fx
+ :bg-sandbox-repick-open-file-dialog
+ (fn [[pwd key-file-name]]
+   (bg/open-file-dialog
+    (fn [api-response]
+      (when-let [picked-file (check-error api-response)]
+        ;; Re-enter the load path with the freshly-granted file. Phase 3 of
+        ;; load_kdbx will create a fresh bookmark on success and persist it
+        ;; against the recent entry, so future opens will work without this
+        ;; recovery flow.
+        (dispatch [:open-db-login-credential-entered picked-file pwd key-file-name]))))))
 
 (reg-event-fx
  :unlock-db-file-loading-done

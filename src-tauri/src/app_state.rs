@@ -19,6 +19,8 @@ use crate::app_preference::{BrowserExtSupportData, Preference, PreferenceData};
 use crate::biometric;
 use crate::constants::standard_file_names::APP_PREFERENCE_FILE;
 use crate::key_secure;
+use crate::mas;
+use crate::sandbox;
 use crate::translation::current_locale_language;
 use crate::{app_paths, file_util};
 
@@ -42,6 +44,16 @@ pub(crate) fn init_app(app: &App) {
     // Ensure that all app dir paths are created if required and available
     app_paths::init_app_paths();
 
+    // Do we need this?
+    // Defensively create the App Group container and its Logs sub-directory
+    // before any IPC or logging code tries to write there. Under sandbox, an
+    // entitled process can create directories inside the group container
+    // directly; this is simpler than calling NSFileManager from Swift.
+    if let Some(gc) = sandbox::group_container_path() {
+        let _ = std::fs::create_dir_all(&gc);
+        let _ = std::fs::create_dir_all(gc.join("Logs"));
+    }
+
     let state = app.state::<AppState>();
 
     // Reads the app preference from a toml config file
@@ -50,6 +62,11 @@ pub(crate) fn init_app(app: &App) {
 
     init_log(&app_paths::app_logs_dir());
     // Now onwards all loggings calls will be effective
+
+    // Restore scoped access to a user-picked backup directory under macOS
+    // sandbox if a bookmark was persisted on a prior run. Held for the entire
+    // app process lifetime; released implicitly on shutdown.
+    state.init_backup_dir_scoped_access();
 
     // Set the resource path for latter use
     let resource_path = app_paths::app_resources_dir(app.app_handle())
@@ -113,6 +130,9 @@ pub(crate) struct AppState {
     timers_init_completed: Mutex<bool>,
     resource_dir_path: Mutex<Option<PathBuf>>,
     pub(crate) db_file_watcher: crate::db_file_watcher::DbFileWatcherState,
+    // macOS App Sandbox security-scoped bookmark handles currently held open.
+    // Empty on non-MAS builds. See `crate::mas`.
+    scoped_access: Mutex<HashMap<mas::ScopedAccessKey, mas::BookmarkHandle>>,
 }
 
 impl AppState {
@@ -122,6 +142,7 @@ impl AppState {
             timers_init_completed: Mutex::new(false),
             resource_dir_path: Mutex::new(None),
             db_file_watcher: crate::db_file_watcher::DbFileWatcherState::new(),
+            scoped_access: Mutex::new(HashMap::new()),
         }
     }
 
@@ -229,8 +250,36 @@ impl AppState {
     }
 
     pub(crate) fn update_preference(&self, preference_data: PreferenceData) -> Result<()> {
-        let mut store_pref = self.preference.lock().unwrap();
-        store_pref.update(preference_data)
+        let prior_dir = self.preference.lock().unwrap().backup.dir.clone();
+
+        let result = {
+            let mut store_pref = self.preference.lock().unwrap();
+            store_pref.update(preference_data)
+        };
+
+        // If the backup dir actually changed, rotate the scoped-access handle
+        // so the new dir's bookmark backs file writes for the rest of the
+        // session. No-op outside macOS sandbox.
+        let current_dir = {
+            let pref = self.preference.lock().unwrap();
+            pref.backup.dir.clone()
+        };
+        if prior_dir != current_dir {
+            self.release_scoped_access(&mas::ScopedAccessKey::BackupDir);
+            if let Some(dir) = prior_dir.as_deref() {
+                mas::bookmarks::remove_backup_dir(dir);
+            }
+            if let Some(dir) = current_dir.as_deref() {
+                let b64 = mas::bookmarks::load_backup_dir(dir);
+                if let Some(b64) = &b64 {
+                    if let Ok((handle, _)) = mas::bookmarks::resolve_and_start(b64) {
+                        self.store_scoped_access(mas::ScopedAccessKey::BackupDir, handle);
+                    }
+                }
+            }
+        }
+
+        result
     }
 
     pub(crate) fn remove_app_home_backup_file(&self, db_file_name: &str) {
@@ -239,7 +288,11 @@ impl AppState {
 
         if let Some(path) = backup_file_name {
             if let Err(err) = file_util::remove_file_if_exists(&path) {
-                log::error!("Removing internal backup file failed for {:?}: {}", path, err);
+                log::error!(
+                    "Removing internal backup file failed for {:?}: {}",
+                    path,
+                    err
+                );
             }
         }
     }
@@ -273,6 +326,81 @@ impl AppState {
         store_pref.browser_ext_use_user_permission(browser_id, confirmed);
     }
 
+    // Shows a folder picker (via tauri-plugin-dialog) pre-targeted at the
+    // browser's standard NativeMessagingHosts directory. On user confirmation,
+    // creates a security-scoped bookmark for that folder, persists it into the
+    // App Group bookmark store, and performs the manifest write
+    // within the just-granted scope. On cancellation (None returned by the
+    // picker), returns Ok(()) so the cljs side can re-try later.
+    // Only meaningful on macOS when sandboxed; on other platforms it is a no-op.
+    pub(crate) fn browser_ext_pick_install_dir<R: Runtime>(
+        &self,
+        app: &AppHandle<R>,
+        browser_id: &str,
+    ) -> Result<()> {
+        use tauri_plugin_dialog::DialogExt;
+
+        // NSOpenPanel ignores set_directory when the target doesn't exist yet.
+        // Walk up to the nearest existing ancestor so the picker opens nearby
+        // rather than falling back to whatever the user last opened elsewhere.
+        let default_dir = sandbox::browser_manifest_dir(browser_id).and_then(|mut path| loop {
+            if path.exists() {
+                break Some(path);
+            }
+            if !path.pop() {
+                break None;
+            }
+        });
+
+        let mut builder = app.dialog().file();
+        if let Some(dir) = default_dir {
+            builder = builder.set_directory(dir);
+        }
+
+        let picked = builder
+            .set_title("Allow OneKeePass to install the browser-extension manifest")
+            .blocking_pick_folder();
+
+        let picked_path = match picked {
+            Some(p) => p,
+            None => {
+                log::info!(
+                    "browser_ext_pick_install_dir: user cancelled for {}",
+                    browser_id
+                );
+                return Ok(());
+            }
+        };
+
+        let path_str = picked_path.to_string();
+
+        // Create a security-scoped bookmark while the panel grant is still active.
+        let b64 = match mas::bookmarks::create(&path_str) {
+            Some(b) => b,
+            None => {
+                log::error!(
+                    "browser_ext_pick_install_dir: bookmark creation failed for {}",
+                    &path_str
+                );
+                return Err(onekeepass_core::error::Error::UnexpectedError(
+                    "Failed to create a security-scoped bookmark for the selected folder".into(),
+                ));
+            }
+        };
+
+        // Persist the bookmark so future writes resolve it without a new picker.
+        mas::bookmarks::store_browser_dir(browser_id, &path_str, &b64);
+
+        // Now re-run the manifest write; the stored bookmark will be resolved
+        // by write_manifest_with_scope inside browser_ext_support.update.
+        {
+            let mut store_pref = self.preference.lock().unwrap();
+            store_pref.write_browser_manifest(browser_id)?;
+        }
+
+        Ok(())
+    }
+
     // Called onetime when the app starts
     fn start_ext_proxy_service(&self) {
         let store_pref = self.preference.lock().unwrap();
@@ -297,6 +425,48 @@ impl AppState {
     }
 }
 
+// Scoped-access lifecycle for macOS App Sandbox security-scoped bookmarks.
+// On non-sandboxed / non-macOS builds these calls are still safe (the
+// underlying bookmark FFI is a no-op) so call sites do not need to gate.
+impl AppState {
+    // Records a scoped-access handle and releases any prior handle stored under
+    // the same key (defensive — prevents leaks if a second open of the same db
+    // occurs without an intervening close).
+    pub(crate) fn store_scoped_access(
+        &self,
+        key: mas::ScopedAccessKey,
+        handle: mas::BookmarkHandle,
+    ) {
+        let prior = {
+            let mut store = self.scoped_access.lock().unwrap();
+            store.insert(key, handle)
+        };
+        if let Some(h) = prior {
+            mas::release_scoped_handle(h);
+        }
+    }
+
+    // Releases (and forgets) the handle for `key` if one is held. No-op if the
+    // key is not present.
+    pub(crate) fn release_scoped_access(&self, key: &mas::ScopedAccessKey) {
+        let prior = {
+            let mut store = self.scoped_access.lock().unwrap();
+            store.remove(key)
+        };
+        if let Some(h) = prior {
+            mas::release_scoped_handle(h);
+        }
+    }
+
+    // Resolves the user-picked backup directory bookmark (if any) and starts
+    // scoped access for the lifetime of the process. Called once at app boot.
+    // No-op outside macOS sandbox or when the user's `backup.dir` is the
+    // default (container-relative) path that doesn't need a bookmark.
+    pub(crate) fn init_backup_dir_scoped_access(&self) {
+        mas::init_backup_dir_scoped_access(self);
+    }
+}
+
 fn format_os_version(info: &os_info::Info) -> String {
     let version_str = info.version().to_string();
 
@@ -318,6 +488,23 @@ pub(crate) struct StandardDirs {
     document_dir: Option<String>,
 }
 
+fn user_documents_dir<R: Runtime>(app: &tauri::AppHandle<R>) -> Option<String> {
+    #[cfg(target_os = "macos")]
+    if let Some(home) = sandbox::real_home_dir() {
+        return Some(
+            home.join("Documents")
+                .as_os_str()
+                .to_string_lossy()
+                .to_string(),
+        );
+    }
+
+    app.path().document_dir().map_or_else(
+        |_| None,
+        |d| Some(d.as_os_str().to_string_lossy().to_string()),
+    )
+}
+
 #[derive(Serialize, Deserialize)]
 pub(crate) struct SystemInfoWithPreference {
     os_name: String,
@@ -328,6 +515,11 @@ pub(crate) struct SystemInfoWithPreference {
     biometric_type_available: String,
     preference: Preference,
     dev_mode: bool,
+    // True when this binary was compiled with the `mas-build` Cargo feature
+    // (Mac App Store variant). Used by the cljs UI to hide features that are
+    // either kernel-blocked under App Sandbox (auto-type) or otherwise
+    // unavailable in the MAS build, so users don't see non-functional UI.
+    mas_build: bool,
 }
 //app_state: State<'_, app_state::AppState>
 // app: tauri::AppHandle<R>,
@@ -354,15 +546,13 @@ impl SystemInfoWithPreference {
             arch,
             path_sep: std::path::MAIN_SEPARATOR.to_string(),
             standard_dirs: StandardDirs {
-                document_dir: app.path().document_dir().map_or_else(
-                    |_| None,
-                    |d| Some(d.as_os_str().to_string_lossy().to_string()),
-                ),
+                document_dir: user_documents_dir(&app),
             },
             biometric_type_available: biometric::supported_biometric_type(),
             // document_dir().and_then(|d| Some(d.as_os_str().to_string_lossy().to_string())),
             preference: pref.clone(),
             dev_mode: cfg!(feature = "onekeepass-dev"),
+            mas_build: cfg!(feature = "mas-build"),
         }
     }
 }

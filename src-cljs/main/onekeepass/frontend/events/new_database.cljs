@@ -12,12 +12,19 @@
 ;; (defn open-file-explorer-on-click []
 ;;   (cmn-events/open-file-explorer-on-click :new-database-file-name-selected))
 
-(defn save-as-file-explorer-on-click [database-name]
-  (bg/save-file-dialog {:default-path (str database-name ".kdbx")}
+(declare create-kdbx-fx)
+
+(defn save-as-file-explorer-on-click
+  ([database-name default-path]
+   (save-as-file-explorer-on-click database-name default-path nil))
+  ([database-name default-path after-selected-fx]
+  (bg/save-file-dialog {:default-path (if (str/blank? default-path)
+                                        (str database-name ".kdbx")
+                                        default-path)}
                        (fn [file-anme]
                          ;; database-file-name is not updated if user cancels the 'Save As' file exploreer 
                          (when (not (str/blank? file-anme))
-                           (dispatch [:new-database-field-update  :database-file-name file-anme])))))
+                           (dispatch [:new-database-file-selected file-anme after-selected-fx]))))))
 
 (defn open-key-file-explorer-on-click []
   (cmn-events/open-file-explorer-on-click :new-database-key-file-name-selected))
@@ -100,6 +107,7 @@
                     :password-confirm nil
                     :api-error-text nil
                     :db-file-file-exists false
+                    :database-file-user-selected false
                     :error-fields {} ;; a map e.g {:id1 "some error text" :id2 "some error text" }
                     :panel :basic-info
                     :call-to-create-status nil
@@ -206,8 +214,22 @@
        (assoc-in (into [:new-database] (if (vector? kw-field-name)
                                          kw-field-name
                                          [kw-field-name])) value)
+       (cond-> (= kw-field-name :database-file-name)
+         (assoc-in [:new-database :database-file-user-selected] false))
        ;; Hide any previous api-error-text
        (assoc-in [:new-database :api-error-text] nil))))
+
+(reg-event-fx
+ :new-database-file-selected
+ (fn [{:keys [db]} [_event-id file-name after-selected-fx]]
+   (check-file-exists file-name)
+   (let [db (-> db
+                (assoc-in [:new-database :database-file-name] file-name)
+                (assoc-in [:new-database :database-file-user-selected] true)
+                (assoc-in [:new-database :api-error-text] nil))]
+     (if after-selected-fx
+       (after-selected-fx db)
+       {:db db}))))
 
 (reg-event-db
  :new-database-kdf-algorithm-select
@@ -232,20 +254,40 @@
       ;; Need to make sure memory value is in MB 
       (update-in [:kdf :memory] * 1048576)))
 
+(defn- create-kdbx-fx [db]
+  {:db (-> db (assoc-in [:new-database :call-to-create-status] :in-progress)
+           (assoc-in [:new-database :api-error-text] nil))
+   :fx [[:bg-create-kdbx (:new-database db)]]})
+
+(defn- save-as-then-create-fx [db]
+  {:db (-> db
+           (assoc-in [:new-database :panel] :file-info)
+           (assoc-in [:new-database :api-error-text] nil))
+   :fx [[:new-database-save-as-then-create (:new-database db)]]})
+
 ;; Called when 'Done' is clicked
 (reg-event-fx
  :new-database-create
  (fn [{:keys [db]} [_event-id]]
    ;;(println "event new-database-create called") 
    (let [errors (validate-security-fields db)
-         imported-data? (get-in db [:new-database :imported-data])]
+         imported-data? (get-in db [:new-database :imported-data])
+         mas-build? (:mas-build db)
+         database-file-user-selected? (get-in db [:new-database :database-file-user-selected])]
      (if (boolean (seq errors))
        {:db (assoc-in db [:new-database :error-fields] errors)}
-       {:db (-> db (assoc-in [:new-database :call-to-create-status] :in-progress)
-                (assoc-in [:new-database :api-error-text] nil))
-        :fx [(if-not imported-data?
-               [:bg-create-kdbx (:new-database db)]
-               [:dispatch [:import-file/new-database (convert-kdf-value (:new-database db)) on-database-creation-completed]])]}))))
+       (if (and mas-build? (not imported-data?) (not database-file-user-selected?))
+         (save-as-then-create-fx db)
+         (if-not imported-data?
+           (create-kdbx-fx db)
+           {:db (-> db (assoc-in [:new-database :call-to-create-status] :in-progress)
+                    (assoc-in [:new-database :api-error-text] nil))
+            :fx [[:dispatch [:import-file/new-database (convert-kdf-value (:new-database db)) on-database-creation-completed]]]}))))))
+
+(reg-fx
+ :new-database-save-as-then-create
+ (fn [{:keys [database-name database-file-name]}]
+   (save-as-file-explorer-on-click database-name database-file-name create-kdbx-fx)))
 (reg-fx
  :bg-create-kdbx
  (fn [new-db]

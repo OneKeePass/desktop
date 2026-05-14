@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- App Store validation requires every executable inside the app bundle to
+         include the App Sandbox entitlement. The proxy also needs the App Group
+         entitlement because the sandboxed main app binds the native-messaging
+         IPC socket in the shared group container. -->
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>group.com.onekeepass.desktop</string>
+    </array>
+    <key>com.apple.application-identifier</key>
+    <string>${APPLE_TEAM_ID}.${PROXY_APP_ID}</string>
+    <key>com.apple.developer.team-identifier</key>
+    <string>${APPLE_TEAM_ID}</string>
+</dict>
+</plist>

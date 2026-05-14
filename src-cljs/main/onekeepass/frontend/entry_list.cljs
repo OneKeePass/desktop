@@ -72,7 +72,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn- entry-row-context-items
-  [item selected-ids deleted-cat? recycle-bin? group-in-recycle-bin? multi-db-open? active-db-key]
+  [item selected-ids deleted-cat? recycle-bin? group-in-recycle-bin? multi-db-open? active-db-key
+   favorites? history-available? os-name mas-build?]
   (let [uuid (:uuid item)
         parent-group-uuid (:parent-group-uuid item)
         deleted? (or deleted-cat? recycle-bin? group-in-recycle-bin?)
@@ -123,7 +124,30 @@
                 (ctx-menu/action-item
                  {:id "entry-delete"
                   :text (t/lstr-ml 'delete)
-                  :action #(form-events/entry-delete-start uuid)})])))))
+                  :action #(form-events/entry-delete-start uuid)})
+                (ctx-menu/separator-item)
+                (ctx-menu/action-item
+                 {:id "entry-favorites"
+                  :text (t/lstr-ml 'favorites)
+                  :action #(form-events/favorite-menu-checked (not favorites?))})
+                (when (and (= os-name const/MACOS) (not mas-build?))
+                  (ctx-menu/separator-item))
+                (when (and (= os-name const/MACOS) (not mas-build?))
+                  (ctx-menu/action-item
+                   {:id "entry-perform-auto-type"
+                    :text (t/lstr-ml 'performAutoType)
+                    :action #(form-events/perform-auto-type-start)}))
+                (when (and (= os-name const/MACOS) (not mas-build?))
+                  (ctx-menu/action-item
+                   {:id "entry-edit-auto-type"
+                    :text (t/lstr-ml 'editAutoType)
+                    :action #(form-events/entry-auto-type-edit)}))
+                (ctx-menu/separator-item)
+                (ctx-menu/action-item
+                 {:id "entry-history"
+                  :text (t/lstr-ml 'history)
+                  :enabled? history-available?
+                  :action #(form-events/load-history-entries-summary uuid)})])))))
 
 (defn- row-item-draggable
   "Form-1 component rendered with :f> so React treats it as a function component.
@@ -131,7 +155,8 @@
   require a React function component context.
   Selection state arrives as plain deref'd props from row-item (form-2), which has
   Reagent reactive tracking and re-renders when either subscription changes."
-  [item style selected-id selected-ids drag-active-uuid deleted-cat? recycle-bin? group-in-recycle-bin? multi-db-open? active-db-key]
+  [item style selected-id selected-ids drag-active-uuid deleted-cat? recycle-bin? group-in-recycle-bin? multi-db-open? active-db-key
+   favorites? history-available? os-name mas-build?]
   (let [uuid             (:uuid item)
         ^js drag-obj     (dnd/use-draggable #js {:id uuid})
         set-node-ref     (.-setNodeRef drag-obj)
@@ -177,13 +202,17 @@
                                   e
                                   (entry-row-context-items
                                    item
-                                   ;; selected-ids does not include the first entry item clicked when user clicks more than one 
+                                   ;; selected-ids does not include the first entry item clicked when user clicks more than one
                                    (conj selected-ids selected-id)
                                    deleted-cat?
                                    recycle-bin?
                                    group-in-recycle-bin?
                                    multi-db-open?
-                                   active-db-key)))
+                                   active-db-key
+                                   favorites?
+                                   history-available?
+                                   os-name
+                                   mas-build?)))
               :selected (or (= selected-id uuid) (contains? selected-ids uuid))
               :secondaryAction (when (= selected-id uuid)
                                  ;; We are reusing the menu components from entry-form-ex directly here
@@ -216,15 +245,19 @@
   When selected-id, selected-ids, or drag-active-uuid change, Reagent force-updates
   this component and passes fresh plain values down to row-item-draggable (:f> React FC)."
   []
-  (let [items-sub         (el-events/get-selected-entry-items)
-        selected-id-sub   (el-events/get-selected-entry-id)
-        selected-ids-sub  (el-events/get-selected-entry-ids)
-        drag-active-sub   (el-events/get-drag-active-uuid)
-        deleted-cat?-sub  (el-events/deleted-category-showing)
-        recycle-bin?-sub  (gt-events/recycle-group-selected?)
+  (let [items-sub                 (el-events/get-selected-entry-items)
+        selected-id-sub           (el-events/get-selected-entry-id)
+        selected-ids-sub          (el-events/get-selected-entry-ids)
+        drag-active-sub           (el-events/get-drag-active-uuid)
+        deleted-cat?-sub          (el-events/deleted-category-showing)
+        recycle-bin?-sub          (gt-events/recycle-group-selected?)
         group-in-recycle-bin?-sub (gt-events/selected-group-in-recycle-bin?)
-        multi-db-open?-sub (clone-events/multi-db-open?)
-        active-db-key-sub (cmn-events/active-db-key)]
+        multi-db-open?-sub        (clone-events/multi-db-open?)
+        active-db-key-sub         (cmn-events/active-db-key)
+        favorites?-sub            (form-events/favorites?)
+        history-available?-sub    (form-events/history-available)
+        os-name-sub               (cmn-events/os-name)
+        mas-build?-sub            (cmn-events/is-mas-build?)]
     (fn [props]
       (let [item             (nth @items-sub (:index props))
             selected-id      @selected-id-sub
@@ -241,7 +274,11 @@
          @recycle-bin?-sub
          @group-in-recycle-bin?-sub
          @multi-db-open?-sub
-         @active-db-key-sub]))))
+         @active-db-key-sub
+         @favorites?-sub
+         @history-available?-sub
+         @os-name-sub
+         @mas-build?-sub]))))
 
 ;; A functional component to use react useEffect
 (defn fn-entry-list-content

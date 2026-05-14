@@ -1,5 +1,6 @@
 (ns onekeepass.frontend.translation
-  (:require ["i18next" :as i18n]
+  (:require [clojure.string :as str]
+            ["i18next" :as i18n]
             [camel-snake-kebab.core :as csk]
             [camel-snake-kebab.extras :as cske]
             [cljs.core.async :refer [go]]
@@ -21,6 +22,18 @@
 (def ^:private i18n-instance (atom nil))
 
 (def ^:private prefered-language-val (atom nil))
+
+(defn- normalize-language-id
+  "Normalizes locale ids so the app consistently uses BCP-47-style ids such as
+   `en` or `pt-BR`, while still accepting stored values like `pt_BR`."
+  [language-id]
+  (let [s (some-> language-id str str/trim)]
+    (if (seq s)
+      (let [[language region] (str/split (str/replace s "_" "-") #"-" 3)]
+        (if (seq region)
+          (str (str/lower-case language) "-" (str/upper-case region))
+          (str/lower-case language)))
+      "en")))
 
 ;; https://www.i18next.com/translation-function/plurals#singular-plural
 
@@ -151,11 +164,14 @@
         ;; translations is a map where key is the language id and value is a json string and 
         ;; the json string needs to be parsed. After parsing the string in 'v', the type 
         ;; of the parsed value is a js object - #object[Object]
-        parsed-translations (reduce (fn [m [k v]] (assoc m k (parse-json v)))  {} translations)]
+        parsed-translations (reduce (fn [m [k v]]
+                                      (assoc m (normalize-language-id k) (parse-json v)))
+                                    {} translations)
+        normalized-prefered-language (normalize-language-id prefered_language)]
     ;; (println "res is  " res)
     ;; (println "current_locale_language prefered_language are " current_locale_language prefered_language)
 
-    (reset! prefered-language-val prefered_language)
+    (reset! prefered-language-val normalized-prefered-language)
 
     ;; Type of 'parsed-translations' is  cljs.core/PersistentArrayMap
     #_(println "Type of 'parsed-translations' is " (type parsed-translations))
@@ -163,7 +179,8 @@
     ;; Type of translations for en is  #object[Object]
     #_(println "Type of value for en key in 'parsed-translations' is " (type (:en parsed-translations)))
 
-    (setup-i18n-with-backend prefered_language (create-back-end parsed-translations))))
+    (setup-i18n-with-backend normalized-prefered-language
+                             (create-back-end parsed-translations))))
 
 ;; This loads the translation files for the selected language ( done in Settings screen)
 ;; We need to have the corresponding translation json files in the dir resources/public/translations
@@ -176,8 +193,8 @@
    (tr-events/load-language-translation [] translations-loaded-callback))
   ;; Not used at this time
   ([language-ids]
-   ;; language-ids is a vec of two charater language ids
-   ;; e.g ["en" "fr"]
+   ;; language-ids is a vec of app language ids
+   ;; e.g ["en" "pt-BR"]
    (tr-events/load-language-translation language-ids translations-loaded-callback)))
 
 #_(defn reload-language-translation
@@ -223,7 +240,7 @@
    :read (fn [language _namespace callback]
            ;;(println "create-back-end language namespace callback " language namespace callback)
            ;;(println "data  is... " (clj->js (get @translations-data language)))
-           (callback nil (clj->js (get translations language))))})
+           (callback nil (clj->js (get translations (normalize-language-id language)))) )})
 
 (defn- setup-i18n-with-backend [language back-end]
   (let [m  {:lng language

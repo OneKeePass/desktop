@@ -19,9 +19,21 @@ pub(crate) struct BackupPreference {
 impl Default for BackupPreference {
     fn default() -> Self {
         Self {
-            enabled: true,
+            enabled: false,
             dir: None,
         }
+    }
+}
+
+// One entry in the recent-files list. Replaces the previous `Vec<String>`.
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub(crate) struct RecentFile {
+    pub(crate) path: String,
+}
+
+impl RecentFile {
+    pub(crate) fn new(path: String) -> Self {
+        Self { path }
     }
 }
 

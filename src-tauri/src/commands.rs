@@ -7,21 +7,22 @@ use std::collections::HashMap;
 use std::io::ErrorKind;
 
 use log::{debug, info};
-use serde::{Deserialize, Serialize};
 use std::fs::read_to_string;
 use std::path::Path;
 use uuid::Uuid;
 
 use crate::app_state::SystemInfoWithPreference;
 use crate::auto_open::{self, AutoOpenProperties, AutoOpenPropertiesResolved};
+#[cfg(not(feature = "mas-build"))]
+use crate::auto_type;
 use crate::menu::MenuActionRequest;
 use crate::{app_preference, app_state};
-use crate::{auto_type, biometric, OTP_TOKEN_UPDATE_EVENT};
-use crate::{menu, pass_phrase, translation};
+use crate::{biometric, OTP_TOKEN_UPDATE_EVENT};
+use crate::{mas, menu, pass_phrase, translation};
 use onekeepass_core::async_service as kp_async_service;
 use onekeepass_core::db_service as kp_service;
 
-/* 
+/*
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum UpdateType {
@@ -136,13 +137,18 @@ pub(crate) async fn load_kdbx(
     key_file_name: Option<&str>,
     app_state: State<'_, app_state::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
-    // key_file_name.as_deref() converts Option<String> to Option<&str> - https://stackoverflow.com/questions/31233938/converting-from-optionstring-to-optionstr
+    let mut scoped_access = mas::LoadKdbxAccess::prepare(db_file_name, key_file_name);
 
+    // key_file_name.as_deref() converts Option<&str>; same conversion the prior
+    // implementation used.
     let r = kp_service::load_kdbx(db_file_name, password, key_file_name.as_deref());
 
+    // Phase 2: classify the result. On NotFound, drop the recent entry. Any
+    // started handle from Phase 1 must be released since we won't have a
+    // session to bind it to.
     if let Err(kp_service::error::Error::DbFileIoError(m, ioe)) = &r {
-        // Remove from the recent list only if the file opening failed because of the file is not found in the passed file path
         if let ("Database file opening failed", ErrorKind::NotFound) = (m.as_str(), ioe.kind()) {
+            scoped_access.release_all();
             app_state
                 .preference
                 .lock()
@@ -150,18 +156,27 @@ pub(crate) async fn load_kdbx(
                 .remove_recent_file(db_file_name);
             return Ok(r?);
         }
+
+        if mas::should_request_db_repick(ioe.kind(), db_file_name, &app_state) {
+            scoped_access.release_all();
+            return Err("BookmarkPermissionDenied".into());
+        }
     }
 
-    // Appends this file name to the most recently opened file list
     app_state
         .preference
         .lock()
         .unwrap()
         .add_recent_file(db_file_name);
 
-    // Start watching for external changes on successful open
     if r.is_ok() {
+        scoped_access.store_success_handles(db_file_name, key_file_name, &app_state);
         app_state.db_file_watcher.start_watching(db_file_name);
+    } else {
+        // Failure path with a held handle (e.g., wrong password). The user
+        // will likely retry, but we shouldn't leak scoped access in the
+        // meantime. The next attempt will resolve again from the stored bookmark.
+        scoped_access.release_all();
     }
 
     Ok(r?)
@@ -222,6 +237,20 @@ pub(crate) async fn browser_ext_use_user_permission(
     Ok(app_state.browser_ext_use_user_permission(browser_id, confirmed))
 }
 
+// Opens a folder picker (Powerbox-vended NSOpenPanel under macOS App Sandbox)
+// pre-targeted at the browser's standard NativeMessagingHosts directory.
+// On confirmation: creates a security-scoped bookmark for the picked folder,
+// persists it, and writes the native-messaging manifest within the granted scope.
+// On cancellation: returns Ok(()) — the cljs side may re-attempt on next save.
+#[tauri::command]
+pub(crate) async fn browser_ext_pick_install_dir<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    app_state: State<'_, app_state::AppState>,
+    browser_id: String,
+) -> Result<()> {
+    Ok(app_state.browser_ext_pick_install_dir(&app, &browser_id)?)
+}
+
 //clear_recent_files
 #[tauri::command]
 pub(crate) async fn clear_recent_files(app_state: State<'_, app_state::AppState>) -> Result<()> {
@@ -262,7 +291,7 @@ pub(crate) async fn create_kdbx(
     app_state: State<'_, app_state::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
     let r = kp_service::create_kdbx(new_db)?;
-    // Appends this file name to the most recently opned file list
+    mas::record_user_granted_db_file(&r.db_key, &app_state);
     app_state
         .preference
         .lock()
@@ -633,8 +662,8 @@ pub(crate) async fn save_attachment_as_temp_file(
 #[command]
 pub(crate) async fn open_attachment_temp_file(file_path: &str) -> Result<()> {
     let requested = std::path::PathBuf::from(file_path);
-    let canonical = std::fs::canonicalize(&requested)
-        .map_err(|e| format!("Invalid attachment path: {e}"))?;
+    let canonical =
+        std::fs::canonicalize(&requested).map_err(|e| format!("Invalid attachment path: {e}"))?;
 
     let allowed_root = std::fs::canonicalize(std::env::temp_dir().join("okp_cache"))
         .map_err(|e| format!("okp_cache dir not available: {e}"))?;
@@ -672,7 +701,7 @@ pub(crate) async fn save_as_kdbx(
 
     //key_secure::delete_key(db_key);
 
-    // Appends this file name to the most recently opened file list
+    mas::record_user_granted_db_file(db_file_name, &app_state);
     app_state
         .preference
         .lock()
@@ -723,6 +752,9 @@ pub(crate) async fn close_kdbx(
     app_state: State<'_, app_state::AppState>,
 ) -> Result<()> {
     app_state.db_file_watcher.stop_watching(db_key);
+    // Release the scoped-access handle paired with this DB's load_kdbx (if any).
+    // Safe to call on non-macOS / non-sandboxed paths — it's a HashMap remove.
+    app_state.release_scoped_access(&mas::ScopedAccessKey::Db(db_key.to_string()));
     kp_service::close_kdbx(db_key)?;
     app_state.remove_app_home_backup_file(db_key);
     Ok(())
@@ -818,7 +850,7 @@ pub(crate) async fn create_new_db_with_imported_csv(
     app_state: State<'_, app_state::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
     let r = mapping.create_new_db(new_db)?;
-    // Need to add to the most recent list as done in create_kdbx call
+    mas::record_user_granted_db_file(&r.db_key, &app_state);
     app_state
         .preference
         .lock()
@@ -941,6 +973,7 @@ pub async fn authenticate_with_biometric(db_key: &str) -> Result<bool> {
 
 ///--------------   All auto typing command calls
 
+#[cfg(not(feature = "mas-build"))]
 #[tauri::command]
 pub async fn parse_auto_type_sequence(
     sequence: &str,
@@ -949,17 +982,20 @@ pub async fn parse_auto_type_sequence(
     auto_type::parse_auto_type_sequence(sequence, &entry_fields)
 }
 
+#[cfg(not(feature = "mas-build"))]
 #[tauri::command]
 pub async fn platform_window_titles() -> Result<Vec<auto_type::WindowInfo>> {
     Ok(auto_type::window_titles()?)
 }
 
+#[cfg(not(feature = "mas-build"))]
 #[tauri::command]
 pub async fn active_window_to_auto_type() -> Option<auto_type::WindowInfo> {
     // None is returned if there is no other window is open other than the app
     auto_type::active_window_to_auto_type()
 }
 
+#[cfg(not(feature = "mas-build"))]
 #[tauri::command]
 pub async fn send_sequence_to_winow_async(
     db_key: &str,

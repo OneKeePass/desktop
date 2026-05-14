@@ -37,7 +37,7 @@
     [mui-list-item-text {:inset true} (lstr-ml 'editAutoType)]]])
 
 (defn entry-form-top-menu-items []
-  (fn [anchor-el entry-uuid favorites? os-name]
+  (fn [anchor-el entry-uuid favorites? os-name mas-build?]
     [mui-menu {:anchorEl @anchor-el
                :open (if @anchor-el true false)
                :on-close #(reset! anchor-el nil)}
@@ -82,8 +82,15 @@
                        :on-click (menu-action anchor-el form-events/favorite-menu-checked true)}
         [mui-list-item-text {:inset true} (lstr-ml 'favorites)]])
 
-     ;; Auto type related menu options are avilable only for macos
-     (when (= os-name const/MACOS)
+     ;; Auto type related menu options are available only on macOS, and only
+     ;; when this is NOT a Mac App Store build. Auto-type relies on
+     ;; CGEvent.post(.cgSessionEventTap) which is kernel-blocked under App
+     ;; Sandbox (events silently dropped) and on CGWindowListCopyWindowInfo
+     ;; which requires Screen Recording entitlement App Review denies for
+     ;; password managers — so the entire feature is non-functional in MAS.
+     ;; The Rust auto_type module + Tauri commands are also compile-gated
+     ;; out of the MAS binary; this `when` guard hides the corresponding UI.
+     (when (and (= os-name const/MACOS) (not mas-build?))
        ;; Need to use this reagent component instead of fragmets using :<> as MUI complains
        ;; that Menu item child should not be a fragment and instead suggested to use an array of child
        [auto-type-menu-items anchor-el entry-uuid])
@@ -97,12 +104,13 @@
 (defn entry-form-top-menu [entry-uuid]
   (let [anchor-el (r/atom nil)
         favorites? @(form-events/favorites?)
-        os-name @(cmn-events/os-name)]
+        os-name @(cmn-events/os-name)
+        mas-build? @(cmn-events/is-mas-build?)]
     [:div
      [mui-icon-button {:edge "start"
                        :on-click (fn [^js/Event e] (reset! anchor-el (-> e .-currentTarget)))
                        :style {}} [mui-icon-more-vert]]
-     [entry-form-top-menu-items anchor-el entry-uuid favorites? os-name]
+     [entry-form-top-menu-items anchor-el entry-uuid favorites? os-name mas-build?]
      [cc/info-dialog "Entry Delete" "Deleting entry is in progress"
       form-events/entry-delete-info-dialog-close
       @(form-events/entry-delete-dialog-data)]]))

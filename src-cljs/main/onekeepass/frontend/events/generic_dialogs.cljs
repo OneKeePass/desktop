@@ -56,7 +56,7 @@
 
 (defn-generic-dialog-subs-events :clone-entry-to-other-db-dialog [[data nil]])
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; browser-extension-connection-permit-dialog-data 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; browser-extension-connection-permit-dialog-data
 
 ; dialog-identifier-kw :browser-extension-connection-permit-dialog
 (defn-generic-dialog-disp-events :browser-extension-connection-permit-dialog [[close nil]
@@ -64,6 +64,16 @@
                                                                               [show-with-state state-m]])
 
 (defn-generic-dialog-subs-events :browser-extension-connection-permit-dialog [[data nil]])
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; browser-extension-install-grant-dialog
+
+; Shown when the MAS sandbox requires an NSOpenPanel grant to write the
+; native-messaging manifest for a browser. dialog-identifier-kw:
+; :browser-extension-install-grant-dialog
+(defn-generic-dialog-disp-events :browser-extension-install-grant-dialog [[close nil]
+                                                                           [show-with-state state-m]])
+
+(defn-generic-dialog-subs-events :browser-extension-install-grant-dialog [[data nil]])
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  external-db-change-dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

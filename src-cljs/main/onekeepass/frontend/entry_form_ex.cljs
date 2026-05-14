@@ -78,7 +78,7 @@
       (handler-name field-name-kw (-> e .-target  .-checked)))))
 
 (defn- entry-context-items
-  [entry-uuid group-uuid active-db-key favorites? history-available? os-name multi-db-open? deleted?]
+  [entry-uuid group-uuid active-db-key favorites? history-available? os-name multi-db-open? deleted? mas-build?]
   (if deleted?
     [(ctx-menu/action-item
       {:id "entry-form-put-back"
@@ -120,7 +120,12 @@
                {:id "entry-form-favorite"
                 :text (lstr-ml 'favorites)
                 :action #(form-events/favorite-menu-checked (not favorites?))})
-              (when (= os-name const/MACOS)
+              ;; Auto-type is kernel-blocked under macOS App Sandbox and the
+              ;; Rust impl is compile-gated out of the MAS binary. Suppress
+              ;; the right-click menu entry too so MAS users don't see a
+              ;; non-functional button. See entry_form/menus.cljs for parallel
+              ;; gating in the kebab-menu.
+              (when (and (= os-name const/MACOS) (not mas-build?))
                 (ctx-menu/action-item
                  {:id "entry-form-auto-type"
                   :text (lstr-ml 'performAutoType)
@@ -594,6 +599,7 @@
           favorites? @(form-events/favorites?)
           history-available? @(form-events/history-available)
           os-name @(ce/os-name)
+          mas-build? @(ce/is-mas-build?)
           multi-db-open? @(clone-events/multi-db-open?)
           deleted-cat? @(form-events/deleted-category-showing)
           recycle-bin? @(form-events/recycle-group-selected?)
@@ -615,7 +621,8 @@
                                     history-available?
                                     os-name
                                     multi-db-open?
-                                    (or deleted-cat? recycle-bin? group-in-recycle-bin?)))))}
+                                    (or deleted-cat? recycle-bin? group-in-recycle-bin?)
+                                    mas-build?))))}
 
        [:div {:class "gheader" :style {:background  (theme-color @custom-theme-atom :bg-default)}}
         (when-not edit

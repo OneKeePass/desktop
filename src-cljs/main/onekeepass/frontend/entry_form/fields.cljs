@@ -12,7 +12,6 @@
                                                      mui-date-time-picker
                                                      mui-icon-autorenew
                                                      mui-icon-button
-                                                     mui-icon-button
                                                      mui-icon-delete-outline
                                                      mui-icon-visibility
                                                      mui-icon-visibility-off

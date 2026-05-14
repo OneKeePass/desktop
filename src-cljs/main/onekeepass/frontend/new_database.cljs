@@ -156,7 +156,7 @@
 
                     :slotProps {:input {:endAdornment (r/as-element [mui-input-adornment {:position "end"}
                                                                   [mui-icon-button {:edge "end" :sx {:mr "-8px"}
-                                                                                    :onClick #(nd-events/save-as-file-explorer-on-click database-name)}
+                                                                                    :onClick #(nd-events/save-as-file-explorer-on-click database-name database-file-name)}
                                                                    [mui-icon-folder-outlined]]])}}}]
 
      (when db-file-file-exists

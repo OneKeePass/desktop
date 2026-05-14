@@ -2,12 +2,11 @@ use std::fs;
 
 use crate::app_preference::password_gen_preference::PasswordGeneratorPreference;
 
-use crate::app_preference::{BackupPreference, PreferenceData};
+use crate::app_preference::{BackupPreference, PreferenceData, RecentFile};
 
 use crate::app_preference::browser_ext_preference::{BrowserExtSupport, BrowserExtSupportData};
 
 use crate::{
-    app_paths::app_backup_dir,
     constants::{standard_file_names::APP_PREFERENCE_FILE, themes::LIGHT},
     translation,
 };
@@ -16,31 +15,6 @@ use onekeepass_core::error::Result;
 
 use crate::app_paths::app_home_dir;
 use serde::{Deserialize, Serialize};
-
-/////
-// To be Removed
-// Old preference used in the earlier version v0.14.0
-/*
-#[derive(Clone, Serialize, Deserialize, Debug)]
-struct Preference2 {
-    pub(crate) version: String,
-    // In minutes
-    pub(crate) session_timeout: u8,
-    // In seconds
-    pub(crate) clipboard_timeout: u16,
-    // Determines the theme colors etc
-    pub(crate) theme: String,
-    // Should be a two letters language id
-    pub(crate) language: String,
-    //Valid values one of Types,Categories,Groups,Tags
-    pub(crate) default_entry_category_groupings: String,
-
-    pub(crate) recent_files: Vec<String>,
-
-    pub(crate) backup: BackupPreference,
-}
-*/
-/////
 
 // Old preference used in the earlier version v0.17.0
 
@@ -71,6 +45,23 @@ pub(crate) struct Preference1 {
     password_gen_preference: PasswordGeneratorPreference,
 }
 
+// Old preference used through v0.20.x: recent_files were plain strings.
+// Kept around so existing user TOMLs deserialize during migration to the
+// current `Preference` (which carries security-scoped bookmarks per file).
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub(crate) struct Preference2 {
+    version: String,
+    session_timeout: u8,
+    clipboard_timeout: u16,
+    theme: String,
+    pub(crate) language: String,
+    pub(crate) default_entry_category_groupings: String,
+    recent_files: Vec<String>,
+    pub(crate) backup: BackupPreference,
+    password_gen_preference: PasswordGeneratorPreference,
+    browser_ext_support: BrowserExtSupport,
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub(crate) struct Preference {
     version: String,
@@ -90,7 +81,11 @@ pub(crate) struct Preference {
     // Valid values one of Types,Categories,Groups,Tags
     pub(crate) default_entry_category_groupings: String,
 
-    recent_files: Vec<String>,
+    // Each entry carries the file path plus an optional macOS security-scoped
+    // bookmark. Bookmark is consumed only on sandboxed builds; populated on
+    // any macOS build for forward-compat with later sandboxed installs.
+    // Introduced in MAS release 0.21.0
+    recent_files: Vec<RecentFile>,
 
     pub(crate) backup: BackupPreference,
 
@@ -112,7 +107,7 @@ impl Default for Preference {
             // Same as in tauri.conf.json. This is for doc purpose only as
             // this will be reset to the latest version from tauri.conf.json
             // after parsing the toml pref file in read_toml and pref file is updated accordingly
-            version: "0.20.0".into(),
+            version: "0.21.0".into(),
             session_timeout: (15 as u8),
             clipboard_timeout: (30 as u16),
             theme: LIGHT.into(),
@@ -175,7 +170,6 @@ impl Preference {
                     // In that case, we start using the default one
                     let mut p = Preference::default();
                     p.version = version.clone();
-                    p.backup.dir = Some(app_backup_dir().as_os_str().to_string_lossy().to_string());
                     // Let us write back the default as what is read from file system is not a valid pref
                     p.write_toml();
                     p
@@ -193,8 +187,10 @@ impl Preference {
             // The read preference from file system has version which is not the same as current one
             // So we need to write the new one
 
-            // This is a temporary arrangement. 
+            // This is a temporary arrangement.
             // Should it be removed after 4 or 5 future releases?
+            // Next expected DMG release 0.22.0, this should be removed after verifying the 'Preference2'
+            // loading works as introduced for MAS release 0.21.0 (which added RecentFile struct, BackupPreference changed)
             if Self::is_pre_0_20_version(&pref.version) {
                 pref.backup.enabled = false;
                 pref.backup.dir = None;
@@ -203,20 +199,45 @@ impl Preference {
             pref.version = version;
             pref.write_toml();
         }
+
+        if !pref.backup.enabled && pref.backup.dir.is_some() {
+            pref.backup.dir = None;
+            pref.write_toml();
+        }
         pref
     }
 
     fn read_previous_preference(pref_str: &str) -> Option<Preference> {
+        // Try the most recent legacy schema first (v0.20.x — Vec<String> recent_files,
+        // no per-file bookmarks). Convert each path to a bookmark-less RecentFile.
+        if let Ok(p2) = toml::from_str::<Preference2>(&pref_str) {
+            #[cfg(feature = "onekeepass-dev")]
+            println!("Found Preference2 (v0.20.x) and migrating");
+
+            let mut p = Preference::default();
+            p.version = p2.version;
+            p.session_timeout = p2.session_timeout;
+            p.clipboard_timeout = p2.clipboard_timeout;
+            p.theme = p2.theme;
+            p.language = p2.language;
+            p.default_entry_category_groupings = p2.default_entry_category_groupings;
+            p.recent_files = p2.recent_files.into_iter().map(RecentFile::new).collect();
+            p.backup = p2.backup;
+            p.password_gen_preference = p2.password_gen_preference;
+            p.browser_ext_support = p2.browser_ext_support;
+            return Some(p);
+        }
+
         if let Ok(p1) = toml::from_str::<Preference1>(&pref_str) {
             // As the logging is not enabled, we will see this logging output
             // info!("Found previous version of Preference and using that");
             #[cfg(feature = "onekeepass-dev")]
-            println!("Found previous version of Preference and using that");
+            println!("Found Preference1 (v0.17.x) and migrating");
 
             let mut p = Preference::default();
             p.session_timeout = p1.session_timeout;
             p.backup = p1.backup;
-            p.recent_files = p1.recent_files;
+            p.recent_files = p1.recent_files.into_iter().map(RecentFile::new).collect();
             p.default_entry_category_groupings = p1.default_entry_category_groupings;
             p.version = p1.version;
             p.language = p1.language;
@@ -306,7 +327,14 @@ impl Preference {
             updated = true;
         }
 
-        if let Some(v) = preference_data.backup {
+        if let Some(mut v) = preference_data.backup {
+            if v.enabled {
+                if let Some(dir) = v.dir.as_deref().filter(|dir| !dir.trim().is_empty()) {
+                    crate::mas::create_backup_dir_bookmark(dir);
+                }
+            } else {
+                v.dir = None;
+            }
             self.backup = v;
             updated = true;
         }
@@ -359,28 +387,59 @@ impl Preference {
     }
 
     pub(crate) fn add_recent_file(&mut self, file_name: &str) -> &mut Self {
-        // First we need to remove any previously added if any
-        self.recent_files.retain(|s| s != file_name);
-        // most recent file goes to the top - 0 index
-        self.recent_files.insert(0, file_name.into());
-        // Write the preference to the file system immediately
+        self.recent_files.retain(|r| r.path != file_name);
+        self.recent_files
+            .insert(0, RecentFile::new(file_name.to_string()));
         self.write_toml();
         self
     }
 
     pub(crate) fn remove_recent_file(&mut self, file_name: &str) -> &mut Self {
-        self.recent_files.retain(|s| s != file_name);
+        self.recent_files.retain(|r| r.path != file_name);
+        // MAS: Keep the DB security-scoped bookmark even when the recent-list
+        // entry is removed. The bookmark is durable file access, not display
+        // history; child auto-open databases may need it later without another
+        // file picker round-trip.
+        // TODO: Add a MAS-specific UI flow for reviewing/clearing saved file
+        // access separately from recents, including stale bookmark cleanup.
+        // crate::mas::bookmarks::remove_db_file(file_name);
         self.write_toml();
         self
     }
 
+    // True if the given path is currently tracked in recents. Used to decide
+    // whether a kp_service load failure should trigger the sandbox re-pick
+    // recovery flow vs. just propagating the raw error.
+    pub(crate) fn is_in_recent_files(&self, file_name: &str) -> bool {
+        self.recent_files.iter().any(|r| r.path == file_name)
+    }
+
     pub(crate) fn clear_recent_files(&mut self) -> &mut Self {
         self.recent_files.clear();
+        // MAS: Clearing recents should not revoke saved DB file permissions.
+        // Auto-open child DBs can rely on these bookmarks after app relaunch,
+        // while direct main DB opens can still recover through a re-pick flow.
+        // TODO: Add a MAS-specific UI flow for reviewing/clearing saved file
+        // access separately from recents, including stale bookmark cleanup.
+        // crate::mas::bookmarks::clear_db_files();
+        self.write_toml();
         self
     }
 
     pub(crate) fn browser_ext_support_preference(&self) -> &BrowserExtSupport {
         &self.browser_ext_support
+    }
+
+    // Writes the native-messaging manifest for `browser_id` using the stored
+    // security-scoped folder bookmark from the App Group bookmark store.
+    pub(crate) fn write_browser_manifest(
+        &mut self,
+        browser_id: &str,
+    ) -> onekeepass_core::error::Result<()> {
+        self.browser_ext_support
+            .write_browser_manifest_for(browser_id)?;
+        self.write_toml();
+        Ok(())
     }
 
     pub(crate) fn version(&self) -> &str {
