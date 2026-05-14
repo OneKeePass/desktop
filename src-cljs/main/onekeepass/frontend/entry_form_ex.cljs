@@ -1004,7 +1004,8 @@
 
 (defn history-entry-content []
   (fn []
-    (let [{:keys [title icon-id]} @(form-events/entry-form-data-fields [:title :icon-id])
+    (let [{:keys [title icon-id custom-icon-uuid]}
+          @(form-events/entry-form-data-fields [:title :icon-id :custom-icon-uuid])
           edit @(form-events/form-edit-mode)]
       [:div {:class "gbox"
              :style {:margin 0
@@ -1013,9 +1014,11 @@
        [:div {:class "gheader" :style {:background (theme-color @custom-theme-atom :entry-content-bg)}}
         (when-not edit
           [mui-stack {:direction "row"}
-           [mui-stack {:direction "row"  :sx {:width "95%" :justify-content "center"}}
-            [entry-icon icon-id]
-            [mui-typography {:align "center" :paragraph false :variant "h6"} title]]])]
+           [mui-stack {:direction "row"  :sx {:width "95%" :justify-content "center" :align-items "center"}}
+            [db-icons/render-entry-icon {:icon-id icon-id
+                                         :custom-icon-uuid custom-icon-uuid}]
+            [mui-typography {:style {:margin-left 4 :margin-top 2}
+                             :align "center" :paragraph false :variant "h6"} title]]])]
 
        [:div {:class "gcontent" :style {:overflow-y "scroll"
                                         :background (theme-color @custom-theme-atom :entry-content-bg)}}
@@ -1050,6 +1053,7 @@
                   title
                   secondary-title ;; Datetime formatted string in Local tz
                   icon-id
+                  custom-icon-uuid
                   history-index]} (nth @items (:index props))
           selected-id (form-events/selected-history-index)]
       ;;(println "props " props)
@@ -1065,7 +1069,8 @@
                       ;;:secondaryAction (when (= @selected-id (:uuid item)) (r/as-element [mui-icon-button {:edge "end"} [mui-icon-more-vert]]))
                       }
        [mui-list-item-avatar
-        [mui-avatar [entry-icon icon-id]]
+        [mui-avatar [db-icons/render-entry-icon {:icon-id icon-id
+                                                 :custom-icon-uuid custom-icon-uuid}]]
         #_[mui-avatar [mui-icon-vpn-key-outlined]]]
        [mui-list-item-text
         {:primary title

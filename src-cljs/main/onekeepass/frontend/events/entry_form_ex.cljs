@@ -1581,7 +1581,10 @@
          ;; Need to reload the newly upated entry
          ;; entry-list and entry-category selection remains the same
          [:dispatch [:entry-form-ex/find-entry-by-id
-                     (get-in-key-db db [entry-form-key :data :uuid])]]]}))
+                     (get-in-key-db db [entry-form-key :data :uuid])]]
+         ;; Refresh the entry list so the row reflects the restored
+         ;; title/icon (built-in or custom) instead of the pre-restore values
+         [:dispatch [:entry-list/entry-updated]]]}))
 
 (reg-sub
  :entry-history-form
