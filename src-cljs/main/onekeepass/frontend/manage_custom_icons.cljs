@@ -12,32 +12,35 @@
                                                      mui-icon-button mui-stack
                                                      mui-tooltip
                                                      mui-typography]]
-   [onekeepass.frontend.translation :as t :refer [lstr-bl lstr-l]]))
+   [onekeepass.frontend.translation :as t :refer [lstr-bl lstr-dlg-title
+                                                  lstr-l]]))
 
 (defn- icon-card [{:keys [uuid name]}]
   (let [data-url @(ci-events/icon-data-url uuid)]
-    [mui-box {:sx {:display "flex" :flex-direction "column" :align-items "center"
-                   :width "80px" :padding "6px" :border "1px solid"
-                   :border-color "divider" :border-radius "4px"}}
-     (if (seq data-url)
-       [:img {:src data-url :style {:width "48px" :height "48px" :object-fit "contain"}}]
-       [mui-box {:sx {:width "48px" :height "48px" :display "flex"
-                      :align-items "center" :justify-content "center"}}
-        [mui-typography {:variant "caption"} "…"]])
-     [mui-tooltip {:title name}
-      [mui-typography {:variant "caption"
-                       :sx {:max-width "68px" :overflow "hidden"
-                            :text-overflow "ellipsis" :white-space "nowrap"}}
-       name]]
-     [mui-icon-button {:size "small"
-                       :on-click (fn [] (gd-events/custom-icons-delete-confirm-dialog-show-with-state {:uuid uuid}))}
-      "✕"]]))
+    [mui-tooltip {:title (or name "")}
+     [mui-box {:sx {:display "flex" :flex-direction "column"
+                    :align-items "center" :justify-content "center"
+                    :width "72px" :height "78px" :padding "4px 8px 8px"
+                    :border "1px solid" :border-color "divider"
+                    :border-radius "4px"}}
+      [mui-box {:sx {:display "flex" :justify-content "flex-end"
+                     :width "100%" :height "20px"}}
+       [mui-icon-button {:size "small"
+                         :sx {:width "20px" :height "20px" :padding 0}
+                         :on-click (fn [] (gd-events/custom-icons-delete-confirm-dialog-show-with-state {:uuid uuid}))}
+        "✕"]]
+      [mui-box {:sx {:display "flex" :align-items "center" :justify-content "center"
+                     :width "48px" :height "48px"}}
+       (when (seq data-url)
+         [:img {:src data-url
+                :style {:max-width "48px" :max-height "48px"
+                        :width "auto" :height "auto" :object-fit "contain"}}])]]]))
 
 (defn custom-icons-delete-confirm-dialog
 
   ([{:keys [uuid] :as dialog-data}]
    [confirm-text-dialog
-    (t/lstr-dlg-title 'deleteCustomIcon)
+    (lstr-dlg-title 'deleteCustomIcon)
     (lstr-l 'confirmDeleteCustomIcon)
     [{:label (lstr-bl 'cancel) :on-click (fn []
                                            (gd-events/custom-icons-delete-confirm-dialog-close))}
@@ -55,11 +58,11 @@
     [mui-dialog {:open (boolean open?)
                  :on-click #(.stopPropagation ^js/Event %)
                  :sx {"& .MuiDialog-paper" {:width "80%" :max-width "600px"}}}
-     [mui-dialog-title (t/lstr-dlg-title 'manageCustomIcons)]
+     [mui-dialog-title (lstr-dlg-title 'manageCustomIcons)]
      [mui-dialog-content {:dividers true}
       (if (empty? icons)
         [mui-typography {:color "text.secondary" :sx {:padding "16px"}}
-         (t/lstr-l 'noCustomIcons)]
+         (lstr-l 'noCustomIcons)]
         [mui-box {:sx {:display "flex" :flex-wrap "wrap" :gap "8px" :padding "8px"}}
          (for [icon icons]
            ^{:key (:uuid icon)} [icon-card icon])])]
@@ -68,7 +71,7 @@
        [mui-stack {:direction "row" :spacing 1}
         [mui-button {:variant "outlined"
                      :on-click #(ci-events/add-icon-from-file)}
-         (t/lstr-l 'addFromFile)]]
+         (lstr-l 'addFromFile)]]
        [mui-button {:variant "contained" :color "secondary"
                     :on-click ci-events/close-manage-dialog}
-        (t/lstr-bl 'close)]]]]))
+        (lstr-bl 'close)]]]]))
