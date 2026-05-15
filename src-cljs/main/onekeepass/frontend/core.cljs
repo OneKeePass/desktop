@@ -38,8 +38,8 @@
   "Component that has entry list and any selected entry content"
   []
   [split-pane {:split "vertical"
-               :defaultSize 200
-               :minSize 200
+               :defaultSize 225
+               :minSize 225
                :maxSize 275
                :primary "first"
                :resizerClassName  (if (= @(cmn-events/app-theme) THEME_LIGHT)
