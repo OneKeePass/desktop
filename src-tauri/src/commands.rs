@@ -1056,7 +1056,10 @@ pub async fn get_custom_icon_data(db_key: &str, custom_icon_uuid: &str) -> Resul
 }
 
 #[tauri::command]
-pub async fn add_custom_icon_from_url(db_key: &str, url: &str) -> Result<kp_service::CustomIconSummary> {
+pub async fn add_custom_icon_from_url(
+    db_key: &str,
+    url: &str,
+) -> Result<kp_service::CustomIconSummary> {
     let png = onekeepass_core::favicon::download_favicon(url)
         .await
         .map_err(|e| e.to_string())?;
@@ -1084,8 +1087,8 @@ pub async fn add_custom_icon_from_file(
     file_path: &str,
 ) -> Result<kp_service::CustomIconSummary> {
     let bytes = std::fs::read(file_path).map_err(|e| e.to_string())?;
-    let png = onekeepass_core::favicon::normalize_image_to_png(&bytes, 64)
-        .map_err(|e| e.to_string())?;
+    let png =
+        onekeepass_core::favicon::normalize_image_to_png(&bytes, 64).map_err(|e| e.to_string())?;
     let name = std::path::Path::new(file_path)
         .file_stem()
         .and_then(|s| s.to_str())
@@ -1110,7 +1113,11 @@ pub async fn set_entry_custom_icon(
     entry_uuid: &str,
     custom_icon_uuid: Option<String>,
 ) -> Result<()> {
-    Ok(kp_service::set_entry_custom_icon(db_key, entry_uuid, custom_icon_uuid)?)
+    Ok(kp_service::set_entry_custom_icon(
+        db_key,
+        entry_uuid,
+        custom_icon_uuid,
+    )?)
 }
 
 #[tauri::command]
@@ -1119,7 +1126,11 @@ pub async fn set_group_custom_icon(
     group_uuid: &str,
     custom_icon_uuid: Option<String>,
 ) -> Result<()> {
-    Ok(kp_service::set_group_custom_icon(db_key, group_uuid, custom_icon_uuid)?)
+    Ok(kp_service::set_group_custom_icon(
+        db_key,
+        group_uuid,
+        custom_icon_uuid,
+    )?)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////

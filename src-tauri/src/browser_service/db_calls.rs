@@ -1,9 +1,7 @@
 use onekeepass_core::db_service as kp_service;
 
+use onekeepass_core::db_service::browser_extension::{EntryBasicInfo, GroupInfo, PasskeySummary};
 use onekeepass_core::error::Result;
-use onekeepass_core::db_service::browser_extension::{
-    EntryBasicInfo, GroupInfo, PasskeySummary,
-};
 use serde::Serialize;
 use uuid::Uuid;
 
@@ -59,6 +57,14 @@ pub(crate) fn entry_details_by_id(
     kp_service::browser_extension::basic_entry_credential_info(db_key, entry_uuid)
 }
 
+#[inline]
+pub(crate) fn custom_icon_for_browser_extension(
+    db_key: &str,
+    custom_icon_uuid: &str,
+) -> Result<kp_service::browser_extension::BrowserExtensionCustomIcon> {
+    kp_service::browser_extension::custom_icon_for_browser_extension(db_key, custom_icon_uuid)
+}
+
 // Following will get the complete EntryFormData which is not required for browser extension for now
 // Instead we use some basic entry detail only as done above
 
@@ -106,7 +112,10 @@ pub(crate) fn find_matching_passkeys(
     let db_keys = kp_service::all_kdbx_cache_keys()?;
     let browser_enabled_db_available = !db_keys.is_empty();
     let passkey_list = passkey_db::find_matching_passkeys(rp_id, allow_credential_ids)?;
-    Ok(PasskeyListResult { browser_enabled_db_available, passkey_list })
+    Ok(PasskeyListResult {
+        browser_enabled_db_available,
+        passkey_list,
+    })
 }
 
 // Signs a WebAuthn assertion using the passkey stored in the given entry.

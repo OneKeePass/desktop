@@ -23,72 +23,70 @@ cfg_if::cfg_if! {
 
 const BUFFER_SIZE: usize = 1024 * 1024;
 
+// Warn when an outbound response approaches the 1 MB native-messaging cap that
+// Chrome/Firefox enforce on host -> extension messages. Phase 3 lazy-fetching
+// keeps responses small in practice, so a hit here signals a payload regression
+// before users actually trip the browser-side limit.
+const SIZE_WARN_BYTES: usize = 800 * 1024;
+
+async fn read_framed_message(
+    reader: &mut ReadHalf<Connection>,
+) -> std::io::Result<Vec<u8>> {
+    let mut length_bytes = [0u8; 4];
+    reader.read_exact(&mut length_bytes).await?;
+
+    let message_length = u32::from_ne_bytes(length_bytes) as usize;
+    if message_length == 0 {
+        return Ok(Vec::new());
+    }
+    if message_length > BUFFER_SIZE {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Extension request size exceeded the limit",
+        ));
+    }
+
+    let mut message_bytes = vec![0u8; message_length];
+    reader.read_exact(&mut message_bytes).await?;
+    Ok(message_bytes)
+}
+
 // Reads the bytes from the proxy app and sends to the request handler (Request::handle_input_message).
 // The request handler after processing sends the response to a channel 'sender'
 fn handle_input(mut reader: ReadHalf<Connection>, sender: Arc<BrowserServiceTx>) {
-    // log::debug!("handle_input is called  before spawn");
-
     tauri::async_runtime::spawn(async move {
-        // let mut buf = [0u8; BUFFER_SIZE];
-        // This resulted in error something similar
-        // "results in thread 'tokio-runtime-worker' has overflowed its stack"
-
-        // Solutions to avoid that
-        // Solution 1
-        // Create a tokio runtime (OKP_BROWSER_TOKIO_RUNTIME) with increased stack size in 'thread_stack_size' call
-
-        // Ref:
-        // https://blog.cloudflare.com/pin-and-unpin-in-rust/
-        // https://rust-lang.github.io/wg-async/vision/submitted_stories/status_quo/alan_runs_into_stack_trouble.html
-        // https://rust-dd.com/post/async-rust-explained-pinning-part-2
-
-        // Solution 2
-        // Heap allocation and pin the buffer
-        // Box::pin allocates the buffer on the heap and pins it.
-        // let mut buf = Box::pin([0u8; BUFFER_SIZE]);
-        // Then use reader.read(&mut *buf).await
-        // To get a &mut [u8], use &mut *buf (dereferencing the Pin<Box<[u8; N]>> to a &mut [u8] slice
-
-        // This solution 2 is required if we want to store the buffer across await points or in self-referential structs
-
-        // Solution 3
-        // Create a heap-allocated buffer
-
-        let mut buf = vec![0u8; BUFFER_SIZE];
-
-        // log::debug!("In handle_input 'spawn' and before loop");
-
-        // TODO:
-        // Need to break this loop when connection to the proxy is no more available and the remove session data
         loop {
-            // Reads data from proxy app connection
-            match reader.read(&mut buf).await {
-                Ok(len) => {
-                    if len <= BUFFER_SIZE {
-                        if len > 0 {
-                            // log::debug!("Message size {}", &len);
-
-                            let message_bytes = buf[..len].to_vec();
-                            match String::from_utf8(message_bytes) {
-                                Ok(input_message) => {
-                                    // Handles the received proxy side message data and the handler will send the response in channel 'sender'
-                                    Request::handle_input_message(input_message, sender.clone())
-                                        .await;
-                                }
-                                Err(e) => {
-                                    log::error!("Converting message bytes to string error {} ", &e);
-                                }
-                            }
-                        }
-                    }
+            match read_framed_message(&mut reader).await {
+                Ok(body) if body.is_empty() => {
+                    log::info!("Proxy connection closed (zero-length read)");
+                    break;
                 }
+                Ok(body) => match String::from_utf8(body) {
+                    Ok(input_message) => {
+                        Request::handle_input_message(input_message, sender.clone()).await;
+                    }
+                    Err(e) => {
+                        log::error!("Converting message bytes to string error {}", &e);
+                    }
+                },
                 Err(e) => {
-                    // Should we break from the reading loop ?
                     log::error!("Error in reading stream {}", &e);
+                    break;
                 }
             }
         }
     });
+}
+
+async fn write_framed_message(
+    writer: &mut WriteHalf<Connection>,
+    message: &str,
+) -> std::io::Result<()> {
+    let message_bytes = message.as_bytes();
+    let message_length = message_bytes.len() as u32;
+    writer.write_all(&message_length.to_ne_bytes()).await?;
+    writer.write_all(message_bytes).await?;
+    writer.flush().await
 }
 
 // Receives the request handler's reponse (see Request.handle_input_message) from the channel 'channel_receiver' and then
@@ -109,15 +107,21 @@ fn handle_output(
         while let Some(message) = channel_receiver.recv().await {
             // log::debug!(" Received message {}", &message);
 
+            let message_byte_len = message.as_bytes().len();
+            if message_byte_len > SIZE_WARN_BYTES {
+                log::warn!(
+                    "Outbound browser-extension response is {} bytes - approaching native-messaging 1 MB cap",
+                    message_byte_len
+                );
+            }
+
             let mut writer_guard = writer.lock().await;
 
-            if let Err(e) = writer_guard.write_all(message.as_bytes()).await {
+            if let Err(e) = write_framed_message(&mut writer_guard, &message).await {
                 log::error!("Error in writing to the proxy connection: {}", &e);
                 log::info!("Breaking the writing loop");
                 break;
             }
-
-            let _ = writer_guard.flush().await;
         }
     });
 }
@@ -151,7 +155,10 @@ fn is_endpoint_server_running() -> bool {
 // Called to connect to the browser native message proxy app endpoint and provides listeners to receive
 // messages( or send) messages from (or to) the native message proxy app for all browser extensions
 async fn run_server(path: String) {
-    log::info!("Proxy listener - Run server is called with path {}, ", &path);
+    log::info!(
+        "Proxy listener - Run server is called with path {}, ",
+        &path
+    );
 
     // Under macOS App Sandbox (Mac App Store build), tipsy's default location
     // ($TMPDIR) is per-process and unreachable from the browser-spawned proxy.
@@ -162,7 +169,10 @@ async fn run_server(path: String) {
         None => ServerId::new(path),
     };
 
-    log::info!("App side end point connection path (server_id) is {:?}",&server_id);
+    log::info!(
+        "App side end point connection path (server_id) is {:?}",
+        &server_id
+    );
 
     let endpoint = Endpoint::new(server_id, OnConflict::Overwrite).unwrap();
 
@@ -179,7 +189,7 @@ async fn run_server(path: String) {
 
     log::info!("Listener to the Browser native message proxy is started ...");
 
-    // Set the flag saying that endpoint server is started 
+    // Set the flag saying that endpoint server is started
     endpoint_server_started();
 
     // When each browser's native message proxy app is launched (Ext -> Native message -> Lauches the proxy),
@@ -234,7 +244,10 @@ pub(crate) fn start_proxy_handler() {
     log::debug!("In start_proxy_handler....");
     if !is_endpoint_server_running() {
         tauri::async_runtime::spawn(async move {
-            log::debug!("Starting the app side proxy listening service with IPC name {} ", NATIVE_MESSAGE_CONNECTION_NAME);
+            log::debug!(
+                "Starting the app side proxy listening service with IPC name {} ",
+                NATIVE_MESSAGE_CONNECTION_NAME
+            );
             run_server(NATIVE_MESSAGE_CONNECTION_NAME.to_string()).await;
         });
     } else {

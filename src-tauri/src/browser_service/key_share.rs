@@ -52,10 +52,13 @@ impl SessionStore {
             let _r = tx.send(message.to_string()).await;
             // log::debug!("Sending response result is {:?}", &r);
         } else {
-            log::error!("No session is found for the association_id {}",association_id);
+            log::error!(
+                "No session is found for the association_id {}",
+                association_id
+            );
         }
     }
- 
+
     // Called to set up the crypto box for the session
     pub(crate) async fn init_session(
         association_id: &str,
@@ -68,7 +71,6 @@ impl SessionStore {
             |session| session.init_session(client_session_pub_key),
         )
     }
-
 
     // Session specific message decryption
     #[allow(unused)]

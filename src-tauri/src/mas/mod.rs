@@ -1,5 +1,4 @@
-
-// To make all code for the feature "mas-build" active in VS code, 
+// To make all code for the feature "mas-build" active in VS code,
 // Use #[cfg(any(feature = "mas-build", rust_analyzer))]
 // Also need to ensure that rust_analyzer cfg is used in  src-tauri/build.rs
 
@@ -38,7 +37,7 @@ pub(crate) use real::*;
 // Uncomment the following. Comment the above
 // Also need to ensure that rust_analyzer cfg is used in  src-tauri/build.rs
 
-/* 
+/*
 #[cfg(any(feature = "mas-build", rust_analyzer))]
 pub(crate) mod bookmarks;
 
