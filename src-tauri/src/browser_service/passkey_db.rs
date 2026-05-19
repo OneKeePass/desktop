@@ -9,10 +9,10 @@ use tauri::{Emitter, Manager};
 use uuid::Uuid;
 
 use onekeepass_core::db_service as kp_service;
-use onekeepass_core::error::Result;
 use onekeepass_core::db_service::browser_extension::{
-    PasskeyEntry, PasskeySummary, PasskeyStorageInfo,
+    PasskeyEntry, PasskeyStorageInfo, PasskeySummary,
 };
+use onekeepass_core::error::Result;
 
 use crate::app_state;
 use crate::browser_service::passkey_crypto::{self, PasskeyCreationResult};
@@ -95,10 +95,7 @@ pub(crate) fn create_and_store_passkey(
         .as_deref()
         .map(|s| {
             Uuid::parse_str(s).map_err(|e| {
-                onekeepass_core::error::Error::UnexpectedError(format!(
-                    "Invalid group_uuid: {}",
-                    e
-                ))
+                onekeepass_core::error::Error::UnexpectedError(format!("Invalid group_uuid: {}", e))
             })
         })
         .transpose()?;
@@ -120,7 +117,10 @@ pub(crate) fn create_and_store_passkey(
     // 4. Delegate entry create/update + save to core (with correct backup path)
     let backup_file_name = app_state::AppState::state_instance().get_backup_file(db_key);
 
-    log::debug!("Passkey creation kdbx backup_file_name {:?}",&backup_file_name);
+    log::debug!(
+        "Passkey creation kdbx backup_file_name {:?}",
+        &backup_file_name
+    );
 
     kp_service::browser_extension::create_and_store_passkey(
         db_key,
@@ -129,13 +129,15 @@ pub(crate) fn create_and_store_passkey(
     )?;
 
     // 5. Notify the main window so the UI reloads the entry list
-    if let Some(win) = app_state::AppState::global_app_handle()
-        .get_webview_window(MAIN_WINDOW_LABEL)
+    if let Some(win) =
+        app_state::AppState::global_app_handle().get_webview_window(MAIN_WINDOW_LABEL)
     {
         log::debug!("Emiting event PASSKEY_DATA_CHANGED_EVENT in db message to the UI layer");
         let _ = win.emit(
             PASSKEY_DATA_CHANGED_EVENT,
-            PasskeyChangedPayload { db_key: db_key.to_string() },
+            PasskeyChangedPayload {
+                db_key: db_key.to_string(),
+            },
         );
     }
 

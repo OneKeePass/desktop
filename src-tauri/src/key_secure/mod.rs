@@ -16,11 +16,11 @@ use std::sync::{Arc, Mutex};
 use onekeepass_core::db_service::KeyStoreOperation;
 
 pub fn init_key_main_store() {
-  let kss = Arc::new(Mutex::new(KeyStoreServiceImpl::default()));
-  // In case, we need to hold any reference at this module, then we need to Arc::clone
-  // and use it
-  KeyStoreOperation::init(kss);
-  debug!("key_secure - key_main_store is initialized in init_key_main_store ");
+    let kss = Arc::new(Mutex::new(KeyStoreServiceImpl::default()));
+    // In case, we need to hold any reference at this module, then we need to Arc::clone
+    // and use it
+    KeyStoreOperation::init(kss);
+    debug!("key_secure - key_main_store is initialized in init_key_main_store ");
 }
 
 /*

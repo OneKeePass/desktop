@@ -30,9 +30,9 @@ pub mod standard_dirs {
 
 #[allow(dead_code)]
 pub mod window_labels {
-  // src-tauri/tauri.conf.json -> "app" -> "windows"  ( not "bundle" -> "windows" one)
-  // 
-  // https://v2.tauri.app/reference/config/#label default value is 'main'
+    // src-tauri/tauri.conf.json -> "app" -> "windows"  ( not "bundle" -> "windows" one)
+    //
+    // https://v2.tauri.app/reference/config/#label default value is 'main'
 
-  pub const MAIN_WINDOW_LABEL: &str = "main";
+    pub const MAIN_WINDOW_LABEL: &str = "main";
 }

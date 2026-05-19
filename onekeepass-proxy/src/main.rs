@@ -1,7 +1,10 @@
 mod proxy_client;
 mod sandbox;
 
-use std::{fs, path::{Path, PathBuf}};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use log::LevelFilter;
 use log4rs::{
@@ -135,6 +138,12 @@ async fn main() {
         return;
     }
 
+    let build_mode = if cfg!(debug_assertions) { "dev" } else { "production" };
+    match std::env::current_exe() {
+        Ok(exe) => log::info!("Proxy launched ({} build) from executable path: {}", build_mode, exe.display()),
+        Err(e) => log::warn!("Proxy launched ({} build); could not determine executable path: {}", build_mode, e),
+    }
+
     // Under sandbox the parent app binds inside the App Group container; we must
     // connect to the same path. parent_folder() is a no-op on Windows (named pipes
     // ignore parent dir).
@@ -151,8 +160,7 @@ async fn main() {
         None => ServerId::new(NATIVE_MESSAGE_CONNECTION_NAME),
     };
 
-
-    log::info!("Proxy side end point connection pat (server_id) is {:?}",&server_id);
+    log::info!("Proxy side end point connection pat (server_id) is {:?}", &server_id);
 
     let Ok(connection_to_server) = Endpoint::connect(server_id).await else {
         log::error!("Failed to connect to the server and sending error msg.....");

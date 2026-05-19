@@ -8,9 +8,7 @@ use crate::app_state;
 use crate::browser_service::{
     db_calls,
     key_share::{BrowserServiceTx, SessionStore},
-    native_messaging_config,
-    passkey_db,
-    verifier, SUPPORTED_BROWSERS,
+    native_messaging_config, passkey_db, verifier, SUPPORTED_BROWSERS,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -44,6 +42,13 @@ pub enum Request {
         request_id: String,
         db_key: String,
         entry_uuid: Uuid,
+    },
+
+    GetCustomIcon {
+        association_id: String,
+        request_id: String,
+        db_key: String,
+        custom_icon_uuid: String,
     },
 
     // ── Passkey: pre-creation queries ────────────────────────────────────────
@@ -140,15 +145,17 @@ fn is_known_extension_id(browser_id: &str, extension_id: &str) -> bool {
 // may be present.  Rejects `http://` origins outright — WebAuthn credentials
 // must only be scoped to HTTPS origins.
 fn validate_https_origin(origin: &str) -> onekeepass_core::error::Result<()> {
-    let host_part = origin
-        .strip_prefix("https://")
-        .ok_or_else(|| onekeepass_core::error::Error::UnexpectedError("INVALID_ORIGIN".to_string()))?;
+    let host_part = origin.strip_prefix("https://").ok_or_else(|| {
+        onekeepass_core::error::Error::UnexpectedError("INVALID_ORIGIN".to_string())
+    })?;
 
     if host_part.is_empty()
         || host_part.contains('/')
         || host_part.contains('?')
         || host_part.contains('#')
-        || host_part.chars().any(|c| c.is_ascii_whitespace() || c.is_control())
+        || host_part
+            .chars()
+            .any(|c| c.is_ascii_whitespace() || c.is_control())
     {
         log::warn!("Passkey origin validation failed: '{}'", origin);
         return Err(onekeepass_core::error::Error::UnexpectedError(
@@ -166,7 +173,10 @@ fn validate_https_origin(origin: &str) -> onekeepass_core::error::Result<()> {
 //
 // When `tab_url` is absent (e.g. the extension sent an older message format)
 // the check is skipped so the call does not break existing connections.
-fn validate_origin_matches_tab_url(origin: &str, tab_url: Option<&str>) -> onekeepass_core::error::Result<()> {
+fn validate_origin_matches_tab_url(
+    origin: &str,
+    tab_url: Option<&str>,
+) -> onekeepass_core::error::Result<()> {
     let Some(url) = tab_url else {
         return Ok(()); // tab_url not provided — skip cross-reference
     };
@@ -176,7 +186,8 @@ fn validate_origin_matches_tab_url(origin: &str, tab_url: Option<&str>) -> oneke
     if !url.starts_with(origin) {
         log::warn!(
             "Origin '{}' does not match tab URL '{}' — rejecting",
-            origin, url
+            origin,
+            url
         );
         return Err(onekeepass_core::error::Error::UnexpectedError(
             "ORIGIN_TAB_MISMATCH".to_string(),
@@ -190,7 +201,8 @@ fn validate_origin_matches_tab_url(origin: &str, tab_url: Option<&str>) -> oneke
     {
         log::warn!(
             "Origin '{}' does not cleanly terminate in tab URL '{}' — possible subdomain bypass",
-            origin, url
+            origin,
+            url
         );
         return Err(onekeepass_core::error::Error::UnexpectedError(
             "ORIGIN_TAB_MISMATCH".to_string(),
@@ -201,7 +213,11 @@ fn validate_origin_matches_tab_url(origin: &str, tab_url: Option<&str>) -> oneke
 
 // Rejects oversized string fields before they reach the database or crypto layer.
 // Returns a generic error to avoid leaking field details to the caller.
-fn check_field_len(field_name: &str, value: &str, max_bytes: usize) -> onekeepass_core::error::Result<()> {
+fn check_field_len(
+    field_name: &str,
+    value: &str,
+    max_bytes: usize,
+) -> onekeepass_core::error::Result<()> {
     if value.len() > max_bytes {
         log::warn!(
             "Input field '{}' exceeds max size ({} > {} bytes) — rejecting",
@@ -226,7 +242,10 @@ impl Request {
         // Currently there is no request that has any sensitive data. So the extension side no encryption is done
         // In the future we pass any sensitive data as "message_data", then we need to decrypt and then convert that json to rust struct
         match serde_json::from_str(&input_message) {
-            Ok(Request::Associate { client_id, extension_id }) => {
+            Ok(Request::Associate {
+                client_id,
+                extension_id,
+            }) => {
                 Self::verify(client_id, extension_id, sender).await;
             }
 
@@ -255,8 +274,22 @@ impl Request {
                 Self::entry_details_by_id(association_id, db_key, entry_uuid, request_id).await;
             }
 
-            // ── Passkey handlers ─────────────────────────────────────────────
+            Ok(Request::GetCustomIcon {
+                ref association_id,
+                ref request_id,
+                ref db_key,
+                ref custom_icon_uuid,
+            }) => {
+                Self::custom_icon_for_browser_extension(
+                    association_id,
+                    request_id,
+                    db_key,
+                    custom_icon_uuid,
+                )
+                .await;
+            }
 
+            // ── Passkey handlers ─────────────────────────────────────────────
             Ok(Request::GetOpenedDatabasesForPasskey {
                 ref association_id,
                 ref request_id,
@@ -321,7 +354,14 @@ impl Request {
                 ref origin,
                 ref tab_url,
             }) => {
-                Self::get_passkey_list(association_id, request_id, options_json, origin, tab_url.as_deref()).await;
+                Self::get_passkey_list(
+                    association_id,
+                    request_id,
+                    options_json,
+                    origin,
+                    tab_url.as_deref(),
+                )
+                .await;
             }
 
             Ok(Request::CompletePasskeyAssertion {
@@ -373,7 +413,11 @@ impl Request {
     // Called first time when the extension sends the associate message
     // Need to check that either user has already enabled the browser extension use and if not we need to ask user
     // confirm the extension use
-    async fn verify(client_id: String, extension_id: Option<String>, sender: Arc<BrowserServiceTx>) {
+    async fn verify(
+        client_id: String,
+        extension_id: Option<String>,
+        sender: Arc<BrowserServiceTx>,
+    ) {
         // Incoming client_id is the same as browser_id (e.g Firefox,Chrome)
         // At this time client_id, browser_id and association_id are the same
 
@@ -401,7 +445,8 @@ impl Request {
             Some(ext_id) if !is_known_extension_id(&browser_id, ext_id) => {
                 log::error!(
                     "Unknown extension id '{}' for browser '{}' — rejecting association",
-                    ext_id, &browser_id
+                    ext_id,
+                    &browser_id
                 );
                 let resp = ResponseResult::with_error(
                     ResponseActionName::Associate,
@@ -412,7 +457,10 @@ impl Request {
             }
             None => {
                 // extension_id field was not sent (old client or tampered request) — reject.
-                log::error!("No extension_id in Associate request for browser '{}' — rejecting", &browser_id);
+                log::error!(
+                    "No extension_id in Associate request for browser '{}' — rejecting",
+                    &browser_id
+                );
                 let resp = ResponseResult::with_error(
                     ResponseActionName::Associate,
                     "MISSING_EXTENSION_ID",
@@ -493,7 +541,8 @@ impl Request {
     async fn init_session(association_id: &str, client_session_pub_key: &str) {
         // Curve25519 public key is 32 bytes → base64 = 44 chars; 64 gives ample headroom
         if let Err(e) = check_field_len("client_session_pub_key", client_session_pub_key, 64) {
-            let resp = ResponseResult::with_error(ResponseActionName::InitSessionKey, &format!("{}", e));
+            let resp =
+                ResponseResult::with_error(ResponseActionName::InitSessionKey, &format!("{}", e));
             SessionStore::send_session_response(association_id, &resp.json_str()).await;
             return;
         }
@@ -552,6 +601,37 @@ impl Request {
         SessionStore::send_session_response(&association_id, &resp.json_str()).await;
     }
 
+    async fn custom_icon_for_browser_extension(
+        association_id: &str,
+        request_id: &str,
+        db_key: &str,
+        custom_icon_uuid: &str,
+    ) {
+        let custom_icon = check_field_len("db_key", db_key, 512)
+            .and_then(|_| check_field_len("custom_icon_uuid", custom_icon_uuid, 64))
+            .and_then(|_| db_calls::validate_db_key(db_key))
+            .and_then(|_| db_calls::custom_icon_for_browser_extension(db_key, custom_icon_uuid))
+            .and_then(|ref icon| Ok(serde_json::to_string_pretty(icon)?));
+
+        let resp = match custom_icon {
+            Ok(ref icon) => match SessionStore::encrypt(association_id, icon).await {
+                Ok((nonce, enc_msg)) => ResponseResult::with_ok(Response::CustomIcon {
+                    message_content: enc_msg,
+                    request_id: request_id.to_string(),
+                    nonce,
+                }),
+                Err(error) => ResponseActionName::GetCustomIcon.with_error(error),
+            },
+            Err(e) => ResponseResult::from_error(
+                ResponseActionName::GetCustomIcon,
+                &format!("{}", e),
+                request_id,
+            ),
+        };
+
+        SessionStore::send_session_response(association_id, &resp.json_str()).await;
+    }
+
     // ── Passkey handler implementations ──────────────────────────────────────
 
     async fn get_opened_databases_for_passkey(association_id: &str, request_id: &str) {
@@ -567,9 +647,7 @@ impl Request {
                         nonce,
                     })
                 }
-                Err(error) => {
-                    ResponseActionName::GetOpenedDatabasesForPasskey.with_error(error)
-                }
+                Err(error) => ResponseActionName::GetOpenedDatabasesForPasskey.with_error(error),
             },
             Err(e) => ResponseResult::from_error(
                 ResponseActionName::GetOpenedDatabasesForPasskey,
@@ -621,7 +699,9 @@ impl Request {
             ),
             Ok(group_uuid_parsed) => {
                 let json_result = db_calls::validate_db_key(db_key)
-                    .and_then(|_| db_calls::get_group_entries_for_passkey(db_key, &group_uuid_parsed))
+                    .and_then(|_| {
+                        db_calls::get_group_entries_for_passkey(db_key, &group_uuid_parsed)
+                    })
                     .and_then(|ref entries| Ok(serde_json::to_string_pretty(entries)?));
 
                 match json_result {
@@ -666,20 +746,32 @@ impl Request {
             .and_then(|_| check_field_len("origin", origin, 512))
             .and_then(|_| validate_https_origin(origin))
             .and_then(|_| validate_origin_matches_tab_url(origin, tab_url))
-            .and_then(|_| check_field_len("new_entry_name", new_entry_name.as_deref().unwrap_or(""), 512))
-            .and_then(|_| check_field_len("new_group_name", new_group_name.as_deref().unwrap_or(""), 512))
+            .and_then(|_| {
+                check_field_len(
+                    "new_entry_name",
+                    new_entry_name.as_deref().unwrap_or(""),
+                    512,
+                )
+            })
+            .and_then(|_| {
+                check_field_len(
+                    "new_group_name",
+                    new_group_name.as_deref().unwrap_or(""),
+                    512,
+                )
+            })
             .and_then(|_| db_calls::validate_db_key(db_key))
             .and_then(|_| {
-            passkey_db::create_and_store_passkey(
-                db_key,
-                options_json,
-                origin,
-                existing_entry_uuid,
-                new_entry_name,
-                group_uuid,
-                new_group_name,
-            )
-        });
+                passkey_db::create_and_store_passkey(
+                    db_key,
+                    options_json,
+                    origin,
+                    existing_entry_uuid,
+                    new_entry_name,
+                    group_uuid,
+                    new_group_name,
+                )
+            });
 
         let resp = match credential_result {
             Ok(ref credential_json) => {
@@ -733,10 +825,7 @@ impl Request {
                 &format!("Invalid options_json: {}", e),
             ),
             Ok(opts) => {
-                let rp_id = opts["rpId"]
-                    .as_str()
-                    .unwrap_or("")
-                    .to_string();
+                let rp_id = opts["rpId"].as_str().unwrap_or("").to_string();
 
                 let allow_ids: Vec<String> = opts["allowCredentials"]
                     .as_array()
@@ -752,13 +841,11 @@ impl Request {
 
                 match list_result {
                     Ok(ref json) => match SessionStore::encrypt(association_id, json).await {
-                        Ok((nonce, enc_msg)) => {
-                            ResponseResult::with_ok(Response::PasskeyList {
-                                message_content: enc_msg,
-                                request_id: request_id.to_string(),
-                                nonce,
-                            })
-                        }
+                        Ok((nonce, enc_msg)) => ResponseResult::with_ok(Response::PasskeyList {
+                            message_content: enc_msg,
+                            request_id: request_id.to_string(),
+                            nonce,
+                        }),
                         Err(error) => ResponseActionName::GetPasskeyList.with_error(error),
                     },
                     Err(e) => ResponseResult::from_error(
@@ -788,7 +875,9 @@ impl Request {
             .and_then(|_| validate_https_origin(origin))
             .and_then(|_| validate_origin_matches_tab_url(origin, tab_url))
             .and_then(|_| db_calls::validate_db_key(db_key))
-            .and_then(|_| db_calls::sign_passkey_assertion(db_key, entry_uuid, options_json, origin));
+            .and_then(|_| {
+                db_calls::sign_passkey_assertion(db_key, entry_uuid, options_json, origin)
+            });
 
         let resp = match result {
             Ok(ref json) => match SessionStore::encrypt(association_id, json).await {
@@ -852,7 +941,7 @@ pub enum Response {
     Associate {
         client_id: String,
         association_id: String,
-        // Introduced in OKP 0.18.0 and extension 
+        // Introduced in OKP 0.18.0 and extension
         app_version: String,
     },
 
@@ -871,6 +960,12 @@ pub enum Response {
     },
 
     SelectedEntry {
+        message_content: String,
+        request_id: String,
+        nonce: String,
+    },
+
+    CustomIcon {
         message_content: String,
         request_id: String,
         nonce: String,
@@ -925,7 +1020,6 @@ pub enum Response {
 }
 
 impl Response {
-
     pub(crate) fn disconnect(browser_id: &'static str) {
         log::info!("Disonnecting from the browser extension as it is disabled");
 
@@ -943,6 +1037,7 @@ enum ResponseActionName {
     InitSessionKey,
     EnabledDatabaseMatchedEntryList,
     SelectedEntry,
+    GetCustomIcon,
     JsonParseError,
     // Passkey
     GetOpenedDatabasesForPasskey,
@@ -962,6 +1057,7 @@ impl ResponseActionName {
             InitSessionKey => "InitSessionKey",
             EnabledDatabaseMatchedEntryList => "EnabledDatabaseMatchedEntryList",
             SelectedEntry => "SelectedEntry",
+            GetCustomIcon => "GetCustomIcon",
             JsonParseError => "JsonParseError",
             // Passkey
             GetOpenedDatabasesForPasskey => "GetOpenedDatabasesForPasskey",
@@ -1128,7 +1224,10 @@ mod tests {
                     Some("11111111-1111-1111-1111-111111111111")
                 );
                 assert_eq!(new_entry_name.as_deref(), Some("My Login"));
-                assert_eq!(group_uuid.as_deref(), Some("22222222-2222-2222-2222-222222222222"));
+                assert_eq!(
+                    group_uuid.as_deref(),
+                    Some("22222222-2222-2222-2222-222222222222")
+                );
             }
             other => panic!("Unexpected variant: {:?}", other),
         }

@@ -7,9 +7,7 @@ pub const APP_GROUP_ID: &str = "group.com.onekeepass.desktop";
 
 #[cfg(target_os = "macos")]
 pub fn is_sandboxed() -> bool {
-    std::env::var("HOME")
-        .map(|h| h.contains("/Library/Containers/"))
-        .unwrap_or(false)
+    std::env::var("HOME").map(|h| h.contains("/Library/Containers/")).unwrap_or(false)
 }
 
 #[cfg(not(target_os = "macos"))]

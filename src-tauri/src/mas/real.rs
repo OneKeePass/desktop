@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use crate::app_state::AppState;
 
-pub(crate) use super::bookmarks::BookmarkHandle;
 use super::bookmarks;
+pub(crate) use super::bookmarks::BookmarkHandle;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum ScopedAccessKey {
@@ -17,7 +17,7 @@ pub(crate) enum ScopedAccessKey {
 #[derive(Default)]
 pub(crate) struct LoadKdbxAccess {
     db_file: Option<BookmarkHandle>,
-    // TODO: Need to verify its use is required (AutoOpen specifc). 
+    // TODO: Need to verify its use is required (AutoOpen specifc).
     // May be useful when UI we ask user to open a db folder for future use.
     db_dir: Option<BookmarkHandle>,
     key_file: Option<BookmarkHandle>,
@@ -68,10 +68,8 @@ impl LoadKdbxAccess {
             app_state.store_scoped_access(ScopedAccessKey::Db(db_file_name.to_string()), handle);
         }
         if let (Some(key_file_name), Some(handle)) = (key_file_name, self.key_file.take()) {
-            app_state.store_scoped_access(
-                ScopedAccessKey::KeyFile(key_file_name.to_string()),
-                handle,
-            );
+            app_state
+                .store_scoped_access(ScopedAccessKey::KeyFile(key_file_name.to_string()), handle);
         }
         if let (Some(dir), Some(handle)) = (db_parent_dir, self.db_dir.take()) {
             app_state.store_scoped_access(ScopedAccessKey::DbDir(dir), handle);

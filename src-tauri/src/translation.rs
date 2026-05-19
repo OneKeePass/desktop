@@ -15,53 +15,53 @@ use onekeepass_core::db_service as kp_service;
 
 #[inline]
 fn normalize_language_id(language: &str) -> String {
-  let normalized = language.trim().replace('_', "-");
-  let mut parts = normalized.splitn(3, '-');
-  let language = parts.next().unwrap_or("en").to_lowercase();
+    let normalized = language.trim().replace('_', "-");
+    let mut parts = normalized.splitn(3, '-');
+    let language = parts.next().unwrap_or("en").to_lowercase();
 
-  if let Some(region) = parts.next() {
-    if !region.is_empty() {
-      return format!("{}-{}", language, region.to_uppercase());
+    if let Some(region) = parts.next() {
+        if !region.is_empty() {
+            return format!("{}-{}", language, region.to_uppercase());
+        }
     }
-  }
 
-  language
+    language
 }
 
 #[inline]
 fn app_language_from_locale(locale: &str) -> String {
-  let normalized = normalize_language_id(locale);
+    let normalized = normalize_language_id(locale);
 
-  if normalized.eq_ignore_ascii_case("pt-BR") {
-    String::from("pt-BR")
-  } else {
-    normalized
-      .split('-')
-      .next()
-      .map(|s| s.to_string())
-      .unwrap_or_else(|| String::from("en"))
-  }
+    if normalized.eq_ignore_ascii_case("pt-BR") {
+        String::from("pt-BR")
+    } else {
+        normalized
+            .split('-')
+            .next()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| String::from("en"))
+    }
 }
 
 #[inline]
 fn translation_file_name(language: &str) -> String {
-  format!("{}.json", normalize_language_id(language))
+    format!("{}.json", normalize_language_id(language))
 }
 
 #[inline]
 pub fn current_locale_language() -> String {
-  // "en-US" language+region
-  // We usually use the language part only, except for locale-specific
-  // translations such as pt-BR.
-  let lng = get_locale().unwrap_or_else(|| String::from("en"));
-  app_language_from_locale(&lng)
+    // "en-US" language+region
+    // We usually use the language part only, except for locale-specific
+    // translations such as pt-BR.
+    let lng = get_locale().unwrap_or_else(|| String::from("en"));
+    app_language_from_locale(&lng)
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct TranslationResource {
-  current_locale_language: String,
-  prefered_language: String,
-  translations: HashMap<String, String>,
+    current_locale_language: String,
+    prefered_language: String,
+    translations: HashMap<String, String>,
 }
 
 // "../resources/public/translations" should be included in "resources" key in  /desktop/src-tauri/tauri.conf.json
@@ -70,67 +70,67 @@ const TRANSLATION_RESOURCE_DIR: &str = "../resources/public/translations";
 // Loads language translation strings for the passed language ids
 // Typically it should be 'en' and the preferred language id or the locale language id
 pub fn load_language_translations<R: Runtime>(
-  app: &tauri::AppHandle<R>,
-  language_ids: Vec<String>,
+    app: &tauri::AppHandle<R>,
+    language_ids: Vec<String>,
 ) -> kp_service::Result<TranslationResource> {
-  let current_locale_lng = current_locale_language(); //get_locale().unwrap_or_else(|| String::from("en")); // "en-US" language+region
-  debug!("current_locale is {}", &current_locale_lng);
+    let current_locale_lng = current_locale_language(); //get_locale().unwrap_or_else(|| String::from("en")); // "en-US" language+region
+    debug!("current_locale is {}", &current_locale_lng);
 
-  let state = app.state::<AppState>();
+    let state = app.state::<AppState>();
 
-  // prefered_language as stored in Preference is either current locale language or
-  // language selected by user in App settings screen
-  let prefered_language = state.prefered_language();
+    // prefered_language as stored in Preference is either current locale language or
+    // language selected by user in App settings screen
+    let prefered_language = state.prefered_language();
 
-  debug!("prefered_language is {}", &prefered_language);
+    debug!("prefered_language is {}", &prefered_language);
 
-  let language_ids_to_load = if !language_ids.is_empty() {
-    language_ids
-  } else {
-    if prefered_language != "en" {
-      vec![String::from("en"), prefered_language.clone()]
+    let language_ids_to_load = if !language_ids.is_empty() {
+        language_ids
     } else {
-      // locale is 'en'
-      vec![String::from("en")]
+        if prefered_language != "en" {
+            vec![String::from("en"), prefered_language.clone()]
+        } else {
+            // locale is 'en'
+            vec![String::from("en")]
+        }
+    };
+
+    //IMPORTANT:
+    // "../resources/public/translations" should be included in "resources" key in  /desktop/src-tauri/tauri.conf.json
+    // Note: ../ in path will add _up_
+
+    let path = app
+        .path()
+        .resolve(TRANSLATION_RESOURCE_DIR, BaseDirectory::Resource)
+        .map_err(|e| {
+            kp_service::Error::UnexpectedError(format!(
+                "Resource translations dir locations not found. Error is {} ",
+                e
+            ))
+        })?;
+
+    info!("Translation files root dir for i18n is {:?} ", &path);
+
+    let mut translations: HashMap<String, String> = HashMap::new();
+
+    for lng in language_ids_to_load {
+        let normalized_lng = normalize_language_id(&lng);
+        let p = path.join(translation_file_name(&normalized_lng));
+        //debug!("Going to load translation file  {:?} ",&p);
+
+        let data = fs::read_to_string(p)
+            .ok()
+            .map_or_else(|| "{}".to_string(), |d| d);
+        //let data = fs::read_to_string(p)?;
+
+        translations.insert(normalized_lng, data);
     }
-  };
 
-  //IMPORTANT:
-  // "../resources/public/translations" should be included in "resources" key in  /desktop/src-tauri/tauri.conf.json
-  // Note: ../ in path will add _up_
-
-  let path = app
-    .path()
-    .resolve(TRANSLATION_RESOURCE_DIR, BaseDirectory::Resource)
-    .map_err(|e| {
-      kp_service::Error::UnexpectedError(format!(
-        "Resource translations dir locations not found. Error is {} ",
-        e
-      ))
-    })?;
-
-  info!("Translation files root dir for i18n is {:?} ", &path);
-
-  let mut translations: HashMap<String, String> = HashMap::new();
-
-  for lng in language_ids_to_load {
-    let normalized_lng = normalize_language_id(&lng);
-    let p = path.join(translation_file_name(&normalized_lng));
-    //debug!("Going to load translation file  {:?} ",&p);
-
-    let data = fs::read_to_string(p)
-      .ok()
-      .map_or_else(|| "{}".to_string(), |d| d);
-    //let data = fs::read_to_string(p)?;
-
-    translations.insert(normalized_lng, data);
-  }
-
-  Ok(TranslationResource {
-    current_locale_language: current_locale_lng,
-    prefered_language,
-    translations,
-  })
+    Ok(TranslationResource {
+        current_locale_language: current_locale_lng,
+        prefered_language,
+        translations,
+    })
 }
 
 // As this struct has only "system_menus" field, serde json deserialization
@@ -138,66 +138,65 @@ pub fn load_language_translations<R: Runtime>(
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SystemMenuTranslation {
-  system_menus: HashMap<String, HashMap<String, String>>,
+    system_menus: HashMap<String, HashMap<String, String>>,
 }
 
 impl SystemMenuTranslation {
-  // Gets the translated string for a main menu from "main" map
-  pub fn main_menu(&self, name: &str) -> String {
-    // log::debug!("In SystemMenuTranslation::main_menu getting translation string for menu {}", name);
-    let d = HashMap::default();
-    let s = self.system_menus.get("main").map_or_else(|| &d, |n| n);
+    // Gets the translated string for a main menu from "main" map
+    pub fn main_menu(&self, name: &str) -> String {
+        // log::debug!("In SystemMenuTranslation::main_menu getting translation string for menu {}", name);
+        let d = HashMap::default();
+        let s = self.system_menus.get("main").map_or_else(|| &d, |n| n);
 
-    // let menu_name:String = s.get(name).map_or_else(|| name.into(), |v| v.into());
-    // log::debug!("In SystemMenuTranslation::main_menu getting translation string for menu {} with value {}", name, &menu_name);
+        // let menu_name:String = s.get(name).map_or_else(|| name.into(), |v| v.into());
+        // log::debug!("In SystemMenuTranslation::main_menu getting translation string for menu {} with value {}", name, &menu_name);
 
-    s.get(name).map_or_else(|| name.into(), |v| v.into())
-  }
+        s.get(name).map_or_else(|| name.into(), |v| v.into())
+    }
 
-  // Gets the translated string for a submenu from the "subMenus" map
-  pub fn sub_menu(&self, menu_id: &str, default_name: &str) -> String {
-    let d = HashMap::default();
-    let s = self.system_menus.get("subMenus").map_or_else(|| &d, |n| n);
-    let sm = s
-      .get(menu_id)
-      .map_or_else(|| default_name.into(), |v| v.into());
-    // debug!("Submenu for menu_id {} is {}", menu_id, &sm);
-    sm
-  }
+    // Gets the translated string for a submenu from the "subMenus" map
+    pub fn sub_menu(&self, menu_id: &str, default_name: &str) -> String {
+        let d = HashMap::default();
+        let s = self.system_menus.get("subMenus").map_or_else(|| &d, |n| n);
+        let sm = s
+            .get(menu_id)
+            .map_or_else(|| default_name.into(), |v| v.into());
+        // debug!("Submenu for menu_id {} is {}", menu_id, &sm);
+        sm
+    }
 }
 
 // Called to load the menu string translations before building the app
-pub(crate) fn load_system_menu_translations<R:Runtime>(
-  language: &str,
-  app_handle: &AppHandle<R>,
+pub(crate) fn load_system_menu_translations<R: Runtime>(
+    language: &str,
+    app_handle: &AppHandle<R>,
 ) -> SystemMenuTranslation {
-  let mut system_menu_tr = SystemMenuTranslation {
-    system_menus: HashMap::default(),
-  };
+    let mut system_menu_tr = SystemMenuTranslation {
+        system_menus: HashMap::default(),
+    };
 
-  let Ok(path) = app_handle
-    .path()
-    .resolve(TRANSLATION_RESOURCE_DIR, BaseDirectory::Resource)
-  else {
-    return system_menu_tr;
-  };
+    let Ok(path) = app_handle
+        .path()
+        .resolve(TRANSLATION_RESOURCE_DIR, BaseDirectory::Resource)
+    else {
+        return system_menu_tr;
+    };
 
-  let p = path.join(translation_file_name(language));
+    let p = path.join(translation_file_name(language));
 
-  let data = fs::read_to_string(p)
-    .ok()
-    .map_or_else(|| "{}".to_string(), |d| d);
+    let data = fs::read_to_string(p)
+        .ok()
+        .map_or_else(|| "{}".to_string(), |d| d);
 
-  // As SystemMenuTranslation struct has only "system_menus" field, serde json deserialization
-  // will parse only that part of data from the file translation.json
+    // As SystemMenuTranslation struct has only "system_menus" field, serde json deserialization
+    // will parse only that part of data from the file translation.json
 
+    // log::debug!("The language of system menus are in {} and acccording loading system menus {:?}", &language,serde_json::from_str::<SystemMenuTranslation>(&data));
 
-  // log::debug!("The language of system menus are in {} and acccording loading system menus {:?}", &language,serde_json::from_str::<SystemMenuTranslation>(&data));
+    system_menu_tr =
+        serde_json::from_str::<SystemMenuTranslation>(&data).map_or(system_menu_tr, |v| v);
 
-  system_menu_tr =
-    serde_json::from_str::<SystemMenuTranslation>(&data).map_or(system_menu_tr, |v| v);
+    // log::debug!("Loaded system menus {:?}", serde_json::from_str::<SystemMenuTranslation>(&data));
 
-  // log::debug!("Loaded system menus {:?}", serde_json::from_str::<SystemMenuTranslation>(&data));
-
-  system_menu_tr
+    system_menu_tr
 }

@@ -58,7 +58,9 @@ pub(crate) fn browser_manifest_dir(browser_id: &str) -> Option<PathBuf> {
     let home = real_home_dir()?;
     match browser_id.to_ascii_lowercase().as_str() {
         "firefox" => Some(home.join("Library/Application Support/Mozilla/NativeMessagingHosts")),
-        "chrome" => Some(home.join("Library/Application Support/Google/Chrome/NativeMessagingHosts")),
+        "chrome" => {
+            Some(home.join("Library/Application Support/Google/Chrome/NativeMessagingHosts"))
+        }
         _ => None,
     }
 }
