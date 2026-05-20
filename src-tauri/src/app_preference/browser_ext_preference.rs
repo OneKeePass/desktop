@@ -13,6 +13,8 @@ use crate::browser_service::{
 pub(crate) struct BrowserExtSupportData {
     extension_use_enabled: bool,
     allowed_browsers: Vec<String>,
+    #[serde(default)]
+    reconnect_browsers: Vec<String>,
 }
 
 // App level extension preference
@@ -162,6 +164,14 @@ impl BrowserExtSupport {
                 })
                 .and_then(|_| {
                     self.brave_ext_add_or_remove(&allowed_browsers, &other.allowed_browsers)
+                })
+                .and_then(|_| {
+                    for browser_id in &other.reconnect_browsers {
+                        if other.allowed_browsers.contains(browser_id) {
+                            self.write_browser_manifest_for(browser_id)?;
+                        }
+                    }
+                    Ok(())
                 });
 
             if r.is_ok() {

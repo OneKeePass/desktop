@@ -93,6 +93,7 @@ fn main() {
             commands::authenticate_with_biometric,
             commands::auto_open_group_uuid,
             commands::browser_ext_pick_install_dir,
+            commands::browser_ext_manifest_statuses,
             commands::browser_ext_use_user_permission,
             commands::clear_csv_data_cache,
             commands::clear_recent_files,

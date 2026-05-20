@@ -15,6 +15,7 @@ use crate::app_state::SystemInfoWithPreference;
 use crate::auto_open::{self, AutoOpenProperties, AutoOpenPropertiesResolved};
 #[cfg(not(feature = "mas-build"))]
 use crate::auto_type;
+use crate::browser_service;
 use crate::menu::MenuActionRequest;
 use crate::{app_preference, app_state};
 use crate::{biometric, OTP_TOKEN_UPDATE_EVENT};
@@ -249,6 +250,13 @@ pub(crate) async fn browser_ext_pick_install_dir<R: tauri::Runtime>(
     browser_id: String,
 ) -> Result<()> {
     Ok(app_state.browser_ext_pick_install_dir(&app, &browser_id)?)
+}
+
+#[tauri::command]
+pub(crate) async fn browser_ext_manifest_statuses()
+    -> Result<Vec<browser_service::NativeMessagingManifestStatus>>
+{
+    Ok(browser_service::native_messaging_manifest_statuses()?)
 }
 
 //clear_recent_files

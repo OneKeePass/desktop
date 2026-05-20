@@ -43,6 +43,21 @@
 (defn app-settings-dialog-data []
   (subscribe [:app-settings-dialog-data]))
 
+(defn browser-manifest-statuses []
+  (subscribe [:browser-manifest-statuses]))
+
+(defn browser-reconnect-confirm-dialog-data []
+  (subscribe [:browser-reconnect-confirm-dialog-data]))
+
+(defn browser-reconnect-confirm-dialog-show [status]
+  (dispatch [:browser-integration/reconnect-confirm-dialog-show status]))
+
+(defn browser-reconnect-confirm-dialog-close []
+  (dispatch [:browser-integration/reconnect-confirm-dialog-close]))
+
+(defn browser-reconnect-confirmed []
+  (dispatch [:browser-integration/reconnect-confirmed]))
+
 (defn app-settings-modified []
   (subscribe [:app-settings-modified]))
 
@@ -141,7 +156,51 @@
                                          :backup
                                          :browser-ext-support
                                          :default-entry-category-groupings]))
-              (assoc-in  [:app-settings :preference-data] pd))})))
+              (assoc-in  [:app-settings :preference-data] pd))
+        :fx [[:load-browser-manifest-statuses nil]]})))
+
+(reg-fx
+ :load-browser-manifest-statuses
+ (fn [_]
+   (bg/browser-ext-manifest-statuses
+    (fn [api-response]
+      (when-let [statuses (check-error api-response)]
+        (dispatch [:browser-integration/manifest-statuses-loaded statuses]))))))
+
+(reg-event-db
+ :browser-integration/manifest-statuses-loaded
+ (fn [db [_event-id statuses]]
+   (assoc-in db [:app-settings :browser-manifest-statuses] statuses)))
+
+(reg-event-db
+ :browser-integration/reconnect-confirm-dialog-show
+ (fn [db [_event-id status]]
+   (assoc-in db [:app-settings :browser-reconnect-confirm-dialog]
+             {:dialog-show true
+              :status status})))
+
+(reg-event-db
+ :browser-integration/reconnect-confirm-dialog-close
+ (fn [db [_event-id]]
+   (assoc-in db [:app-settings :browser-reconnect-confirm-dialog] nil)))
+
+(defn- add-browser [browsers browser-id]
+  (if (some #(= browser-id %) browsers)
+    (vec browsers)
+    (conj (vec browsers) browser-id)))
+
+(reg-event-db
+ :browser-integration/reconnect-confirmed
+ (fn [db [_event-id]]
+   (let [browser-id (get-in db [:app-settings :browser-reconnect-confirm-dialog :status :browser-id])]
+     (if (str/blank? browser-id)
+       (assoc-in db [:app-settings :browser-reconnect-confirm-dialog] nil)
+       (let [allowed-path [:app-settings :preference-data :browser-ext-support :allowed-browsers]
+             reconnect-path [:app-settings :preference-data :browser-ext-support :reconnect-browsers]]
+         (-> db
+             (update-in allowed-path add-browser browser-id)
+             (update-in reconnect-path add-browser browser-id)
+             (assoc-in [:app-settings :browser-reconnect-confirm-dialog] nil)))))))
 
 (reg-event-fx
  :app-settings-dialog-close
@@ -241,6 +300,16 @@
  :app-settings-dialog-data
  (fn [db _query-vec]
    (get-in db [:app-settings])))
+
+(reg-sub
+ :browser-manifest-statuses
+ (fn [db _query-vec]
+   (get-in db [:app-settings :browser-manifest-statuses])))
+
+(reg-sub
+ :browser-reconnect-confirm-dialog-data
+ (fn [db _query-vec]
+   (get-in db [:app-settings :browser-reconnect-confirm-dialog])))
 
 (reg-sub
  :app-settings-modified

@@ -618,6 +618,9 @@
   [browser-id dispatch-fn]
   (invoke-api "browser_ext_pick_install_dir" {:browser-id browser-id} dispatch-fn :convert-response false))
 
+(defn browser-ext-manifest-statuses [dispatch-fn]
+  (invoke-api "browser_ext_manifest_statuses" {} dispatch-fn))
+
 (defn clear-recent-files [dispatch-fn]
   (invoke-api "clear_recent_files" {} dispatch-fn))
 

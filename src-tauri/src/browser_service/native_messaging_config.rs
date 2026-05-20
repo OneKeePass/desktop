@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 use onekeepass_core::error::{self, Result};
@@ -62,6 +62,113 @@ fn proxy_full_path() -> Result<PathBuf> {
 
         Ok(full_path)
     }
+}
+
+#[derive(Deserialize)]
+struct ExistingNativeMessagingConfig {
+    path: Option<String>,
+}
+
+#[cfg(target_os = "windows")]
+fn win_reg_path_for(browser_id: &str) -> Option<String> {
+    match browser_id {
+        FIREFOX => Some(format!(
+            "Software\\Mozilla\\NativeMessagingHosts\\{}",
+            OKP_NATIVE_APP_NAME
+        )),
+        CHROME => Some(format!(
+            "Software\\Google\\Chrome\\NativeMessagingHosts\\{}",
+            OKP_NATIVE_APP_NAME
+        )),
+        BRAVE => Some(format!(
+            "Software\\BraveSoftware\\Brave-Browser\\NativeMessagingHosts\\{}",
+            OKP_NATIVE_APP_NAME
+        )),
+        _ => None,
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn browser_manifest_path_in_use(browser_id: &str) -> Option<String> {
+    let hkey_current_user = RegKey::predef(HKEY_CURRENT_USER);
+    let reg_path = win_reg_path_for(browser_id)?;
+    hkey_current_user
+        .open_subkey(reg_path)
+        .ok()
+        .and_then(|key| key.get_value::<String, _>("").ok())
+}
+
+#[cfg(not(target_os = "windows"))]
+fn browser_manifest_path_in_use(_browser_id: &str, manifest_path: String) -> Option<String> {
+    Some(manifest_path)
+}
+
+#[cfg(target_os = "windows")]
+fn same_proxy_path(left: &str, right: &str) -> bool {
+    left.eq_ignore_ascii_case(right)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn same_proxy_path(left: &str, right: &str) -> bool {
+    left == right
+}
+
+#[derive(Serialize)]
+pub(crate) struct NativeMessagingManifestStatus {
+    browser_id: String,
+    manifest_path: String,
+    expected_proxy_path: String,
+    installed_proxy_path: Option<String>,
+    owner: String,
+}
+
+fn manifest_status(
+    browser_id: &str,
+    manifest_path: String,
+) -> Result<NativeMessagingManifestStatus> {
+    let expected_proxy_path = proxy_full_path()?.to_string_lossy().to_string();
+    #[cfg(target_os = "windows")]
+    let manifest_path_in_use = browser_manifest_path_in_use(browser_id);
+
+    #[cfg(not(target_os = "windows"))]
+    let manifest_path_in_use = browser_manifest_path_in_use(browser_id, manifest_path);
+
+    let installed_proxy_path = manifest_path_in_use
+        .as_deref()
+        .and_then(|path| std::fs::read_to_string(path).ok())
+        .and_then(|json| serde_json::from_str::<ExistingNativeMessagingConfig>(&json).ok())
+        .and_then(|config| config.path);
+
+    let owner = match installed_proxy_path.as_deref() {
+        None => "missing",
+        Some(path) if same_proxy_path(path, &expected_proxy_path) => "this-app",
+        Some(_) => "other-app",
+    };
+
+    Ok(NativeMessagingManifestStatus {
+        browser_id: browser_id.to_string(),
+        manifest_path: manifest_path_in_use.unwrap_or_default(),
+        expected_proxy_path,
+        installed_proxy_path,
+        owner: owner.to_string(),
+    })
+}
+
+pub(crate) fn native_messaging_manifest_statuses() -> Result<Vec<NativeMessagingManifestStatus>> {
+    Ok(vec![
+        manifest_status(
+            FIREFOX,
+            FirefoxNativeMessagingConfig::firefox_native_messaging_config_full_name()?,
+        )?,
+        manifest_status(
+            CHROME,
+            ChromeNativeMessagingConfig::chrome_native_messaging_config_full_name()?,
+        )?,
+        manifest_status(
+            BRAVE,
+            BraveNativeMessagingConfig::brave_native_messaging_config_full_name()?,
+        )?,
+    ])
 }
 
 #[derive(Serialize)]
