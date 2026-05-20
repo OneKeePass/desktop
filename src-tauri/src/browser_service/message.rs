@@ -136,6 +136,7 @@ fn is_known_extension_id(browser_id: &str, extension_id: &str) -> bool {
     match browser_id {
         "Firefox" => extension_id == native_messaging_config::FIREFOX_EXTENSION_ID,
         "Chrome" => native_messaging_config::CHROME_EXTENSION_IDS.contains(&extension_id),
+        "Brave" => native_messaging_config::BRAVE_EXTENSION_IDS.contains(&extension_id),
         _ => false,
     }
 }

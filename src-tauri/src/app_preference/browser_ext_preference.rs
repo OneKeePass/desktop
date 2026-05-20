@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use onekeepass_core::error::{self, Result};
 
 use crate::browser_service::{
-    self, start_proxy_handler, ChromeNativeMessagingConfig, FirefoxNativeMessagingConfig, CHROME,
-    FIREFOX,
+    self, start_proxy_handler, BraveNativeMessagingConfig, ChromeNativeMessagingConfig,
+    FirefoxNativeMessagingConfig, BRAVE, CHROME, FIREFOX,
 };
 
 #[derive(Debug, Deserialize)]
@@ -60,6 +60,9 @@ impl BrowserExtSupport {
             }
             CHROME => {
                 self.write_manifest_with_scope(CHROME, ChromeNativeMessagingConfig::write)?;
+            }
+            BRAVE => {
+                self.write_manifest_with_scope(BRAVE, BraveNativeMessagingConfig::write)?;
             }
             _ => {
                 return Err(error::Error::UnexpectedError(format!(
@@ -156,6 +159,9 @@ impl BrowserExtSupport {
                 .firefox_ext_add_or_remove(&allowed_browsers, &other.allowed_browsers)
                 .and_then(|_| {
                     self.chrome_ext_add_or_remove(&allowed_browsers, &other.allowed_browsers)
+                })
+                .and_then(|_| {
+                    self.brave_ext_add_or_remove(&allowed_browsers, &other.allowed_browsers)
                 });
 
             if r.is_ok() {
@@ -171,6 +177,7 @@ impl BrowserExtSupport {
             // extension use is disabled. Bookmark scope is used if sandboxed.
             let _ = self.write_manifest_with_scope(FIREFOX, FirefoxNativeMessagingConfig::remove);
             let _ = self.write_manifest_with_scope(CHROME, ChromeNativeMessagingConfig::remove);
+            let _ = self.write_manifest_with_scope(BRAVE, BraveNativeMessagingConfig::remove);
 
             // Clear the stored bookmark files when integration is fully disabled so that
             // the next enable re-prompts via NSOpenPanel (fresh grant).
@@ -268,6 +275,45 @@ impl BrowserExtSupport {
             crate::mas::bookmarks::remove_browser_dir(CHROME);
             log::debug!(
                 "After remove call for chrome native messaging config with result {:?}",
+                &r
+            );
+        }
+
+        Ok(())
+    }
+
+    fn brave_ext_add_or_remove(
+        &mut self,
+        existing_allowed_browsers: &Vec<String>,
+        new_allowed_browsers: &Vec<String>,
+    ) -> Result<()> {
+        // We call the config file writing/removal only if there is a change in allowed_browsers
+        if !existing_allowed_browsers.contains(&BRAVE.to_string())
+            && new_allowed_browsers.contains(&BRAVE.to_string())
+        {
+            // Extension is enabled at the app level and browser Brave is ext support enabled
+
+            log::debug!("Writing the brave config....");
+
+            self.write_manifest_with_scope(BRAVE, BraveNativeMessagingConfig::write)?;
+
+            // As app level ext is enabled, we need to start the app side Endpoint to listen messages from proxy
+            start_proxy_handler();
+        } else if existing_allowed_browsers.contains(&BRAVE.to_string())
+            && !new_allowed_browsers.contains(&BRAVE.to_string())
+        {
+            // This means browser Brave ext support is disabled and the allowed list does not have Brave
+            // Then we remove the any previous config written so that next time
+            // if user enables Brave in the allowed list, the config is written again
+
+            // Need to remove any previous user confirmations
+            self.user_confirmed_browsers.remove(BRAVE);
+
+            log::debug!("Removing the brave config...");
+            let r = self.write_manifest_with_scope(BRAVE, BraveNativeMessagingConfig::remove);
+            crate::mas::bookmarks::remove_browser_dir(BRAVE);
+            log::debug!(
+                "After remove call for brave native messaging config with result {:?}",
                 &r
             );
         }

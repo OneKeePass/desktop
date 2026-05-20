@@ -61,6 +61,9 @@ pub(crate) fn browser_manifest_dir(browser_id: &str) -> Option<PathBuf> {
         "chrome" => {
             Some(home.join("Library/Application Support/Google/Chrome/NativeMessagingHosts"))
         }
+        "brave" => Some(
+            home.join("Library/Application Support/BraveSoftware/Brave-Browser/NativeMessagingHosts"),
+        ),
         _ => None,
     }
 }
