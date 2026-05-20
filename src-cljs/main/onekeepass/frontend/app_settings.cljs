@@ -49,12 +49,12 @@
     [mui-list-item-button {:on-click #(app-settings-events/app-settings-panel-select :file-management)
                            :selected (= panel :file-management)}
      [mui-list-item-icon [mui-icon-folder-outlined]]
-     [mui-list-item-text text-style-m (tr-l fileManagement)]]
+     [mui-list-item-text text-style-m (tr-l "fileManagement")]]
 
     [mui-list-item-button {:on-click #(app-settings-events/app-settings-panel-select :browser-integration)
                            :selected (= panel :browser-integration)}
      [mui-list-item-icon [mui-icon-open-in-browser]]
-     [mui-list-item-text text-style-m (tr-l browserIntegration)]]]])
+     [mui-list-item-text text-style-m (tr-l "browserIntegration")]]]])
 
 
 (def themes [{:name "Light" :value "light"} {:name "Dark" :value "dark"}])
@@ -187,14 +187,14 @@
                                   (app-settings-events/field-update
                                    [:preference-data :backup :enabled]
                                    (-> e .-target .-checked)))}])
-         :label (tr-l enableBackup)}]]
+         :label (tr-l "enableBackup")}]]
 
       [mui-box {:sx {:width "80%"}}
-       [m/text-field {:label (tr-l backupDir)
+       [m/text-field {:label (tr-l "backupDir")
                       :value (or dir "")
                       :disabled (not enabled)
                       :error (contains? error-fields :backup-dir)
-                      :helperText (get error-fields :backup-dir (tr-h directoryUsedForDatabaseBackups))
+                      :helperText (get error-fields :backup-dir (tr-h "directoryUsedForDatabaseBackups"))
                       :on-change (app-settings-events/field-update-factory [:preference-data :backup :dir])
                       :variant "standard" :fullWidth true
                       :slotProps {:input {:endAdornment (r/as-element
@@ -227,12 +227,12 @@
                                      (app-settings-events/field-update
                                       [:preference-data :browser-ext-support :allowed-browsers] []))
                                    (app-settings-events/field-update [:preference-data :browser-ext-support :extension-use-enabled] checked?)))}])
-        :label (tr-l enableBrowserIntegration)}]]]]])
+        :label (tr-l "enableBrowserIntegration")}]]]]])
 
 (def ^:private FIREFOX "Firefox")
 (def ^:private CHROME "Chrome")
+(def ^:private BRAVE "Brave")
 ;; (def ^:private EDGE "Edge")
-;; (def ^:private BRAVE "Brave")
 
 (defn- named-browser-enabled? [browser-name allowed-browsers]
   (boolean (some #(= browser-name %) allowed-browsers)))
@@ -275,7 +275,18 @@
                                    (app-settings-events/field-update
                                     [:preference-data :browser-ext-support :allowed-browsers]
                                     (toggle-browser-enabled (-> e .-target  .-checked) CHROME allowed-browsers)))}])
-          :label "Chrome"}]]]]]))
+          :label "Chrome"}]
+
+        [mui-form-control-label
+         {:control (r/as-element
+                    [mui-checkbox
+                     {:disabled (not extension-use-enabled)
+                      :checked (named-browser-enabled? BRAVE allowed-browsers)
+                      :on-change (fn [^js/CheckedEvent e]
+                                   (app-settings-events/field-update
+                                    [:preference-data :browser-ext-support :allowed-browsers]
+                                    (toggle-browser-enabled (-> e .-target  .-checked) BRAVE allowed-browsers)))}])
+          :label "Brave"}]]]]]))
 
 
 (defn app-settings-dialog [{:keys [dialog-show

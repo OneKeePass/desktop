@@ -6,7 +6,7 @@ use onekeepass_core::error::{self, Result};
 #[cfg(target_os = "windows")]
 use winreg::{enums::HKEY_CURRENT_USER, RegKey};
 
-use crate::browser_service::{message::Response, CHROME, FIREFOX};
+use crate::browser_service::{message::Response, BRAVE, CHROME, FIREFOX};
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "onekeepass-dev")] {
@@ -233,9 +233,16 @@ pub const CHROME_EXTENSION_IDS: &[&str] = &[
     "cmdmojmbfcpkloflnjkkdjcflaidangh",
 ];
 
+// Brave shares the same Chrome Web Store listing today; this is the placeholder
+// allowed_origins list. Replace if/when a separate Brave-store listing is created.
+pub const BRAVE_EXTENSION_IDS: &[&str] = CHROME_EXTENSION_IDS;
+
 // Private aliases used within this module for the manifest config builder.
 const CHROME_EXTENSION_ID1: &str = CHROME_EXTENSION_IDS[0];
 const CHROME_EXTENSION_ID2: &str = CHROME_EXTENSION_IDS[1];
+
+const BRAVE_EXTENSION_ID1: &str = BRAVE_EXTENSION_IDS[0];
+const BRAVE_EXTENSION_ID2: &str = BRAVE_EXTENSION_IDS[1];
 
 #[derive(Serialize)]
 pub(crate) struct ChromeNativeMessagingConfig<'a> {
@@ -383,6 +390,158 @@ impl<'a> ChromeNativeMessagingConfig<'a> {
         let hkey_current_user = RegKey::predef(HKEY_CURRENT_USER);
         let reg_path = format!(
             "Software\\Google\\Chrome\\NativeMessagingHosts\\{}",
+            OKP_NATIVE_APP_NAME
+        );
+
+        hkey_current_user.delete_subkey(&reg_path)?;
+        println!("Sub key {} is deleted ", &reg_path);
+        Ok(())
+    }
+}
+
+#[derive(Serialize)]
+pub(crate) struct BraveNativeMessagingConfig<'a> {
+    allowed_origins: Vec<&'a str>,
+    description: &'a str,
+    name: &'a str,
+    path: &'a str,
+    #[serde(rename(serialize = "type"))]
+    type_of_app: &'a str,
+}
+
+impl<'a> BraveNativeMessagingConfig<'a> {
+    pub(crate) fn write() -> Result<()> {
+        let config_file_full_name = Self::brave_native_messaging_config_full_name()?;
+
+        let proxy_executable_path = proxy_full_path()?.to_string_lossy().to_string();
+
+        log::debug!(
+            "Brave proxy executable path is {} ",
+            &proxy_executable_path
+        );
+
+        let cid1 = format!("chrome-extension://{}/", BRAVE_EXTENSION_ID1);
+        let cid2 = format!("chrome-extension://{}/", BRAVE_EXTENSION_ID2);
+        let config = BraveNativeMessagingConfig {
+            allowed_origins: vec![&cid1, &cid2],
+            description: "OneKeePass integration with native messaging support",
+            name: OKP_NATIVE_APP_NAME,
+            path: &proxy_executable_path,
+            type_of_app: "stdio",
+        };
+        let json_str = serde_json::to_string_pretty(&config)?;
+
+        log::info!(
+            "Going to write brave native messaging the config file {} ",
+            &config_file_full_name
+        );
+
+        std::fs::write(&config_file_full_name, json_str)?;
+
+        #[cfg(target_os = "windows")]
+        Self::write_win_reg_value(&config_file_full_name)?;
+
+        log::info!(
+            "Wrote the native messaging config file {} ",
+            &config_file_full_name
+        );
+
+        Ok(())
+    }
+
+    pub(crate) fn remove() -> Result<()> {
+        let config_file_full_name = Self::brave_native_messaging_config_full_name()?;
+        std::fs::remove_file(&config_file_full_name)?;
+        log::debug!("Removed the config file {} ", &config_file_full_name);
+
+        #[cfg(target_os = "windows")]
+        Self::delete_win_reg_key()?;
+
+        // Send this message to the browser extension to disconnect any existing
+        // connection as user has diabled this browser use
+        Response::disconnect(BRAVE);
+
+        Ok(())
+    }
+
+    // Determines the full path of the brave native messaging config file for all platforms
+    // Ref: https://github.com/brave/brave-browser/wiki/Brave-Extensions-and-NativeMessagingHosts
+    fn brave_native_messaging_config_full_name() -> Result<String> {
+        #[allow(unused_mut)]
+        let mut full_name = String::default();
+
+        cfg_if::cfg_if! {
+            if #[cfg(target_os = "macos")] {
+                if let Some(mut home) = crate::sandbox::real_home_dir() {
+                    home.push("Library/Application Support/BraveSoftware/Brave-Browser/NativeMessagingHosts");
+
+                    // Same as Firefox/Chrome: skip create_dir_all under sandbox; the bookmark
+                    // grant guarantees the path is writable and the dir already exists.
+                    if !crate::sandbox::is_sandboxed() && !home.exists() {
+                        let r = std::fs::create_dir_all(&home);
+                        log::info!("Created brave native messaging config dir {:?} with result {:?}",&home,&r);
+                    }
+
+                    let path  = home.join(OKP_NATIVE_MESSAING_CONFIG_FILE_NAME);
+                    full_name = path.to_string_lossy().to_string();
+                }
+            } else if #[cfg(target_os = "linux")] {
+                if let Some(mut home) = std::env::home_dir() {
+                    home.push(".config/BraveSoftware/Brave-Browser/NativeMessagingHosts");
+                    if !home.exists() {
+                        let r = std::fs::create_dir_all(&home);
+                        log::debug!("Created brave proxy location dir {:?} with result {:?}",&home,&r);
+                    }
+                    let path = home.join(OKP_NATIVE_MESSAING_CONFIG_FILE_NAME);
+                    full_name = path.to_string_lossy().to_string();
+                }
+            }
+            else if #[cfg(target_os = "windows")] {
+                if let Some(mut okp_dir) = dirs::config_local_dir() {
+                    // Need to use Brave specific folder where the Brave native messaging config file is created
+                    okp_dir.push("OneKeePass");
+                    okp_dir.push(BRAVE);
+
+                    if !okp_dir.exists() {
+                        let _r = std::fs::create_dir_all(&okp_dir);
+                        log::debug!("Created dir {:?}",&okp_dir);
+                    }
+                    let path = okp_dir.join(OKP_NATIVE_MESSAING_CONFIG_FILE_NAME);
+                    full_name = path.to_string_lossy().to_string();
+                }
+            }
+        }
+
+        Ok(full_name)
+    }
+
+    // Writes the windows registry entry for brave native messaging host
+    #[cfg(target_os = "windows")]
+    fn write_win_reg_value(manifest_path_str: &str) -> Result<()> {
+        let hkey_current_user = RegKey::predef(HKEY_CURRENT_USER);
+        let reg_path = format!(
+            "Software\\BraveSoftware\\Brave-Browser\\NativeMessagingHosts\\{}",
+            OKP_NATIVE_APP_NAME
+        );
+
+        let (key, disposition) = hkey_current_user.create_subkey(&reg_path)?;
+
+        println!(
+            "Key {:?} is created with disposition {:?}",
+            &key, &disposition
+        );
+
+        key.set_value("", &manifest_path_str)?;
+        println!("Created registry key at HKCU\\{}", reg_path);
+
+        Ok(())
+    }
+
+    #[cfg(target_os = "windows")]
+    fn delete_win_reg_key() -> Result<()> {
+        let hkey_current_user = RegKey::predef(HKEY_CURRENT_USER);
+        let reg_path = format!(
+            "Software\\BraveSoftware\\Brave-Browser\\NativeMessagingHosts\\{}",
             OKP_NATIVE_APP_NAME
         );
 
