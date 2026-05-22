@@ -1,0 +1,404 @@
+(ns onekeepass.frontend.events.remote-storage
+  "Desktop remote-storage dialog flow. A single multi-step MUI dialog drives
+   the user from picking a connection (or entering ad-hoc credentials) to
+   browsing a remote SFTP/WebDAV server and picking a kdbx file to open or
+   a folder to drop a new kdbx into.
+
+   Desktop is kdbx-only: no blob secure store, no private-key file storage,
+   no delete-config path. Connections are sourced from REMOTE_CONNECTION_SFTP
+   / _WEBDAV entries across the currently open kdbx databases.
+
+   re-frame state shape under :remote-storage:
+   {:dialog-show       boolean
+    :mode              :open | :create
+    :step              :source-pick | :form | :browse
+    :current-type      :sftp | :webdav
+    :kdbx-source       {:sftp [{summary} ...] :webdav [...]}
+    :form-data         {:sftp {..} :webdav {..}}      ;; ad-hoc form
+    :form-errors       {:sftp {..} :webdav {..}}
+    :listing           {:type kw :connection-id uuid
+                        :stack [{:parent-dir .. :sub-dirs [..] :files [..]} ...]}
+    :api-error-text    string-or-nil
+    :status            :idle | :in-progress}"
+  (:require
+   [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-fx reg-sub subscribe]]
+   [onekeepass.frontend.background :as bg]
+   [onekeepass.frontend.constants :as const]
+   [onekeepass.frontend.events.common :as cmn-events :refer [check-error]]
+   [onekeepass.frontend.background-remote-storage :as bg-rs]))
+
+;; ---- helpers ----
+
+(defn- form-db-key
+  [kw-type connection-id parent-dir file-name]
+  (let [tag (case kw-type :sftp const/V-SFTP :webdav const/V-WEBDAV)
+        file-path (if (= parent-dir "/")
+                    (str "/" file-name)
+                    (str parent-dir "/" file-name))]
+    (str tag "-" connection-id "-" file-path)))
+
+(defn- sftp-init-data []
+  {:name nil :host nil :port 22 :user-name nil :password nil :start-dir "/"})
+
+(defn- webdav-init-data []
+  {:name nil :root-url nil :user-name nil :password nil
+   :allow-untrusted-cert false :start-dir "/"})
+
+(defn- init-for-type [kw-type]
+  (case kw-type :sftp (sftp-init-data) :webdav (webdav-init-data)))
+
+(def ^:private blank-state
+  {:dialog-show false
+   :mode :open
+   :step :source-pick
+   :current-type :sftp
+   :kdbx-source {:sftp [] :webdav []}
+   :form-data {:sftp (sftp-init-data) :webdav (webdav-init-data)}
+   :form-errors {:sftp {} :webdav {}}
+   :listing nil
+   :api-error-text nil
+   :status :idle})
+
+;; ---- public accessor API (UI uses these, never re-frame directly) ----
+
+(defn show-for-open
+  "Open the remote-storage dialog in 'open existing db' mode."
+  []
+  (dispatch [::dialog-show :open]))
+
+(defn show-for-create
+  "Open the remote-storage dialog in 'create new db' mode."
+  []
+  (dispatch [::dialog-show :create]))
+
+(defn cancel-dialog []
+  (dispatch [::dialog-hide]))
+
+(defn back-step []
+  (dispatch [::back-step]))
+
+(defn dialog-data [] (subscribe [::dialog-data]))
+
+(defn type-selected [kw-type]
+  (dispatch [::type-selected kw-type]))
+
+(defn current-type [] (subscribe [::current-type]))
+
+(defn kdbx-source-connections [kw-type]
+  (subscribe [::kdbx-source-connections kw-type]))
+
+(defn connect-by-id-start [connection-id]
+  (dispatch [::connect-by-id-start connection-id]))
+
+(defn enter-ad-hoc-form []
+  (dispatch [::enter-ad-hoc-form]))
+
+(defn connect-ad-hoc-start []
+  (dispatch [::connect-ad-hoc-start]))
+
+(defn form-data [kw-type] (subscribe [::form-data kw-type]))
+
+(defn form-data-update [field value]
+  (dispatch [::form-data-update field value]))
+
+(defn pick-private-key
+  "Opens the native file picker and stores the chosen path on the SFTP form
+   under :private-key-full-file-name. Used by the ad-hoc SFTP form."
+  []
+  (dispatch [::pick-private-key]))
+
+(defn clear-private-key []
+  (dispatch [::form-data-update :private-key-full-file-name nil]))
+
+(defn form-errors [kw-type] (subscribe [::form-errors kw-type]))
+
+(defn listing [] (subscribe [::listing]))
+
+(defn list-sub-dir [parent-dir sub-dir]
+  (dispatch [::list-sub-dir parent-dir sub-dir]))
+
+(defn listing-previous []
+  (dispatch [::listing-previous]))
+
+(defn file-picked-for-open [parent-dir file-name]
+  (dispatch [::file-picked-for-open parent-dir file-name]))
+
+(defn folder-picked-for-new-db [parent-dir new-db-file-name]
+  (dispatch [::folder-picked-for-new-db parent-dir new-db-file-name]))
+
+(defn save-remote-kdbx [db-key overwrite]
+  (dispatch [::save-remote-kdbx db-key overwrite]))
+
+;; ---- subscriptions ----
+
+(reg-sub
+ ::dialog-data
+ (fn [db _] (:remote-storage db)))
+
+(reg-sub
+ ::current-type
+ (fn [db _] (get-in db [:remote-storage :current-type])))
+
+(reg-sub
+ ::kdbx-source-connections
+ (fn [db [_ kw-type]] (get-in db [:remote-storage :kdbx-source kw-type])))
+
+(reg-sub
+ ::form-data
+ (fn [db [_ kw-type]] (get-in db [:remote-storage :form-data kw-type])))
+
+(reg-sub
+ ::form-errors
+ (fn [db [_ kw-type]] (get-in db [:remote-storage :form-errors kw-type])))
+
+(reg-sub
+ ::listing
+ (fn [db _] (get-in db [:remote-storage :listing])))
+
+;; ---- events ----
+
+(reg-event-fx
+ ::dialog-show
+ (fn [{:keys [db]} [_ mode]]
+   (let [kw-type (or (get-in db [:remote-storage :current-type]) :sftp)]
+     {:db (-> db
+              (assoc :remote-storage (-> blank-state
+                                         (assoc :dialog-show true)
+                                         (assoc :mode mode)
+                                         (assoc :current-type kw-type))))
+      :fx [[:dispatch [::load-kdbx-source-connections kw-type]]]})))
+
+(reg-event-db
+ ::dialog-hide
+ (fn [db _]
+   (assoc db :remote-storage (assoc blank-state :dialog-show false))))
+
+(reg-event-fx
+ ::back-step
+ (fn [{:keys [db]} _]
+   (let [step (get-in db [:remote-storage :step])]
+     (case step
+       :browse {:db (assoc-in db [:remote-storage :step] :source-pick)}
+       :form   {:db (assoc-in db [:remote-storage :step] :source-pick)}
+       {:fx [[:dispatch [::dialog-hide]]]}))))
+
+(reg-event-fx
+ ::type-selected
+ (fn [{:keys [db]} [_ kw-type]]
+   {:db (-> db
+            (assoc-in [:remote-storage :current-type] kw-type)
+            (update-in [:remote-storage :form-data kw-type] #(or % (init-for-type kw-type)))
+            (update-in [:remote-storage :form-errors kw-type] #(or % {})))
+    :fx [[:dispatch [::load-kdbx-source-connections kw-type]]]}))
+
+(reg-event-fx
+ ::load-kdbx-source-connections
+ (fn [_ [_ kw-type]]
+   {:fx [[::bg-list-kdbx-source-connections [kw-type]]]}))
+
+(reg-fx
+ ::bg-list-kdbx-source-connections
+ (fn [[kw-type]]
+   (bg-rs/list-kdbx-source-connections
+    kw-type
+    (fn [api-response]
+      (when-some [summaries (check-error api-response)]
+        (dispatch [::kdbx-source-connections-loaded kw-type summaries]))))))
+
+(reg-event-db
+ ::kdbx-source-connections-loaded
+ (fn [db [_ kw-type summaries]]
+   (assoc-in db [:remote-storage :kdbx-source kw-type] (or summaries []))))
+
+(reg-event-db
+ ::enter-ad-hoc-form
+ (fn [db _]
+   (-> db
+       (assoc-in [:remote-storage :step] :form)
+       (assoc-in [:remote-storage :api-error-text] nil))))
+
+(reg-event-db
+ ::form-data-update
+ (fn [db [_ field value]]
+   (let [kw-type (get-in db [:remote-storage :current-type])]
+     (assoc-in db [:remote-storage :form-data kw-type field] value))))
+
+(reg-event-fx
+ ::pick-private-key
+ (fn [_ _]
+   {:fx [[::bg-open-private-key-dialog]]}))
+
+(reg-fx
+ ::bg-open-private-key-dialog
+ (fn [_]
+   (bg/open-file-dialog
+    (fn [api-response]
+      (when-some [picked (check-error api-response)]
+        (dispatch [::form-data-update :private-key-full-file-name picked]))))))
+
+(reg-event-fx
+ ::connect-by-id-start
+ (fn [{:keys [db]} [_ connection-id]]
+   (let [kw-type (get-in db [:remote-storage :current-type])]
+     {:db (-> db
+              (assoc-in [:remote-storage :status] :in-progress)
+              (assoc-in [:remote-storage :api-error-text] nil))
+      :fx [[::bg-connect-by-id [kw-type connection-id]]]})))
+
+(reg-fx
+ ::bg-connect-by-id
+ (fn [[kw-type connection-id]]
+   (bg-rs/connect-by-id-and-retrieve-root-dir
+    kw-type connection-id
+    (fn [api-response]
+      (when-some [connect-status (check-error
+                                  api-response
+                                  #(dispatch [::connect-failed %]))]
+        (dispatch [::connect-complete kw-type connection-id connect-status]))))))
+
+(reg-event-fx
+ ::connect-ad-hoc-start
+ (fn [{:keys [db]} _]
+   (let [kw-type (get-in db [:remote-storage :current-type])
+         raw (get-in db [:remote-storage :form-data kw-type])
+         ;; <input type="number"> hands us a string; the Rust SftpConnectionConfig.port is u16.
+         info (cond-> raw
+                (= kw-type :sftp)
+                (update :port #(if (string? %) (js/parseInt % 10) %)))]
+     {:db (-> db
+              (assoc-in [:remote-storage :status] :in-progress)
+              (assoc-in [:remote-storage :api-error-text] nil))
+      :fx [[::bg-connect-ad-hoc [kw-type info]]]})))
+
+(reg-fx
+ ::bg-connect-ad-hoc
+ (fn [[kw-type info]]
+   (bg-rs/connect-and-retrieve-root-dir
+    kw-type info
+    (fn [api-response]
+      (when-some [connect-status (check-error
+                                  api-response
+                                  #(dispatch [::connect-failed %]))]
+        (let [cid (:connection-id connect-status)]
+          (dispatch [::connect-complete kw-type cid connect-status])))))))
+
+(reg-event-db
+ ::connect-failed
+ (fn [db [_ error]]
+   (-> db
+       (assoc-in [:remote-storage :status] :idle)
+       (assoc-in [:remote-storage :api-error-text] error))))
+
+(reg-event-fx
+ ::connect-complete
+ (fn [{:keys [db]} [_ kw-type connection-id {:keys [dir-entries]}]]
+   (let [{:keys [parent-dir sub-dirs files]} dir-entries]
+     {:db (-> db
+              (assoc-in [:remote-storage :status] :idle)
+              (assoc-in [:remote-storage :step] :browse)
+              (assoc-in [:remote-storage :listing]
+                        {:type kw-type
+                         :connection-id connection-id
+                         :stack [{:parent-dir (or parent-dir "/")
+                                  :sub-dirs (or sub-dirs [])
+                                  :files (or files [])}]}))})))
+
+(reg-event-fx
+ ::list-sub-dir
+ (fn [{:keys [db]} [_ parent-dir sub-dir]]
+   (let [{:keys [type connection-id]} (get-in db [:remote-storage :listing])]
+     {:fx [[::bg-list-sub-dir [type connection-id parent-dir sub-dir]]]})))
+
+(reg-fx
+ ::bg-list-sub-dir
+ (fn [[kw-type connection-id parent-dir sub-dir]]
+   (bg-rs/list-sub-dir
+    kw-type connection-id parent-dir sub-dir
+    (fn [api-response]
+      (when-some [dir-entries (check-error api-response)]
+        (dispatch [::sub-dir-listed dir-entries]))))))
+
+(reg-event-db
+ ::sub-dir-listed
+ (fn [db [_ {:keys [parent-dir sub-dirs files]}]]
+   (update-in db [:remote-storage :listing :stack]
+              conj {:parent-dir (or parent-dir "/")
+                    :sub-dirs (or sub-dirs [])
+                    :files (or files [])})))
+
+(reg-event-db
+ ::listing-previous
+ (fn [db _]
+   (update-in db [:remote-storage :listing :stack]
+              (fn [stack]
+                (if (> (count stack) 1) (vec (butlast stack)) stack)))))
+
+;; -- handing off the picked file/folder to the rest of the app --
+
+(reg-event-fx
+ ::file-picked-for-open
+ (fn [{:keys [db]} [_ parent-dir file-name]]
+   (let [{:keys [type connection-id]} (get-in db [:remote-storage :listing])
+         db-file-name (form-db-key type connection-id parent-dir file-name)]
+     {:fx [[:dispatch [::dialog-hide]]
+           [:dispatch [:open-db-form/remote-open-show db-file-name file-name]]]})))
+
+(reg-event-fx
+ ::folder-picked-for-new-db
+ (fn [{:keys [db]} [_ parent-dir file-name]]
+   (let [{:keys [type connection-id]} (get-in db [:remote-storage :listing])
+         db-file-name (form-db-key type connection-id parent-dir file-name)]
+     {:fx [[:dispatch [::dialog-hide]]
+           [:dispatch [:new-database/remote-target-selected db-file-name file-name]]]})))
+
+;; -- read / save / create remote kdbx (called by open-db / new-db flows) --
+
+(reg-event-fx
+ :remote-storage/read-kdbx
+ (fn [_ [_ db-file-name password key-file-name]]
+   {:fx [[:dispatch [:common/progress-message-box-show "Opening" "Please wait..."]]
+         [::bg-read-kdbx [db-file-name password key-file-name]]]}))
+
+(reg-fx
+ ::bg-read-kdbx
+ (fn [[db-file-name password key-file-name]]
+   (bg-rs/read-kdbx
+    db-file-name password key-file-name
+    (fn [api-response]
+      (dispatch [:common/progress-message-box-hide])
+      (when-some [kdbx-loaded (check-error
+                               api-response
+                               #(dispatch [:open-db-error %]))]
+        ;; Re-use the local path's completion event so the open-db dialog is
+        ;; reset and hidden in addition to loading the kdbx into the UI.
+        (dispatch [:open-db-file-loading-done kdbx-loaded]))))))
+
+(reg-event-fx
+ ::save-remote-kdbx
+ (fn [_ [_ db-key overwrite]]
+   {:fx [[::bg-save-kdbx [db-key overwrite]]]}))
+
+(reg-fx
+ ::bg-save-kdbx
+ (fn [[db-key overwrite]]
+   (bg-rs/save-kdbx
+    db-key overwrite
+    (fn [api-response]
+      (when-some [kdbx-saved (check-error api-response)]
+        (dispatch [:common/kdbx-database-saved kdbx-saved]))))))
+
+(reg-event-fx
+ :remote-storage/create-kdbx
+ (fn [_ [_ new-db]]
+   {:fx [[:dispatch [:common/progress-message-box-show "Creating" "Please wait..."]]
+         [::bg-create-kdbx [new-db]]]}))
+
+(reg-fx
+ ::bg-create-kdbx
+ (fn [[new-db]]
+   (bg-rs/create-kdbx
+    new-db
+    (fn [api-response]
+      (dispatch [:common/progress-message-box-hide])
+      (when-some [kdbx-loaded (check-error api-response)]
+        (dispatch [:common/kdbx-database-opened kdbx-loaded]))))))

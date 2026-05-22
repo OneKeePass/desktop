@@ -19,6 +19,7 @@ mod key_secure;
 mod mas;
 mod menu;
 mod pass_phrase;
+mod remote_storage;
 mod sandbox;
 mod translation;
 // mod callback_service_provider;
@@ -162,6 +163,17 @@ fn main() {
             commands::remove_group_permanently,
             commands::remove_recent_file,
             commands::resolve_auto_open_properties,
+            commands::rs_acknowledge_remote_change,
+            commands::rs_check_remote_modified,
+            commands::rs_connect_and_retrieve_root_dir,
+            commands::rs_connect_by_id_and_retrieve_root_dir,
+            commands::rs_create_kdbx,
+            commands::rs_get_remote_storage_config,
+            commands::rs_list_kdbx_source_connections,
+            commands::rs_list_sub_dir,
+            commands::rs_merge_with_remote,
+            commands::rs_read_kdbx,
+            commands::rs_save_kdbx,
             commands::save_all_modified_dbs,
             commands::save_as_kdbx,
             commands::open_attachment_temp_file,

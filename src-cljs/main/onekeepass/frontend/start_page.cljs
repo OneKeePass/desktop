@@ -22,6 +22,8 @@
    [onekeepass.frontend.open-db-form :as od-form]
    [onekeepass.frontend.open-recent :as open-recent]
    [onekeepass.frontend.password-generator :as gen-form]
+   [onekeepass.frontend.remote-storage :as rs-form]
+   [onekeepass.frontend.events.remote-storage :as rs-events]
    [onekeepass.frontend.translation :as t :refer-macros [tr tr-l tr-t]]
    [reagent.core :as r]))
 
@@ -68,6 +70,15 @@
                    :onClick od-events/open-file-explorer-on-click}
          (tr-l openDatabase)]
         [od-form/open-db-dialog-main]]
+
+       ;; Open from a remote SFTP / WebDAV server
+       [mui-stack {:direction "row" :gap 2 :alignItems "center"}
+        [mui-icon-button {:edge "start" :color "inherit" :sx {:ml 0}
+                          :onClick rs-events/show-for-open}
+         [mui-icon-folder-outlined {}]]
+        [mui-link {:variant "subtitle1"
+                   :onClick rs-events/show-for-open}
+         (t/lstr-l "openRemote")]]
 
        [mui-typography {:sx {:mt 4} :variant "h6"} (tr-t recent)]
 
@@ -131,4 +142,5 @@
    [browser-integration/browser-extension-connection-permit-dialog]
    [browser-integration/browser-extension-install-grant-dialog]
    [open-recent/open-recent-dialog-main]
+   [rs-form/remote-storage-dialog-main]
    [message-dialog]])

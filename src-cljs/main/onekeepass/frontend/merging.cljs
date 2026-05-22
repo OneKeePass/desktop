@@ -2,6 +2,7 @@
   (:require
    [clojure.string :as str]
    [onekeepass.frontend.common-components :refer [selection-autocomplete]]
+   [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.events.external-db-change :as external-db-change-events]
    [onekeepass.frontend.events.generic-dialogs :as gd-events]
    [onekeepass.frontend.events.merging :as merging-events]
@@ -133,24 +134,29 @@
 
 (defn external-db-change-dialog
   ([{:keys [dialog-show] {:keys [db-key save-pending]} :data}]
-   [mui-dialog {:open (boolean dialog-show)
-                :on-click #(.stopPropagation %)}
-    [mui-dialog-title (lstr-dlg-title 'externalDbChanged)]
-    [mui-dialog-content
-     [mui-typography (t/lstr "dialog.texts.externalDbChangedTxt1"
-                             {:file-name (-> db-key (str/split #"/") last)})]
-     (when save-pending
-       [mui-typography {:color "warning.main"}
-        (tr-dlg-text "externalDbChangedTxt2")])]
-    [mui-dialog-actions
-     [mui-stack {:direction "row" :spacing 2}
-      [mui-button {:variant "contained"
-                   :on-click #(external-db-change-events/external-change-merge-start db-key)}
-       (tr-bl merge)]
-      [mui-button {:variant "outlined"
-                   :on-click #(external-db-change-events/external-change-reload-start db-key)}
-       (tr-bl "reload")]
-      [mui-button {:on-click #(external-db-change-events/external-change-ignore db-key)}
-       (tr-bl "ignore")]]]])
+   (let [remote? (const/remote-db-key? db-key)]
+     [mui-dialog {:open (boolean dialog-show)
+                  :on-click #(.stopPropagation %)}
+      [mui-dialog-title (lstr-dlg-title 'externalDbChanged)]
+      [mui-dialog-content
+       [mui-typography (t/lstr "dialog.texts.externalDbChangedTxt1"
+                               {:file-name (-> db-key (str/split #"/") last)})]
+       (when save-pending
+         [mui-typography {:color "warning.main"}
+          (tr-dlg-text "externalDbChangedTxt2")])]
+      [mui-dialog-actions
+       [mui-stack {:direction "row" :spacing 2}
+        [mui-button {:variant "contained"
+                     :on-click #(external-db-change-events/external-change-merge-start db-key)}
+         (tr-bl merge)]
+        ;; Reload is local-only: it discards the in-memory db and re-reads
+        ;; the file from disk. For remote dbs we don't yet have a
+        ;; save-pending-safe re-read path, so the button is hidden.
+        (when-not remote?
+          [mui-button {:variant "outlined"
+                       :on-click #(external-db-change-events/external-change-reload-start db-key)}
+           (tr-bl "reload")])
+        [mui-button {:on-click #(external-db-change-events/external-change-ignore db-key)}
+         (tr-bl "ignore")]]]]))
   ([]
    (external-db-change-dialog @(gd-events/external-db-change-dialog-data))))

@@ -12,6 +12,7 @@
                                                   progress-message-dialog]]
    [onekeepass.frontend.constants :as const :refer [DB_CHANGED]]
    [onekeepass.frontend.db-settings :as settings-form]
+   [onekeepass.frontend.remote-storage :as rs-form]
    [onekeepass.frontend.events.auto-type :as at-events]
    [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.events.db-settings :as settings-events]
@@ -97,46 +98,56 @@
      {:dialog-show dialog-show}]))
 
 (defn content-change-action-dialog [open?]
-  [mui-dialog {:open open? :on-click #(.stopPropagation ^js/Event %)}
-   [mui-dialog-title (tr-dlg-title conflictOnSave)]
-   [mui-dialog-content
-    [mui-stack (tr-dlg-text "conflictOnSaveTxt1")]
+  (let [active-key @(cmn-events/active-db-key)
+        remote? (const/remote-db-key? active-key)]
+    [mui-dialog {:open open? :on-click #(.stopPropagation ^js/Event %)}
+     [mui-dialog-title (tr-dlg-title conflictOnSave)]
+     [mui-dialog-content
+      [mui-stack (tr-dlg-text "conflictOnSaveTxt1")]
 
-    [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
-    [mui-stack {:style {:align-items "center"}}
-     [mui-button {:color "secondary"
-                  :variant "text"
-                  :on-click tb-events/conflict-action-save-as} (tr-bl saveAs)]]
-    [mui-stack
-     [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
-      (tr-dlg-text "conflictOnSaveTxt2")]]
+      (when remote?
+        [:<>
+         [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
+         [mui-stack {:style {:align-items "center"}}
+          [mui-button {:color "primary"
+                       :variant "text"
+                       :on-click #(tb-events/conflict-action-merge-remote active-key)}
+           (tr-bl merge)]]
+         [mui-stack
+          [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
+           (tr-dlg-text "conflictOnSaveMergeTxt")]]])
 
-    [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
-    [mui-stack  {:direction "column"}
-     [mui-stack {:style {:align-items "center"}}
-      [mui-button {:color "error"
-                   :variant "text"
-                   :on-click tb-events/confirm-overwrite-external-db} (tr-bl overwrite)]]
+      [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
+      [mui-stack {:style {:align-items "center"}}
+       [mui-button {:color "secondary"
+                    :variant "text"
+                    :on-click tb-events/conflict-action-save-as} (tr-bl saveAs)]]
+      [mui-stack
+       [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
+        (tr-dlg-text "conflictOnSaveTxt2")]]
 
-     [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
-      (tr-dlg-text "conflictOnSaveTxt3")]]
+      [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
+      [mui-stack {:direction "column"}
+       [mui-stack {:style {:align-items "center"}}
+        [mui-button {:color "error"
+                     :variant "text"
+                     :on-click tb-events/confirm-overwrite-external-db} (tr-bl overwrite)]]
+       [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
+        (tr-dlg-text "conflictOnSaveTxt3")]]
 
-    [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
-    [mui-stack  {:direction "column"}
+      [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
+      [mui-stack {:direction "column"}
+       [mui-stack {:style {:align-items "center"}}
+        [mui-button {:color "error"
+                     :variant "text"
+                     :on-click tb-events/confirm-discard-current-db} (tr-bl discardClose)]]
+       [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
+        (tr-dlg-text "conflictOnSaveTxt4")]]
+      [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]]
 
-     [mui-stack {:style {:align-items "center"}}
-      [mui-button {:color "error"
-                   :variant "text"
-                   :on-click tb-events/confirm-discard-current-db} (tr-bl discardClose)]]
-
-     [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
-      (tr-dlg-text "conflictOnSaveTxt4")]]
-    [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]]
-
-   [mui-dialog-actions
-
-    [mui-button {:color "secondary"
-                 :on-click tb-events/save-current-db-msg-dialog-hide} (t/lstr-bl 'cancel)]]])
+     [mui-dialog-actions
+      [mui-button {:color "secondary"
+                   :on-click tb-events/save-current-db-msg-dialog-hide} (t/lstr-bl 'cancel)]]]))
 
 (defn save-info-dialog [{:keys [status api-error-text]}]
   (if (= api-error-text DB_CHANGED)
@@ -293,4 +304,5 @@
        [merging/merge-opened-dbs-dialog]
        [merging/external-db-change-dialog]
        [manage-custom-icons-dialog-main]
-       [custom-icons-delete-confirm-dialog]])))
+       [custom-icons-delete-confirm-dialog]
+       [rs-form/remote-storage-dialog-main]])))

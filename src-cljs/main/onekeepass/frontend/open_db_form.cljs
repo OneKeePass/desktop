@@ -2,6 +2,7 @@
   (:require [onekeepass.frontend.common-components :refer [enter-key-pressed-factory]]
             [onekeepass.frontend.events.common :as cmn-events]
             [onekeepass.frontend.events.open-db-form :as od-events]
+            [onekeepass.frontend.events.remote-storage :as rs-events]
             [onekeepass.frontend.events.merging]
             [onekeepass.frontend.mui-components :as m :refer [mui-alert
                                                               mui-button
@@ -14,6 +15,7 @@
                                                               mui-icon-visibility
                                                               mui-icon-visibility-off
                                                               mui-input-adornment
+                                                              mui-link
                                                               mui-linear-progress
                                                               mui-stack
                                                               mui-typography]]
@@ -101,7 +103,16 @@
                          :type (if key-file-visibility-on "text" "password")}]
 
           [mui-stack {:sx {:margin-top "10px" :margin-bottom "5px"}}
-           [mui-typography {:variant "caption"} (tr-m openDbPage txt1)]]]
+           [mui-typography {:variant "caption"} (tr-m openDbPage txt1)]]
+
+          ;; Offer 'Browse Remote' alongside the local file picker. Hidden in
+          ;; unlock mode (the file path is fixed) and in merge mode (the merge
+          ;; flow targets a separate selected file, not a remote one).
+          (when (and (not unlock-request) (not dbs-merge-request))
+            [mui-stack {:direction "row" :sx {:mt 1}}
+             [mui-link {:variant "subtitle2" :sx {:cursor "pointer"}
+                        :on-click rs-events/show-for-open}
+              (t/lstr-l "browseRemote")]])]
          [mui-stack (tr-m openDbPage txt2)])
        (cond
          (= status :in-progress)

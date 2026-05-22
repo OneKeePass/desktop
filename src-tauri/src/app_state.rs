@@ -77,7 +77,12 @@ pub(crate) fn init_app(app: &App) {
 
     key_secure::init_key_main_store();
 
-    // callback_service_provider::init_callback_service_provider(app.app_handle().clone());
+    // Register the (no-op) remote-storage callback service so the shared
+    // storage_service in onekeepass-core can dispatch into its host-trait
+    // hooks. Desktop is kdbx-only — no private-key file management, no
+    // blob secure store — so all hooks are stubs. See
+    // `remote_storage/callback_service_provider.rs`.
+    crate::remote_storage::callback_service_provider::init();
 
     onekeepass_core::async_service::start_runtime();
 
@@ -133,6 +138,11 @@ pub(crate) struct AppState {
     // macOS App Sandbox security-scoped bookmark handles currently held open.
     // Empty on non-MAS builds. See `crate::mas`.
     scoped_access: Mutex<HashMap<mas::ScopedAccessKey, mas::BookmarkHandle>>,
+    // Per-db remote file modified-time recorded at open or last save, used
+    // for intra-session conflict detection on remote-storage saves. None
+    // value means the remote backend didn't report mtime (treated as
+    // "unknown" — no false-positive conflict). See remote_storage/mod.rs.
+    remote_mtimes: Mutex<HashMap<String, Option<i64>>>,
 }
 
 impl AppState {
@@ -143,7 +153,23 @@ impl AppState {
             resource_dir_path: Mutex::new(None),
             db_file_watcher: crate::db_file_watcher::DbFileWatcherState::new(),
             scoped_access: Mutex::new(HashMap::new()),
+            remote_mtimes: Mutex::new(HashMap::new()),
         }
+    }
+
+    pub(crate) fn set_remote_mtime(&self, db_key: &str, mtime: Option<i64>) {
+        let mut store = self.remote_mtimes.lock().unwrap();
+        store.insert(db_key.to_string(), mtime);
+    }
+
+    pub(crate) fn remote_mtime(&self, db_key: &str) -> Option<i64> {
+        let store = self.remote_mtimes.lock().unwrap();
+        store.get(db_key).cloned().flatten()
+    }
+
+    pub(crate) fn clear_remote_mtime(&self, db_key: &str) {
+        let mut store = self.remote_mtimes.lock().unwrap();
+        store.remove(db_key);
     }
 
     // This should be called once in 'init_app' fn

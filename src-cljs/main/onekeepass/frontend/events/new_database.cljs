@@ -102,6 +102,7 @@
                     ;; Extra UI related fields
                     ;; These fields will be ignored by serde while doing json deserializing to NewDatabase struct
                     :dialog-show false
+                    :remote? false
                     :show-additional-protection false
                     :password-visible false
                     :password-confirm nil
@@ -255,9 +256,14 @@
       (update-in [:kdf :memory] * 1048576)))
 
 (defn- create-kdbx-fx [db]
-  {:db (-> db (assoc-in [:new-database :call-to-create-status] :in-progress)
-           (assoc-in [:new-database :api-error-text] nil))
-   :fx [[:bg-create-kdbx (:new-database db)]]})
+  (let [remote? (get-in db [:new-database :remote?])
+        new-db (:new-database db)
+        prepared (convert-kdf-value new-db)]
+    {:db (-> db (assoc-in [:new-database :call-to-create-status] :in-progress)
+             (assoc-in [:new-database :api-error-text] nil))
+     :fx [(if remote?
+            [:dispatch [:remote-storage/create-kdbx prepared]]
+            [:bg-create-kdbx new-db])]}))
 
 (defn- save-as-then-create-fx [db]
   {:db (-> db
@@ -322,6 +328,26 @@
    ;; (println "new-database/dialog-show is called ")
    (-> db init-new-database-data (assoc-in [:new-database :dialog-show] true)
        (assoc-in [:new-database :imported-data] imported-data?))))
+
+;; Called from the remote-storage browse dialog after the user picks a remote
+;; folder + file name for a new db. db-file-name is the prefixed remote db_key
+;; ("Sftp-<uuid>-/path/file.kdbx" / "Webdav-..."), file-name is the bare base
+;; file name. If the new-db dialog is already up (user clicked 'Save to Remote'
+;; from within it), preserve their basic/credentials input — only set the
+;; remote target. Otherwise initialize fresh and seed the display name.
+(reg-event-db
+ :new-database/remote-target-selected
+ (fn [db [_event-id db-file-name file-name]]
+   (let [dialog-up? (get-in db [:new-database :dialog-show])
+         base (if dialog-up? db (init-new-database-data db))
+         display-name (str/replace (or file-name "") #"(?i)\.kdbx$" "")]
+     (-> base
+         (assoc-in [:new-database :dialog-show] true)
+         (assoc-in [:new-database :remote?] true)
+         (assoc-in [:new-database :database-file-user-selected] true)
+         (assoc-in [:new-database :database-file-name] db-file-name)
+         (cond-> (not dialog-up?)
+           (assoc-in [:new-database :database-name] display-name))))))
 
 (reg-sub
  :new-database-dialog-data

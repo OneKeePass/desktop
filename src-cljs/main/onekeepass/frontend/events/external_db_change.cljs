@@ -3,11 +3,13 @@
    [clojure.string :as str]
    [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.background.merging :as bg-merging]
+   [onekeepass.frontend.background-remote-storage :as bg-rs]
    [onekeepass.frontend.constants :as const :refer [MERGE_FAILED_CREDENTIALS_CHANGED]]
    [onekeepass.frontend.events.common :refer [active-db-key
                                               check-error
                                               get-in-key-db
-                                              locked?]]
+                                              locked?
+                                              opened-db-keys]]
    [onekeepass.frontend.translation :refer-macros [tr-dlg-title tr-dlg-text] :refer [lstr-sm]]
    [re-frame.core :refer [dispatch reg-event-fx reg-fx]]))
 
@@ -58,7 +60,9 @@
                      {:data {:db-key db-key
                              :save-pending (get-in-key-db db [:db-modification :save-pending])}}]]]}))
 
-;; User chose "Merge"
+;; User chose "Merge". Routes by db_key prefix: remote dbs go through
+;; the rs_merge_with_remote command (downloads then merges); local dbs
+;; use the existing disk-version merge.
 (reg-event-fx
  :external-change-merge-start
  (fn [{:keys [_db]} [_event-id db-key]]
@@ -66,12 +70,25 @@
          [:dispatch [:common/progress-message-box-show
                      (tr-dlg-title "mergingExternalChanges")
                      (tr-dlg-text "mergingExternalChangesTxt")]]
-         [:bg-merge-kdbx-with-disk-version [db-key]]]}))
+         (if (const/remote-db-key? db-key)
+           [:bg-merge-kdbx-with-remote-version [db-key]]
+           [:bg-merge-kdbx-with-disk-version [db-key]])]}))
 
 (reg-fx
  :bg-merge-kdbx-with-disk-version
  (fn [[db-key]]
    (bg-merging/merge-kdbx-with-disk-version
+    db-key
+    (fn [api-response]
+      (dispatch [:common/progress-message-box-hide])
+      (when-some [merge-result (check-error api-response
+                                            #(dispatch [:external-change-merge-error %]))]
+        (dispatch [:external-change-merge-completed merge-result]))))))
+
+(reg-fx
+ :bg-merge-kdbx-with-remote-version
+ (fn [[db-key]]
+   (bg-rs/merge-with-remote
     db-key
     (fn [api-response]
       (dispatch [:common/progress-message-box-hide])
@@ -105,16 +122,20 @@
                         :message (tr-dlg-text "mergeNotPossibleCredentialsChangedTxt")}]]]}
      {:fx [[:dispatch [:common/error-info-box-show {:title (tr-dlg-title "mergeFailed") :message error}]]]})))
 
-;; User chose "Reload"
+;; User chose "Reload". Remote-backed dbs have no equivalent because the
+;; UI hides the reload button for them (no save-pending-safe reload path
+;; yet — see plan §11.3). Treat as no-op defensively.
 (reg-event-fx
  :external-change-reload-start
  (fn [{:keys [db]} [_event-id db-key]]
-   {:db (assoc-in db [db-key] nil)
-    :fx [[:dispatch [:generic-dialog-close :external-db-change-dialog]]
-         [:dispatch [:common/progress-message-box-show
-                     (tr-dlg-title "reloadingDatabase")
-                     (tr-dlg-text "reloadingFromDiskTxt")]]
-         [:bg-acknowledge-and-reload [db-key]]]}))
+   (if (const/remote-db-key? db-key)
+     {:fx [[:dispatch [:generic-dialog-close :external-db-change-dialog]]]}
+     {:db (assoc-in db [db-key] nil)
+      :fx [[:dispatch [:generic-dialog-close :external-db-change-dialog]]
+           [:dispatch [:common/progress-message-box-show
+                       (tr-dlg-title "reloadingDatabase")
+                       (tr-dlg-text "reloadingFromDiskTxt")]]
+           [:bg-acknowledge-and-reload [db-key]]]})))
 
 (reg-fx
  :bg-acknowledge-and-reload
@@ -131,12 +152,18 @@
                                              #(dispatch [:reload-database-error %]))]
            (dispatch [:common/kdbx-database-loading-complete kdbx-loaded]))))))))
 
-;; User chose "Ignore"
+;; User chose "Ignore". For local dbs, clears the watcher's
+;; notification_pending so future external changes can fire again. For
+;; remote dbs, refreshes AppState.remote_mtime to the current remote
+;; mtime so the next focus-poll won't re-prompt for the same diverged
+;; state.
 (reg-event-fx
  :external-change-ignore
  (fn [{:keys [_db]} [_event-id db-key]]
    {:fx [[:dispatch [:generic-dialog-close :external-db-change-dialog]]
-         [:bg-acknowledge-db-change [db-key]]
+         (if (const/remote-db-key? db-key)
+           [:bg-acknowledge-remote-change [db-key]]
+           [:bg-acknowledge-db-change [db-key]])
          [:dispatch [:common/message-box-show
                      (tr-dlg-title "externalDbChangedIgnored")
                      (tr-dlg-text "externalDbChangedIgnoredTxt")]]]}))
@@ -145,3 +172,32 @@
  :bg-acknowledge-db-change
  (fn [[db-key]]
    (bg/acknowledge-db-file-change db-key #())))
+
+(reg-fx
+ :bg-acknowledge-remote-change
+ (fn [[db-key]]
+   (bg-rs/acknowledge-remote-change db-key #())))
+
+;; ---- focus-poll: detect external changes on remote dbs when window
+;; regains focus. Iterates over open remote db_keys; on each "diverged"
+;; reply, funnels into the same dispatcher the local watcher uses
+;; (:external-db-change/db-file-changed-externally) so the dialog
+;; routing for active/locked/non-active is shared.
+
+(reg-event-fx
+ :external-db-change/poll-open-remote-dbs
+ (fn [{:keys [db]} _]
+   (let [keys (opened-db-keys db)
+         remote-keys (filter const/remote-db-key? keys)]
+     (when (seq remote-keys)
+       {:fx (mapv (fn [k] [:bg-rs-check-remote-modified [k]]) remote-keys)}))))
+
+(reg-fx
+ :bg-rs-check-remote-modified
+ (fn [[db-key]]
+   (bg-rs/check-remote-modified
+    db-key
+    (fn [api-response]
+      (when-some [modified? (check-error api-response)]
+        (when modified?
+          (dispatch [:external-db-change/db-file-changed-externally db-key])))))))

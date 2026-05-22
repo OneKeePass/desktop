@@ -62,6 +62,9 @@
       (= menu-id const/MENU_ID_OPEN_DATABASE)
       (dispatch [:open-db-form/open-db])
 
+      (= menu-id const/MENU_ID_OPEN_REMOTE)
+      (dispatch [:onekeepass.frontend.events.remote-storage/dialog-show :open])
+
       (= menu-id const/MENU_ID_SAVE_DATABASE)
       (dispatch [:save-current-db false])
 
@@ -111,8 +114,11 @@
       (dispatch [:tool-bar/app-quit-called])
 
       (= action WINDOW_FOCUS_CHANGED)
-      #()
-      #_(println "Window focused val is " focused)
+      ;; On regaining focus, poll open remote dbs for external changes.
+      ;; The poll event filters to remote db_keys and is a no-op when
+      ;; none are open, so this is essentially free in the common case.
+      (when focused
+        (dispatch [:external-db-change/poll-open-remote-dbs]))
 
       (= action FILE_DROP)
       (when-let [file-path (-> cljs-response :payload :file-path)]

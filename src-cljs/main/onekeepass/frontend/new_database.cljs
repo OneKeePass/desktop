@@ -2,6 +2,7 @@
   (:require
    [reagent.core :as r]
    [onekeepass.frontend.events.new-database :as nd-events]
+   [onekeepass.frontend.events.remote-storage :as rs-events]
    [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-t tr-h tr-m]]
    [onekeepass.frontend.common-components :refer [cipher-algorithms kdf-algorithms]]
    [onekeepass.frontend.mui-components :as m :refer [mui-menu-item
@@ -142,7 +143,7 @@
           [mui-typography {:variant "caption"}
            (tr-m newDbPage txt2)]])])]])
 
-(defn- file-info [{:keys [database-file-name db-file-file-exists database-name]}]
+(defn- file-info [{:keys [database-file-name db-file-file-exists database-name remote?]}]
   [mui-stack {:spacing 2}
    [mui-typography (tr-l saveAs)]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
@@ -150,17 +151,28 @@
      [m/text-field {:label (tr-l "fileName")
                     :value database-file-name
                     :required true
+                    :disabled remote?
                     :autoFocus true
                     :on-change (nd-events/field-update-factory :database-file-name)
                     :variant "standard" :fullWidth true
 
                     :slotProps {:input {:endAdornment (r/as-element [mui-input-adornment {:position "end"}
                                                                   [mui-icon-button {:edge "end" :sx {:mr "-8px"}
+                                                                                    :disabled remote?
                                                                                     :onClick #(nd-events/save-as-file-explorer-on-click database-name database-file-name)}
                                                                    [mui-icon-folder-outlined]]])}}}]
 
-     (when db-file-file-exists
-       [mui-alert {:severity "warning" :sx {:mt 1}} (tr-m newDbPage txt4)])]]]) ;;"** Database file already exists and will be replaced with this new one **"
+     (cond
+       remote?
+       [mui-typography {:variant "caption" :sx {:mt 1}} (t/lstr "labels.rsTargetRemote")]
+
+       db-file-file-exists
+       [mui-alert {:severity "warning" :sx {:mt 1}} (tr-m newDbPage txt4)])
+
+     (when (not remote?)
+       [mui-link {:variant "subtitle2" :sx {:cursor "pointer" :mt 1}
+                  :on-click rs-events/show-for-create}
+        (t/lstr-l "saveToRemote")])]]]) ;;"** Database file already exists and will be replaced with this new one **"
 
 (defn- security-info [{:keys [cipher-id error-fields]
                        {:keys [iterations memory parallelism algorithm]} :kdf}]

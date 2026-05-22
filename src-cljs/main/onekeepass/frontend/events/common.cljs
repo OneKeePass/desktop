@@ -667,8 +667,16 @@
          ;; authentication using existing credential
          ;; If the file watcher already flagged an external change while the db was locked,
          ;; show the merge/reload dialog directly — otherwise do the normal verify check.
-         (if (get-in db [(active-db-key db) :external-change-pending])
+         ;; For a remote db there is no local file to stat; use the remote-mtime
+         ;; poll instead so external changes are surfaced via the same dialog flow.
+         (cond
+           (get-in db [(active-db-key db) :external-change-pending])
            [:dispatch [:external-db-change/check-external-change-pending (active-db-key db)]]
+
+           (const/remote-db-key? (active-db-key db))
+           [:dispatch [:external-db-change/poll-open-remote-dbs]]
+
+           :else
            [:bg-read-and-verify-db-file [(active-db-key db)]])]}))
 
 ;; Dispatched when the browser extension creates/updates a passkey in a db.

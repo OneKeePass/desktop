@@ -19,6 +19,7 @@ pub mod menu_ids {
     pub const APP_SETTINGS: &str = "AppSettings";
     pub const NEW_DATABASE: &str = "NewDatabase";
     pub const OPEN_DATABASE: &str = "OpenDatabase";
+    pub const OPEN_REMOTE: &str = "OpenRemote";
     pub const SAVE_DATABASE: &str = "SaveDatabase";
     pub const SAVE_DATABASE_AS: &str = "SaveDatabaseAs";
     pub const SAVE_DATABASE_BACKUP: &str = "SaveDatabaseBackup";
@@ -136,6 +137,13 @@ fn build_database_menus<R: Runtime>(
             system_menu_translation.sub_menu(OPEN_DATABASE, "Open Database"),
             true,
             Some("CmdOrControl+O"),
+        )?,
+        &MenuItem::with_id(
+            app_handle,
+            OPEN_REMOTE,
+            system_menu_translation.sub_menu(OPEN_REMOTE, "Open Remote..."),
+            true,
+            Some("Shift+CmdOrControl+O"),
         )?,
         &MenuItem::with_id(
             app_handle,
