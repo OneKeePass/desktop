@@ -1,33 +1,32 @@
 (ns onekeepass.frontend.new-database
   (:require
-   [reagent.core :as r]
+   [onekeepass.frontend.common-components :refer [cipher-algorithms
+                                                  kdf-algorithms]]
    [onekeepass.frontend.events.new-database :as nd-events]
-   [onekeepass.frontend.events.remote-storage :as rs-events]
-   [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-t tr-h tr-m]]
-   [onekeepass.frontend.common-components :refer [cipher-algorithms kdf-algorithms]]
-   [onekeepass.frontend.mui-components :as m :refer [mui-menu-item
-                                                     mui-alert
+   [onekeepass.frontend.mui-components :as m :refer [mui-alert mui-box
+                                                     mui-button mui-checkbox
+                                                     mui-dialog
+                                                     mui-dialog-actions
+                                                     mui-dialog-content
+                                                     mui-dialog-title
                                                      mui-divider
-                                                     mui-linear-progress
-                                                     mui-input-adornment
+                                                     mui-form-control-label
                                                      mui-icon-button
                                                      mui-icon-folder-outlined
                                                      mui-icon-visibility
                                                      mui-icon-visibility-off
-                                                     mui-link
-                                                     mui-tooltip
-                                                     mui-typography
-                                                     mui-dialog
-                                                     mui-dialog-title
-                                                     mui-dialog-actions
-                                                     mui-dialog-content
-                                                     mui-box mui-stack
-                                                     mui-button]]))
+                                                     mui-input-adornment
+                                                     mui-linear-progress
+                                                     mui-link mui-menu-item
+                                                     mui-stack mui-tooltip
+                                                     mui-typography]]
+   [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-t tr-h tr-m] :refer [lstr-l]]
+   [reagent.core :as r]))
 
 (set! *warn-on-infer* true)
 
 (defn- basic-info
-  [{:keys [database-name database-description error-fields]}]
+  [{:keys [database-name database-description save-remote? error-fields]}]
   ;; error-fields is a map
   [mui-stack
    [mui-typography (tr-t basicDatabaseInformation)]
@@ -46,7 +45,16 @@
      [m/text-field {:label (tr-l description)
                     :value database-description
                     :on-change (nd-events/field-update-factory :database-description)
-                    :variant "standard" :fullWidth true}]]]])
+                    :variant "standard" :fullWidth true}]]
+
+    [mui-box {:sx {:width "80%"}}
+     [mui-form-control-label
+      {:control (r/as-element
+                 [mui-checkbox
+                  {:checked (boolean save-remote?)
+                   :on-change (fn [^js/CheckedEvent e]
+                                (nd-events/save-remote-toggle (-> e .-target .-checked)))}])
+       :label (t/lstr-l "saveRemote")}]]]])
 
 
 
@@ -164,15 +172,10 @@
 
      (cond
        remote?
-       [mui-typography {:variant "caption" :sx {:mt 1}} (t/lstr "labels.rsTargetRemote")]
+       [mui-typography {:variant "caption" :sx {:mt 1}} (lstr-l "rsTargetRemote")]
 
        db-file-file-exists
-       [mui-alert {:severity "warning" :sx {:mt 1}} (tr-m newDbPage txt4)])
-
-     (when (not remote?)
-       [mui-link {:variant "subtitle2" :sx {:cursor "pointer" :mt 1}
-                  :on-click rs-events/show-for-create}
-        (t/lstr-l "saveToRemote")])]]]) ;;"** Database file already exists and will be replaced with this new one **"
+       [mui-alert {:severity "warning" :sx {:mt 1}} (tr-m newDbPage txt4)])]]]) ;;"** Database file already exists and will be replaced with this new one **"
 
 (defn- security-info [{:keys [cipher-id error-fields]
                        {:keys [iterations memory parallelism algorithm]} :kdf}]

@@ -39,6 +39,8 @@
 
 ;; See interpolation options here
 ;;https://www.i18next.com/translation-function/interpolation
+
+;; This is for the same namespace use only. Caller should be lstr-* named functions
 (defn lstr
   "Gets the translation text for the given key and applying the interpolation if passed
   Arg interpolation-args is a map that provides value for any variable names used in text
@@ -240,7 +242,7 @@
    :read (fn [language _namespace callback]
            ;;(println "create-back-end language namespace callback " language namespace callback)
            ;;(println "data  is... " (clj->js (get @translations-data language)))
-           (callback nil (clj->js (get translations (normalize-language-id language)))) )})
+           (callback nil (clj->js (get translations (normalize-language-id language)))))})
 
 (defn- setup-i18n-with-backend [language back-end]
   (let [m  {:lng language

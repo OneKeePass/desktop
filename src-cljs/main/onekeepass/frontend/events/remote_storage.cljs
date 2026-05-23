@@ -21,6 +21,7 @@
     :api-error-text    string-or-nil
     :status            :idle | :in-progress}"
   (:require
+   [clojure.string :as str]
    [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-fx reg-sub subscribe]]
    [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.constants :as const]
@@ -56,6 +57,7 @@
    :form-data {:sftp (sftp-init-data) :webdav (webdav-init-data)}
    :form-errors {:sftp {} :webdav {}}
    :listing nil
+   :new-db-file-name "new-db.kdbx"
    :api-error-text nil
    :status :idle})
 
@@ -126,6 +128,11 @@
 (defn folder-picked-for-new-db [parent-dir new-db-file-name]
   (dispatch [::folder-picked-for-new-db parent-dir new-db-file-name]))
 
+(defn new-db-file-name [] (subscribe [::new-db-file-name]))
+
+(defn new-db-file-name-update [value]
+  (dispatch [::new-db-file-name-update value]))
+
 (defn save-remote-kdbx [db-key overwrite]
   (dispatch [::save-remote-kdbx db-key overwrite]))
 
@@ -155,6 +162,10 @@
  ::listing
  (fn [db _] (get-in db [:remote-storage :listing])))
 
+(reg-sub
+ ::new-db-file-name
+ (fn [db _] (get-in db [:remote-storage :new-db-file-name])))
+
 ;; ---- events ----
 
 (reg-event-fx
@@ -172,6 +183,36 @@
  ::dialog-hide
  (fn [db _]
    (assoc db :remote-storage (assoc blank-state :dialog-show false))))
+
+;; Public event mirroring (show-for-create) — exposed so other flows can open
+;; the remote-storage create dialog from re-frame :fx vectors.
+(reg-event-fx
+ :remote-storage/show-for-create
+ (fn [_ _]
+   (println "remote-storage/show-for-create is called...")
+   {:fx [[:dispatch [::dialog-show :create]]]}))
+
+;; Called from the new-db wizard's 'Save Remote' branch. Stashes the prepared
+;; new-db payload and opens the remote-storage create dialog. When the user
+;; picks a remote folder, ::folder-picked-for-new-db sees the pending payload
+;; and dispatches create-kdbx directly instead of re-entering the new-db
+;; wizard.
+(reg-event-fx
+ :remote-storage/begin-create-with-payload
+ (fn [{:keys [db]} [_ new-db-payload]]
+   (let [kw-type (or (get-in db [:remote-storage :current-type]) :sftp)
+         db-name (:database-name new-db-payload)
+         default-file (if (str/blank? db-name)
+                        "new-db.kdbx"
+                        (str db-name ".kdbx"))]
+     {:db (-> db
+              (assoc :remote-storage (-> blank-state
+                                         (assoc :dialog-show true)
+                                         (assoc :mode :create)
+                                         (assoc :current-type kw-type)
+                                         (assoc :new-db-file-name default-file)
+                                         (assoc :pending-new-db new-db-payload))))
+      :fx [[:dispatch [::load-kdbx-source-connections kw-type]]]})))
 
 (reg-event-fx
  ::back-step
@@ -215,6 +256,13 @@
  (fn [db _]
    (-> db
        (assoc-in [:remote-storage :step] :form)
+       (assoc-in [:remote-storage :api-error-text] nil))))
+
+(reg-event-db
+ ::new-db-file-name-update
+ (fn [db [_ value]]
+   (-> db
+       (assoc-in [:remote-storage :new-db-file-name] value)
        (assoc-in [:remote-storage :api-error-text] nil))))
 
 (reg-event-db
@@ -347,9 +395,21 @@
  ::folder-picked-for-new-db
  (fn [{:keys [db]} [_ parent-dir file-name]]
    (let [{:keys [type connection-id]} (get-in db [:remote-storage :listing])
-         db-file-name (form-db-key type connection-id parent-dir file-name)]
-     {:fx [[:dispatch [::dialog-hide]]
-           [:dispatch [:new-database/remote-target-selected db-file-name file-name]]]})))
+         db-file-name (form-db-key type connection-id parent-dir file-name)
+         pending (get-in db [:remote-storage :pending-new-db])]
+     (if pending
+       ;; save-remote? path — wizard data already collected; create directly.
+       ;; Keep the rs dialog open during create so a 'file already exists'
+       ;; error can be shown inline and the user can edit the filename and
+       ;; retry without losing their place.
+       {:db (-> db
+                (assoc-in [:remote-storage :status] :in-progress)
+                (assoc-in [:remote-storage :api-error-text] nil))
+        :fx [[:dispatch [:remote-storage/create-kdbx
+                         (assoc pending :database-file-name db-file-name)]]]}
+       ;; legacy path — bring user into the new-db wizard pre-filled.
+       {:fx [[:dispatch [::dialog-hide]]
+             [:dispatch [:new-database/remote-target-selected db-file-name file-name]]]}))))
 
 ;; -- read / save / create remote kdbx (called by open-db / new-db flows) --
 
@@ -393,6 +453,19 @@
    {:fx [[:dispatch [:common/progress-message-box-show "Creating" "Please wait..."]]
          [::bg-create-kdbx [new-db]]]}))
 
+(reg-event-db
+ ::create-error
+ (fn [db [_ error]]
+   (-> db
+       (assoc-in [:remote-storage :status] :idle)
+       (assoc-in [:remote-storage :api-error-text] error))))
+
+(reg-event-fx
+ ::create-success
+ (fn [_ [_ kdbx-loaded]]
+   {:fx [[:dispatch [::dialog-hide]]
+         [:dispatch [:common/kdbx-database-opened kdbx-loaded]]]}))
+
 (reg-fx
  ::bg-create-kdbx
  (fn [[new-db]]
@@ -400,5 +473,7 @@
     new-db
     (fn [api-response]
       (dispatch [:common/progress-message-box-hide])
-      (when-some [kdbx-loaded (check-error api-response)]
-        (dispatch [:common/kdbx-database-opened kdbx-loaded]))))))
+      (when-some [kdbx-loaded (check-error
+                               api-response
+                               #(dispatch [::create-error %]))]
+        (dispatch [::create-success kdbx-loaded]))))))

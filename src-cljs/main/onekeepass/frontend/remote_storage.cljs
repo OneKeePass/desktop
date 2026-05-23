@@ -12,7 +12,7 @@
    [clojure.string :as str]
    [onekeepass.frontend.events.remote-storage :as rs-events]
    [onekeepass.frontend.translation :as t
-    :refer [lstr lstr-l lstr-bl lstr-dlg-title]]
+    :refer [lstr-l lstr-bl lstr-dlg-title]]
    [onekeepass.frontend.mui-components :as m
     :refer [mui-alert
             mui-box
@@ -45,9 +45,6 @@
 
 (set! *warn-on-infer* true)
 
-;; Reagent atom for the new-db file name typed in the browse step (create mode).
-(defonce ^:private new-db-name (r/atom "new-db.kdbx"))
-
 ;; ---- step: source-pick ----
 
 (defn- type-tabs [current-type]
@@ -72,15 +69,15 @@
     [mui-stack {:spacing 1}
      [type-tabs current-type]
      [mui-typography {:variant "body2" :sx {:color "text.secondary"}}
-      (lstr "labels.rsPickConnectionHelp")]
+      (lstr-l "rsPickConnectionHelp")]
      (if (seq summaries)
        [mui-list {:dense true
                   :subheader (r/as-element
-                              [mui-list-subheader (lstr "labels.rsSavedConnections")])}
+                              [mui-list-subheader (lstr-l "rsSavedConnections")])}
         (doall (for [s summaries] (connection-row s)))]
        [mui-stack {:sx {:py 2}}
         [mui-typography {:variant "body2" :sx {:color "text.secondary"}}
-         (lstr "labels.rsNoSavedConnections")]])
+         (lstr-l "rsNoSavedConnections")]])
      [mui-divider]
      [mui-link {:variant "subtitle2"
                 :sx {:cursor "pointer" :mt 1}
@@ -206,7 +203,7 @@
           [mui-list-item-text {:primary f}]]))
       (when (and (empty? sub-dirs) (empty? files))
         [mui-list-item
-         [mui-list-item-text {:primary (lstr "labels.rsEmptyDir")}]])]]))
+         [mui-list-item-text {:primary (lstr-l "rsEmptyDir")}]])]]))
 
 ;; ---- top-level dialog ----
 
@@ -246,22 +243,25 @@
 
       :browse
       [:<>
-       [mui-button {:on-click rs-events/back-step :color "secondary"}
+       [mui-button {:sx {:margin-top "20px"} :on-click rs-events/back-step :color "secondary"}
         (lstr-bl 'back)]
-       [mui-button {:on-click rs-events/cancel-dialog :color "secondary"}
+       [mui-button {:sx {:margin-top "20px"} :on-click rs-events/cancel-dialog :color "secondary"}
         (lstr-bl 'cancel)]
        (when (= mode :create)
-         [mui-stack {:direction "row" :spacing 1 :alignItems "center"}
-          [m/text-field {:label (lstr-l "fileName")
-                         :value @new-db-name
-                         :variant "standard"
-                         :on-change (fn [^js/Event e]
-                                      (reset! new-db-name (.. e -target -value)))}]
-          [mui-button {:on-click #(rs-events/folder-picked-for-new-db
-                                   parent-dir @new-db-name)
-                       :color "primary" :variant "contained"
-                       :disabled (str/blank? @new-db-name)}
-           (lstr-bl 'use-this-folder)]])]
+         (let [file-name @(rs-events/new-db-file-name)]
+           [mui-stack {:direction "row" :spacing 1 :alignItems "center"}
+            [m/text-field {:label (lstr-l "fileName")
+                           :value (or file-name "")
+                           :variant "standard"
+                           :disabled in-progress?
+                           :on-change (fn [^js/Event e]
+                                        (rs-events/new-db-file-name-update
+                                         (.. e -target -value)))}]
+            [mui-button {:style {:margin-top "20px"} :on-click #(rs-events/folder-picked-for-new-db
+                                     parent-dir file-name)
+                         :color "primary" :variant "contained"
+                         :disabled (or in-progress? (str/blank? file-name))}
+             (lstr-bl 'create)]]))]
 
       ;; Render-time guard for the initial nil state (see dialog-title-for-step).
       nil)))

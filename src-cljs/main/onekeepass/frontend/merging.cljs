@@ -13,7 +13,8 @@
                                                      mui-dialog-title
                                                      mui-divider mui-stack
                                                      mui-typography]]
-   [onekeepass.frontend.translation :as t :refer-macros [tr-bl tr-dlg-text tr-dlg-title tr-l] :refer [lstr-dlg-title]]))
+   [onekeepass.frontend.translation :as t :refer-macros [tr-bl tr-dlg-text tr-dlg-title tr-l] :refer [lstr-dlg-text
+                                                                                                      lstr-dlg-title]]))
 
 
 (defn merge-result-dialog
@@ -139,7 +140,7 @@
                   :on-click #(.stopPropagation %)}
       [mui-dialog-title (lstr-dlg-title 'externalDbChanged)]
       [mui-dialog-content
-       [mui-typography (t/lstr "dialog.texts.externalDbChangedTxt1"
+       [mui-typography (lstr-dlg-text "externalDbChangedTxt1"
                                {:file-name (-> db-key (str/split #"/") last)})]
        (when save-pending
          [mui-typography {:color "warning.main"}

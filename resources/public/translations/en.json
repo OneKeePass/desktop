@@ -168,6 +168,7 @@
         "rsSavedConnections": "Saved Connections",
         "rsTargetRemote": "This database will be created on the remote server.",
         "saveAs": "Save As",
+        "saveRemote": "Save to a remote server",
         "saveToRemote": "Save to Remote...",
         "searchTerm": "Search term",
         "secretOrTotpAuthUrl": "Secret or TOTPAuth URL",

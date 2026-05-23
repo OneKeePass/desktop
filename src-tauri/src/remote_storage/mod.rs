@@ -112,6 +112,12 @@ pub(crate) fn rs_create_kdbx(
     let db_key = new_db.database_file_name.clone();
     let rs_operation_type = rs_type_from_db_key(&db_key)?;
 
+    if rs_operation_type.file_metadata().is_ok() {
+        return Err(error::Error::DataError(
+            "A file with this name already exists at this location. Choose a different name.",
+        ));
+    }
+
     let mut mem = Cursor::new(Vec::<u8>::new());
     let kdbx_loaded = db_service::create_and_write_to_writer(&mut mem, new_db)?;
 
