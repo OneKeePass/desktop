@@ -27,6 +27,7 @@
 (defn open-db-dialog [{:keys [dialog-show
                               unlock-request
                               dbs-merge-request
+                              remote?
                               file-name
                               password
                               key-file-name
@@ -51,8 +52,9 @@
                          :on-change od-events/file-name-on-change
                          :disabled unlock-request
                          :variant "standard" :fullWidth true
-                         :slotProps {:input {:endAdornment
-                                             (when (not unlock-request)
+                         :slotProps {:input {:readOnly (boolean remote?)
+                                             :endAdornment
+                                             (when (and (not unlock-request) (not remote?))
                                                (r/as-element
                                                 [mui-input-adornment {:position "end"}
                                                  [mui-icon-button

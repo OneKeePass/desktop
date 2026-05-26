@@ -9,7 +9,8 @@
                                               check-error
                                               get-in-key-db
                                               locked?
-                                              opened-db-keys]]
+                                              opened-db-keys
+                                              remote-db-key?]]
    [onekeepass.frontend.translation :refer-macros [tr-dlg-title tr-dlg-text] :refer [lstr-sm]]
    [re-frame.core :refer [dispatch reg-event-fx reg-fx]]))
 
@@ -70,7 +71,7 @@
          [:dispatch [:common/progress-message-box-show
                      (tr-dlg-title "mergingExternalChanges")
                      (tr-dlg-text "mergingExternalChangesTxt")]]
-         (if (const/remote-db-key? db-key)
+         (if (remote-db-key? db-key)
            [:bg-merge-kdbx-with-remote-version [db-key]]
            [:bg-merge-kdbx-with-disk-version [db-key]])]}))
 
@@ -128,7 +129,7 @@
 (reg-event-fx
  :external-change-reload-start
  (fn [{:keys [db]} [_event-id db-key]]
-   (if (const/remote-db-key? db-key)
+   (if (remote-db-key? db-key)
      {:fx [[:dispatch [:generic-dialog-close :external-db-change-dialog]]]}
      {:db (assoc-in db [db-key] nil)
       :fx [[:dispatch [:generic-dialog-close :external-db-change-dialog]]
@@ -161,7 +162,7 @@
  :external-change-ignore
  (fn [{:keys [_db]} [_event-id db-key]]
    {:fx [[:dispatch [:generic-dialog-close :external-db-change-dialog]]
-         (if (const/remote-db-key? db-key)
+         (if (remote-db-key? db-key)
            [:bg-acknowledge-remote-change [db-key]]
            [:bg-acknowledge-db-change [db-key]])
          [:dispatch [:common/message-box-show
@@ -188,7 +189,7 @@
  :external-db-change/poll-open-remote-dbs
  (fn [{:keys [db]} _]
    (let [keys (opened-db-keys db)
-         remote-keys (filter const/remote-db-key? keys)]
+         remote-keys (filter remote-db-key? keys)]
      (when (seq remote-keys)
        {:fx (mapv (fn [k] [:bg-rs-check-remote-modified [k]]) remote-keys)}))))
 

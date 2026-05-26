@@ -35,7 +35,7 @@
           [mui-list-item {:divider true}
            [mui-tooltip {:title file-path :enterDelay 1000}
             [mui-list-item-text
-             {:primary file-path
+             {:primary (or (cmn-events/remote-db-key-display file-path) file-path)
               :primaryTypographyProps {:noWrap true
                                        :sx {:cursor "pointer"
                                             :max-width "480px"}}

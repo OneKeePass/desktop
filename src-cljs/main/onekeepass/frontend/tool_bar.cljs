@@ -99,7 +99,7 @@
 
 (defn content-change-action-dialog [open?]
   (let [active-key @(cmn-events/active-db-key)
-        remote? (const/remote-db-key? active-key)]
+        remote? (cmn-events/remote-db-key? active-key)]
     [mui-dialog {:open open? :on-click #(.stopPropagation ^js/Event %)}
      [mui-dialog-title (tr-dlg-title conflictOnSave)]
      [mui-dialog-content

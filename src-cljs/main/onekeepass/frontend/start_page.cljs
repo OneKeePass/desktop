@@ -89,7 +89,7 @@
                         [mui-link {:sx {:mt 1 :white-space "nowrap" :text-overflow "ellipsis" :overflow "hidden"}
                                    :variant "body2"
                                    :on-click #(od-events/recent-file-link-on-click lnk)}
-                         lnk]]))]
+                         (or (cmn-events/remote-db-key-display lnk) lnk)]]))]
 
        (when (> (count recent-files-list) 0)
          [mui-stack {:mt 3}

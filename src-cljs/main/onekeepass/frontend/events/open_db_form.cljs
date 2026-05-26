@@ -29,7 +29,11 @@
   (dispatch [:open-db-update-key-file-name (->  e .-target .-value)]))
 
 (defn recent-file-link-on-click [file-name]
-  (dispatch [:open-db-dialog-show-on-file-selection file-name]))
+  (if (cmn-events/remote-db-key? file-name)
+    ;; Remote recent entry — route to the remote login flow so the OK click
+    ;; calls rs_read_kdbx instead of the local bg-load-kdbx-file path.
+    (dispatch [:open-db-form/remote-open-show file-name nil])
+    (dispatch [:open-db-dialog-show-on-file-selection file-name])))
 
 (defn cancel-on-click []
   (dispatch [:open-db/dialog-hide])

@@ -1278,6 +1278,13 @@ pub async fn rs_read_kdbx(
     .await
     .map_err(spawn_blocking_join_err)??;
     app_state.set_remote_mtime(&db_key_for_cache, remote_mtime);
+    if crate::remote_storage::is_kdbx_entry_backed(&db_key_for_cache) {
+        app_state
+            .preference
+            .lock()
+            .unwrap()
+            .add_recent_file(&db_key_for_cache);
+    }
     Ok(kdbx_loaded)
 }
 
@@ -1317,6 +1324,13 @@ pub async fn rs_create_kdbx(
         .await
         .map_err(spawn_blocking_join_err)??;
     app_state.set_remote_mtime(&db_key, remote_mtime);
+    if crate::remote_storage::is_kdbx_entry_backed(&db_key) {
+        app_state
+            .preference
+            .lock()
+            .unwrap()
+            .add_recent_file(&db_key);
+    }
     Ok(kdbx_loaded)
 }
 

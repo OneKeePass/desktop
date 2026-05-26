@@ -137,6 +137,15 @@
   ([txt-key]
    (lstr-error-sm txt-key nil)))
 
+(defn lstr-m
+  "Adds prefix 'messages' and the pageName to the key before getting the translation
+  The arg 'txt-key' are expected to be a symbol as passed in events call ':common/message-snackbar-error-open' 
+   "
+  ([page-name txt-key interpolation-args]
+   (lstr (str "messages." page-name "." txt-key) interpolation-args))
+  ([page-name txt-key]
+   (lstr-m  page-name txt-key nil)))
+
 (defn lstr-field-name
   "Adds 'entryFieldNames' prefix to the key and gets the translated text of standard entry fields"
   [txt-key]

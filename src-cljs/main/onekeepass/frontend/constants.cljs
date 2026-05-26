@@ -18,14 +18,6 @@
 (def V-SFTP "Sftp")
 (def V-WEBDAV "Webdav")
 
-(defn remote-db-key?
-  "True when db-key was minted by the remote-storage open/create flow
-   (prefixed Sftp- or Webdav-)."
-  [db-key]
-  (and (string? db-key)
-       (or (clojure.string/starts-with? db-key (str V-SFTP "-"))
-           (clojure.string/starts-with? db-key (str V-WEBDAV "-")))))
-
 ;; Page identifiers for the remote-storage screens.
 (def RS_CONNECTIONS_PAGE_ID :remote-storage-connections)
 (def RS_BROWSE_PAGE_ID :remote-storage-browse)

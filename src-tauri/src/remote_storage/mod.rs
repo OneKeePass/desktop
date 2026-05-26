@@ -25,13 +25,41 @@ use log::{debug, info};
 use uuid::Uuid;
 
 use onekeepass_core::db_service::{
-    self, KdbxLoaded, KdbxSaved, MergeResult, NewDatabase, RemoteConnectionEntrySummary,
+    self, entry_type_uuid, KdbxLoaded, KdbxSaved, MergeResult, NewDatabase,
+    RemoteConnectionEntrySummary,
 };
 use onekeepass_core::error::{self, Result};
 use onekeepass_core::remote_storage::storage_service::{
-    rs_type_from_db_key, ConnectionConfigs, RemoteFileMetadata, RemoteStorageOperation,
-    RemoteStorageOperationType, RemoteStorageType, RemoteStorageTypeConfig,
+    parse_db_key, rs_type_from_db_key, ConnectionConfigs, RemoteFileMetadata,
+    RemoteStorageOperation, RemoteStorageOperationType, RemoteStorageType,
+    RemoteStorageTypeConfig,
 };
+
+// True when the remote connection referenced by db_key resolves to a
+// REMOTE_CONNECTION_SFTP / _WEBDAV entry in a currently-open kdbx db.
+// Ad-hoc form-based connections (no backing entry) return false. Used to gate
+// recent-files registration: only entry-backed remotes get listed, because
+// only those can be re-opened later by simply re-opening the parent kdbx.
+pub(crate) fn is_kdbx_entry_backed(db_key: &str) -> bool {
+    let Ok(parsed) = parse_db_key(db_key) else {
+        return false;
+    };
+    let Ok(connection_id) = Uuid::parse_str(parsed.connection_id) else {
+        return false;
+    };
+    let type_bytes: &[u8] = match parsed.rs_type_name {
+        "Sftp" => entry_type_uuid::REMOTE_CONNECTION_SFTP,
+        "Webdav" => entry_type_uuid::REMOTE_CONNECTION_WEBDAV,
+        _ => return false,
+    };
+    let Some(type_uuid) = uuid::Builder::from_slice(type_bytes)
+        .ok()
+        .map(|b| b.into_uuid())
+    else {
+        return false;
+    };
+    db_service::find_remote_connection_entry(&connection_id, &type_uuid).is_some()
+}
 
 // All functions below are synchronous and internally call the
 // onekeepass-core macros that do `oneshot::Receiver::blocking_recv()`. That

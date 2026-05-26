@@ -2,7 +2,7 @@
   (:require
    [clojure.string :as str]
    [onekeepass.frontend.common-components :refer [selection-autocomplete]]
-   [onekeepass.frontend.constants :as const]
+   [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.events.external-db-change :as external-db-change-events]
    [onekeepass.frontend.events.generic-dialogs :as gd-events]
    [onekeepass.frontend.events.merging :as merging-events]
@@ -135,7 +135,7 @@
 
 (defn external-db-change-dialog
   ([{:keys [dialog-show] {:keys [db-key save-pending]} :data}]
-   (let [remote? (const/remote-db-key? db-key)]
+   (let [remote? (cmn-events/remote-db-key? db-key)]
      [mui-dialog {:open (boolean dialog-show)
                   :on-click #(.stopPropagation %)}
       [mui-dialog-title (lstr-dlg-title 'externalDbChanged)]

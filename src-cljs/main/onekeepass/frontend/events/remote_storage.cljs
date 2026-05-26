@@ -22,11 +22,13 @@
     :status            :idle | :in-progress}"
   (:require
    [clojure.string :as str]
-   [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-fx reg-sub subscribe]]
    [onekeepass.frontend.background :as bg]
+   [onekeepass.frontend.background-remote-storage :as bg-rs]
    [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.events.common :as cmn-events :refer [check-error]]
-   [onekeepass.frontend.background-remote-storage :as bg-rs]))
+   [onekeepass.frontend.translation :refer [lstr-m]]
+   [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-fx reg-sub
+                          subscribe]]))
 
 ;; ---- helpers ----
 
@@ -419,6 +421,12 @@
    {:fx [[:dispatch [:common/progress-message-box-show "Opening" "Please wait..."]]
          [::bg-read-kdbx [db-file-name password key-file-name]]]}))
 
+;; Backend marker (variant Display) returned when the remote connection can't
+;; be resolved — happens when an entry-backed remote is opened from a recent
+;; entry but the parent kdbx (which holds the SFTP/WebDAV connection entry)
+;; isn't open yet.
+(def ^:private no-remote-storage-connection "NoRemoteStorageConnection")
+
 (reg-fx
  ::bg-read-kdbx
  (fn [[db-file-name password key-file-name]]
@@ -428,7 +436,11 @@
       (dispatch [:common/progress-message-box-hide])
       (when-some [kdbx-loaded (check-error
                                api-response
-                               #(dispatch [:open-db-error %]))]
+                               (fn [err]
+                                 (let [msg (if (= err no-remote-storage-connection)
+                                             (lstr-m "openDbPage" "parentDbNotOpen")
+                                             err)]
+                                   (dispatch [:open-db-error msg]))))]
         ;; Re-use the local path's completion event so the open-db dialog is
         ;; reset and hidden in addition to loading the kdbx into the UI.
         (dispatch [:open-db-file-loading-done kdbx-loaded]))))))

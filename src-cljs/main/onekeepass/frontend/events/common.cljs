@@ -23,12 +23,49 @@
 (declare active-db-key)
 (declare assoc-in-key-db)
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Remote connections related ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn remote-db-key?
+  "True when db-key was minted by the remote-storage open/create flow
+   (prefixed Sftp- or Webdav-)."
+  [db-key]
+  (and (string? db-key)
+       (or (str/starts-with? db-key (str const/V-SFTP "-"))
+           (str/starts-with? db-key (str const/V-WEBDAV "-")))))
+
+(defn remote-db-key-display
+  "Renders a remote db-key as a short, human-readable label like
+   'Test1.kdbx (SFTP)' / 'db.kdbx (WebDAV)'. Returns nil if the db-key
+   doesn't match the expected remote shape (caller falls back to db-key as-is)."
+  [db-key]
+  (when (remote-db-key? db-key)
+    (let [[prefix label] (cond
+                           (str/starts-with? db-key (str const/V-SFTP "-"))
+                           [(str const/V-SFTP "-") "SFTP"]
+
+                           (str/starts-with? db-key (str const/V-WEBDAV "-"))
+                           [(str const/V-WEBDAV "-") "WebDAV"])
+          ;; "<prefix>-<36-char-uuid>-<path>" — strip prefix and uuid+dash to
+          ;; reach the path part, then take the trailing file name.
+          after-prefix (subs db-key (count prefix))
+          after-uuid (if (> (count after-prefix) 37)
+                       (subs after-prefix 37)
+                       after-prefix)
+          file-name (-> after-uuid (str/split #"/") last)]
+      (str (if (str/blank? file-name) after-uuid file-name)
+           " (" label ")"))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn sync-initialize
   "Called just before rendering to set all requied values in re-frame db"
   []
   ;;(re-frame.core/dispatch-sync [:initialise-db]) 
   (dispatch-sync [:custom-icons/load-custom-icons])
   (dispatch-sync [:init-process]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn open-file-explorer-on-click
   "Shows OS specific file explorer dialog to pick a from the local file system
@@ -673,7 +710,7 @@
            (get-in db [(active-db-key db) :external-change-pending])
            [:dispatch [:external-db-change/check-external-change-pending (active-db-key db)]]
 
-           (const/remote-db-key? (active-db-key db))
+           (remote-db-key? (active-db-key db))
            [:dispatch [:external-db-change/poll-open-remote-dbs]]
 
            :else
