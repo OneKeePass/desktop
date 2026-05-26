@@ -10,6 +10,7 @@
    [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom mui-box
                                                      mui-circular-progress
                                                      mui-date-time-picker
+                                                     mui-form-control-label
                                                      mui-icon-autorenew
                                                      mui-icon-button
                                                      mui-icon-delete-outline
@@ -19,6 +20,7 @@
                                                      mui-link
                                                      mui-localization-provider
                                                      mui-menu-item mui-stack
+                                                     mui-switch
                                                      mui-text-field
                                                      mui-tooltip
                                                      mui-typography]]
@@ -468,7 +470,7 @@
 
 
 (defn single-or-multiline-text-field
-  "Decides whether to use text-field or text-area-field based on the 
+  "Decides whether to use text-field or text-area-field based on the
    length of the value."
   [{:keys [key
            _field-name
@@ -487,6 +489,27 @@
     (if-not multiline-field
       [single-line-text-field (assoc kv :label label :val val :helper-text helper-text)]
       [multiline-text-field (assoc kv :label label :val val :helper-text helper-text)])))
+
+(defn bool-switch-field
+  [{:keys [value edit on-change-handler] :as kv}]
+  (if-not edit
+    [single-or-multiline-text-field kv]
+    (let [label (translated-label kv)
+          checked? (contains? #{"true" "yes" "1"}
+                              (some-> value str/trim str/lower-case))]
+      [mui-stack {:direction "row" :sx {:width "100%" :align-items "center"}}
+       [mui-form-control-label
+        {:label-placement "start"
+         :sx {:ml 0 :mr 0 :width "100%" :justify-content "space-between"}
+         :control (r/as-element
+                   [mui-switch
+                    {:checked checked?
+                     :on-change (fn [^js/Event e]
+                                  (on-change-handler (.. e -target -checked)))}])
+         :label (r/as-element
+                 [mui-typography {:variant "caption"
+                                  :sx {:color "text.secondary"}}
+                  label])}]])))
 
 
 

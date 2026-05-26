@@ -117,6 +117,8 @@
 
 (def ONE_TIME_PASSWORD_TYPE "Field type" "OneTimePassword")
 
+(def BOOL_TYPE "Field type matching Rust enum FieldDataType::Bool" "Bool")
+
 (def OTP "Standard field name used" "otp")
 
 (def OTP_URL_PREFIX "otpauth://totp")

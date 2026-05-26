@@ -280,7 +280,7 @@
     ;; if it has some fields with non blank value. 
     (when (or edit (boolean (seq (filter (fn [kv] (not (str/blank? (:value kv)))) section-data))))  ;;(seq section-data)
       (let [refs (atom {})]
-        [mui-box {:sx (theme-content-sx @m/custom-theme-atom)
+        [mui-box {:sx (theme-content-sx @custom-theme-atom)
                   ;;:sx content-sx
                   ;;:style {:background @m/entry-content-bg-color}
                   }
@@ -321,6 +321,14 @@
                   [otp-field (assoc kv :edit edit
                                     :section-name section-name
                                     :group-uuid group-uuid)]
+
+                  (= data-type const/BOOL_TYPE)
+                  [fields/bool-switch-field
+                   (assoc kv
+                          :edit edit
+                          :error-text (get errors key)
+                          :on-change-handler #(form-events/update-section-value-on-change
+                                               section-name key (if % "True" "False")))]
 
                   ;; we are now using 'single-or-multiline-text-field' instead of earlier 'text-field'
                   ;; All text-fields are now either single line or multiline text area fields
@@ -764,7 +772,7 @@
         entry-type-uuid @(form-events/entry-form-data-fields :entry-type-uuid)
         field-error-text (:group-selection @(form-events/entry-form-field :error-fields))]
     ;;(println "entry-type-uuid is " entry-type-uuid)
-    [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
+    [mui-box {:sx (theme-content-sx @custom-theme-atom)}
      [mui-stack {:spacing 1}
       [mui-stack {:direction "row" :sx {:width "100%"}}
        [mui-stack {:direction "row" :sx {:width "90%"}}
@@ -884,7 +892,7 @@
 
 (defn entry-type-section-content [edit section-name section-data]
   (let [errors @(form-events/entry-form-field :error-fields)]
-    [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
+    [mui-box {:sx (theme-content-sx @custom-theme-atom)}
      [section-header section-name]
      (doall
       (for [{:keys [key
@@ -938,7 +946,7 @@
   (let [{:keys [entry-type-name entry-type-icon-name]} @(form-events/entry-form-data-fields
                                                          [:entry-type-name :entry-type-icon-name])
         errors @(form-events/entry-form-field :error-fields)]
-    [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
+    [mui-box {:sx (theme-content-sx @custom-theme-atom)}
      [mui-stack {:direction "row" :spacing 1}
       [mui-stack {:direction "row" :sx {:width "90%" :justify-content "center"}}
        [text-field {:key (tr-l entryType)

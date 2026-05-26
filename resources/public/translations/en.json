@@ -325,6 +325,7 @@
         "additionalUrLs": "Additional URLs",
         "addressLine1": "Address Line1",
         "addressLine2": "Address Line2",
+        "allowUntrustedCert": "Allow Untrusted Cert",
         "autoOpenIfDevice": "Device ids to include or exclude",
         "autoOpenKdbxFileOpen": "KDBX file to open",
         "autoOpenKeyFile": "Key file",
