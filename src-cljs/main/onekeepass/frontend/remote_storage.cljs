@@ -10,11 +10,13 @@
   (:require
    [reagent.core :as r]
    [clojure.string :as str]
+   [onekeepass.frontend.db-icons :refer [render-entry-icon]]
    [onekeepass.frontend.events.remote-storage :as rs-events]
    [onekeepass.frontend.translation :as t
     :refer [lstr-l lstr-bl lstr-dlg-title]]
    [onekeepass.frontend.mui-components :as m
     :refer [mui-alert
+            mui-avatar
             mui-box
             mui-button
             mui-dialog
@@ -33,6 +35,7 @@
             mui-link
             mui-list
             mui-list-item
+            mui-list-item-avatar
             mui-list-item-button
             mui-list-item-icon
             mui-list-item-text
@@ -55,26 +58,45 @@
    [mui-tab {:value "sftp" :label "SFTP"}]
    [mui-tab {:value "webdav" :label "WebDAV"}]])
 
-(defn- connection-row [{:keys [connection-id title db-key]}]
+(defn- connection-row [db-key
+                       {:keys [connection-id title connection-info
+                               icon-id custom-icon-uuid]}]
   ^{:key connection-id}
   [mui-list-item-button
    {:on-click #(rs-events/connect-by-id-start connection-id)
     :sx {:border-radius 1}}
-   [mui-list-item-icon [mui-icon-launch]]
+   [mui-list-item-avatar
+    [mui-avatar [render-entry-icon {:db-key db-key
+                                    :icon-id icon-id
+                                    :custom-icon-uuid custom-icon-uuid}]]]
    [mui-list-item-text {:primary (or title connection-id)
-                        :secondary db-key}]])
+                        :secondary connection-info}]
+   [mui-icon-launch {:sx {:color "action.active" :ml 1}}]])
+
+(defn- db-group [{:keys [db-key db-name summaries]}]
+  ^{:key db-key}
+  [:li
+   [:ul {:style {:padding 0}}
+    [mui-list-subheader
+     {:sx {:background-color "rgba(25, 118, 210, 0.08)"}}
+     [mui-typography {:variant "subtitle1"} db-name]]
+    (doall (for [s summaries] (connection-row db-key s)))]])
 
 (defn- source-pick-content [current-type]
-  (let [summaries @(rs-events/kdbx-source-connections current-type)]
+  (let [groups @(rs-events/grouped-kdbx-source-connections current-type)
+        any? (seq groups)]
     [mui-stack {:spacing 1}
      [type-tabs current-type]
-     [mui-typography {:variant "body2" :sx {:color "text.secondary"}}
-      (lstr-l "rsPickConnectionHelp")]
-     (if (seq summaries)
+     (when any?
+       [mui-typography {:variant "body2" :sx {:color "text.secondary"}}
+        (lstr-l "rsPickConnectionHelp")])
+     (if any?
        [mui-list {:dense true
-                  :subheader (r/as-element
-                              [mui-list-subheader (lstr-l "rsSavedConnections")])}
-        (doall (for [s summaries] (connection-row s)))]
+                  :sx {:max-height "360px"
+                       :overflow "auto"
+                       "& ul" {:padding 0}}
+                  :subheader (r/as-element [:li])}
+        (doall (for [g groups] (db-group g)))]
        [mui-stack {:sx {:py 2}}
         [mui-typography {:variant "body2" :sx {:color "text.secondary"}}
          (lstr-l "rsNoSavedConnections")]])
@@ -156,6 +178,8 @@
 (defn- form-content [current-type]
   [mui-stack {:spacing 1}
    [type-tabs current-type]
+   [mui-typography {:variant "body2" :sx {:color "warning.main"}}
+    (lstr-l "rsAdhocConnectionWarning")]
    (if (= current-type :sftp) [sftp-form] [webdav-form])])
 
 ;; ---- step: browse ----

@@ -91,6 +91,9 @@
 (defn kdbx-source-connections [kw-type]
   (subscribe [::kdbx-source-connections kw-type]))
 
+(defn grouped-kdbx-source-connections [kw-type]
+  (subscribe [::grouped-kdbx-source-connections kw-type]))
+
 (defn connect-by-id-start [connection-id]
   (dispatch [::connect-by-id-start connection-id]))
 
@@ -151,6 +154,25 @@
 (reg-sub
  ::kdbx-source-connections
  (fn [db [_ kw-type]] (get-in db [:remote-storage :kdbx-source kw-type])))
+
+;; Groups the flat kdbx-source summaries by their parent kdbx db-key and
+;; joins each group with the database-name from :opened-db-list, so the
+;; source-pick step can render per-database subheaders.
+(reg-sub
+ ::grouped-kdbx-source-connections
+ (fn [[_ kw-type] _]
+   [(subscribe [::kdbx-source-connections kw-type])
+    (subscribe [:opened-db-list])])
+ (fn [[summaries opened-list] _]
+   (let [name-by-key (into {} (map (juxt :db-key :database-name)) opened-list)]
+     (->> summaries
+          (group-by :db-key)
+          (map (fn [[db-key items]]
+                 {:db-key db-key
+                  :db-name (or (name-by-key db-key) db-key)
+                  :summaries items}))
+          (sort-by :db-name)
+          vec))))
 
 (reg-sub
  ::form-data
