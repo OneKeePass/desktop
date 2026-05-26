@@ -1,8 +1,10 @@
-use chrono::Local;
 use log::{debug, LevelFilter};
 use log4rs::append::console::ConsoleAppender;
-use log4rs::append::file::FileAppender;
-use log4rs::config::{Appender, Config, Root};
+use log4rs::append::rolling_file::policy::compound::roll::fixed_window::FixedWindowRoller;
+use log4rs::append::rolling_file::policy::compound::trigger::size::SizeTrigger;
+use log4rs::append::rolling_file::policy::compound::CompoundPolicy;
+use log4rs::append::rolling_file::RollingFileAppender;
+use log4rs::config::{Appender, Config, Logger, Root};
 use log4rs::encode::pattern::PatternEncoder;
 use serde::{Deserialize, Serialize};
 
@@ -93,28 +95,51 @@ pub(crate) fn init_app(app: &App) {
 }
 
 fn init_log(log_dir: &PathBuf) {
-    let local_time = Local::now().format("%Y-%m-%d-%H%M%S").to_string();
-    let log_file = format!("{}.log", local_time);
-    let log_file = log_dir.join(log_file);
+    let max_file_size_mb: u64 = 5;
+    let backup_count: u32 = 2;
 
-    let time_format = "{d(%Y-%m-%d %H:%M:%S)} - {m}{n}";
+    #[cfg(not(feature = "onekeepass-dev"))]
+    let (level, log_file_name) = (LevelFilter::Info, "onekeepass.log");
+
+    #[cfg(feature = "onekeepass-dev")]
+    let (level, log_file_name) = (LevelFilter::Debug, "onekeepass-dev.log");
+
+    let log_file_path = log_dir.join(log_file_name);
+
+    let time_format = "{d(%Y-%m-%d %H:%M:%S)} [{l}] {t} - {m}{n}";
+
     let stdout = ConsoleAppender::builder()
         .encoder(Box::new(PatternEncoder::new(time_format)))
         .build();
-    let tofile = FileAppender::builder()
+
+    // Size-based rotation: when the current file reaches `max_file_size_mb`,
+    // it is renamed to `<name>.1.log`, prior backups shift up, and anything
+    // past `backup_count` is dropped. Bounds total log disk usage at roughly
+    // (backup_count + 1) * max_file_size_mb per build variant.
+    let size_trigger = Box::new(SizeTrigger::new(max_file_size_mb * 1024 * 1024));
+    let roller_pattern = format!(
+        "{}.{{}}.log",
+        log_file_path.to_str().unwrap().replace(".log", "")
+    );
+    let roller = Box::new(
+        FixedWindowRoller::builder()
+            .build(&roller_pattern, backup_count)
+            .unwrap(),
+    );
+    let policy = Box::new(CompoundPolicy::new(size_trigger, roller));
+
+    let tofile = RollingFileAppender::builder()
         .encoder(Box::new(PatternEncoder::new(time_format)))
-        .build(log_file)
+        .build(log_file_path, policy)
         .unwrap();
-
-    #[cfg(not(feature = "onekeepass-dev"))]
-    let level = LevelFilter::Info;
-
-    #[cfg(feature = "onekeepass-dev")]
-    let level = LevelFilter::Debug;
 
     let config = Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
         .appender(Appender::builder().build("file", Box::new(tofile)))
+        // russh is chatty at Debug; floor it at Info so our own Debug logs
+        // stay readable in dev. Applies to russh and all russh::* submodules.
+        .logger(Logger::builder().build("russh", LevelFilter::Info))
+        .logger(Logger::builder().build("russh_sftp", LevelFilter::Info))
         .build(Root::builder().appenders(["stdout", "file"]).build(level))
         .unwrap();
 

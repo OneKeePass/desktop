@@ -27,9 +27,12 @@ pub(crate) fn init_app_paths() {
     if !log_dir.exists() {
         let _ = fs::create_dir_all(&log_dir);
     } else {
-        // Each time we remove any old log file.
-        // TODO: Explore the use file rotation
-        let _r = file_util::remove_dir_files(&log_dir);
+        // Sweep legacy per-launch timestamped log files (format
+        // "YYYY-MM-DD-HHMMSS.log") written by versions prior to the
+        // size-rotated logging scheme. Active rotation files
+        // (onekeepass[-dev].log, onekeepass[-dev].N.log) are preserved
+        // so rotation history survives across launches.
+        remove_legacy_timestamped_logs(&log_dir);
     }
 
     if !word_list_dir.exists() {
@@ -41,6 +44,48 @@ pub(crate) fn init_app_paths() {
             );
         }
     }
+}
+
+fn remove_legacy_timestamped_logs(log_dir: &Path) {
+    let Ok(entries) = fs::read_dir(log_dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        if !entry
+            .file_type()
+            .map(|t| t.is_file())
+            .unwrap_or(false)
+        {
+            continue;
+        }
+        let name = entry.file_name();
+        let Some(name_str) = name.to_str() else {
+            continue;
+        };
+        if is_legacy_timestamped_log_name(name_str) {
+            let _ = fs::remove_file(entry.path());
+        }
+    }
+}
+
+fn is_legacy_timestamped_log_name(name: &str) -> bool {
+    let Some(stem) = name.strip_suffix(".log") else {
+        return false;
+    };
+    if stem.len() != 17 {
+        return false;
+    }
+    let dash_positions = [4usize, 7, 10];
+    for (i, b) in stem.bytes().enumerate() {
+        if dash_positions.contains(&i) {
+            if b != b'-' {
+                return false;
+            }
+        } else if !b.is_ascii_digit() {
+            return false;
+        }
+    }
+    true
 }
 
 // IMPORTANT: unwrap() is used. What is the alternative ?
@@ -110,5 +155,34 @@ pub(crate) fn app_resources_dir<R: Runtime>(app: &tauri::AppHandle<R>) -> Result
             .ok_or("Could not resolve resource public dir".into())
     } else {
         Err("Could not resolve resource public dir".into())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_legacy_timestamped_log_name;
+
+    #[test]
+    fn legacy_name_matches_timestamp_pattern() {
+        assert!(is_legacy_timestamped_log_name("2026-05-26-143022.log"));
+        assert!(is_legacy_timestamped_log_name("2024-01-01-000000.log"));
+    }
+
+    #[test]
+    fn legacy_name_rejects_rotation_files() {
+        assert!(!is_legacy_timestamped_log_name("onekeepass.log"));
+        assert!(!is_legacy_timestamped_log_name("onekeepass.1.log"));
+        assert!(!is_legacy_timestamped_log_name("onekeepass.2.log"));
+        assert!(!is_legacy_timestamped_log_name("onekeepass-dev.log"));
+        assert!(!is_legacy_timestamped_log_name("onekeepass-dev.1.log"));
+    }
+
+    #[test]
+    fn legacy_name_rejects_non_matching_shapes() {
+        assert!(!is_legacy_timestamped_log_name("2026-05-26.log")); // too short
+        assert!(!is_legacy_timestamped_log_name("2026-05-26-143022.txt")); // wrong ext
+        assert!(!is_legacy_timestamped_log_name("2026/05/26-143022.log")); // wrong sep
+        assert!(!is_legacy_timestamped_log_name("abcd-ef-gh-ijklmn.log")); // non-digits
+        assert!(!is_legacy_timestamped_log_name("random.log"));
     }
 }
