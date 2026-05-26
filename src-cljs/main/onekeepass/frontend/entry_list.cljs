@@ -17,6 +17,7 @@
             [onekeepass.frontend.events.entry-list :as el-events]
             [onekeepass.frontend.events.group-tree-content :as gt-events]
             [onekeepass.frontend.events.move-group-entry :as move-events]
+            [onekeepass.frontend.events.remote-storage :as rs-events]
             [onekeepass.frontend.events.tauri-events :as tauri-events]
             [onekeepass.frontend.group-tree-content :as gt-content]
             [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
@@ -147,7 +148,14 @@
                  {:id "entry-history"
                   :text (t/lstr-ml 'history)
                   :enabled? history-available?
-                  :action #(form-events/load-history-entries-summary uuid)})])))))
+                  :action #(form-events/load-history-entries-summary uuid)})
+                (when (const/remote-connection-entry-type? (:entry-type-name item))
+                  (ctx-menu/separator-item))
+                (when (const/remote-connection-entry-type? (:entry-type-name item))
+                  (ctx-menu/action-item
+                   {:id "entry-open-remote"
+                    :text (t/lstr-l "openRemote")
+                    :action rs-events/show-for-open}))])))))
 
 (defn- row-item-draggable
   "Form-1 component rendered with :f> so React treats it as a function component.

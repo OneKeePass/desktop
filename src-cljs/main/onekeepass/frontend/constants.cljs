@@ -37,6 +37,12 @@
 (def REMOTE_CONNECTION_SFTP_TYPE_NAME "SFTP Connection")
 (def REMOTE_CONNECTION_WEBDAV_TYPE_NAME "WebDAV Connection")
 
+(def REMOTE_CONNECTION_TYPE_NAMES #{REMOTE_CONNECTION_SFTP_TYPE_NAME
+                                    REMOTE_CONNECTION_WEBDAV_TYPE_NAME})
+
+(defn remote-connection-entry-type? [entry-type-name]
+  (contains? REMOTE_CONNECTION_TYPE_NAMES entry-type-name))
+
 ;; This list is used in Entry Type select menu items on the new entry form
 (def STANDARD_ENTRY_TYPES [LOGIN_TYPE_NAME
                            CREDIT_DEBIT_CARD_TYPE_NAME
@@ -134,5 +140,4 @@
 (def WINDOW_FOCUS_CHANGED "WindowFocusChanged")
 (def CLOSE_REQUESTED  "CloseRequested")
 (def FILE_DROP "FileDrop")
-
 

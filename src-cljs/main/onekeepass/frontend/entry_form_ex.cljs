@@ -41,6 +41,7 @@
    [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
    [onekeepass.frontend.events.entry-form-ex :as form-events :refer [place-holder-resolved-value]]
    [onekeepass.frontend.events.move-group-entry :as move-events]
+   [onekeepass.frontend.events.remote-storage :as rs-events]
    [onekeepass.frontend.group-tree-content :as gt-content]
    [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                      mui-alert mui-avatar
@@ -78,7 +79,7 @@
       (handler-name field-name-kw (-> e .-target  .-checked)))))
 
 (defn- entry-context-items
-  [entry-uuid group-uuid active-db-key favorites? history-available? os-name multi-db-open? deleted? mas-build?]
+  [entry-uuid group-uuid active-db-key favorites? history-available? os-name multi-db-open? deleted? mas-build? remote-connection-entry?]
   (if deleted?
     [(ctx-menu/action-item
       {:id "entry-form-put-back"
@@ -116,6 +117,7 @@
                {:id "entry-form-delete"
                 :text (lstr-ml 'delete)
                 :action #(form-events/entry-delete-start entry-uuid)})
+              (ctx-menu/separator-item)
               (ctx-menu/action-item
                {:id "entry-form-favorite"
                 :text (lstr-ml 'favorites)
@@ -126,15 +128,25 @@
               ;; non-functional button. See entry_form/menus.cljs for parallel
               ;; gating in the kebab-menu.
               (when (and (= os-name const/MACOS) (not mas-build?))
+                (ctx-menu/separator-item))
+              (when (and (= os-name const/MACOS) (not mas-build?))
                 (ctx-menu/action-item
                  {:id "entry-form-auto-type"
                   :text (lstr-ml 'performAutoType)
                   :action form-events/perform-auto-type-start}))
+              (ctx-menu/separator-item)
               (ctx-menu/action-item
                {:id "entry-form-history"
                 :text (lstr-ml 'history)
                 :enabled? history-available?
-                :action #(form-events/load-history-entries-summary entry-uuid)})]))))
+                :action #(form-events/load-history-entries-summary entry-uuid)})
+              (when remote-connection-entry?
+                (ctx-menu/separator-item))
+              (when remote-connection-entry?
+                (ctx-menu/action-item
+                 {:id "entry-form-open-remote"
+                  :text (lstr-l "openRemote")
+                  :action rs-events/show-for-open}))]))))
 
 #_(defn on-check-factory [handler-name field-name-kw]
     (fn [e]
@@ -603,6 +615,7 @@
 
           icon-id @(form-events/entry-form-data-fields :icon-id)
           custom-icon-uuid @(form-events/entry-form-data-fields :custom-icon-uuid)
+          entry-type-name @(form-events/entry-form-data-fields :entry-type-name)
           entry-uuid  @(form-events/entry-form-data-fields :uuid)
           group-uuid @(form-events/entry-form-data-fields :group-uuid)
           active-db-key @(ce/active-db-key)
@@ -615,6 +628,7 @@
           deleted-cat? @(form-events/deleted-category-showing)
           recycle-bin? @(form-events/recycle-group-selected?)
           group-in-recycle-bin? @(form-events/selected-group-in-recycle-bin?)
+          remote-connection-entry? (const/remote-connection-entry-type? entry-type-name)
           pd-dlg-data  @(move-events/delete-permanent-group-entry-dialog-data :entry)]
       [:div {:class "gbox"
              :style {:margin 0
@@ -633,7 +647,8 @@
                                     os-name
                                     multi-db-open?
                                     (or deleted-cat? recycle-bin? group-in-recycle-bin?)
-                                    mas-build?))))}
+                                    mas-build?
+                                    remote-connection-entry?))))}
 
        [:div {:class "gheader" :style {:background  (theme-color @custom-theme-atom :bg-default)}}
         (when-not edit

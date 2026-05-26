@@ -110,7 +110,7 @@
           ;; Offer 'Browse Remote' alongside the local file picker. Hidden in
           ;; unlock mode (the file path is fixed) and in merge mode (the merge
           ;; flow targets a separate selected file, not a remote one).
-          (when (and (not unlock-request) (not dbs-merge-request))
+          #_(when (and (not unlock-request) (not dbs-merge-request))
             [mui-stack {:direction "row" :sx {:mt 1}}
              [mui-link {:variant "subtitle2" :sx {:cursor "pointer"}
                         :on-click rs-events/show-for-open}
