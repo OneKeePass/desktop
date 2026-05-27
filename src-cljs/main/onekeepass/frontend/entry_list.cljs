@@ -155,7 +155,9 @@
                   (ctx-menu/action-item
                    {:id "entry-open-remote"
                     :text (t/lstr-l "openRemote")
-                    :action rs-events/show-for-open}))])))))
+                    :action #(rs-events/open-entry-remote
+                              (:entry-type-name item)
+                              uuid)}))])))))
 
 (defn- row-item-draggable
   "Form-1 component rendered with :f> so React treats it as a function component.

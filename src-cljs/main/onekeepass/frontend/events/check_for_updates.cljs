@@ -7,8 +7,7 @@
  :check-for-updates/start
  (fn [{:keys [_db]} [_event-id {:keys [silent?]}]]
    (bg/check-for-updates
-    (fn [{:keys [result error] :as api-response}]
-      (println "Check update response" api-response)
+    (fn [{:keys [result error]}]
       (if error
         (dispatch [:check-for-updates/error {:silent? silent? :error error}])
         (dispatch [:check-for-updates/success {:silent? silent? :result result}]))))

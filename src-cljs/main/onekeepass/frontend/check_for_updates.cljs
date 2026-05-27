@@ -74,7 +74,6 @@
 
 (defn check-for-updates-dialog-main []
   (let [{:keys [dialog-show data]} @(gd-events/check-for-updates-dialog-data)]
-    (println "In check-for-updates-dialog-main" dialog-show)
     (when dialog-show
       (if (:update-available? data)
         [update-available-dialog data]

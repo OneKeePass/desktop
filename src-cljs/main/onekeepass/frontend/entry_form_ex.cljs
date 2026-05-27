@@ -79,74 +79,77 @@
       (handler-name field-name-kw (-> e .-target  .-checked)))))
 
 (defn- entry-context-items
-  [entry-uuid group-uuid active-db-key favorites? history-available? os-name multi-db-open? deleted? mas-build? remote-connection-entry?]
-  (if deleted?
-    [(ctx-menu/action-item
-      {:id "entry-form-put-back"
-       :text (lstr-ml 'putBack)
-       :action #(move-events/move-group-entry-dialog-show :entry true)})
-     (ctx-menu/action-item
-      {:id "entry-form-delete-permanently"
-       :text (lstr-ml 'deletePermanent)
-       :action #(move-events/delete-permanent-group-entry-dialog-show :entry true)})]
-    (vec
-     (remove nil?
-             [(ctx-menu/action-item
-               {:id "entry-form-edit"
-                :text (lstr-ml 'edit)
-                :action form-events/edit-mode-menu-clicked})
-              (ctx-menu/action-item
-               {:id "entry-form-clone"
-                :text (lstr-ml 'clone)
-                :action #(dlg-events/clone-entry-options-dialog-show entry-uuid)})
-              (when multi-db-open?
+  [entry-uuid group-uuid active-db-key favorites? history-available? os-name multi-db-open? deleted? mas-build? entry-type-name]
+  (let [remote-connection-entry? (const/remote-connection-entry-type? entry-type-name)]
+    (if deleted?
+      [(ctx-menu/action-item
+        {:id "entry-form-put-back"
+         :text (lstr-ml 'putBack)
+         :action #(move-events/move-group-entry-dialog-show :entry true)})
+       (ctx-menu/action-item
+        {:id "entry-form-delete-permanently"
+         :text (lstr-ml 'deletePermanent)
+         :action #(move-events/delete-permanent-group-entry-dialog-show :entry true)})]
+      (vec
+       (remove nil?
+               [(ctx-menu/action-item
+                 {:id "entry-form-edit"
+                  :text (lstr-ml 'edit)
+                  :action form-events/edit-mode-menu-clicked})
                 (ctx-menu/action-item
-                 {:id "entry-form-clone-to-database"
-                  :text (lstr-ml "cloneToDatabase")
-                  :action #(clone-events/clone-entry-to-other-db-dialog-show entry-uuid)}))
-              (ctx-menu/action-item
-               {:id "entry-form-move"
-                :text (lstr-ml 'move)
-                :action #(gt-content/move-group-or-entry-dialog-show-with-state
-                          :entry
-                          (lstr-dlg-title 'moveEntry)
-                          entry-uuid
-                          group-uuid
-                          active-db-key)})
-              (ctx-menu/action-item
-               {:id "entry-form-delete"
-                :text (lstr-ml 'delete)
-                :action #(form-events/entry-delete-start entry-uuid)})
-              (ctx-menu/separator-item)
-              (ctx-menu/action-item
-               {:id "entry-form-favorite"
-                :text (lstr-ml 'favorites)
-                :action #(form-events/favorite-menu-checked (not favorites?))})
-              ;; Auto-type is kernel-blocked under macOS App Sandbox and the
-              ;; Rust impl is compile-gated out of the MAS binary. Suppress
-              ;; the right-click menu entry too so MAS users don't see a
-              ;; non-functional button. See entry_form/menus.cljs for parallel
-              ;; gating in the kebab-menu.
-              (when (and (= os-name const/MACOS) (not mas-build?))
-                (ctx-menu/separator-item))
-              (when (and (= os-name const/MACOS) (not mas-build?))
+                 {:id "entry-form-clone"
+                  :text (lstr-ml 'clone)
+                  :action #(dlg-events/clone-entry-options-dialog-show entry-uuid)})
+                (when multi-db-open?
+                  (ctx-menu/action-item
+                   {:id "entry-form-clone-to-database"
+                    :text (lstr-ml "cloneToDatabase")
+                    :action #(clone-events/clone-entry-to-other-db-dialog-show entry-uuid)}))
                 (ctx-menu/action-item
-                 {:id "entry-form-auto-type"
-                  :text (lstr-ml 'performAutoType)
-                  :action form-events/perform-auto-type-start}))
-              (ctx-menu/separator-item)
-              (ctx-menu/action-item
-               {:id "entry-form-history"
-                :text (lstr-ml 'history)
-                :enabled? history-available?
-                :action #(form-events/load-history-entries-summary entry-uuid)})
-              (when remote-connection-entry?
-                (ctx-menu/separator-item))
-              (when remote-connection-entry?
+                 {:id "entry-form-move"
+                  :text (lstr-ml 'move)
+                  :action #(gt-content/move-group-or-entry-dialog-show-with-state
+                            :entry
+                            (lstr-dlg-title 'moveEntry)
+                            entry-uuid
+                            group-uuid
+                            active-db-key)})
                 (ctx-menu/action-item
-                 {:id "entry-form-open-remote"
-                  :text (lstr-l "openRemote")
-                  :action rs-events/show-for-open}))]))))
+                 {:id "entry-form-delete"
+                  :text (lstr-ml 'delete)
+                  :action #(form-events/entry-delete-start entry-uuid)})
+                (ctx-menu/separator-item)
+                (ctx-menu/action-item
+                 {:id "entry-form-favorite"
+                  :text (lstr-ml 'favorites)
+                  :action #(form-events/favorite-menu-checked (not favorites?))})
+                ;; Auto-type is kernel-blocked under macOS App Sandbox and the
+                ;; Rust impl is compile-gated out of the MAS binary. Suppress
+                ;; the right-click menu entry too so MAS users don't see a
+                ;; non-functional button. See entry_form/menus.cljs for parallel
+                ;; gating in the kebab-menu.
+                (when (and (= os-name const/MACOS) (not mas-build?))
+                  (ctx-menu/separator-item))
+                (when (and (= os-name const/MACOS) (not mas-build?))
+                  (ctx-menu/action-item
+                   {:id "entry-form-auto-type"
+                    :text (lstr-ml 'performAutoType)
+                    :action form-events/perform-auto-type-start}))
+                (ctx-menu/separator-item)
+                (ctx-menu/action-item
+                 {:id "entry-form-history"
+                  :text (lstr-ml 'history)
+                  :enabled? history-available?
+                  :action #(form-events/load-history-entries-summary entry-uuid)})
+                (when remote-connection-entry?
+                  (ctx-menu/separator-item))
+                (when remote-connection-entry?
+                  (ctx-menu/action-item
+                   {:id "entry-form-open-remote"
+                    :text (lstr-l "openRemote")
+                    :action #(rs-events/open-entry-remote
+                              entry-type-name
+                              entry-uuid)}))])))))
 
 #_(defn on-check-factory [handler-name field-name-kw]
     (fn [e]
@@ -648,7 +651,7 @@
                                     multi-db-open?
                                     (or deleted-cat? recycle-bin? group-in-recycle-bin?)
                                     mas-build?
-                                    remote-connection-entry?))))}
+                                    entry-type-name))))}
 
        [:div {:class "gheader" :style {:background  (theme-color @custom-theme-atom :bg-default)}}
         (when-not edit

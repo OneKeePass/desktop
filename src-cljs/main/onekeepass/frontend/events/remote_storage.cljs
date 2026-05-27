@@ -50,6 +50,12 @@
 (defn- init-for-type [kw-type]
   (case kw-type :sftp (sftp-init-data) :webdav (webdav-init-data)))
 
+(defn- connection-entry-type->kw-type [entry-type]
+  (condp = entry-type
+    const/REMOTE_CONNECTION_SFTP_TYPE_NAME :sftp
+    const/REMOTE_CONNECTION_WEBDAV_TYPE_NAME :webdav
+    nil))
+
 (def ^:private blank-state
   {:dialog-show false
    :mode :open
@@ -61,7 +67,8 @@
    :listing nil
    :new-db-file-name "new-db.kdbx"
    :api-error-text nil
-   :status :idle})
+   :status :idle
+   :direct-open? false})
 
 ;; ---- public accessor API (UI uses these, never re-frame directly) ----
 
@@ -96,6 +103,10 @@
 
 (defn connect-by-id-start [connection-id]
   (dispatch [::connect-by-id-start connection-id]))
+
+(defn open-entry-remote [entry-type connection-id]
+  (println "open-entry-remote entry-type connection-id" entry-type connection-id)
+  (dispatch [::open-entry-remote entry-type connection-id]))
 
 (defn enter-ad-hoc-form []
   (dispatch [::enter-ad-hoc-form]))
@@ -317,6 +328,14 @@
               (assoc-in [:remote-storage :api-error-text] nil))
       :fx [[::bg-connect-by-id [kw-type connection-id]]]})))
 
+(reg-event-fx
+ ::open-entry-remote
+ (fn [_ [_ entry-type connection-id]]
+   (if-let [kw-type (connection-entry-type->kw-type entry-type)]
+     {:fx [[:dispatch [:common/progress-message-box-show "Connecting" "Please wait..."]]
+           [::bg-open-entry-remote [kw-type connection-id]]]}
+     {:fx [[:dispatch [:common/message-snackbar-error-open "Unsupported remote connection type"]]]})))
+
 (reg-fx
  ::bg-connect-by-id
  (fn [[kw-type connection-id]]
@@ -327,6 +346,19 @@
                                   api-response
                                   #(dispatch [::connect-failed %]))]
         (dispatch [::connect-complete kw-type connection-id connect-status]))))))
+
+(reg-fx
+ ::bg-open-entry-remote
+ (fn [[kw-type connection-id]]
+   (bg-rs/connect-by-id-and-retrieve-root-dir
+    kw-type connection-id
+    (fn [api-response]
+      (dispatch [:common/progress-message-box-hide])
+      (when-some [connect-status (check-error
+                                  api-response
+                                  #(dispatch [:common/message-snackbar-error-open %]))]
+        (dispatch [::open-entry-remote-complete
+                   kw-type connection-id connect-status]))))))
 
 (reg-event-fx
  ::connect-ad-hoc-start
@@ -374,6 +406,25 @@
                          :stack [{:parent-dir (or parent-dir "/")
                                   :sub-dirs (or sub-dirs [])
                                   :files (or files [])}]}))})))
+
+(reg-event-db
+ ::open-entry-remote-complete
+ (fn [db [_ kw-type connection-id {:keys [dir-entries]}]]
+   (let [{:keys [parent-dir sub-dirs files]} dir-entries]
+     (assoc db :remote-storage
+            (-> blank-state
+                (assoc :dialog-show true)
+                (assoc :mode :open)
+                (assoc :step :browse)
+                (assoc :current-type kw-type)
+                (assoc :status :idle)
+                (assoc :direct-open? true)
+                (assoc :listing
+                       {:type kw-type
+                        :connection-id connection-id
+                        :stack [{:parent-dir (or parent-dir "/")
+                                 :sub-dirs (or sub-dirs [])
+                                 :files (or files [])}]}))))))
 
 (reg-event-fx
  ::list-sub-dir

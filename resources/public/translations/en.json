@@ -163,7 +163,7 @@
         "rsAllowUntrustedCert": "Allow untrusted certificates",
         "rsEmptyDir": "Empty directory",
         "rsEnterNewConnection": "Enter new adhoc connection...",
-        "rsNoSavedConnections": "Please open a local kdbx database that has a remote connection entry and connect using that.",
+        "rsNoSavedConnections": "Please open a local kdbx database that has a remote {{entType}} connection entry and connect using that.",
         "rsPickConnectionHelp": "Pick a saved connection.",
         "rsPrivateKeyFile": "Private key file (optional)",
         "rsSavedConnections": "Saved Connections",

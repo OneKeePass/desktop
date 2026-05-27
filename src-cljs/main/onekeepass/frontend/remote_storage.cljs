@@ -58,6 +58,11 @@
    [mui-tab {:value "sftp" :label "SFTP"}]
    [mui-tab {:value "webdav" :label "WebDAV"}]])
 
+(defn- connection-type-label [current-type]
+  (case current-type
+    :sftp "SFTP"
+    :webdav "WebDav"))
+
 (defn- connection-row [db-key
                        {:keys [connection-id title connection-info
                                icon-id custom-icon-uuid]}]
@@ -82,6 +87,60 @@
      [mui-typography {:variant "subtitle1"} db-name]]
     (doall (for [s summaries] (connection-row db-key s)))]])
 
+(defn- no-saved-connections-content [current-type]
+  [mui-stack {:spacing 1.5
+              :alignItems "center"
+              :justifyContent "center"
+              :sx {:min-height "180px"
+                   :py 4
+                   :px 3
+                   :text-align "center"
+                   :border "1px solid"
+                   :border-color "divider"
+                   :border-radius 1
+                   :bgcolor "action.hover"}}
+   [mui-avatar {:variant "rounded"
+                :sx {:width 56
+                     :height 56
+                     :bgcolor "action.hover"
+                     :color "text.secondary"}}
+    [mui-icon-folder-outlined]]
+   [mui-typography {:variant "body1"
+                    :sx {:color "text.secondary"
+                         :max-width "560px"
+                         :line-height 1.6}}
+    (lstr-l "rsNoSavedConnections"
+            {:ent-type (connection-type-label current-type)})]])
+
+(defn- saved-connections-content [groups]
+  [mui-box {:sx {:border "1px solid"
+                 :border-color "divider"
+                 :border-radius 1
+                 :bgcolor "action.hover"}}
+   [mui-list {:dense true
+              :sx {:max-height "360px"
+                   :overflow "auto"
+                   :bgcolor "transparent"
+                   "& ul" {:padding 0}}
+              :subheader (r/as-element [:li])}
+    (doall (for [g groups] (db-group g)))]])
+
+(defn- enter-new-connection-link []
+  [mui-box {:sx {:display "flex"
+                 :justifyContent "center"
+                 :pt 1}}
+   [mui-link {:component "button"
+              :type "button"
+              :variant "subtitle2"
+              :sx {:cursor "pointer"
+                   :font-weight 600
+                   :text-align "center"
+                   :py 1
+                   :px 1.5
+                   :border-radius 1}
+              :on-click rs-events/enter-ad-hoc-form}
+    (lstr-l "rsEnterNewConnection")]])
+
 (defn- source-pick-content [current-type]
   (let [groups @(rs-events/grouped-kdbx-source-connections current-type)
         any? (seq groups)]
@@ -91,20 +150,10 @@
        [mui-typography {:variant "body2" :sx {:color "text.secondary"}}
         (lstr-l "rsPickConnectionHelp")])
      (if any?
-       [mui-list {:dense true
-                  :sx {:max-height "360px"
-                       :overflow "auto"
-                       "& ul" {:padding 0}}
-                  :subheader (r/as-element [:li])}
-        (doall (for [g groups] (db-group g)))]
-       [mui-stack {:sx {:py 2}}
-        [mui-typography {:variant "body2" :sx {:color "text.secondary"}}
-         (lstr-l "rsNoSavedConnections")]])
+       [saved-connections-content groups]
+       [no-saved-connections-content current-type])
      [mui-divider]
-     [mui-link {:variant "subtitle2"
-                :sx {:cursor "pointer" :mt 1}
-                :on-click rs-events/enter-ad-hoc-form}
-      (lstr-l "rsEnterNewConnection")]]))
+     [enter-new-connection-link]]))
 
 ;; ---- step: form ----
 
@@ -243,7 +292,7 @@
     ;; dialog's hiccup, so case must have a no-step default.
     ""))
 
-(defn- footer-actions [{:keys [step mode listing status]}]
+(defn- footer-actions [{:keys [step mode listing status direct-open?]}]
   (let [in-progress? (= status :in-progress)
         cur (some-> listing :stack last)
         parent-dir (:parent-dir cur)]
@@ -267,8 +316,9 @@
 
       :browse
       [:<>
-       [mui-button {:sx {:margin-top "20px"} :on-click rs-events/back-step :color "secondary"}
-        (lstr-bl 'back)]
+       (when-not direct-open?
+         [mui-button {:sx {:margin-top "20px"} :on-click rs-events/back-step :color "secondary"}
+          (lstr-bl 'back)])
        [mui-button {:sx {:margin-top "20px"} :on-click rs-events/cancel-dialog :color "secondary"}
         (lstr-bl 'cancel)]
        (when (= mode :create)

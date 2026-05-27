@@ -38,7 +38,7 @@
     [mui-list-item-text {:inset true} (lstr-ml 'editAutoType)]]])
 
 (defn entry-form-top-menu-items []
-  (fn [anchor-el entry-uuid favorites? os-name mas-build? remote-connection-entry?]
+  (fn [anchor-el entry-uuid favorites? os-name mas-build? remote-connection-entry? entry-type-name]
     [mui-menu {:anchorEl @anchor-el
                :open (if @anchor-el true false)
                :on-close #(reset! anchor-el nil)}
@@ -105,7 +105,10 @@
      (when remote-connection-entry?
        [mui-menu-item {:sx {:padding-left "1px"}
                        :divider false
-                       :on-click (menu-action anchor-el rs-events/show-for-open)}
+                       :on-click (menu-action
+                                  anchor-el
+                                  rs-events/open-entry-remote entry-type-name
+                                  entry-uuid)}
         [mui-list-item-text {:inset true} (lstr-ml "openRemote")]])]))
 
 (defn entry-form-top-menu [entry-uuid]
@@ -119,7 +122,7 @@
      [mui-icon-button {:edge "start"
                        :on-click (fn [^js/Event e] (reset! anchor-el (-> e .-currentTarget)))
                        :style {}} [mui-icon-more-vert]]
-     [entry-form-top-menu-items anchor-el entry-uuid favorites? os-name mas-build? remote-connection-entry?]
+     [entry-form-top-menu-items anchor-el entry-uuid favorites? os-name mas-build? remote-connection-entry? entry-type-name]
      [cc/info-dialog "Entry Delete" "Deleting entry is in progress"
       form-events/entry-delete-info-dialog-close
       @(form-events/entry-delete-dialog-data)]]))
