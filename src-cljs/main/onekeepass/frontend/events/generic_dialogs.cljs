@@ -23,6 +23,13 @@
 
 (defn-generic-dialog-subs-events :about-dialog [[data nil]])
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; :new-database-no-remote-warning-dialog ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn-generic-dialog-disp-events :new-database-no-remote-warning-dialog [[close nil]
+                                                                          [show nil]])
+
+(defn-generic-dialog-subs-events :new-database-no-remote-warning-dialog [[data nil]])
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; :check-for-updates-dialog ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn-generic-dialog-disp-events :check-for-updates-dialog [[close nil]

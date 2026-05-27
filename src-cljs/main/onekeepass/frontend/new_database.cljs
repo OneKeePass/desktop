@@ -2,6 +2,7 @@
   (:require
    [onekeepass.frontend.common-components :refer [cipher-algorithms
                                                   kdf-algorithms]]
+   [onekeepass.frontend.events.generic-dialogs :as gd-events]
    [onekeepass.frontend.events.new-database :as nd-events]
    [onekeepass.frontend.mui-components :as m :refer [mui-alert mui-box
                                                      mui-button mui-checkbox
@@ -20,7 +21,8 @@
                                                      mui-link mui-menu-item
                                                      mui-stack mui-tooltip
                                                      mui-typography]]
-   [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-t tr-h tr-m] :refer [lstr-l]]
+   [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-t tr-h tr-m]
+    :refer [lstr-bl lstr-dlg-text lstr-dlg-title lstr-l]]
    [reagent.core :as r]))
 
 (set! *warn-on-infer* true)
@@ -283,6 +285,24 @@
         [mui-button {:disabled in-progress?
                      :on-click nd-events/done-on-click} (tr-l "done")])]]))
 
+(defn- no-remote-warning-dialog []
+  (let [{:keys [dialog-show]} @(gd-events/new-database-no-remote-warning-dialog-data)]
+    [mui-dialog {:open (boolean dialog-show)
+                 :dir (t/dir)
+                 :on-click #(.stopPropagation ^js/Event %)
+                 :sx {"& .MuiPaper-root" {:width "440px"}}}
+     [mui-dialog-title (lstr-dlg-title 'noRemoteConnections)]
+     [mui-divider]
+     [mui-dialog-content {:sx {:pt 2}}
+      [mui-typography {:variant "body1"} (lstr-dlg-text 'noRemoteConnections)]]
+     [mui-dialog-actions
+      [mui-button {:color "secondary"
+                   :on-click nd-events/no-remote-warning-uncheck}
+       (lstr-bl "uncheck")]
+      [mui-button {:variant "contained"
+                   :on-click nd-events/no-remote-warning-continue}
+       (lstr-bl "continue")]]]))
+
 (defn new-database-dialog-main []
   (let [m @(nd-events/dialog-data)]
     ;; Following shows how to use backdrop when a background action is initiated in a dialog box
@@ -292,4 +312,6 @@
           [mui-circular-progress {:color "inherit"}]]
          [new-database-dialog m])]
 
-    [new-database-dialog m]))
+    [:<>
+     [new-database-dialog m]
+     [no-remote-warning-dialog]]))
