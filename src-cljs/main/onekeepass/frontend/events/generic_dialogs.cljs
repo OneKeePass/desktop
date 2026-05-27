@@ -23,6 +23,14 @@
 
 (defn-generic-dialog-subs-events :about-dialog [[data nil]])
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; :check-for-updates-dialog ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn-generic-dialog-disp-events :check-for-updates-dialog [[close nil]
+                                                            [show-with-state state-m]
+                                                            [update-with-map state-m]])
+
+(defn-generic-dialog-subs-events :check-for-updates-dialog [[data nil]])
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  merge-result-dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; dialog-identifier-kw :merge-result-dialog

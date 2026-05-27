@@ -213,6 +213,13 @@
   [url dispatch-fn]
   (tauri-shell-open url dispatch-fn))
 
+(defn check-for-updates
+  "Calls the backend command that queries GitHub for the latest release and
+   returns a map with keys :update-available?, :current-version, :latest-version,
+   :release-notes, :download-url."
+  [dispatch-fn]
+  (invoke-api "check_for_updates" {} dispatch-fn))
+
 (defn write-to-clipboard
   "Copies given data to the clipboard - equivalent to Cmd + C"
   [data]

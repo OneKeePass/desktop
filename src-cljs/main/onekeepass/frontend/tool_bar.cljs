@@ -2,6 +2,7 @@
   (:require
    [onekeepass.frontend.about :as about]
    [onekeepass.frontend.app-settings :refer [app-settings-dialog-main]]
+   [onekeepass.frontend.check-for-updates :as check-updates]
    [onekeepass.frontend.manage-custom-icons :refer [manage-custom-icons-dialog-main custom-icons-delete-confirm-dialog]]
    [onekeepass.frontend.events.custom-icons :as ci-events]
    [onekeepass.frontend.auto-type :as at-form]
@@ -281,6 +282,7 @@
        [message-dialog]
        [app-settings-dialog-main]
        [about/about-dialog-main]
+       [check-updates/check-for-updates-dialog-main]
        [browser-integration/browser-extension-connection-permit-dialog]
        [browser-integration/browser-extension-install-grant-dialog]
 

@@ -92,6 +92,7 @@
 (def MENU_ID_NEW_GROUP "NewGroup")
 (def MENU_ID_EDIT_GROUP "EditGroup")
 (def MENU_ID_ABOUT "About")
+(def MENU_ID_CHECK_FOR_UPDATES "CheckForUpdates")
 
 (def MENU_ENABLE "Enable")
 (def MENU_DISABLE "Disable")

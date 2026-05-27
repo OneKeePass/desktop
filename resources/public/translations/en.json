@@ -208,6 +208,7 @@
             "addCustomIcon": "Add Custom Icon",
             "allowFolderAccess": "Allow folder access",
             "applicationSettings": "Application Settings",
+            "checkForUpdates": "Check for Updates",
             "cloneEntry": "Clone entry",
             "cloneEntryToDatabase": "Clone Entry to Another Database",
             "confirmDiscard": "Confirm Discard",
@@ -257,7 +258,9 @@
             "search": "Search",
             "sectionField1": "Add field in {{sectionName}}",
             "sectionField2": "Modify field in {{sectionName}}",
-            "unsavedChanges": "Unsaved Changes"
+            "unsavedChanges": "Unsaved Changes",
+            "updateAvailable": "Update Available",
+            "upToDate": "You're Up to Date"
         },
         "texts": {
             "aboutDescription": "A secure offline password manager compatible with KeePass KDBX4 format.",
@@ -306,7 +309,10 @@
             "saveBothDatabases": "Both source and target databases are modified. Save them now?",
             "unsavedChangesTxt1": "There are changes yet to be saved. Please save before locking the database",
             "unsavedChangesTxt2": "There are changes yet to be saved. Do you want to save and then quit?",
-            "unsavedChangesTxt3": "There are changes yet to be saved. Do you want to save before closing the database?"
+            "unsavedChangesTxt3": "There are changes yet to be saved. Do you want to save before closing the database?",
+            "updateAvailable": "A new version {{latestVersion}} is available. You are running {{currentVersion}}.",
+            "updateCheckFailed": "Could not check for updates. Please try again later.",
+            "upToDate": "You are running the latest version ({{currentVersion}})."
         }
     },
     "entryTypeTitles": {
@@ -387,6 +393,7 @@
         "back": "Back",
         "browse": "Browse",
         "cancel": "Cancel",
+        "checkNow": "Check Now",
         "connect": "Connect",
         "changeKeyFile": "Change key file",
         "changePassword": "Change password",
@@ -401,6 +408,7 @@
         "discardClose": "Discard & Close database",
         "done": "Done",
         "doNotSave": "Do not Save",
+        "download": "Download",
         "edit": "Edit",
         "generate": "Generate",
         "generateNewKeyFile": "Generate new key file",
@@ -429,6 +437,7 @@
     },
     "menuLabels": {
         "addCategory": "Add category",
+        "checkForUpdates": "Check for Updates",
         "addField": "Add field",
         "addGroup": "Add Group",
         "clone": "Clone",
@@ -534,11 +543,13 @@
             "Entries": "Entries",
             "File": "File",
             "Groups": "Groups",
+            "Help": "Help",
             "Tools": "Tools"
         },
         "subMenus": {
             "About": "About OneKeePass",
             "AppSettings": "Settings...",
+            "CheckForUpdates": "Check for Updates...",
             "CloseDatabase": "Close Database",
             "EditEntry": "Edit Entry",
             "EditGroup": "Edit Group",

@@ -3637,6 +3637,7 @@ dependencies = [
  "onekeepass-core",
  "open",
  "os_info",
+ "reqwest 0.12.28",
  "secstr",
  "serde",
  "serde_json",

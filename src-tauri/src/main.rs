@@ -22,6 +22,8 @@ mod pass_phrase;
 mod remote_storage;
 mod sandbox;
 mod translation;
+#[cfg(not(feature = "mas-build"))]
+mod updater;
 // mod callback_service_provider;
 
 use constants::event_action_names::*;
@@ -96,6 +98,8 @@ fn main() {
             commands::browser_ext_pick_install_dir,
             commands::browser_ext_manifest_statuses,
             commands::browser_ext_use_user_permission,
+            #[cfg(not(feature = "mas-build"))]
+            commands::check_for_updates,
             commands::clear_csv_data_cache,
             commands::clear_recent_files,
             commands::clone_entry,

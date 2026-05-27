@@ -14,8 +14,10 @@ pub mod menu_ids {
     pub const MAIN_MENU_ENTRIES: &str = "Entries";
     pub const MAIN_MENU_GROUPS: &str = "Groups";
     pub const MAIN_MENU_TOOLS: &str = "Tools";
+    pub const MAIN_MENU_HELP: &str = "Help";
 
     pub const QUIT: &str = "Quit";
+    pub const CHECK_FOR_UPDATES: &str = "CheckForUpdates";
     pub const APP_SETTINGS: &str = "AppSettings";
     pub const NEW_DATABASE: &str = "NewDatabase";
     pub const OPEN_DATABASE: &str = "OpenDatabase";
@@ -70,6 +72,27 @@ pub(crate) fn build_menus<R: Runtime>(app_handle: &AppHandle<R>) -> Result<(), t
             .id(ABOUT)
             .build(app_handle)?;
 
+    // Mac App Store builds may not bundle their own update checker — Apple
+    // requires updates to flow through the App Store. Omit the menu item
+    // and the Help submenu entirely in that build.
+    #[cfg(not(all(target_os = "macos", feature = "mas-build")))]
+    let check_for_updates_item = MenuItemBuilder::new(
+        system_menu_translation.sub_menu(CHECK_FOR_UPDATES, "Check for Updates..."),
+    )
+    .id(CHECK_FOR_UPDATES)
+    .build(app_handle)?;
+
+    #[cfg(all(target_os = "macos", not(feature = "mas-build")))]
+    let app_submenu = SubmenuBuilder::with_id(app_handle, app_name, app_name)
+        .item(&about_menu_item)
+        .item(&check_for_updates_item)
+        .separator()
+        .item(&app_settings)
+        .separator()
+        .item(&quit)
+        .build()?;
+
+    #[cfg(any(not(target_os = "macos"), feature = "mas-build"))]
     let app_submenu = SubmenuBuilder::with_id(app_handle, app_name, app_name)
         .item(&about_menu_item)
         .separator()
@@ -98,6 +121,7 @@ pub(crate) fn build_menus<R: Runtime>(app_handle: &AppHandle<R>) -> Result<(), t
 
     let db_menu = build_database_menus(app_handle, &system_menu_translation)?;
 
+    #[cfg(target_os = "macos")]
     let menu = MenuBuilder::new(app_handle)
         .items(&[
             &app_submenu,
@@ -106,6 +130,28 @@ pub(crate) fn build_menus<R: Runtime>(app_handle: &AppHandle<R>) -> Result<(), t
             &build_entries_menus(app_handle, &system_menu_translation)?,
             &build_groups_menus(app_handle, &system_menu_translation)?,
             &build_tools_menus(app_handle, &system_menu_translation)?,
+        ])
+        .build()?;
+
+    #[cfg(not(target_os = "macos"))]
+    let help_sub_menu = SubmenuBuilder::with_id(
+        app_handle,
+        MAIN_MENU_HELP,
+        system_menu_translation.main_menu(MAIN_MENU_HELP),
+    )
+    .item(&check_for_updates_item)
+    .build()?;
+
+    #[cfg(not(target_os = "macos"))]
+    let menu = MenuBuilder::new(app_handle)
+        .items(&[
+            &app_submenu,
+            &edit_sub_menu,
+            &db_menu,
+            &build_entries_menus(app_handle, &system_menu_translation)?,
+            &build_groups_menus(app_handle, &system_menu_translation)?,
+            &build_tools_menus(app_handle, &system_menu_translation)?,
+            &help_sub_menu,
         ])
         .build()?;
 
