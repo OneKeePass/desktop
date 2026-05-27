@@ -75,104 +75,104 @@
 (defn show-for-open
   "Open the remote-storage dialog in 'open existing db' mode."
   []
-  (dispatch [::dialog-show :open]))
+  (dispatch [:remote-storage/dialog-show :open]))
 
 (defn show-for-create
   "Open the remote-storage dialog in 'create new db' mode."
   []
-  (dispatch [::dialog-show :create]))
+  (dispatch [:remote-storage/dialog-show :create]))
 
 (defn cancel-dialog []
-  (dispatch [::dialog-hide]))
+  (dispatch [:remote-storage-dialog-hide]))
 
 (defn back-step []
-  (dispatch [::back-step]))
+  (dispatch [:remote-storage-back-step]))
 
-(defn dialog-data [] (subscribe [::dialog-data]))
+(defn dialog-data [] (subscribe [:remote-storage-dialog-data]))
 
 (defn type-selected [kw-type]
-  (dispatch [::type-selected kw-type]))
+  (dispatch [:remote-storage-type-selected kw-type]))
 
-(defn current-type [] (subscribe [::current-type]))
+(defn current-type [] (subscribe [:remote-storage-current-type]))
 
 (defn kdbx-source-connections [kw-type]
-  (subscribe [::kdbx-source-connections kw-type]))
+  (subscribe [:remote-storage-kdbx-source-connections kw-type]))
 
 (defn grouped-kdbx-source-connections [kw-type]
-  (subscribe [::grouped-kdbx-source-connections kw-type]))
+  (subscribe [:remote-storage-grouped-kdbx-source-connections kw-type]))
 
 (defn connect-by-id-start [connection-id]
-  (dispatch [::connect-by-id-start connection-id]))
+  (dispatch [:remote-storage-connect-by-id-start connection-id]))
 
 (defn open-entry-remote [entry-type connection-id]
   (println "open-entry-remote entry-type connection-id" entry-type connection-id)
-  (dispatch [::open-entry-remote entry-type connection-id]))
+  (dispatch [:remote-storage-open-entry-remote entry-type connection-id]))
 
 (defn enter-ad-hoc-form []
-  (dispatch [::enter-ad-hoc-form]))
+  (dispatch [:remote-storage-enter-ad-hoc-form]))
 
 (defn connect-ad-hoc-start []
-  (dispatch [::connect-ad-hoc-start]))
+  (dispatch [:remote-storage-connect-ad-hoc-start]))
 
-(defn form-data [kw-type] (subscribe [::form-data kw-type]))
+(defn form-data [kw-type] (subscribe [:remote-storage-form-data kw-type]))
 
 (defn form-data-update [field value]
-  (dispatch [::form-data-update field value]))
+  (dispatch [:remote-storage-form-data-update field value]))
 
 (defn pick-private-key
   "Opens the native file picker and stores the chosen path on the SFTP form
    under :private-key-full-file-name. Used by the ad-hoc SFTP form."
   []
-  (dispatch [::pick-private-key]))
+  (dispatch [:remote-storage-pick-private-key]))
 
 (defn clear-private-key []
-  (dispatch [::form-data-update :private-key-full-file-name nil]))
+  (dispatch [:remote-storage-form-data-update :private-key-full-file-name nil]))
 
-(defn form-errors [kw-type] (subscribe [::form-errors kw-type]))
+(defn form-errors [kw-type] (subscribe [:remote-storage-form-errors kw-type]))
 
-(defn listing [] (subscribe [::listing]))
+(defn listing [] (subscribe [:remote-storage-listing]))
 
 (defn list-sub-dir [parent-dir sub-dir]
-  (dispatch [::list-sub-dir parent-dir sub-dir]))
+  (dispatch [:remote-storage-list-sub-dir parent-dir sub-dir]))
 
 (defn listing-previous []
-  (dispatch [::listing-previous]))
+  (dispatch [:remote-storage-listing-previous]))
 
 (defn file-picked-for-open [parent-dir file-name]
-  (dispatch [::file-picked-for-open parent-dir file-name]))
+  (dispatch [:remote-storage-file-picked-for-open parent-dir file-name]))
 
 (defn folder-picked-for-new-db [parent-dir new-db-file-name]
-  (dispatch [::folder-picked-for-new-db parent-dir new-db-file-name]))
+  (dispatch [:remote-storage-folder-picked-for-new-db parent-dir new-db-file-name]))
 
-(defn new-db-file-name [] (subscribe [::new-db-file-name]))
+(defn new-db-file-name [] (subscribe [:remote-storage-new-db-file-name]))
 
 (defn new-db-file-name-update [value]
-  (dispatch [::new-db-file-name-update value]))
+  (dispatch [:remote-storage-new-db-file-name-update value]))
 
 (defn save-remote-kdbx [db-key overwrite]
-  (dispatch [::save-remote-kdbx db-key overwrite]))
+  (dispatch [:remote-storage-save-remote-kdbx db-key overwrite]))
 
 ;; ---- subscriptions ----
 
 (reg-sub
- ::dialog-data
+ :remote-storage-dialog-data
  (fn [db _] (:remote-storage db)))
 
 (reg-sub
- ::current-type
+ :remote-storage-current-type
  (fn [db _] (get-in db [:remote-storage :current-type])))
 
 (reg-sub
- ::kdbx-source-connections
+ :remote-storage-kdbx-source-connections
  (fn [db [_ kw-type]] (get-in db [:remote-storage :kdbx-source kw-type])))
 
 ;; Groups the flat kdbx-source summaries by their parent kdbx db-key and
 ;; joins each group with the database-name from :opened-db-list, so the
 ;; source-pick step can render per-database subheaders.
 (reg-sub
- ::grouped-kdbx-source-connections
+ :remote-storage-grouped-kdbx-source-connections
  (fn [[_ kw-type] _]
-   [(subscribe [::kdbx-source-connections kw-type])
+   [(subscribe [:remote-storage-kdbx-source-connections kw-type])
     (subscribe [:opened-db-list])])
  (fn [[summaries opened-list] _]
    (let [name-by-key (into {} (map (juxt :db-key :database-name)) opened-list)]
@@ -186,25 +186,25 @@
           vec))))
 
 (reg-sub
- ::form-data
+ :remote-storage-form-data
  (fn [db [_ kw-type]] (get-in db [:remote-storage :form-data kw-type])))
 
 (reg-sub
- ::form-errors
+ :remote-storage-form-errors
  (fn [db [_ kw-type]] (get-in db [:remote-storage :form-errors kw-type])))
 
 (reg-sub
- ::listing
+ :remote-storage-listing
  (fn [db _] (get-in db [:remote-storage :listing])))
 
 (reg-sub
- ::new-db-file-name
+ :remote-storage-new-db-file-name
  (fn [db _] (get-in db [:remote-storage :new-db-file-name])))
 
 ;; ---- events ----
 
 (reg-event-fx
- ::dialog-show
+ :remote-storage/dialog-show
  (fn [{:keys [db]} [_ mode]]
    (let [kw-type (or (get-in db [:remote-storage :current-type]) :sftp)]
      {:db (-> db
@@ -212,10 +212,10 @@
                                          (assoc :dialog-show true)
                                          (assoc :mode mode)
                                          (assoc :current-type kw-type))))
-      :fx [[:dispatch [::load-kdbx-source-connections kw-type]]]})))
+      :fx [[:dispatch [:remote-storage-load-kdbx-source-connections kw-type]]]})))
 
 (reg-event-db
- ::dialog-hide
+ :remote-storage-dialog-hide
  (fn [db _]
    (assoc db :remote-storage (assoc blank-state :dialog-show false))))
 
@@ -225,11 +225,11 @@
  :remote-storage/show-for-create
  (fn [_ _]
    (println "remote-storage/show-for-create is called...")
-   {:fx [[:dispatch [::dialog-show :create]]]}))
+   {:fx [[:dispatch [:remote-storage/dialog-show :create]]]}))
 
 ;; Called from the new-db wizard's 'Save Remote' branch. Stashes the prepared
 ;; new-db payload and opens the remote-storage create dialog. When the user
-;; picks a remote folder, ::folder-picked-for-new-db sees the pending payload
+;; picks a remote folder, :remote-storage-folder-picked-for-new-db sees the pending payload
 ;; and dispatches create-kdbx directly instead of re-entering the new-db
 ;; wizard.
 (reg-event-fx
@@ -247,108 +247,108 @@
                                          (assoc :current-type kw-type)
                                          (assoc :new-db-file-name default-file)
                                          (assoc :pending-new-db new-db-payload))))
-      :fx [[:dispatch [::load-kdbx-source-connections kw-type]]]})))
+      :fx [[:dispatch [:remote-storage-load-kdbx-source-connections kw-type]]]})))
 
 (reg-event-fx
- ::back-step
+ :remote-storage-back-step
  (fn [{:keys [db]} _]
    (let [step (get-in db [:remote-storage :step])]
      (case step
        :browse {:db (assoc-in db [:remote-storage :step] :source-pick)}
        :form   {:db (assoc-in db [:remote-storage :step] :source-pick)}
-       {:fx [[:dispatch [::dialog-hide]]]}))))
+       {:fx [[:dispatch [:remote-storage-dialog-hide]]]}))))
 
 (reg-event-fx
- ::type-selected
+ :remote-storage-type-selected
  (fn [{:keys [db]} [_ kw-type]]
    {:db (-> db
             (assoc-in [:remote-storage :current-type] kw-type)
             (update-in [:remote-storage :form-data kw-type] #(or % (init-for-type kw-type)))
             (update-in [:remote-storage :form-errors kw-type] #(or % {})))
-    :fx [[:dispatch [::load-kdbx-source-connections kw-type]]]}))
+    :fx [[:dispatch [:remote-storage-load-kdbx-source-connections kw-type]]]}))
 
 (reg-event-fx
- ::load-kdbx-source-connections
+ :remote-storage-load-kdbx-source-connections
  (fn [_ [_ kw-type]]
-   {:fx [[::bg-list-kdbx-source-connections [kw-type]]]}))
+   {:fx [[:remote-storage-bg-list-kdbx-source-connections [kw-type]]]}))
 
 (reg-fx
- ::bg-list-kdbx-source-connections
+ :remote-storage-bg-list-kdbx-source-connections
  (fn [[kw-type]]
    (bg-rs/list-kdbx-source-connections
     kw-type
     (fn [api-response]
       (when-some [summaries (check-error api-response)]
-        (dispatch [::kdbx-source-connections-loaded kw-type summaries]))))))
+        (dispatch [:remote-storage-kdbx-source-connections-loaded kw-type summaries]))))))
 
 (reg-event-db
- ::kdbx-source-connections-loaded
+ :remote-storage-kdbx-source-connections-loaded
  (fn [db [_ kw-type summaries]]
    (assoc-in db [:remote-storage :kdbx-source kw-type] (or summaries []))))
 
 (reg-event-db
- ::enter-ad-hoc-form
+ :remote-storage-enter-ad-hoc-form
  (fn [db _]
    (-> db
        (assoc-in [:remote-storage :step] :form)
        (assoc-in [:remote-storage :api-error-text] nil))))
 
 (reg-event-db
- ::new-db-file-name-update
+ :remote-storage-new-db-file-name-update
  (fn [db [_ value]]
    (-> db
        (assoc-in [:remote-storage :new-db-file-name] value)
        (assoc-in [:remote-storage :api-error-text] nil))))
 
 (reg-event-db
- ::form-data-update
+ :remote-storage-form-data-update
  (fn [db [_ field value]]
    (let [kw-type (get-in db [:remote-storage :current-type])]
      (assoc-in db [:remote-storage :form-data kw-type field] value))))
 
 (reg-event-fx
- ::pick-private-key
+ :remote-storage-pick-private-key
  (fn [_ _]
-   {:fx [[::bg-open-private-key-dialog]]}))
+   {:fx [[:remote-storage-bg-open-private-key-dialog]]}))
 
 (reg-fx
- ::bg-open-private-key-dialog
+ :remote-storage-bg-open-private-key-dialog
  (fn [_]
    (bg/open-file-dialog
     (fn [api-response]
       (when-some [picked (check-error api-response)]
-        (dispatch [::form-data-update :private-key-full-file-name picked]))))))
+        (dispatch [:remote-storage-form-data-update :private-key-full-file-name picked]))))))
 
 (reg-event-fx
- ::connect-by-id-start
+ :remote-storage-connect-by-id-start
  (fn [{:keys [db]} [_ connection-id]]
    (let [kw-type (get-in db [:remote-storage :current-type])]
      {:db (-> db
               (assoc-in [:remote-storage :status] :in-progress)
               (assoc-in [:remote-storage :api-error-text] nil))
-      :fx [[::bg-connect-by-id [kw-type connection-id]]]})))
+      :fx [[:remote-storage-bg-connect-by-id [kw-type connection-id]]]})))
 
 (reg-event-fx
- ::open-entry-remote
+ :remote-storage-open-entry-remote
  (fn [_ [_ entry-type connection-id]]
    (if-let [kw-type (connection-entry-type->kw-type entry-type)]
      {:fx [[:dispatch [:common/progress-message-box-show "Connecting" "Please wait..."]]
-           [::bg-open-entry-remote [kw-type connection-id]]]}
+           [:remote-storage-bg-open-entry-remote [kw-type connection-id]]]}
      {:fx [[:dispatch [:common/message-snackbar-error-open "Unsupported remote connection type"]]]})))
 
 (reg-fx
- ::bg-connect-by-id
+ :remote-storage-bg-connect-by-id
  (fn [[kw-type connection-id]]
    (bg-rs/connect-by-id-and-retrieve-root-dir
     kw-type connection-id
     (fn [api-response]
       (when-some [connect-status (check-error
                                   api-response
-                                  #(dispatch [::connect-failed %]))]
-        (dispatch [::connect-complete kw-type connection-id connect-status]))))))
+                                  #(dispatch [:remote-storage-connect-failed %]))]
+        (dispatch [:remote-storage-connect-complete kw-type connection-id connect-status]))))))
 
 (reg-fx
- ::bg-open-entry-remote
+ :remote-storage-bg-open-entry-remote
  (fn [[kw-type connection-id]]
    (bg-rs/connect-by-id-and-retrieve-root-dir
     kw-type connection-id
@@ -357,11 +357,11 @@
       (when-some [connect-status (check-error
                                   api-response
                                   #(dispatch [:common/message-snackbar-error-open %]))]
-        (dispatch [::open-entry-remote-complete
+        (dispatch [:remote-storage-open-entry-remote-complete
                    kw-type connection-id connect-status]))))))
 
 (reg-event-fx
- ::connect-ad-hoc-start
+ :remote-storage-connect-ad-hoc-start
  (fn [{:keys [db]} _]
    (let [kw-type (get-in db [:remote-storage :current-type])
          raw (get-in db [:remote-storage :form-data kw-type])
@@ -372,29 +372,29 @@
      {:db (-> db
               (assoc-in [:remote-storage :status] :in-progress)
               (assoc-in [:remote-storage :api-error-text] nil))
-      :fx [[::bg-connect-ad-hoc [kw-type info]]]})))
+      :fx [[:remote-storage-bg-connect-ad-hoc [kw-type info]]]})))
 
 (reg-fx
- ::bg-connect-ad-hoc
+ :remote-storage-bg-connect-ad-hoc
  (fn [[kw-type info]]
    (bg-rs/connect-and-retrieve-root-dir
     kw-type info
     (fn [api-response]
       (when-some [connect-status (check-error
                                   api-response
-                                  #(dispatch [::connect-failed %]))]
+                                  #(dispatch [:remote-storage-connect-failed %]))]
         (let [cid (:connection-id connect-status)]
-          (dispatch [::connect-complete kw-type cid connect-status])))))))
+          (dispatch [:remote-storage-connect-complete kw-type cid connect-status])))))))
 
 (reg-event-db
- ::connect-failed
+ :remote-storage-connect-failed
  (fn [db [_ error]]
    (-> db
        (assoc-in [:remote-storage :status] :idle)
        (assoc-in [:remote-storage :api-error-text] error))))
 
 (reg-event-fx
- ::connect-complete
+ :remote-storage-connect-complete
  (fn [{:keys [db]} [_ kw-type connection-id {:keys [dir-entries]}]]
    (let [{:keys [parent-dir sub-dirs files]} dir-entries]
      {:db (-> db
@@ -408,7 +408,7 @@
                                   :files (or files [])}]}))})))
 
 (reg-event-db
- ::open-entry-remote-complete
+ :remote-storage-open-entry-remote-complete
  (fn [db [_ kw-type connection-id {:keys [dir-entries]}]]
    (let [{:keys [parent-dir sub-dirs files]} dir-entries]
      (assoc db :remote-storage
@@ -427,22 +427,22 @@
                                  :files (or files [])}]}))))))
 
 (reg-event-fx
- ::list-sub-dir
+ :remote-storage-list-sub-dir
  (fn [{:keys [db]} [_ parent-dir sub-dir]]
    (let [{:keys [type connection-id]} (get-in db [:remote-storage :listing])]
-     {:fx [[::bg-list-sub-dir [type connection-id parent-dir sub-dir]]]})))
+     {:fx [[:remote-storage-bg-list-sub-dir [type connection-id parent-dir sub-dir]]]})))
 
 (reg-fx
- ::bg-list-sub-dir
+ :remote-storage-bg-list-sub-dir
  (fn [[kw-type connection-id parent-dir sub-dir]]
    (bg-rs/list-sub-dir
     kw-type connection-id parent-dir sub-dir
     (fn [api-response]
       (when-some [dir-entries (check-error api-response)]
-        (dispatch [::sub-dir-listed dir-entries]))))))
+        (dispatch [:remote-storage-sub-dir-listed dir-entries]))))))
 
 (reg-event-db
- ::sub-dir-listed
+ :remote-storage-sub-dir-listed
  (fn [db [_ {:keys [parent-dir sub-dirs files]}]]
    (update-in db [:remote-storage :listing :stack]
               conj {:parent-dir (or parent-dir "/")
@@ -450,7 +450,7 @@
                     :files (or files [])})))
 
 (reg-event-db
- ::listing-previous
+ :remote-storage-listing-previous
  (fn [db _]
    (update-in db [:remote-storage :listing :stack]
               (fn [stack]
@@ -459,15 +459,15 @@
 ;; -- handing off the picked file/folder to the rest of the app --
 
 (reg-event-fx
- ::file-picked-for-open
+ :remote-storage-file-picked-for-open
  (fn [{:keys [db]} [_ parent-dir file-name]]
    (let [{:keys [type connection-id]} (get-in db [:remote-storage :listing])
          db-file-name (form-db-key type connection-id parent-dir file-name)]
-     {:fx [[:dispatch [::dialog-hide]]
+     {:fx [[:dispatch [:remote-storage-dialog-hide]]
            [:dispatch [:open-db-form/remote-open-show db-file-name file-name]]]})))
 
 (reg-event-fx
- ::folder-picked-for-new-db
+ :remote-storage-folder-picked-for-new-db
  (fn [{:keys [db]} [_ parent-dir file-name]]
    (let [{:keys [type connection-id]} (get-in db [:remote-storage :listing])
          db-file-name (form-db-key type connection-id parent-dir file-name)
@@ -483,7 +483,7 @@
         :fx [[:dispatch [:remote-storage/create-kdbx
                          (assoc pending :database-file-name db-file-name)]]]}
        ;; legacy path — bring user into the new-db wizard pre-filled.
-       {:fx [[:dispatch [::dialog-hide]]
+       {:fx [[:dispatch [:remote-storage-dialog-hide]]
              [:dispatch [:new-database/remote-target-selected db-file-name file-name]]]}))))
 
 ;; -- read / save / create remote kdbx (called by open-db / new-db flows) --
@@ -492,7 +492,7 @@
  :remote-storage/read-kdbx
  (fn [_ [_ db-file-name password key-file-name]]
    {:fx [[:dispatch [:common/progress-message-box-show "Opening" "Please wait..."]]
-         [::bg-read-kdbx [db-file-name password key-file-name]]]}))
+         [:remote-storage-bg-read-kdbx [db-file-name password key-file-name]]]}))
 
 ;; Backend marker (variant Display) returned when the remote connection can't
 ;; be resolved — happens when an entry-backed remote is opened from a recent
@@ -501,7 +501,7 @@
 (def ^:private no-remote-storage-connection "NoRemoteStorageConnection")
 
 (reg-fx
- ::bg-read-kdbx
+ :remote-storage-bg-read-kdbx
  (fn [[db-file-name password key-file-name]]
    (bg-rs/read-kdbx
     db-file-name password key-file-name
@@ -519,12 +519,12 @@
         (dispatch [:open-db-file-loading-done kdbx-loaded]))))))
 
 (reg-event-fx
- ::save-remote-kdbx
+ :remote-storage-save-remote-kdbx
  (fn [_ [_ db-key overwrite]]
-   {:fx [[::bg-save-kdbx [db-key overwrite]]]}))
+   {:fx [[:remote-storage-bg-save-kdbx [db-key overwrite]]]}))
 
 (reg-fx
- ::bg-save-kdbx
+ :remote-storage-bg-save-kdbx
  (fn [[db-key overwrite]]
    (bg-rs/save-kdbx
     db-key overwrite
@@ -536,23 +536,23 @@
  :remote-storage/create-kdbx
  (fn [_ [_ new-db]]
    {:fx [[:dispatch [:common/progress-message-box-show "Creating" "Please wait..."]]
-         [::bg-create-kdbx [new-db]]]}))
+         [:remote-storage-bg-create-kdbx [new-db]]]}))
 
 (reg-event-db
- ::create-error
+ :remote-storage-create-error
  (fn [db [_ error]]
    (-> db
        (assoc-in [:remote-storage :status] :idle)
        (assoc-in [:remote-storage :api-error-text] error))))
 
 (reg-event-fx
- ::create-success
+ :remote-storage-create-success
  (fn [_ [_ kdbx-loaded]]
-   {:fx [[:dispatch [::dialog-hide]]
+   {:fx [[:dispatch [:remote-storage-dialog-hide]]
          [:dispatch [:common/kdbx-database-opened kdbx-loaded]]]}))
 
 (reg-fx
- ::bg-create-kdbx
+ :remote-storage-bg-create-kdbx
  (fn [[new-db]]
    (bg-rs/create-kdbx
     new-db
@@ -560,5 +560,5 @@
       (dispatch [:common/progress-message-box-hide])
       (when-some [kdbx-loaded (check-error
                                api-response
-                               #(dispatch [::create-error %]))]
-        (dispatch [::create-success kdbx-loaded]))))))
+                               #(dispatch [:remote-storage-create-error %]))]
+        (dispatch [:remote-storage-create-success kdbx-loaded]))))))

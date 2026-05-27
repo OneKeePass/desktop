@@ -1,20 +1,25 @@
 (ns onekeepass.frontend.events.check-for-updates
   (:require
    [onekeepass.frontend.background :as bg]
+   [onekeepass.frontend.events.common :refer [check-error]]
    [re-frame.core :refer [dispatch reg-event-fx]]))
 
 (reg-event-fx
  :check-for-updates/start
  (fn [{:keys [_db]} [_event-id {:keys [silent?]}]]
    (bg/check-for-updates
-    (fn [{:keys [result error]}]
-      (if error
-        (dispatch [:check-for-updates/error {:silent? silent? :error error}])
-        (dispatch [:check-for-updates/success {:silent? silent? :result result}]))))
+    (fn [api-response]
+      (when-let [result (check-error
+                         api-response
+                         (fn [error]
+                           (if silent?
+                             (js/console.warn "Silent update check failed:" error)
+                             (dispatch [:common/message-snackbar-error-open error]))))]
+        (dispatch [:check-for-updates-success {:silent? silent? :result result}]))))
    {}))
 
 (reg-event-fx
- :check-for-updates/success
+ :check-for-updates-success
  (fn [{:keys [_db]} [_event-id {:keys [silent? result]}]]
    ;; The Rust side returns `updateAvailable` (camelCase). invoke-api
    ;; kebab-cases it to :update-available — note: no `?` suffix.
@@ -44,14 +49,6 @@
                        :current-version current-version
                        :latest-version latest-version
                        :silent? silent?}}]]]}))))
-
-(reg-event-fx
- :check-for-updates/error
- (fn [{:keys [_db]} [_event-id {:keys [silent? error]}]]
-   (if silent?
-     (do (js/console.warn "Silent update check failed:" error)
-         {})
-     {:fx [[:dispatch [:common/message-snackbar-error-open error]]]})))
 
 (defn start-silent-check
   "Triggers a background update check that only surfaces UI when a newer

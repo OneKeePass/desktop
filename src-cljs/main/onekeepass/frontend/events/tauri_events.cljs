@@ -63,7 +63,7 @@
       (dispatch [:open-db-form/open-db])
 
       (= menu-id const/MENU_ID_OPEN_REMOTE)
-      (dispatch [:onekeepass.frontend.events.remote-storage/dialog-show :open])
+      (dispatch [:remote-storage/dialog-show :open])
 
       (= menu-id const/MENU_ID_SAVE_DATABASE)
       (dispatch [:save-current-db false])
