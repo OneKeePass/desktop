@@ -99,24 +99,24 @@
      {:dialog-show dialog-show}]))
 
 (defn content-change-action-dialog [open?]
-  (let [active-key @(cmn-events/active-db-key)
-        remote? (cmn-events/remote-db-key? active-key)]
+  (let [active-key @(cmn-events/active-db-key)]
     [mui-dialog {:open open? :on-click #(.stopPropagation ^js/Event %)}
      [mui-dialog-title (tr-dlg-title conflictOnSave)]
      [mui-dialog-content
       [mui-stack (tr-dlg-text "conflictOnSaveTxt1")]
 
-      (when remote?
-        [:<>
-         [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
-         [mui-stack {:style {:align-items "center"}}
-          [mui-button {:color "primary"
-                       :variant "text"
-                       :on-click #(tb-events/conflict-action-merge-remote active-key)}
-           (tr-bl merge)]]
-         [mui-stack
-          [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
-           (tr-dlg-text "conflictOnSaveMergeTxt")]]])
+      ;; Merge is offered for both local (disk-version) and remote
+      ;; (remote-version) dbs; :external-change-merge-start routes by db type.
+      [:<>
+       [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
+       [mui-stack {:style {:align-items "center"}}
+        [mui-button {:color "primary"
+                     :variant "text"
+                     :on-click #(tb-events/conflict-action-merge active-key)}
+         (tr-bl merge)]]
+       [mui-stack
+        [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
+         (tr-dlg-text "conflictOnSaveMergeTxt")]]]
 
       [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
       [mui-stack {:style {:align-items "center"}}

@@ -38,8 +38,8 @@
 (defn conflict-action-discard []
   (dispatch [:conflict-action-discard]))
 
-(defn conflict-action-merge-remote [db-key]
-  (dispatch [:conflict-action-merge-remote db-key]))
+(defn conflict-action-merge [db-key]
+  (dispatch [:conflict-action-merge db-key]))
 
 (defn save-current-db-data []
   (subscribe [:save-current-db-data]))
@@ -139,10 +139,11 @@
    {:fx [[:dispatch [:save-current-db-completed nil]]
          [:dispatch [:common/save-db-file-as]]]}))
 
-;; Save-time conflict on a remote db: user picks Merge. Reuses the
-;; external-change merge flow so behavior matches the focus-poll path.
+;; Save-time conflict: user picks Merge. Reuses the external-change merge flow,
+;; which itself routes by db type (remote -> rs_merge_with_remote, local ->
+;; disk-version merge), so behavior matches the focus-poll / watcher paths.
 (reg-event-fx
- :conflict-action-merge-remote
+ :conflict-action-merge
  (fn [{:keys [_db]} [_event-id db-key]]
    {:fx [[:dispatch [:save-current-db-completed nil]]
          [:dispatch [:external-change-merge-start db-key]]]}))

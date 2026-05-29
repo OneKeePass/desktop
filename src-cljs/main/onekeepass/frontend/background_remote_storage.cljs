@@ -87,13 +87,6 @@
   [db-key dispatch-fn]
   (invoke-api "rs_merge_with_remote" {:db-key db-key} dispatch-fn))
 
-(defn acknowledge-remote-change
-  "Refreshes the cached remote mtime to the current server value so the
-   next focus-poll won't re-prompt. Called when user chose 'Ignore' on
-   the conflict dialog for a remote db."
-  [db-key dispatch-fn]
-  (invoke-api "rs_acknowledge_remote_change" {:db-key db-key} dispatch-fn))
-
 ;; ----- Picker support: discover kdbx-source connections + fetch one -----
 
 (defn list-kdbx-source-connections

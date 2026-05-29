@@ -158,6 +158,6 @@
                        :on-click #(external-db-change-events/external-change-reload-start db-key)}
            (tr-bl "reload")])
         [mui-button {:on-click #(external-db-change-events/external-change-ignore db-key)}
-         (tr-bl "ignore")]]]]))
+         (tr-bl "notNow")]]]]))
   ([]
    (external-db-change-dialog @(gd-events/external-db-change-dialog-data))))

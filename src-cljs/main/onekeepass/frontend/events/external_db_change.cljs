@@ -153,31 +153,26 @@
                                              #(dispatch [:reload-database-error %]))]
            (dispatch [:common/kdbx-database-loading-complete kdbx-loaded]))))))))
 
-;; User chose "Ignore". For local dbs, clears the watcher's
-;; notification_pending so future external changes can fire again. For
-;; remote dbs, refreshes AppState.remote_mtime to the current remote
-;; mtime so the next focus-poll won't re-prompt for the same diverged
-;; state.
+;; User chose "Not Now" (formerly "Ignore"). Dismisses the dialog without
+;; resolving the change; the user will be reminded again.
+;;   - Local dbs: clears the watcher's notification_pending so future external
+;;     changes can fire again (the event watcher won't re-emit while it's set).
+;;   - Remote dbs: deliberately does NOT acknowledge. Leaving AppState.remote_mtime
+;;     at its diverged value means the next window-focus poll re-detects and
+;;     re-prompts, and the save conflict guard stays accurate (no silent
+;;     overwrite). So a remote change re-surfaces on every focus until merged.
 (reg-event-fx
  :external-change-ignore
  (fn [{:keys [_db]} [_event-id db-key]]
-   {:fx [[:dispatch [:generic-dialog-close :external-db-change-dialog]]
-         (if (remote-db-key? db-key)
-           [:bg-acknowledge-remote-change [db-key]]
-           [:bg-acknowledge-db-change [db-key]])
-         [:dispatch [:common/message-box-show
-                     (tr-dlg-title "externalDbChangedIgnored")
-                     (tr-dlg-text "externalDbChangedIgnoredTxt")]]]}))
+   (let [close [:dispatch [:generic-dialog-close :external-db-change-dialog]]]
+     {:fx (if (remote-db-key? db-key)
+            [close]
+            [close [:bg-acknowledge-db-change [db-key]]])})))
 
 (reg-fx
  :bg-acknowledge-db-change
  (fn [[db-key]]
    (bg/acknowledge-db-file-change db-key #())))
-
-(reg-fx
- :bg-acknowledge-remote-change
- (fn [[db-key]]
-   (bg-rs/acknowledge-remote-change db-key #())))
 
 ;; ---- focus-poll: detect external changes on remote dbs when window
 ;; regains focus. Iterates over open remote db_keys; on each "diverged"

@@ -178,7 +178,10 @@
   (let [{:keys [db-key]} (-> js-event to-cljs :payload)]
     (dispatch [:external-db-change/db-file-changed-externally db-key])))
 
-(defn- register-db-file-changed-event []
+(defn- register-db-file-changed-event 
+  "This event is fired by a file watcher when a local db is changed externally. 
+  The remote db changes are tracked in WINDOW_FOCUS_CHANGED"
+  []
   (bg/register-event-listener DB_FILE_CHANGED_EVENT handle-db-file-changed-event))
 
 (defn register-tauri-events []
