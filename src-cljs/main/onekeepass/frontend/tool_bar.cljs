@@ -98,7 +98,11 @@
       {:label (t/lstr-bl 'cancel) :on-click tb-events/conflict-action-confirm-dialog-hide}]
      {:dialog-show dialog-show}]))
 
-(defn content-change-action-dialog [open?]
+;; This is somewhat similar to the modal dialog fn 'save-error-modal' of 
+;; src-cljs/cljs-main-app-src/main/onekeepass/mobile/save_error_dialog.cljs
+;; TODO: Need to move these save related fns to a separate ns
+
+(defn- content-change-action-dialog [open?]
   (let [active-key @(cmn-events/active-db-key)]
     [mui-dialog {:open open? :on-click #(.stopPropagation ^js/Event %)}
      [mui-dialog-title (tr-dlg-title conflictOnSave)]

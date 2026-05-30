@@ -238,6 +238,46 @@ Yes, password autofill, passkey registration and passkey authentication are supp
 
 Passkey entries are stored in standard KDBX4 format, compatible with other KeePass-based password managers.
 
+The browser extension is supported in Firefox, Chrome, and Brave.
+
+## How do I use custom icons for entries and groups?
+
+You can assign custom icons to any entry or group. Icons can be added from a local image file or automatically fetched as a favicon from a website URL.
+
+To manage all custom icons stored in the database, use **Database -> Manage Icons**. From there you can upload new icons, add icons by URL, and delete icons that are no longer needed.
+
+To assign an icon to an entry, open the entry form in edit mode and select the icon field. To assign an icon to a group, open the group form and select the icon field.
+
+Custom icons are stored inside the KDBX database file and are compatible with other KeePass-based applications.
+
+## Can I store my database on a remote SFTP or WebDAV server?
+
+Yes. OneKeePass supports creating and opening databases stored directly on SFTP and WebDAV servers without needing any intermediate sync tool.
+
+**Opening a remote database:** Use **File -> Open Remote Database** and choose SFTP or WebDAV. Enter your server details to browse and open a database file.
+
+**Creating a new remote database:** Use **File -> New Database** and choose to save to a remote location. After entering the new database settings, you can select a remote folder on your SFTP or WebDAV server.
+
+**Remote connection entries:** You can store your SFTP or WebDAV connection credentials securely inside the database using the special entry types **SFTP Connection** and **WebDAV Connection**. When these entries exist, OneKeePass can use them directly to reconnect to the server, so you do not have to re-enter credentials each time.
+
+## What are "SFTP Connection" and "WebDAV Connection" entry types?
+
+These are built-in entry types for storing remote server connection credentials inside your database.
+
+An **SFTP Connection** entry holds the host, port, username, and optionally a private key for an SSH/SFTP server.
+
+A **WebDAV Connection** entry holds the server URL, username, and password for a WebDAV server.
+
+Once these entries exist in your database, OneKeePass uses them automatically when you open or save a remote database on that server. You can create them through the remote connection dialog or by adding a new entry and selecting the appropriate entry type.
+
+## How do I check for new versions of OneKeePass?
+
+OneKeePass automatically checks for new releases at startup. If a new version is available, a notification appears. You can also check manually at any time using **Help -> Check for Updates**.
+
+## Does the Brave browser work with the OneKeePass browser extension?
+
+Yes. The OneKeePass-Browser extension supports Brave in addition to Firefox and Chrome. Install the Chrome-compatible extension in Brave, then enable it in OneKeePass **Application Settings -> Browser Integration**.
+
 
 
 

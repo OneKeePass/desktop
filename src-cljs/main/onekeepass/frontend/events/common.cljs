@@ -43,18 +43,23 @@
     (let [[prefix label] (cond
                            (str/starts-with? db-key (str const/V-SFTP "-"))
                            [(str const/V-SFTP "-") "SFTP"]
-
+         
                            (str/starts-with? db-key (str const/V-WEBDAV "-"))
                            [(str const/V-WEBDAV "-") "WebDAV"])
           ;; "<prefix>-<36-char-uuid>-<path>" — strip prefix and uuid+dash to
           ;; reach the path part, then take the trailing file name.
           after-prefix (subs db-key (count prefix))
+         
           after-uuid (if (> (count after-prefix) 37)
                        (subs after-prefix 37)
                        after-prefix)
-          file-name (-> after-uuid (str/split #"/") last)]
-      (str (if (str/blank? file-name) after-uuid file-name)
-           " (" label ")"))))
+          ;; file-name (-> after-uuid (str/split #"/") last)
+          ]
+      #_(println "after-prefix after-uuid file-name" after-prefix after-uuid file-name)
+      (str label after-uuid)
+      #_(str label "/" (if (str/blank? file-name) after-uuid file-name))
+      #_(str (if (str/blank? file-name) after-uuid file-name)
+             " (" label ")"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1021,7 +1026,6 @@
        (assoc-in [:progress-message-box :dialog-show] true)
        (assoc-in [:progress-message-box :title] title)
        (assoc-in [:progress-message-box :message] message))))
-
 
 (reg-event-db
  :common/progress-message-box-hide
