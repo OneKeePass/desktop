@@ -29,6 +29,8 @@ pub mod menu_ids {
     pub const LOCK_DATABASE: &str = "LockDatabase";
     pub const LOCK_ALL_DATABASES: &str = "LockAllDatabases";
 
+    pub const CHECK_REMOTE_CHANGES: &str = "CheckRemoteChanges";
+
     pub const OPEN_RECENT: &str = "OpenRecent";
 
     pub const MERGE_DATABASE: &str = "MergeDatabase";
@@ -260,6 +262,16 @@ fn build_database_menus<R: Runtime>(
             false,
             None::<&str>,
         )?,
+        // Manual remote-change check. Only active when the active db is an
+        // unlocked remote (Sftp/Webdav) db - the UI toggles it via
+        // menu_action_requested (see tool_bar.cljs).
+        &MenuItem::with_id(
+            app_handle,
+            CHECK_REMOTE_CHANGES,
+            system_menu_translation.sub_menu(CHECK_REMOTE_CHANGES, "Check Remote Changes"),
+            false,
+            None::<&str>,
+        )?,
     ])
     .separator()
     .items(&[&MenuItem::with_id(
@@ -443,7 +455,8 @@ pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app_handle:
         | SAVE_DATABASE_AS
         | SAVE_DATABASE_BACKUP
         | MERGE_DATABASE
-        | MERGE_OPENED_DATABASES => {
+        | MERGE_OPENED_DATABASES
+        | CHECK_REMOTE_CHANGES => {
             toggle_enable_disable(app_handle, MAIN_MENU_DATABASE, menu_id, menu_enabled);
         }
         EDIT_ENTRY | NEW_ENTRY => {

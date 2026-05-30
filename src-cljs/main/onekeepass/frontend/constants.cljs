@@ -85,6 +85,7 @@
 (def MENU_ID_CLOSE_DATABASE "CloseDatabase")
 (def MENU_ID_MERGE_DATABASE "MergeDatabase")
 (def MENU_ID_MERGE_OPENED_DATABASES "MergeOpenedDatabases")
+(def MENU_ID_CHECK_REMOTE_CHANGES "CheckRemoteChanges")
 (def MENU_ID_IMPORT "Import")
 (def MENU_ID_PASSWORD_GENERATOR "PasswordGenerator")
 (def MENU_ID_NEW_ENTRY "NewEntry")

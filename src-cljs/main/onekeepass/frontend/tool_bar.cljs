@@ -178,7 +178,9 @@
           locked? @(cmn-events/locked?)
           biometric-type @(cmn-events/biometric-type-available)
           save-disabled? (or locked? (not @(cmn-events/db-save-pending?)))
-          multiple-dbs? (>= (count @(merging-events/multiple-unlocked-dbs?)) 2)]
+          multiple-dbs? (>= (count @(merging-events/multiple-unlocked-dbs?)) 2)
+          ;; "Check Remote Changes" is only meaningful for an unlocked remote db
+          remote? (cmn-events/remote-db-key? @(cmn-events/active-db-key))]
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE (not save-disabled?))
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_AS (not locked?))
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_BACKUP (not locked?))
@@ -190,6 +192,10 @@
                             (tauri-events/enable-app-menu const/MENU_ID_SEARCH true)
                             (tauri-events/enable-app-menu const/MENU_ID_MERGE_DATABASE (not locked?))
                             (tauri-events/enable-app-menu const/MENU_ID_MERGE_OPENED_DATABASES multiple-dbs?)
+                            ;; Active for an unlocked remote db. Kept inside the effect (not the
+                            ;; render body) so it isn't clobbered by this effect's own cleanup,
+                            ;; which runs on every deps change - remote? is in the deps below.
+                            (tauri-events/enable-app-menu const/MENU_ID_CHECK_REMOTE_CHANGES (and remote? (not locked?)))
 
                             ;; cleanup fn is returned which is called when this component unmounts
                             (fn []
@@ -200,7 +206,8 @@
                               (tauri-events/enable-app-menu const/MENU_ID_MERGE_DATABASE false)
                               (tauri-events/enable-app-menu const/MENU_ID_MERGE_OPENED_DATABASES false)
                               (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_BACKUP false)
-                              (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js [locked? multiple-dbs?]))
+                              (tauri-events/enable-app-menu const/MENU_ID_CHECK_REMOTE_CHANGES false)
+                              (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js [locked? multiple-dbs? remote?]))
 
       [:div {:style {:flex-grow 1}}
        [mui-app-bar {:position "static" :color "primary" :dir (t/dir)}  ;; 

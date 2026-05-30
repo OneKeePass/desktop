@@ -197,3 +197,30 @@
       (when-some [modified? (check-error api-response)]
         (when modified?
           (dispatch [:external-db-change/db-file-changed-externally db-key])))))))
+
+;; ---- manual check: the "Check Remote Changes" system menu (Database submenu).
+;; The menu is only enabled for an unlocked, active remote db (see tool_bar.cljs),
+;; so this reuses :external-db-change/db-file-changed-externally which, for the
+;; active+unlocked case, routes straight to the change dialog. Unlike the silent
+;; focus auto-poll, the manual path always reports back:
+;;   - diverged       -> change dialog
+;;   - up to date     -> "up to date" snackbar
+;;   - connect failed -> error snackbar (the default check-error path)
+
+(reg-event-fx
+ :external-db-change/manual-check-remote-changes
+ (fn [{:keys [db]} _]
+   (let [db-key (active-db-key db)]
+     (when (and db-key (remote-db-key? db-key))
+       {:fx [[:bg-rs-manual-check-remote-modified [db-key]]]}))))
+
+(reg-fx
+ :bg-rs-manual-check-remote-modified
+ (fn [[db-key]]
+   (bg-rs/check-remote-modified
+    db-key
+    (fn [api-response]
+      (when-some [modified? (check-error api-response)]
+        (if modified?
+          (dispatch [:external-db-change/db-file-changed-externally db-key])
+          (dispatch [:common/message-snackbar-open (lstr-sm 'remoteUpToDate)])))))))

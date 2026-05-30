@@ -86,6 +86,9 @@
       (= menu-id const/MENU_ID_MERGE_OPENED_DATABASES)
       (dispatch [:merging/merge-opened-dbs-start])
 
+      (= menu-id const/MENU_ID_CHECK_REMOTE_CHANGES)
+      (dispatch [:external-db-change/manual-check-remote-changes])
+
       (= menu-id const/MENU_ID_IMPORT)
       (dispatch [:import/import-csv-file-start])
 

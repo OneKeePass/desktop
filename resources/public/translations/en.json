@@ -228,7 +228,6 @@
             "emptyRecycleBin": "Empty recycle bin",
             "entryDeletePermanent": "Entry Delete Permanent",
             "externalDbChanged": "Database Changed Externally",
-            "externalDbChangedIgnored": "External Change Ignored",
             "groupDeletePermanent": "Group Delete Permanent",
             "groupDetails": "Group Details",
             "icons": "Icons",
@@ -285,7 +284,6 @@
             "downloadingFavicon": "Downloading favicon and storing as custom icon...",
             "emptyRecycleBin": "Are you sure you want to empty the recycle bin permanently?",
             "entryDeletePermanent": "Are you sure you want to delete this entry permanently?",
-            "externalDbChangedIgnoredTxt": "The external change to this database has been ignored. Your current data remains unchanged. But if you save now, your local version will overwrite the externally changed file.",
             "externalDbChangedTxt1": "{{- fileName}} was modified by another application.",
             "externalDbChangedTxt2": "You have unsaved changes. Merge combines both sets of changes; Reload discards your local changes.",
             "groupDeletePermanent": "Are you sure you want to delete this group and children permanently?",
@@ -537,7 +535,8 @@
         "groupsSorted": "Groups sorted",
         "importCompleted": "Import completed",
         "launchingSystemViewer": "Launching the system viewer",
-        "recycleBinEmptied": "Recycle bin is emptied"
+        "recycleBinEmptied": "Recycle bin is emptied",
+        "remoteUpToDate": "Remote database is up to date"
     },
     "snackbarErrorMessages": {
         "entryUuidExistsInTarget": "An entry with the same uuid already exists in the target database. Merge databases",
@@ -557,6 +556,7 @@
             "About": "About OneKeePass",
             "AppSettings": "Settings...",
             "CheckForUpdates": "Check for Updates...",
+            "CheckRemoteChanges": "Check Remote Changes",
             "CloseDatabase": "Close Database",
             "EditEntry": "Edit Entry",
             "EditGroup": "Edit Group",
