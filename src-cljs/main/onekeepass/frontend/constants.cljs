@@ -118,6 +118,7 @@
 (def USERNAME "UserName")
 (def PASSWORD "Password")
 (def URL "URL")
+(def HOST "Host")
 (def NOTES "Notes")
 (def TAGS "Tags")
 (def IFDEVICE "IfDevice")
