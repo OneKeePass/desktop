@@ -261,6 +261,13 @@ impl AppState {
             if backup_dir.is_empty() {
                 return None;
             }
+            if !mas::can_use_backup_dir(backup_dir) {
+                log::warn!(
+                    "Skipping custom backup dir because MAS sandbox access is not available: {}",
+                    backup_dir
+                );
+                return None;
+            }
             (PathBuf::from(backup_dir), true)
         } else {
             (app_paths::app_backup_dir(), false)

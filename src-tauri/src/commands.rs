@@ -757,6 +757,7 @@ pub(crate) async fn save_kdbx(
 
     // db_key is the full database file name and backup file name is derived from that
     let backup_file_name = app_state.get_backup_file(db_key);
+    let _db_file_access = mas::db_file_access(db_key);
     Ok(kp_service::save_kdbx_with_backup(
         db_key,
         backup_file_name.as_deref(),
@@ -781,6 +782,11 @@ pub(crate) async fn save_all_modified_dbs(
     let (remote_keys, local_keys): (Vec<String>, Vec<String>) = db_keys
         .into_iter()
         .partition(|k| crate::remote_storage::is_remote_db_key(k));
+
+    let _db_file_access: Vec<_> = local_keys
+        .iter()
+        .map(|db_key| mas::db_file_access(db_key))
+        .collect();
 
     let dbs_with_backups: Vec<(String, Option<String>)> = local_keys
         .iter()
