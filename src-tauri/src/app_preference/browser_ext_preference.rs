@@ -304,14 +304,18 @@ impl BrowserExtSupport {
             log::debug!("Writing the shared Chromium config for Chrome/Brave....");
             self.write_manifest_with_scope(CHROME, ChromeNativeMessagingConfig::write)?;
             start_proxy_handler();
-        } else if existing_chromium
-            && new_chromium
-            && !existing_allowed_browsers.contains(&CHROME.to_string())
-            && new_allowed_browsers.contains(&BRAVE.to_string())
-        {
-            log::debug!("Writing the shared Chromium config for existing Brave preference....");
-            self.write_manifest_with_scope(CHROME, ChromeNativeMessagingConfig::write)?;
-            start_proxy_handler();
+        // Migration branch: rewrites the shared Chromium config when a user had
+        // only Brave enabled under the previous (separate Brave config) model.
+        // Not needed for this release, since Brave support is being introduced
+        // for the first time and there is no prior Brave-only preference to migrate.
+        // } else if existing_chromium
+        //     && new_chromium
+        //     && !existing_allowed_browsers.contains(&CHROME.to_string())
+        //     && new_allowed_browsers.contains(&BRAVE.to_string())
+        // {
+        //     log::debug!("Writing the shared Chromium config for existing Brave preference....");
+        //     self.write_manifest_with_scope(CHROME, ChromeNativeMessagingConfig::write)?;
+        //     start_proxy_handler();
         } else if existing_chromium && !new_chromium {
             self.user_confirmed_browsers.remove(CHROME);
             self.user_confirmed_browsers.remove(BRAVE);
