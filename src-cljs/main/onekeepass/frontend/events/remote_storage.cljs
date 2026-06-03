@@ -45,7 +45,7 @@
 
 (defn- webdav-init-data []
   {:name nil :root-url nil :user-name nil :password nil
-   :allow-untrusted-cert false :start-dir "/"})
+   :allow-untrusted-cert false})
 
 (defn- init-for-type [kw-type]
   (case kw-type :sftp (sftp-init-data) :webdav (webdav-init-data)))

@@ -214,7 +214,6 @@
                 :error-text (:user-name errors)}]
      [text-row {:label (lstr-l "password") :value (:password data) :field :password
                 :type-attr "password" :error-text (:password errors)}]
-     [text-row {:label (lstr-l "startDir") :value (:start-dir data) :field :start-dir}]
      [mui-form-control-label
       {:control (r/as-element
                  [mui-switch
