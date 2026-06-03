@@ -80,8 +80,10 @@ fn win_reg_path_for(browser_id: &str) -> Option<String> {
             "Software\\Google\\Chrome\\NativeMessagingHosts\\{}",
             OKP_NATIVE_APP_NAME
         )),
+        // On Windows Brave discovers native messaging hosts through the same
+        // Chromium registry location as Chrome.
         BRAVE => Some(format!(
-            "Software\\BraveSoftware\\Brave-Browser\\NativeMessagingHosts\\{}",
+            "Software\\Google\\Chrome\\NativeMessagingHosts\\{}",
             OKP_NATIVE_APP_NAME
         )),
         _ => None,
@@ -556,6 +558,7 @@ impl<'a> BraveNativeMessagingConfig<'a> {
         Ok(())
     }
 
+    #[cfg_attr(any(target_os = "macos", target_os = "windows"), allow(dead_code))]
     pub(crate) fn remove() -> Result<()> {
         let config_file_full_name = Self::brave_native_messaging_config_full_name()?;
         std::fs::remove_file(&config_file_full_name)?;
@@ -627,7 +630,7 @@ impl<'a> BraveNativeMessagingConfig<'a> {
     fn write_win_reg_value(manifest_path_str: &str) -> Result<()> {
         let hkey_current_user = RegKey::predef(HKEY_CURRENT_USER);
         let reg_path = format!(
-            "Software\\BraveSoftware\\Brave-Browser\\NativeMessagingHosts\\{}",
+            "Software\\Google\\Chrome\\NativeMessagingHosts\\{}",
             OKP_NATIVE_APP_NAME
         );
 
@@ -648,7 +651,7 @@ impl<'a> BraveNativeMessagingConfig<'a> {
     fn delete_win_reg_key() -> Result<()> {
         let hkey_current_user = RegKey::predef(HKEY_CURRENT_USER);
         let reg_path = format!(
-            "Software\\BraveSoftware\\Brave-Browser\\NativeMessagingHosts\\{}",
+            "Software\\Google\\Chrome\\NativeMessagingHosts\\{}",
             OKP_NATIVE_APP_NAME
         );
 

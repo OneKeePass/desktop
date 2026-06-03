@@ -194,6 +194,27 @@ Application Settings -> Browser Integration -> Enable browser Integration -> Ena
 </h1>
 </details>
 
+## The browser extension can't connect to OneKeePass on Linux (Flatpak/Snap browser)
+
+On immutable / atomic Linux distributions such as **Bazzite, Fedora Silverblue/Kinoite, and SteamOS**, the browser is usually installed as a **Flatpak** (or, on some distros, a **Snap**) rather than as a native package. A sandboxed browser cannot connect to OneKeePass even though everything looks correctly enabled, because:
+
+- Flatpak Firefox does **not** read the native messaging manifest from `~/.mozilla/native-messaging-hosts/`. It only looks inside its own sandbox, at `~/.var/app/org.mozilla.firefox/.mozilla/native-messaging-hosts/`.
+- Even when the manifest is found, the sandbox cannot launch the host `onekeepass-proxy` binary, and the proxy cannot reach the OneKeePass socket, without extra Flatpak permissions.
+
+This is a general limitation of native messaging with sandboxed browsers (it affects KeePassXC, Bitwarden, 1Password, etc. the same way), not something specific to OneKeePass.
+
+**Recommended fix — use a non-sandboxed browser.** Install Firefox or Chrome as a native package (for example, layer it with `rpm-ostree install firefox`, or run it inside a `distrobox`/`toolbox` container). With a native browser, OneKeePass writes the manifest to the location the browser reads, and integration works without any extra steps.
+
+**Advanced workaround — keep the Flatpak browser.** If you want to keep using the Flatpak browser, you have to bridge the sandbox manually:
+
+1. Copy the manifest OneKeePass wrote into the browser's Flatpak path, e.g.
+   `cp ~/.mozilla/native-messaging-hosts/org.onekeepass.onekeepass_browser.json ~/.var/app/org.mozilla.firefox/.mozilla/native-messaging-hosts/`
+2. Grant the browser Flatpak permission to talk to the host:
+   `flatpak override --user --talk-name=org.freedesktop.Flatpak org.mozilla.firefox`
+3. Edit the `path` in the copied manifest to invoke the proxy through the host, e.g. wrap it with `flatpak-spawn --host /path/to/onekeepass-proxy`.
+
+The non-sandboxed browser is the simpler and more reliable option.
+
 ## How can I quickly reopen recently used databases?
 
 OneKeePass maintains a list of recently opened databases. You can access this list from the **File -> Open Recent** menu option. This allows you to quickly reopen databases you frequently use without having to navigate to their file locations.

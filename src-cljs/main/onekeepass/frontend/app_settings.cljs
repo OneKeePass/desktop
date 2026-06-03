@@ -1,7 +1,9 @@
 (ns onekeepass.frontend.app-settings
   (:require
    [clojure.string :as str]
+   [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.events.app-settings :as app-settings-events]
+   [onekeepass.frontend.events.common :as ce]
    [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom mui-box
                                                      mui-alert
                                                      mui-button mui-checkbox
@@ -236,13 +238,36 @@
 (def ^:private FIREFOX "Firefox")
 (def ^:private CHROME "Chrome")
 (def ^:private BRAVE "Brave")
+(def ^:private CHROME_AND_BRAVE [CHROME BRAVE])
 ;; (def ^:private EDGE "Edge")
 
 (defn- named-browser-enabled? [browser-name allowed-browsers]
   (boolean (some #(= browser-name %) allowed-browsers)))
 
+;; Used by grouped browser controls, where one checkbox represents multiple
+;; browser ids persisted in the same allowed-browsers vector.
+(defn- any-named-browser-enabled? [browser-names allowed-browsers]
+  (boolean (some #(named-browser-enabled? % allowed-browsers) browser-names)))
+
 (defn- manifest-status-for [browser-name statuses]
   (some #(when (= browser-name (:browser-id %)) %) statuses))
+
+(defn- manifest-status-for-any [browser-names statuses]
+  (some #(manifest-status-for % statuses) browser-names))
+
+;; Prefer the first installed/owned status when a grouped control has multiple
+;; browser statuses; fall back to any status so missing groups still render.
+(defn- active-manifest-status-for-any [browser-names statuses]
+  (or (some #(let [status (manifest-status-for % statuses)]
+               (when (and status (not= "missing" (:owner status)))
+                 status))
+            browser-names)
+      (manifest-status-for-any browser-names statuses)))
+
+;; Re-labels a concrete browser status for grouped display, for example
+;; Chrome/Brave sharing one user-facing row.
+(defn- display-status [browser-id status]
+  (assoc status :browser-id browser-id))
 
 (defn- browser-checkbox-checked? [browser-name allowed-browsers reconnect-browsers statuses]
   (let [status (manifest-status-for browser-name statuses)]
@@ -250,12 +275,34 @@
          (or (not= "other-app" (:owner status))
              (named-browser-enabled? browser-name reconnect-browsers)))))
 
+;; Same as browser-checkbox-checked?, but for platforms where Chrome and Brave
+;; use one effective native-messaging integration.
+(defn- browser-group-checkbox-checked? [browser-names allowed-browsers reconnect-browsers statuses]
+  (let [status (manifest-status-for-any browser-names statuses)]
+    (and (any-named-browser-enabled? browser-names allowed-browsers)
+         (or (not= "other-app" (:owner status))
+             (any-named-browser-enabled? browser-names reconnect-browsers)))))
+
 (defn- toggle-browser-enabled [checked? browser-name allowed-browsers]
   (if (not checked?)
     ;; remove the browser from the list
     (vec (remove #(= browser-name %) allowed-browsers))
     ;; add the browser to the list
     (conj (vec allowed-browsers) browser-name)))
+
+;; Adds without duplicating, so grouped toggles can safely preserve existing
+;; preferences while inserting every browser id represented by the group.
+(defn- add-browser [browsers browser-name]
+  (if (named-browser-enabled? browser-name browsers)
+    (vec browsers)
+    (conj (vec browsers) browser-name)))
+
+;; Expands a grouped checkbox into the concrete browser ids stored by the
+;; backend preference model.
+(defn- toggle-browser-group-enabled [checked? browser-names allowed-browsers]
+  (if (not checked?)
+    (vec (remove #(some #{%} browser-names) allowed-browsers))
+    (reduce add-browser (vec allowed-browsers) browser-names)))
 
 (defn- path-tail [path]
   (when-not (str/blank? path)
@@ -304,7 +351,15 @@
     "Not connected"))
 
 (defn- browser-manifest-statuses []
-  (let [statuses @(app-settings-events/browser-manifest-statuses)]
+  (let [statuses @(app-settings-events/browser-manifest-statuses)
+        chromium-shared? (some #(= @(ce/os-name) %) [const/MACOS const/WINDOWS])
+        statuses (if chromium-shared?
+                   (keep identity
+                         [(manifest-status-for FIREFOX statuses)
+                          (some->> statuses
+                                   (active-manifest-status-for-any CHROME_AND_BRAVE)
+                                   (display-status "Chrome and Brave"))])
+                   statuses)]
     (when (seq statuses)
       [mui-stack {:spacing 2 :sx {:alignItems "center"}}
        [mui-box {:sx {:width "80%"}}
@@ -321,6 +376,7 @@
   (let [browser-ext-support (get-in dialog-data [:preference-data :browser-ext-support])
         {:keys [allowed-browsers reconnect-browsers extension-use-enabled]} browser-ext-support
         manifest-statuses @(app-settings-events/browser-manifest-statuses)
+        chromium-shared? (some #(= @(ce/os-name) %) [const/MACOS const/WINDOWS])
         browser-checkbox (fn [browser-name]
                            (let [status (manifest-status-for browser-name manifest-statuses)]
                              [mui-form-control-label
@@ -341,9 +397,32 @@
 
                                                  (not= "other-app" (:owner status))
                                                  (app-settings-events/field-update
-                                                  [:preference-data :browser-ext-support :allowed-browsers]
+                                                 [:preference-data :browser-ext-support :allowed-browsers]
                                                   (toggle-browser-enabled checked? browser-name allowed-browsers)))))}])
-                               :label browser-name}]))]
+                               :label browser-name}]))
+        browser-group-checkbox (fn [browser-names label]
+                                 (let [status (active-manifest-status-for-any browser-names manifest-statuses)]
+                                   [mui-form-control-label
+                                    {:control (r/as-element
+                                               [mui-checkbox
+                                                {:disabled (not extension-use-enabled)
+                                                 :checked (browser-group-checkbox-checked?
+                                                           browser-names
+                                                           allowed-browsers
+                                                           reconnect-browsers
+                                                           manifest-statuses)
+                                                 :on-change
+                                                 (fn [^js/CheckedEvent e]
+                                                   (let [checked? (-> e .-target .-checked)]
+                                                     (cond
+                                                       (and checked? (= "other-app" (:owner status)))
+                                                       (app-settings-events/browser-reconnect-confirm-dialog-show status)
+
+                                                       (not= "other-app" (:owner status))
+                                                       (app-settings-events/field-update
+                                                        [:preference-data :browser-ext-support :allowed-browsers]
+                                                        (toggle-browser-group-enabled checked? browser-names allowed-browsers)))))}])
+                                     :label label}]))]
     [mui-stack
      [mui-stack {:sx {:pt 1 :pb 1}}
       [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
@@ -353,8 +432,11 @@
       [mui-box {:sx {:width "80%"}}
        [mui-stack {:direction "row" :sx {:justify-content "space-between"}}
         [browser-checkbox FIREFOX]
-        [browser-checkbox CHROME]
-        [browser-checkbox BRAVE]]]]
+        (if chromium-shared?
+          [browser-group-checkbox CHROME_AND_BRAVE "Chrome and Brave"]
+          [:<>
+           [browser-checkbox CHROME]
+           [browser-checkbox BRAVE]])]]]
 
      [browser-manifest-statuses]]))
 
