@@ -840,6 +840,8 @@ pub(crate) async fn close_kdbx(
     app_state.release_scoped_access(&mas::ScopedAccessKey::Db(db_key.to_string()));
     kp_service::close_kdbx(db_key)?;
     app_state.remove_app_home_backup_file(db_key);
+    // Drop any in-memory connection config cached while this remote db was open.
+    crate::remote_storage::clear_cached_connection_config(db_key);
     Ok(())
 }
 

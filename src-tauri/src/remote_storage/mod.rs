@@ -61,6 +61,26 @@ pub(crate) fn is_kdbx_entry_backed(db_key: &str) -> bool {
     db_service::find_remote_connection_entry(&connection_id, &type_uuid).is_some()
 }
 
+// Drops the in-memory cached connection config for a remote db_key. Called when
+// a remote db is closed so the credentials cached while it was open (see
+// ConnectionConfigs::cache_config_in_memory) do not linger past the db that
+// needed them. A no-op for local db_keys. Removal is in-memory only and never
+// touches a persisted store.
+pub(crate) fn clear_cached_connection_config(db_key: &str) {
+    let Ok(parsed) = parse_db_key(db_key) else {
+        return;
+    };
+    let Ok(connection_id) = Uuid::parse_str(parsed.connection_id) else {
+        return;
+    };
+    let remote_type = match parsed.rs_type_name {
+        "Sftp" => RemoteStorageType::Sftp,
+        "Webdav" => RemoteStorageType::Webdav,
+        _ => return,
+    };
+    ConnectionConfigs::remove_config_in_memory(remote_type, &connection_id);
+}
+
 // All functions below are synchronous and internally call the
 // onekeepass-core macros that do `oneshot::Receiver::blocking_recv()`. That
 // primitive panics if called from a Tokio worker thread, so the Tauri

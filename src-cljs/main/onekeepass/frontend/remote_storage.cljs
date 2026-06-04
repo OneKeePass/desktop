@@ -8,43 +8,22 @@
      :browse      — server file/folder listing; user picks a kdbx file (open
                     mode) or a parent folder (create mode)"
   (:require
-   [reagent.core :as r]
    [clojure.string :as str]
    [onekeepass.frontend.db-icons :refer [render-entry-icon]]
    [onekeepass.frontend.events.remote-storage :as rs-events]
-   [onekeepass.frontend.translation :as t
-    :refer [lstr-l lstr-bl lstr-dlg-title]]
    [onekeepass.frontend.mui-components :as m
-    :refer [mui-alert
-            mui-avatar
-            mui-box
-            mui-button
-            mui-dialog
-            mui-dialog-actions
-            mui-dialog-content
-            mui-dialog-title
-            mui-divider
-            mui-form-control-label
-            mui-icon-button
-            mui-icon-arrow-upward-outlined
-            mui-icon-chevron-right
-            mui-icon-close-outlined
-            mui-icon-folder-outlined
-            mui-icon-launch
-            mui-linear-progress
-            mui-link
-            mui-list
-            mui-list-item
-            mui-list-item-avatar
-            mui-list-item-button
-            mui-list-item-icon
-            mui-list-item-text
-            mui-list-subheader
-            mui-stack
-            mui-switch
-            mui-tab
-            mui-tabs
-            mui-typography]]))
+    :refer [mui-alert mui-avatar mui-box mui-button mui-dialog
+            mui-dialog-actions mui-dialog-content mui-dialog-title mui-divider
+            mui-form-control-label mui-icon-arrow-upward-outlined
+            mui-icon-button mui-icon-chevron-right mui-icon-close-outlined
+            mui-icon-folder-outlined mui-icon-launch mui-linear-progress
+            mui-link mui-list mui-list-item mui-list-item-avatar
+            mui-list-item-button mui-list-item-icon mui-list-item-text
+            mui-list-subheader mui-stack mui-switch mui-tab mui-tabs
+            mui-typography]]
+   [onekeepass.frontend.translation :as t
+    :refer [lstr-bl lstr-dlg-title lstr-field-name lstr-l]]
+   [reagent.core :as r]))
 
 (set! *warn-on-infer* true)
 
@@ -181,8 +160,11 @@
                 :placeholder "host.example.com" :error-text (:host errors)}]
      [text-row {:label (lstr-l "port") :value (:port data) :field :port
                 :type-attr "number" :error-text (:port errors)}]
-     [text-row {:label (lstr-l "userName") :value (:user-name data) :field :user-name
+     
+     ;; For now tranlation texts is used from lstr-field-name as there is no lstr-l
+     [text-row {:label (lstr-field-name "userName") :value (:user-name data) :field :user-name
                 :error-text (:user-name errors)}]
+     
      [text-row {:label (lstr-l "password") :value (:password data) :field :password
                 :type-attr "password" :error-text (:password errors)}]
      [mui-stack {:direction "row" :spacing 1 :alignItems "flex-end"}
@@ -199,7 +181,9 @@
                    :size "small"
                    :disabled (not pk-path)}
        (lstr-bl 'clear)]]
-     [text-row {:label (lstr-l "startDir") :value (:start-dir data) :field :start-dir}]]))
+     
+     ;; For now tranlation texts is used from lstr-field-name as there is no lstr-l
+     [text-row {:label (lstr-field-name "startDir") :value (:start-dir data) :field :start-dir}]]))
 
 (defn- webdav-form []
   (let [data @(rs-events/form-data :webdav)
@@ -210,8 +194,11 @@
      [text-row {:label (lstr-l "rootUrl") :value (:root-url data) :field :root-url
                 :placeholder "https://host.example.com/dav"
                 :error-text (:root-url errors)}]
-     [text-row {:label (lstr-l "userName") :value (:user-name data) :field :user-name
+     
+     ;; For now tranlation texts is used from lstr-field-name as there is no lstr-l
+     [text-row {:label (lstr-field-name "userName") :value (:user-name data) :field :user-name
                 :error-text (:user-name errors)}]
+     
      [text-row {:label (lstr-l "password") :value (:password data) :field :password
                 :type-attr "password" :error-text (:password errors)}]
      [mui-form-control-label
@@ -331,7 +318,7 @@
                                         (rs-events/new-db-file-name-update
                                          (.. e -target -value)))}]
             [mui-button {:style {:margin-top "20px"} :on-click #(rs-events/folder-picked-for-new-db
-                                     parent-dir file-name)
+                                                                 parent-dir file-name)
                          :color "primary" :variant "contained"
                          :disabled (or in-progress? (str/blank? file-name))}
              (lstr-bl 'create)]]))]
