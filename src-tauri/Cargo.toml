@@ -84,7 +84,7 @@ onekeepass-dev = []
 # Mac App Store build. Compiles out features that are kernel-blocked or
 # App Review-rejected under App Sandbox (currently: the auto_type module
 # and its Tauri commands). Enabled via `cargo build --features mas-build`
-# from the desktop/scripts/build-mas.sh wrapper.
+# from the store build script wrapper.
 mas-build = []
 
 [dev-dependencies]
