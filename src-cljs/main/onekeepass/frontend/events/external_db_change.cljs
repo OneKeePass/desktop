@@ -108,6 +108,7 @@
          [:dispatch [:entry-category/category-data-load-start
                      (-> db :app-preference :default-entry-category-groupings)]]
          [:dispatch [:common/load-entry-type-headers]]
+         [:dispatch [:custom-icons/refresh]]
          [:dispatch [:entry-list/load-entry-items const/CATEGORY_ALL_ENTRIES]]
          ;; Highlight "All Entries" in the category panel and deselect any group node
          [:dispatch [:entry-category/select-all-entries-category]]
