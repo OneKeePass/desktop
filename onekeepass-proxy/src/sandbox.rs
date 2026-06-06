@@ -7,14 +7,21 @@ pub const APP_GROUP_ID: &str = "group.com.onekeepass.desktop";
 
 #[cfg(target_os = "macos")]
 pub fn is_sandboxed() -> bool {
-    std::env::var("HOME")
-        .map(|h| h.contains("/Library/Containers/"))
-        .unwrap_or(false)
+    std::env::var("HOME").map(|h| h.contains("/Library/Containers/")).unwrap_or(false)
 }
 
 #[cfg(not(target_os = "macos"))]
 pub fn is_sandboxed() -> bool {
     false
+}
+
+#[cfg(target_os = "macos")]
+fn is_packaged_mas_helper() -> bool {
+    std::env::current_exe()
+        .ok()
+        .and_then(|p| p.to_str().map(|s| s.to_string()))
+        .map(|p| p.contains("/Contents/Helpers/onekeepass-proxy.app/Contents/MacOS/"))
+        .unwrap_or(false)
 }
 
 #[cfg(target_os = "macos")]
@@ -29,10 +36,13 @@ fn real_home_dir() -> Option<PathBuf> {
 
 #[cfg(target_os = "macos")]
 pub fn group_container_path() -> Option<PathBuf> {
-    // Always return the group container path on macOS. The proxy is spawned by the
-    // browser (not the main sandboxed app) so is_sandboxed() is false here, but the
-    // main app (sandboxed for MAS builds) binds the IPC socket in the group container.
-    // A non-sandboxed process can access this directory freely without any entitlement.
+    if !(is_sandboxed() || is_packaged_mas_helper()) {
+        return None;
+    }
+
+    // Mac App Store builds package the proxy as a nested helper app and the
+    // sandboxed parent binds the IPC socket in the shared App Group container.
+    // Direct-download/dev builds use tipsy's default socket path instead.
     let home = real_home_dir()?;
     Some(home.join("Library/Group Containers").join(APP_GROUP_ID))
 }

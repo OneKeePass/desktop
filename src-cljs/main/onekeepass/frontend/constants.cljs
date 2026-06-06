@@ -1,10 +1,27 @@
-(ns onekeepass.frontend.constants)
+(ns onekeepass.frontend.constants
+  (:require [clojure.string]))
 
 ;; This is the default Entry type to use 
 (def UUID_OF_ENTRY_TYPE_LOGIN "ffef5f51-7efc-4373-9eb5-382d5b501768")
 
 ;; This is the entry type id for Auto Open entry type
 (def UUID_OF_ENTRY_TYPE_AUTO_OPEN "389368a9-73a9-4256-8247-321a2e60b2c7")
+
+;; Entry type ids for remote-storage connection entries (SFTP / WebDAV).
+;; The remote-storage resolver uses the entry uuid (= connection id) to find
+;; the connection details across all open dbs.
+(def UUID_OF_ENTRY_TYPE_REMOTE_CONNECTION_SFTP "c5a57a41-4cca-4a46-bac1-78a8803f4da0")
+(def UUID_OF_ENTRY_TYPE_REMOTE_CONNECTION_WEBDAV "0a14d76d-8c38-4c62-9ad7-390dc020a2af")
+
+;; Enum tags matching the Rust `RemoteStorageType` variant names. Used
+;; verbatim in the JSON sent over the Tauri bridge.
+(def V-SFTP "Sftp")
+(def V-WEBDAV "Webdav")
+
+;; Page identifiers for the remote-storage screens.
+(def RS_CONNECTIONS_PAGE_ID :remote-storage-connections)
+(def RS_BROWSE_PAGE_ID :remote-storage-browse)
+(def RS_CONNECTION_FORM_PAGE_ID :remote-storage-connection-form)
 
 ;; Standard Entry Type Names
 ;; These should match names used in 'standard_entry_types.rs'
@@ -17,13 +34,23 @@
 (def PASSPORT_TYPE_NAME "Passport")
 (def BANK_ACCOUNT_TYPE_NAME "Bank Account")
 (def AUTO_DB_OPEN_TYPE_NAME "Auto Database Open")
+(def REMOTE_CONNECTION_SFTP_TYPE_NAME "SFTP Connection")
+(def REMOTE_CONNECTION_WEBDAV_TYPE_NAME "WebDAV Connection")
+
+(def REMOTE_CONNECTION_TYPE_NAMES #{REMOTE_CONNECTION_SFTP_TYPE_NAME
+                                    REMOTE_CONNECTION_WEBDAV_TYPE_NAME})
+
+(defn remote-connection-entry-type? [entry-type-name]
+  (contains? REMOTE_CONNECTION_TYPE_NAMES entry-type-name))
 
 ;; This list is used in Entry Type select menu items on the new entry form
 (def STANDARD_ENTRY_TYPES [LOGIN_TYPE_NAME
                            CREDIT_DEBIT_CARD_TYPE_NAME
                            WIRELESS_ROUTER_TYPE_NAME
                            BANK_ACCOUNT_TYPE_NAME
-                           AUTO_DB_OPEN_TYPE_NAME])
+                           AUTO_DB_OPEN_TYPE_NAME
+                           REMOTE_CONNECTION_SFTP_TYPE_NAME
+                           REMOTE_CONNECTION_WEBDAV_TYPE_NAME])
 
 (def ADDITIONAL_ONE_TIME_PASSWORDS "Additional One-Time Passwords")
 ;;
@@ -52,11 +79,13 @@
 (def MENU_ID_SAVE_DATABASE_AS "SaveDatabaseAs")
 (def MENU_ID_SAVE_DATABASE_BACKUP "SaveDatabaseBackup")
 (def MENU_ID_OPEN_DATABASE "OpenDatabase")
+(def MENU_ID_OPEN_REMOTE "OpenRemote")
 (def MENU_ID_OPEN_RECENT "OpenRecent")
 (def MENU_ID_LOCK_DATABASE "LockDatabase")
 (def MENU_ID_CLOSE_DATABASE "CloseDatabase")
 (def MENU_ID_MERGE_DATABASE "MergeDatabase")
 (def MENU_ID_MERGE_OPENED_DATABASES "MergeOpenedDatabases")
+(def MENU_ID_CHECK_REMOTE_CHANGES "CheckRemoteChanges")
 (def MENU_ID_IMPORT "Import")
 (def MENU_ID_PASSWORD_GENERATOR "PasswordGenerator")
 (def MENU_ID_NEW_ENTRY "NewEntry")
@@ -64,6 +93,7 @@
 (def MENU_ID_NEW_GROUP "NewGroup")
 (def MENU_ID_EDIT_GROUP "EditGroup")
 (def MENU_ID_ABOUT "About")
+(def MENU_ID_CHECK_FOR_UPDATES "CheckForUpdates")
 
 (def MENU_ENABLE "Enable")
 (def MENU_DISABLE "Disable")
@@ -78,6 +108,7 @@
 (def NO_BIOMETRIC "None")
 
 (def MACOS "macos")
+(def WINDOWS "windows")
 
 (def GROUP "Group")
 
@@ -88,12 +119,15 @@
 (def USERNAME "UserName")
 (def PASSWORD "Password")
 (def URL "URL")
+(def HOST "Host")
 (def NOTES "Notes")
 (def TAGS "Tags")
 (def IFDEVICE "IfDevice")
 (def ADDITIONAL_URLS "Additional URLs")
 
 (def ONE_TIME_PASSWORD_TYPE "Field type" "OneTimePassword")
+
+(def BOOL_TYPE "Field type matching Rust enum FieldDataType::Bool" "Bool")
 
 (def OTP "Standard field name used" "otp")
 
@@ -110,5 +144,3 @@
 (def WINDOW_FOCUS_CHANGED "WindowFocusChanged")
 (def CLOSE_REQUESTED  "CloseRequested")
 (def FILE_DROP "FileDrop")
-
-

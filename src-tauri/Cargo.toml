@@ -45,10 +45,10 @@ crypto_box = "0.9.1"
 tauri = { version = "2", features = [] }
 
 ## using from the local crate during development
-# onekeepass-core = {path = "../../onekeepass-core", version = "0.21.0"}
+# onekeepass-core = {path = "../../onekeepass-core", version = "0.22.0", features = ["favicon"] }
 
 ## Need to use the git ref for release
-onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.21.0" }
+onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.22.0", features = ["favicon"] }
 
 tauri-plugin-shell = "2"
 tauri-plugin-process = "2"
@@ -56,6 +56,8 @@ tauri-plugin-clipboard-manager = "2"
 tauri-plugin-dialog = "2"
 
 open = "5"
+
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -82,7 +84,7 @@ onekeepass-dev = []
 # Mac App Store build. Compiles out features that are kernel-blocked or
 # App Review-rejected under App Sandbox (currently: the auto_type module
 # and its Tauri commands). Enabled via `cargo build --features mas-build`
-# from the desktop/scripts/build-mas.sh wrapper.
+# from the store build script wrapper.
 mas-build = []
 
 [dev-dependencies]

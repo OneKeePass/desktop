@@ -3,6 +3,7 @@
    [onekeepass.frontend.about :as about]
    [onekeepass.frontend.app-settings :refer [app-settings-dialog-main]]
    [onekeepass.frontend.browser-integration :as browser-integration]
+   [onekeepass.frontend.check-for-updates :as check-updates]
    [onekeepass.frontend.common-components :as cc :refer [message-dialog]]
    [onekeepass.frontend.custom-icons :as cust-icons]
    [onekeepass.frontend.events.common :as cmn-events]
@@ -22,6 +23,8 @@
    [onekeepass.frontend.open-db-form :as od-form]
    [onekeepass.frontend.open-recent :as open-recent]
    [onekeepass.frontend.password-generator :as gen-form]
+   [onekeepass.frontend.remote-storage :as rs-form]
+   [onekeepass.frontend.events.remote-storage :as rs-events]
    [onekeepass.frontend.translation :as t :refer-macros [tr tr-l tr-t]]
    [reagent.core :as r]))
 
@@ -69,6 +72,15 @@
          (tr-l openDatabase)]
         [od-form/open-db-dialog-main]]
 
+       ;; Open from a remote SFTP / WebDAV server
+       [mui-stack {:direction "row" :gap 2 :alignItems "center"}
+        [mui-icon-button {:edge "start" :color "inherit" :sx {:ml 0}
+                          :onClick rs-events/show-for-open}
+         [mui-icon-folder-outlined {}]]
+        [mui-link {:variant "subtitle1"
+                   :onClick rs-events/show-for-open}
+         (t/lstr-l "openRemote")]]
+
        [mui-typography {:sx {:mt 4} :variant "h6"} (tr-t recent)]
 
        [mui-stack {:mt 1}
@@ -78,7 +90,7 @@
                         [mui-link {:sx {:mt 1 :white-space "nowrap" :text-overflow "ellipsis" :overflow "hidden"}
                                    :variant "body2"
                                    :on-click #(od-events/recent-file-link-on-click lnk)}
-                         lnk]]))]
+                         (or (cmn-events/remote-db-key-display lnk) lnk)]]))]
 
        (when (> (count recent-files-list) 0)
          [mui-stack {:mt 3}
@@ -128,7 +140,9 @@
    [csv-form/csv-imoprt-start-dialog]
    [app-settings-dialog-main]
    [about/about-dialog-main]
+   [check-updates/check-for-updates-dialog-main]
    [browser-integration/browser-extension-connection-permit-dialog]
    [browser-integration/browser-extension-install-grant-dialog]
    [open-recent/open-recent-dialog-main]
+   [rs-form/remote-storage-dialog-main]
    [message-dialog]])

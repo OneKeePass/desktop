@@ -7,9 +7,11 @@
    [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
    [onekeepass.frontend.events.entry-form-ex :as form-events]
+   [onekeepass.frontend.events.remote-storage :as rs-events]
    [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom mui-box
                                                      mui-circular-progress
                                                      mui-date-time-picker
+                                                     mui-form-control-label
                                                      mui-icon-autorenew
                                                      mui-icon-button
                                                      mui-icon-delete-outline
@@ -19,6 +21,7 @@
                                                      mui-link
                                                      mui-localization-provider
                                                      mui-menu-item mui-stack
+                                                     mui-switch
                                                      mui-text-field
                                                      mui-tooltip
                                                      mui-typography]]
@@ -74,7 +77,16 @@
     protected (assoc :data-okp-sensitive-copy "true")))
 
 (defn- end-icons [{:keys [key protected visible edit] :as kv}]
-  (let [val (to-value kv)]
+  (let [val (to-value kv)
+        entry-type-name @(form-events/entry-form-data-fields :entry-type-name)
+        entry-uuid @(form-events/entry-form-data-fields :uuid)
+        ;; Read-mode launch of the remote Storage Browser from a connection
+        ;; entry's connection field: Host for SFTP, URL for WebDAV.
+        rs-conn-launch? (and (not edit)
+                             (or (and (= entry-type-name const/REMOTE_CONNECTION_SFTP_TYPE_NAME)
+                                      (= key const/HOST))
+                                 (and (= entry-type-name const/REMOTE_CONNECTION_WEBDAV_TYPE_NAME)
+                                      (= key URL))))]
     [:<>
      (when protected
        (if visible
@@ -86,8 +98,15 @@
                            :edge "end"
                            :on-click #(form-events/entry-form-field-visibility-toggle key)}
           [mui-icon-visibility-off]]))
-     ;; Open with the url
-     (when (and (not edit) (= key URL))
+     ;; Launch the remote Storage Browser using this connection entry
+     (when rs-conn-launch?
+       [mui-icon-button {:sx {:margin-right "-8px"}
+                         :edge "end"
+                         :on-click #(rs-events/open-entry-remote entry-type-name entry-uuid)}
+        [m/mui-icon-launch]])
+     ;; Open with the url (suppressed for a WebDAV connection entry's URL field,
+     ;; which shows the storage-browser launch above instead)
+     (when (and (not edit) (= key URL) (not rs-conn-launch?))
        [mui-icon-button {:sx {:margin-right "-8px"}
                          :edge "end"
                          :on-click #(form-events/entry-form-open-url val)}
@@ -468,7 +487,7 @@
 
 
 (defn single-or-multiline-text-field
-  "Decides whether to use text-field or text-area-field based on the 
+  "Decides whether to use text-field or text-area-field based on the
    length of the value."
   [{:keys [key
            _field-name
@@ -487,6 +506,27 @@
     (if-not multiline-field
       [single-line-text-field (assoc kv :label label :val val :helper-text helper-text)]
       [multiline-text-field (assoc kv :label label :val val :helper-text helper-text)])))
+
+(defn bool-switch-field
+  [{:keys [value edit on-change-handler] :as kv}]
+  (if-not edit
+    [single-or-multiline-text-field kv]
+    (let [label (translated-label kv)
+          checked? (contains? #{"true" "yes" "1"}
+                              (some-> value str/trim str/lower-case))]
+      [mui-stack {:direction "row" :sx {:width "100%" :align-items "center"}}
+       [mui-form-control-label
+        {:label-placement "start"
+         :sx {:ml 0 :mr 0 :width "100%" :justify-content "space-between"}
+         :control (r/as-element
+                   [mui-switch
+                    {:checked checked?
+                     :on-change (fn [^js/Event e]
+                                  (on-change-handler (.. e -target -checked)))}])
+         :label (r/as-element
+                 [mui-typography {:variant "caption"
+                                  :sx {:color "text.secondary"}}
+                  label])}]])))
 
 
 

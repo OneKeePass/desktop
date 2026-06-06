@@ -6,7 +6,7 @@
                                                   selection-autocomplete]]
    [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.context-menu :as ctx-menu]
-   [onekeepass.frontend.db-icons :refer [group-icon]]
+   [onekeepass.frontend.db-icons :refer [group-icon render-group-icon]]
    [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.events.generic-dialogs :as gd-events]
    [onekeepass.frontend.events.group-form :as gf-events]
@@ -478,7 +478,7 @@
                 :enabled? (not root-group?)
                 :action #(gt-events/group-delete-start uuid)}))])))
 
-(defn- tree-label [uuid name icon_id]
+(defn- tree-label [uuid name icon_id custom_icon_uuid]
   (let [g-uuid                (gt-events/selected-group-uuid)
         tree-data             @(gt-events/groups-tree-data)
         recycle-bin?          (= uuid (get tree-data "recycle_bin_uuid"))
@@ -507,7 +507,8 @@
      [mui-box {:sx {:mr 1  ;; 1 => 8px
                     :display "flex"
                     :alignItems "center"}}
-      [group-icon icon_id]]
+      [render-group-icon {:icon-id icon_id
+                          :custom-icon-uuid custom_icon_uuid}]]
      ;; Based on the discussions
      ;; https://github.com/mui/material-ui/issues/19953#issuecomment-1184953127
      [mui-typography {:variant "body1" :sx {:flex-grow 1
@@ -537,10 +538,10 @@
 
 ;; Need to use :strs to retrive values from map argument 
 ;; as "uuid name icon_id" are the string keys in the map
-(defn- make-tree-item [{:strs [uuid name icon_id]}]
+(defn- make-tree-item [{:strs [uuid name icon_id custom_icon_uuid]}]
   [mui-tree-item {:itemId uuid
                   ;; :f> ensures tree-label is treated as a pure React FC so hooks work correctly
-                  :label (r/as-element [:f> tree-label uuid name icon_id])}
+                  :label (r/as-element [:f> tree-label uuid name icon_id custom_icon_uuid])}
    ;; We reuse the group form dialog from group-form ns
    [gf/group-content-dialog-main]])
 

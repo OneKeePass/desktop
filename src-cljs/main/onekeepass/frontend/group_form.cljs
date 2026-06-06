@@ -2,10 +2,11 @@
   (:require
    [clojure.string :as str]
    [onekeepass.frontend.common-components :as cc :refer [tags-field]]
-   [onekeepass.frontend.db-icons :as db-icons :refer [group-icon]]
+   [onekeepass.frontend.db-icons :as db-icons :refer [group-icon render-group-icon]]
    [onekeepass.frontend.entry-form.common :refer [ENTRY_DATETIME_FORMAT theme-content-sx]]
    [onekeepass.frontend.entry-form.fields :refer [text-area-field text-field]]
    [onekeepass.frontend.events.common :as cmn-events]
+   [onekeepass.frontend.events.custom-icons :as ci-events]
    [onekeepass.frontend.events.group-form :as gf-events]
    [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                      mui-box
@@ -18,6 +19,9 @@
                                                      mui-form-control-label
                                                      mui-icon-button
                                                      mui-stack
+                                                     mui-tab
+                                                     mui-tabs
+                                                     mui-text-field
                                                      mui-typography]]
    [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-bl tr-dlg-title]]
    [onekeepass.frontend.utils :as u :refer [vec->tags]]
@@ -25,33 +29,78 @@
    [onekeepass.frontend.events.generic-dialogs :as gd-events]))
 
 (def ^:private icons-dialog-flag (r/atom false))
+(def ^:private icon-tab (r/atom 0))
+(def ^:private url-input (r/atom ""))
 
 (defn- close-icons-dialog []
-  (reset! icons-dialog-flag false))
+  (reset! icons-dialog-flag false)
+  (reset! icon-tab 0)
+  (reset! url-input ""))
 
 (defn- show-icons-dialog []
   (reset! icons-dialog-flag true))
 
 (defn- icons-dialog []
   (fn [dialog-open?]
-    [:div [mui-dialog {:open (if (nil? dialog-open?) false dialog-open?)
-                       :dir (t/dir)
-                       :on-click #(.stopPropagation ^js/Event %)
-                       :sx {"& .MuiDialog-paper" {:width "85%"}}}
-           [mui-dialog-title (tr-dlg-title "icons")]
-           [mui-dialog-content {:dividers true}
-            [mui-box {:sx {:display "flex" :flex-wrap "wrap"}}
-             (for [[idx svg-icon] db-icons/all-icons]
-               ^{:key idx} [:div {:style {:margin "4px"}
-                                  :on-click #(do
-                                               (gf-events/update-form-data :icon-id idx)
-                                               (close-icons-dialog))}
-                            svg-icon])]]
-           [mui-dialog-actions
-            [mui-button {:variant "contained" :color "secondary"
-                         :on-click close-icons-dialog} (tr-bl "close")]]]]))
+    (let [icons @(ci-events/icons-list)]
+      [:div [mui-dialog {:open (if (nil? dialog-open?) false dialog-open?)
+                         :dir (t/dir)
+                         :on-click #(.stopPropagation ^js/Event %)
+                         :sx {"& .MuiDialog-paper" {:width "85%"}}}
+             [mui-dialog-title (tr-dlg-title "icons")]
+             [mui-tabs {:value @icon-tab :on-change #(reset! icon-tab %2)
+                        :sx {:border-bottom 1 :border-color "divider"}}
+              [mui-tab {:label (t/lstr-l 'builtIn)}]
+              [mui-tab {:label (t/lstr-l 'customIcons)}]]
+             [mui-dialog-content {:dividers true}
+              (if (= @icon-tab 0)
+                ;; Built-in icons grid
+                [mui-box {:sx {:display "flex" :flex-wrap "wrap"}}
+                 (for [[idx svg-icon] db-icons/all-icons]
+                   ^{:key idx} [:div {:style {:margin "4px"}
+                                      :on-click #(do
+                                                   (gf-events/update-form-data :icon-id idx)
+                                                   (gf-events/update-form-data :custom-icon-uuid nil)
+                                                   (close-icons-dialog))}
+                                svg-icon])]
+                ;; Custom icons panel
+                [mui-stack {:spacing 2}
+                 [mui-stack {:direction "row" :spacing 1}
+                  [mui-text-field {:size "small" :label (t/lstr-l 'addFromUrl)
+                                   :value @url-input
+                                   :sx {:flex-grow 1}
+                                   :on-change #(reset! url-input (-> % .-target .-value))}]
+                  [mui-button {:variant "contained" :color "primary"
+                               :disabled (str/blank? @url-input)
+                               :on-click #(do (ci-events/add-icon-from-url
+                                               @url-input
+                                               [:group-form/set-custom-icon-uuid])
+                                              (close-icons-dialog))}
+                   (t/lstr-bl 'add)]]
+                 [mui-button {:variant "outlined"
+                              :on-click #(do (ci-events/add-icon-from-file
+                                              [:group-form/set-custom-icon-uuid])
+                                             (close-icons-dialog))}
+                  (t/lstr-l 'addFromFile)]
+                 [mui-box {:sx {:display "flex" :flex-wrap "wrap"}}
+                  (for [{:keys [uuid name]} icons]
+                    (let [data-url @(ci-events/icon-data-url uuid)]
+                      ^{:key uuid}
+                      [:div {:style {:margin "4px" :cursor "pointer" :text-align "center"}
+                             :on-click #(do
+                                          (gf-events/update-form-data :custom-icon-uuid uuid)
+                                          (close-icons-dialog))}
+                       (if (seq data-url)
+                         [:img {:src data-url :style {:width "32px" :height "32px"}}]
+                         [mui-typography {:variant "caption"} name])]))]
+                 (when (empty? icons)
+                   [mui-typography {:variant "body2" :color "text.secondary"}
+                    (t/lstr-l 'noCustomIcons)])])]
+             [mui-dialog-actions
+              [mui-button {:variant "contained" :color "secondary"
+                           :on-click close-icons-dialog} (tr-bl "close")]]]])))
 
-(defn- group-content [{:keys [name icon-id tags notes times]}]
+(defn- group-content [{:keys [name icon-id custom-icon-uuid tags notes times]}]
   [mui-box {:sx (theme-content-sx @custom-theme-atom)}
 
    ;; Name + Icon — mirrors title-with-icon-field in entry_form_ex.cljs
@@ -65,7 +114,9 @@
     [mui-stack {:direction "row" :sx {:width "12%" :justify-content "center" :align-items "center"}}
      [mui-typography {:sx {:padding-left "5px"} :align "center" :variant "subtitle1"} (tr-l "icons")]
      [mui-icon-button {:edge "end" :color "primary" :on-click show-icons-dialog}
-      [group-icon icon-id]]]]
+      [render-group-icon {:db-key @(cmn-events/active-db-key)
+                          :icon-id icon-id
+                          :custom-icon-uuid custom-icon-uuid}]]]]
 
    ;; Tags — mirrors tags-selection in entry_form_ex.cljs
    [tags-field @(cmn-events/all-tags) tags gf-events/on-tags-selection true]

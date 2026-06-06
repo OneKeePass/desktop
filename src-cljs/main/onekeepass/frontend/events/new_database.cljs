@@ -4,7 +4,8 @@
    [clojure.string :as str]
    [onekeepass.frontend.utils :as utils :refer [str->int]]
    [onekeepass.frontend.events.common :as cmn-events :refer [check-error on-error]]
-   [onekeepass.frontend.background :as bg]))
+   [onekeepass.frontend.background :as bg]
+   [onekeepass.frontend.background-remote-storage :as bg-rs]))
 
 
 (def wizard-panels [:basic-info :credentials-info :file-info :security-info])
@@ -49,7 +50,7 @@
   (dispatch [:new-database-dialog-show]))
 
 (defn cancel-on-click []
-  (dispatch [:new-database-dialog-close]))
+  (dispatch [:new-database/dialog-close]))
 
 (defn done-on-click []
   (dispatch [:new-database-create]))
@@ -61,25 +62,47 @@
 (defn database-field-update [kw-field-name value]
   (dispatch [:new-database-field-update kw-field-name value]))
 
+(defn save-remote-toggle [checked?]
+  (dispatch [:new-database-save-remote-toggle (boolean checked?)]))
+
 (defn new-database-kdf-algorithm-select [kdf-selection]
   (dispatch [:new-database-kdf-algorithm-select kdf-selection]))
 
 (defn dialog-data []
   (subscribe [:new-database-dialog-data]))
 
-(defn- find-next-panel [current]
-  (if-let [idx (utils/find-index wizard-panels current)]
-    (if (= idx 3)
-      current
-      (nth wizard-panels (inc idx)))
-    current))
+(defn no-remote-warning-continue []
+  (dispatch [:new-database-no-remote-warning-continue]))
 
-(defn- find-previous-panel [current]
-  (if-let [idx (utils/find-index wizard-panels current)]
-    (if (= idx 0)
-      current
-      (nth wizard-panels (dec idx)))
-    current))
+(defn no-remote-warning-uncheck []
+  (dispatch [:new-database-no-remote-warning-uncheck]))
+
+(defn- skip-panel?
+  [panel db]
+  (and (= panel :file-info)
+       (get-in db [:new-database :save-remote?])))
+
+(defn- find-next-panel [current db]
+  (loop [idx (utils/find-index wizard-panels current)]
+    (cond
+      (nil? idx) current
+      (= idx 3) (nth wizard-panels idx)
+      :else
+      (let [nxt (nth wizard-panels (inc idx))]
+        (if (skip-panel? nxt db)
+          (recur (inc idx))
+          nxt)))))
+
+(defn- find-previous-panel [current db]
+  (loop [idx (utils/find-index wizard-panels current)]
+    (cond
+      (nil? idx) current
+      (= idx 0) (nth wizard-panels 0)
+      :else
+      (let [prv (nth wizard-panels (dec idx))]
+        (if (skip-panel? prv db)
+          (recur (dec idx))
+          prv)))))
 
 ;; Even though this map has more fields to suppoort UI features than 'NewDatabase' struct and used in tauri invoke api
 ;; only fields fileds matching NewDatabase' struct are deserilaized and other extra fields are ignored
@@ -102,6 +125,16 @@
                     ;; Extra UI related fields
                     ;; These fields will be ignored by serde while doing json deserializing to NewDatabase struct
                     :dialog-show false
+                    :remote? false
+                    ;; User intent set on the first wizard panel: skip the local 'Save As' panel
+                    ;; and route 'Done' into the remote-storage create dialog.
+                    :save-remote? false
+                    ;; Counts of REMOTE_CONNECTION_SFTP / _WEBDAV entries across opened dbs.
+                    ;; nil per slot = not yet loaded; both non-nil = check complete.
+                    :remote-connections-by-type {:sftp nil :webdav nil}
+                    ;; Set to true once user has acknowledged the 'no saved connections'
+                    ;; warning for this dialog session, so we don't re-prompt on each Next.
+                    :remote-warning-acknowledged? false
                     :show-additional-protection false
                     :password-visible false
                     :password-confirm nil
@@ -124,7 +157,7 @@
    (assoc-in db [:new-database :key-file-name] key-file-name)))
 
 (reg-event-fx
- :new-database-dialog-close
+ :new-database/dialog-close
  (fn [{:keys [db]} [_event-id]]
    (let [import-data? (get-in db [:new-database :imported-data])]
      {:db (-> db
@@ -176,14 +209,46 @@
       (cmn-events/new-db-full-file-name app-db (get-in app-db [:new-database :database-name]))
       nil)))
 
+(defn- remote-connections-check-complete?
+  "True once both sftp and webdav counts have been loaded."
+  [db]
+  (let [{:keys [sftp webdav]} (get-in db [:new-database :remote-connections-by-type])]
+    (and (some? sftp) (some? webdav))))
+
+(defn- no-remote-connections?
+  "True only when the check has completed and both counts are zero."
+  [db]
+  (let [{:keys [sftp webdav]} (get-in db [:new-database :remote-connections-by-type])]
+    (and (some? sftp) (some? webdav)
+         (zero? sftp) (zero? webdav))))
+
+(defn- should-warn-no-remote?
+  "We warn on the first Next leaving basic-info, when the user has chosen
+   save-remote? but no SFTP/WebDAV connection entries exist in any opened db.
+   Suppressed once the user has acknowledged the warning in this session, or
+   while the check is still in-flight (we let them proceed and re-check next
+   time)."
+  [db current]
+  (and (= current :basic-info)
+       (get-in db [:new-database :save-remote?])
+       (not (get-in db [:new-database :remote-warning-acknowledged?]))
+       (remote-connections-check-complete? db)
+       (no-remote-connections? db)))
+
 (reg-event-fx
  :new-database-next-panel
  (fn [{:keys [db]} [_event-id]]
    (let [current (get-in db [:new-database :panel])
          errors  (validate-required-fields current db)
-         next-panel (find-next-panel current)]
-     (if (not (nil? errors))
+         next-panel (find-next-panel current db)]
+     (cond
+       (not (nil? errors))
        {:db (-> db (assoc-in [:new-database :error-fields] errors))}
+
+       (should-warn-no-remote? db current)
+       {:fx [[:dispatch [:generic-dialog-show :new-database-no-remote-warning-dialog]]]}
+
+       :else
        {:db (-> db
                 (assoc-in [:new-database :panel] next-panel)
                 (assoc-in [:new-database :error-fields] {}))
@@ -191,11 +256,33 @@
               [[:dispatch [:new-database-field-update :database-file-name name]]]
               [])}))))
 
+;; Called when the user clicks 'Continue' in the no-remote-connections warning.
+;; Marks the warning acknowledged so subsequent Next clicks don't re-prompt,
+;; closes the dialog, and advances the wizard.
+(reg-event-fx
+ :new-database-no-remote-warning-continue
+ (fn [{:keys [db]} _]
+   {:db (assoc-in db [:new-database :remote-warning-acknowledged?] true)
+    :fx [[:dispatch [:generic-dialog-close :new-database-no-remote-warning-dialog]]
+         [:dispatch [:new-database-next-panel]]]}))
+
+;; Called when the user clicks 'Uncheck' in the warning. Clears save-remote?
+;; (so the local file-info panel comes back into the flow), closes the dialog,
+;; and advances the wizard.
+(reg-event-fx
+ :new-database-no-remote-warning-uncheck
+ (fn [{:keys [db]} _]
+   {:db (-> db
+            (assoc-in [:new-database :save-remote?] false)
+            (assoc-in [:new-database :remote-warning-acknowledged?] true))
+    :fx [[:dispatch [:generic-dialog-close :new-database-no-remote-warning-dialog]]
+         [:dispatch [:new-database-next-panel]]]}))
+
 (reg-event-db
  :new-database-previous-panel
  (fn [db [_event-id]]
    (let [current (get-in db [:new-database :panel])]
-     (assoc-in db [:new-database :panel] (find-previous-panel current)))))
+     (assoc-in db [:new-database :panel] (find-previous-panel current db)))))
 
 (defn- check-file-exists [file-name]
   (bg/is-file-exists file-name (fn [api-response]
@@ -218,6 +305,36 @@
          (assoc-in [:new-database :database-file-user-selected] false))
        ;; Hide any previous api-error-text
        (assoc-in [:new-database :api-error-text] nil))))
+
+(reg-event-fx
+ :new-database-save-remote-toggle
+ (fn [{:keys [db]} [_event-id checked?]]
+   (let [db (-> db
+                (assoc-in [:new-database :save-remote?] checked?)
+                (assoc-in [:new-database :remote-warning-acknowledged?] false)
+                (assoc-in [:new-database :remote-connections-by-type]
+                          {:sftp nil :webdav nil})
+                (assoc-in [:new-database :api-error-text] nil))]
+     {:db db
+      :fx (if checked?
+            [[:new-database-load-remote-connections :sftp]
+             [:new-database-load-remote-connections :webdav]]
+            [])})))
+
+(reg-fx
+ :new-database-load-remote-connections
+ (fn [kw-type]
+   (bg-rs/list-kdbx-source-connections
+    kw-type
+    (fn [api-response]
+      (when-some [summaries (check-error api-response)]
+        (dispatch [:new-database-remote-connections-loaded kw-type summaries]))))))
+
+(reg-event-db
+ :new-database-remote-connections-loaded
+ (fn [db [_event-id kw-type summaries]]
+   (assoc-in db [:new-database :remote-connections-by-type kw-type]
+             (count summaries))))
 
 (reg-event-fx
  :new-database-file-selected
@@ -255,9 +372,14 @@
       (update-in [:kdf :memory] * 1048576)))
 
 (defn- create-kdbx-fx [db]
-  {:db (-> db (assoc-in [:new-database :call-to-create-status] :in-progress)
-           (assoc-in [:new-database :api-error-text] nil))
-   :fx [[:bg-create-kdbx (:new-database db)]]})
+  (let [remote? (get-in db [:new-database :remote?])
+        new-db (:new-database db)
+        prepared (convert-kdf-value new-db)]
+    {:db (-> db (assoc-in [:new-database :call-to-create-status] :in-progress)
+             (assoc-in [:new-database :api-error-text] nil))
+     :fx [(if remote?
+            [:dispatch [:remote-storage/create-kdbx prepared]]
+            [:bg-create-kdbx new-db])]}))
 
 (defn- save-as-then-create-fx [db]
   {:db (-> db
@@ -269,20 +391,36 @@
 (reg-event-fx
  :new-database-create
  (fn [{:keys [db]} [_event-id]]
-   ;;(println "event new-database-create called") 
+   ;;(println "event new-database-create called")
    (let [errors (validate-security-fields db)
+         save-remote? (get-in db [:new-database :save-remote?])
          imported-data? (get-in db [:new-database :imported-data])
          mas-build? (:mas-build db)
          database-file-user-selected? (get-in db [:new-database :database-file-user-selected])]
-     (if (boolean (seq errors))
+     (cond
+       (boolean (seq errors))
        {:db (assoc-in db [:new-database :error-fields] errors)}
-       (if (and mas-build? (not imported-data?) (not database-file-user-selected?))
-         (save-as-then-create-fx db)
-         (if-not imported-data?
-           (create-kdbx-fx db)
-           {:db (-> db (assoc-in [:new-database :call-to-create-status] :in-progress)
-                    (assoc-in [:new-database :api-error-text] nil))
-            :fx [[:dispatch [:import-file/new-database (convert-kdf-value (:new-database db)) on-database-creation-completed]]]}))))))
+
+       save-remote?
+       ;; Hand the prepared wizard payload to remote-storage, then close the
+       ;; new-db dialog (matches local-create behavior: dialog closes before
+       ;; the create proceeds). When the user picks a remote folder, the
+       ;; remote-storage flow uses the stashed payload to call create-kdbx
+       ;; directly — no further new-db dialog re-entry.
+       (let [payload (convert-kdf-value (:new-database db))]
+         {:fx [[:dispatch [:remote-storage/begin-create-with-payload payload]]
+               [:dispatch [:new-database/dialog-close]]]})
+
+       (and mas-build? (not imported-data?) (not database-file-user-selected?))
+       (save-as-then-create-fx db)
+
+       (not imported-data?)
+       (create-kdbx-fx db)
+
+       :else
+       {:db (-> db (assoc-in [:new-database :call-to-create-status] :in-progress)
+                (assoc-in [:new-database :api-error-text] nil))
+        :fx [[:dispatch [:import-file/new-database (convert-kdf-value (:new-database db)) on-database-creation-completed]]]}))))
 
 (reg-fx
  :new-database-save-as-then-create
@@ -298,7 +436,7 @@
  (fn [{:keys [db]} [_event-id kdbx-loaded]]
    {:db (-> db (assoc-in [:new-database :api-error-text] nil)
             (assoc-in [:new-database :call-to-create-status] :completed))
-    :fx [[:dispatch [:new-database-dialog-close]]
+    :fx [[:dispatch [:new-database/dialog-close]]
          [:dispatch [:common/kdbx-database-opened kdbx-loaded]]
          #_[:dispatch [:import-csv/clear]]]}))
 
@@ -322,6 +460,27 @@
    ;; (println "new-database/dialog-show is called ")
    (-> db init-new-database-data (assoc-in [:new-database :dialog-show] true)
        (assoc-in [:new-database :imported-data] imported-data?))))
+
+;; Called from the remote-storage browse dialog after the user picks a remote
+;; folder + file name for a new db when the remote-storage flow was entered
+;; WITHOUT a new-db wizard in flight (e.g. a future entry point that opens the
+;; rs create dialog directly). The save-remote? checkbox path doesn't go
+;; through here — that path stashes the prepared payload in remote-storage
+;; and calls create-kdbx directly.
+;; db-file-name is the prefixed remote db_key
+;; ("Sftp-<uuid>-/path/file.kdbx" / "Webdav-..."), file-name is the bare base
+;; file name.
+(reg-event-db
+ :new-database/remote-target-selected
+ (fn [db [_event-id db-file-name file-name]]
+   (let [display-name (str/replace (or file-name "") #"(?i)\.kdbx$" "")]
+     (-> db
+         init-new-database-data
+         (assoc-in [:new-database :dialog-show] true)
+         (assoc-in [:new-database :remote?] true)
+         (assoc-in [:new-database :database-file-user-selected] true)
+         (assoc-in [:new-database :database-file-name] db-file-name)
+         (assoc-in [:new-database :database-name] display-name)))))
 
 (reg-sub
  :new-database-dialog-data

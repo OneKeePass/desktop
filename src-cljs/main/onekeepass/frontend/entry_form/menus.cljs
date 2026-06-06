@@ -6,6 +6,7 @@
    [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
    [onekeepass.frontend.events.entry-form-ex :as form-events]
+   [onekeepass.frontend.events.remote-storage :as rs-events]
    [onekeepass.frontend.events.tauri-events :as tauri-events]
    [onekeepass.frontend.group-tree-content :as gt-content]
    [onekeepass.frontend.mui-components :as m :refer [mui-icon-add-circle-outline-outlined
@@ -37,7 +38,7 @@
     [mui-list-item-text {:inset true} (lstr-ml 'editAutoType)]]])
 
 (defn entry-form-top-menu-items []
-  (fn [anchor-el entry-uuid favorites? os-name mas-build?]
+  (fn [anchor-el entry-uuid favorites? os-name mas-build? remote-connection-entry? entry-type-name]
     [mui-menu {:anchorEl @anchor-el
                :open (if @anchor-el true false)
                :on-close #(reset! anchor-el nil)}
@@ -95,22 +96,33 @@
        ;; that Menu item child should not be a fragment and instead suggested to use an array of child
        [auto-type-menu-items anchor-el entry-uuid])
 
-     [mui-menu-item {:divider false
+     [mui-menu-item {:divider remote-connection-entry?
                      :sx {:padding-left "1px"}
                      :on-click (menu-action anchor-el form-events/load-history-entries-summary entry-uuid)
                      :disabled (not @(form-events/history-available))}
-      [mui-list-item-text {:inset true} (lstr-ml 'history)]]]))
+      [mui-list-item-text {:inset true} (lstr-ml 'history)]]
+
+     (when remote-connection-entry?
+       [mui-menu-item {:sx {:padding-left "1px"}
+                       :divider false
+                       :on-click (menu-action
+                                  anchor-el
+                                  rs-events/open-entry-remote entry-type-name
+                                  entry-uuid)}
+        [mui-list-item-text {:inset true} (lstr-ml "openRemote")]])]))
 
 (defn entry-form-top-menu [entry-uuid]
   (let [anchor-el (r/atom nil)
         favorites? @(form-events/favorites?)
         os-name @(cmn-events/os-name)
-        mas-build? @(cmn-events/is-mas-build?)]
+        mas-build? @(cmn-events/is-mas-build?)
+        entry-type-name @(form-events/entry-form-data-fields :entry-type-name)
+        remote-connection-entry? (const/remote-connection-entry-type? entry-type-name)]
     [:div
      [mui-icon-button {:edge "start"
                        :on-click (fn [^js/Event e] (reset! anchor-el (-> e .-currentTarget)))
                        :style {}} [mui-icon-more-vert]]
-     [entry-form-top-menu-items anchor-el entry-uuid favorites? os-name mas-build?]
+     [entry-form-top-menu-items anchor-el entry-uuid favorites? os-name mas-build? remote-connection-entry? entry-type-name]
      [cc/info-dialog "Entry Delete" "Deleting entry is in progress"
       form-events/entry-delete-info-dialog-close
       @(form-events/entry-delete-dialog-data)]]))

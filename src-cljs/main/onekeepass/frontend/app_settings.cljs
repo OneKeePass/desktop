@@ -1,8 +1,11 @@
 (ns onekeepass.frontend.app-settings
   (:require
    [clojure.string :as str]
+   [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.events.app-settings :as app-settings-events]
+   [onekeepass.frontend.events.common :as ce]
    [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom mui-box
+                                                     mui-alert
                                                      mui-button mui-checkbox
                                                      mui-dialog
                                                      mui-dialog-actions
@@ -49,12 +52,12 @@
     [mui-list-item-button {:on-click #(app-settings-events/app-settings-panel-select :file-management)
                            :selected (= panel :file-management)}
      [mui-list-item-icon [mui-icon-folder-outlined]]
-     [mui-list-item-text text-style-m (tr-l fileManagement)]]
+     [mui-list-item-text text-style-m (tr-l "fileManagement")]]
 
     [mui-list-item-button {:on-click #(app-settings-events/app-settings-panel-select :browser-integration)
                            :selected (= panel :browser-integration)}
      [mui-list-item-icon [mui-icon-open-in-browser]]
-     [mui-list-item-text text-style-m (tr-l browserIntegration)]]]])
+     [mui-list-item-text text-style-m (tr-l "browserIntegration")]]]])
 
 
 (def themes [{:name "Light" :value "light"} {:name "Dark" :value "dark"}])
@@ -74,7 +77,7 @@
                 {:name "ru - русский" :value "ru"}
                 {:name "it - Italiano" :value "it"}
                 {:name "pt-BR - Português do Brasil" :value "pt-BR"}
-                
+
                 #_{:name "fr - Français" :value "fr"}])
 
 (defn- user-interface
@@ -187,14 +190,14 @@
                                   (app-settings-events/field-update
                                    [:preference-data :backup :enabled]
                                    (-> e .-target .-checked)))}])
-         :label (tr-l enableBackup)}]]
+         :label (tr-l "enableBackup")}]]
 
       [mui-box {:sx {:width "80%"}}
-       [m/text-field {:label (tr-l backupDir)
+       [m/text-field {:label (tr-l "backupDir")
                       :value (or dir "")
                       :disabled (not enabled)
                       :error (contains? error-fields :backup-dir)
-                      :helperText (get error-fields :backup-dir (tr-h directoryUsedForDatabaseBackups))
+                      :helperText (get error-fields :backup-dir (tr-h "directoryUsedForDatabaseBackups"))
                       :on-change (app-settings-events/field-update-factory [:preference-data :backup :dir])
                       :variant "standard" :fullWidth true
                       :slotProps {:input {:endAdornment (r/as-element
@@ -204,6 +207,8 @@
                                                                             :sx {:mr "-8px"}
                                                                             :on-click app-settings-events/open-backup-dir-dialog}
                                                            [mui-icon-folder-outlined]]])}}}]]]]))
+
+(declare browser-manifest-statuses)
 
 (defn browser-integration [{:keys [_error-fields]
                             {:keys  [browser-ext-support]} :preference-data}]
@@ -227,15 +232,56 @@
                                      (app-settings-events/field-update
                                       [:preference-data :browser-ext-support :allowed-browsers] []))
                                    (app-settings-events/field-update [:preference-data :browser-ext-support :extension-use-enabled] checked?)))}])
-        :label (tr-l enableBrowserIntegration)}]]]]])
+        :label (tr-l "enableBrowserIntegration")}]]]]
+   #_[browser-manifest-statuses]])
 
 (def ^:private FIREFOX "Firefox")
 (def ^:private CHROME "Chrome")
+(def ^:private BRAVE "Brave")
+(def ^:private CHROME_AND_BRAVE [CHROME BRAVE])
 ;; (def ^:private EDGE "Edge")
-;; (def ^:private BRAVE "Brave")
 
 (defn- named-browser-enabled? [browser-name allowed-browsers]
   (boolean (some #(= browser-name %) allowed-browsers)))
+
+;; Used by grouped browser controls, where one checkbox represents multiple
+;; browser ids persisted in the same allowed-browsers vector.
+(defn- any-named-browser-enabled? [browser-names allowed-browsers]
+  (boolean (some #(named-browser-enabled? % allowed-browsers) browser-names)))
+
+(defn- manifest-status-for [browser-name statuses]
+  (some #(when (= browser-name (:browser-id %)) %) statuses))
+
+(defn- manifest-status-for-any [browser-names statuses]
+  (some #(manifest-status-for % statuses) browser-names))
+
+;; Prefer the first installed/owned status when a grouped control has multiple
+;; browser statuses; fall back to any status so missing groups still render.
+(defn- active-manifest-status-for-any [browser-names statuses]
+  (or (some #(let [status (manifest-status-for % statuses)]
+               (when (and status (not= "missing" (:owner status)))
+                 status))
+            browser-names)
+      (manifest-status-for-any browser-names statuses)))
+
+;; Re-labels a concrete browser status for grouped display, for example
+;; Chrome/Brave sharing one user-facing row.
+(defn- display-status [browser-id status]
+  (assoc status :browser-id browser-id))
+
+(defn- browser-checkbox-checked? [browser-name allowed-browsers reconnect-browsers statuses]
+  (let [status (manifest-status-for browser-name statuses)]
+    (and (named-browser-enabled? browser-name allowed-browsers)
+         (or (not= "other-app" (:owner status))
+             (named-browser-enabled? browser-name reconnect-browsers)))))
+
+;; Same as browser-checkbox-checked?, but for platforms where Chrome and Brave
+;; use one effective native-messaging integration.
+(defn- browser-group-checkbox-checked? [browser-names allowed-browsers reconnect-browsers statuses]
+  (let [status (manifest-status-for-any browser-names statuses)]
+    (and (any-named-browser-enabled? browser-names allowed-browsers)
+         (or (not= "other-app" (:owner status))
+             (any-named-browser-enabled? browser-names reconnect-browsers)))))
 
 (defn- toggle-browser-enabled [checked? browser-name allowed-browsers]
   (if (not checked?)
@@ -244,9 +290,139 @@
     ;; add the browser to the list
     (conj (vec allowed-browsers) browser-name)))
 
+;; Adds without duplicating, so grouped toggles can safely preserve existing
+;; preferences while inserting every browser id represented by the group.
+(defn- add-browser [browsers browser-name]
+  (if (named-browser-enabled? browser-name browsers)
+    (vec browsers)
+    (conj (vec browsers) browser-name)))
+
+;; Expands a grouped checkbox into the concrete browser ids stored by the
+;; backend preference model.
+(defn- toggle-browser-group-enabled [checked? browser-names allowed-browsers]
+  (if (not checked?)
+    (vec (remove #(some #{%} browser-names) allowed-browsers))
+    (reduce add-browser (vec allowed-browsers) browser-names)))
+
+(defn- path-tail [path]
+  (when-not (str/blank? path)
+    (let [parts (str/split path #"/")
+          tail (take-last 4 parts)]
+      (str/join "/" tail))))
+
+(defn- browser-manifest-reconnect-dialog-content [{:keys [status]}]
+  (let [{:keys [browser-id installed-proxy-path expected-proxy-path]} status]
+    [mui-stack {:spacing 1}
+     [mui-typography
+      (str browser-id " is currently connected to another OneKeePass installation.")]
+     [mui-typography {:sx {:font-size "0.82rem" :word-break "break-all"}}
+      (str "Current: " installed-proxy-path)]
+     [mui-typography {:sx {:font-size "0.82rem" :word-break "break-all"}}
+      (str "This app: " expected-proxy-path)]
+     [mui-typography
+      "Reconnect this browser to this app?"]]))
+
+(defn- browser-manifest-reconnect-dialog []
+  (let [{:keys [dialog-show] :as dialog-data} @(app-settings-events/browser-reconnect-confirm-dialog-data)]
+    [mui-dialog {:open (boolean dialog-show)
+                 :on-click #(.stopPropagation ^js/Event %)}
+     [mui-dialog-title "Reconnect browser extension"]
+     [mui-dialog-content {:dividers true :style {:min-height "120px"}}
+      [browser-manifest-reconnect-dialog-content dialog-data]]
+     [mui-dialog-actions
+      [mui-button {:color "secondary"
+                   :on-click app-settings-events/browser-reconnect-confirm-dialog-close}
+       "Cancel"]
+      [mui-button {:color "secondary"
+                   :on-click app-settings-events/browser-reconnect-confirmed}
+       "Reconnect"]]]))
+
+(defn- manifest-status-text [{:keys [owner installed-proxy-path]}]
+  (cond
+    (= owner "this-app")
+    "Connected to this app"
+
+    (= owner "other-app")
+    (str "Connected to another OneKeePass installation"
+         (when-not (str/blank? installed-proxy-path)
+           (str ": .../" (path-tail installed-proxy-path))))
+
+    :else
+    "Not connected"))
+
+(defn- browser-manifest-statuses []
+  (let [statuses @(app-settings-events/browser-manifest-statuses)
+        chromium-shared? (some #(= @(ce/os-name) %) [const/MACOS const/WINDOWS])
+        statuses (if chromium-shared?
+                   (keep identity
+                         [(manifest-status-for FIREFOX statuses)
+                          (some->> statuses
+                                   (active-manifest-status-for-any CHROME_AND_BRAVE)
+                                   (display-status "Chrome and Brave"))])
+                   statuses)]
+    (when (seq statuses)
+      [mui-stack {:spacing 2 :sx {:alignItems "center"}}
+       [mui-box {:sx {:width "80%"}}
+
+        [mui-stack {:spacing 1 :sx {:mt 2}}
+         (for [{:keys [browser-id owner] :as status} statuses]
+           ^{:key browser-id}
+           [mui-alert {:severity (if (= owner "other-app") "warning" "info")
+                       :variant "outlined"
+                       :sx {:font-size "0.82rem"}}
+            (str browser-id ": " (manifest-status-text status))])]]])))
+
 (defn supported-browsers [dialog-data]
   (let [browser-ext-support (get-in dialog-data [:preference-data :browser-ext-support])
-        {:keys [allowed-browsers extension-use-enabled]} browser-ext-support]
+        {:keys [allowed-browsers reconnect-browsers extension-use-enabled]} browser-ext-support
+        manifest-statuses @(app-settings-events/browser-manifest-statuses)
+        chromium-shared? (some #(= @(ce/os-name) %) [const/MACOS const/WINDOWS])
+        browser-checkbox (fn [browser-name]
+                           (let [status (manifest-status-for browser-name manifest-statuses)]
+                             [mui-form-control-label
+                              {:control (r/as-element
+                                         [mui-checkbox
+                                          {:disabled (not extension-use-enabled)
+                                           :checked (browser-checkbox-checked?
+                                                     browser-name
+                                                     allowed-browsers
+                                                     reconnect-browsers
+                                                     manifest-statuses)
+                                           :on-change
+                                           (fn [^js/CheckedEvent e]
+                                             (let [checked? (-> e .-target .-checked)]
+                                               (cond
+                                                 (and checked? (= "other-app" (:owner status)))
+                                                 (app-settings-events/browser-reconnect-confirm-dialog-show status)
+
+                                                 (not= "other-app" (:owner status))
+                                                 (app-settings-events/field-update
+                                                 [:preference-data :browser-ext-support :allowed-browsers]
+                                                  (toggle-browser-enabled checked? browser-name allowed-browsers)))))}])
+                               :label browser-name}]))
+        browser-group-checkbox (fn [browser-names label]
+                                 (let [status (active-manifest-status-for-any browser-names manifest-statuses)]
+                                   [mui-form-control-label
+                                    {:control (r/as-element
+                                               [mui-checkbox
+                                                {:disabled (not extension-use-enabled)
+                                                 :checked (browser-group-checkbox-checked?
+                                                           browser-names
+                                                           allowed-browsers
+                                                           reconnect-browsers
+                                                           manifest-statuses)
+                                                 :on-change
+                                                 (fn [^js/CheckedEvent e]
+                                                   (let [checked? (-> e .-target .-checked)]
+                                                     (cond
+                                                       (and checked? (= "other-app" (:owner status)))
+                                                       (app-settings-events/browser-reconnect-confirm-dialog-show status)
+
+                                                       (not= "other-app" (:owner status))
+                                                       (app-settings-events/field-update
+                                                        [:preference-data :browser-ext-support :allowed-browsers]
+                                                        (toggle-browser-group-enabled checked? browser-names allowed-browsers)))))}])
+                                     :label label}]))]
     [mui-stack
      [mui-stack {:sx {:pt 1 :pb 1}}
       [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
@@ -255,27 +431,14 @@
      [mui-stack {:spacing 2 :sx {:alignItems "center"}}
       [mui-box {:sx {:width "80%"}}
        [mui-stack {:direction "row" :sx {:justify-content "space-between"}}
-        [mui-form-control-label
-         {:control (r/as-element
-                    [mui-checkbox
-                     {:disabled (not extension-use-enabled)
-                      :checked (named-browser-enabled? FIREFOX allowed-browsers)
-                      :on-change (fn [^js/CheckedEvent e]
-                                   (app-settings-events/field-update
-                                    [:preference-data :browser-ext-support :allowed-browsers]
-                                    (toggle-browser-enabled (-> e .-target  .-checked) FIREFOX allowed-browsers)))}])
-          :label "Firefox"}]
+        [browser-checkbox FIREFOX]
+        (if chromium-shared?
+          [browser-group-checkbox CHROME_AND_BRAVE "Chrome and Brave"]
+          [:<>
+           [browser-checkbox CHROME]
+           [browser-checkbox BRAVE]])]]]
 
-        [mui-form-control-label
-         {:control (r/as-element
-                    [mui-checkbox
-                     {:disabled (not extension-use-enabled)
-                      :checked (named-browser-enabled? CHROME allowed-browsers)
-                      :on-change (fn [^js/CheckedEvent e]
-                                   (app-settings-events/field-update
-                                    [:preference-data :browser-ext-support :allowed-browsers]
-                                    (toggle-browser-enabled (-> e .-target  .-checked) CHROME allowed-browsers)))}])
-          :label "Chrome"}]]]]]))
+     [browser-manifest-statuses]]))
 
 
 (defn app-settings-dialog [{:keys [dialog-show
@@ -288,6 +451,7 @@
                :on-click #(.stopPropagation %)
                :sx {:min-width "650px"  "& .MuiDialog-paper" {:max-width "750px" :width "90%"}}}
    [mui-dialog-title (tr-dlg-title applicationSettings)]
+   [browser-manifest-reconnect-dialog]
 
    [mui-dialog-content {:sx {:padding-left "10px"} :dividers true}
     [mui-stack {:direction "row" :sx {:height "350px " :min-height "300px"}}
@@ -315,7 +479,7 @@
         :browser-integration
         [mui-stack
          [browser-integration dialog-data]
-         [m/mui-divider {:sx {:mt 5 :mb 5}}]
+         [m/mui-divider {:sx {:mt 1 :mb 1}}]
          [supported-browsers dialog-data]]
 
 

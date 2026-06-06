@@ -37,11 +37,16 @@
 
 (reg-event-fx
  :merge-databases-completed
- (fn [{:keys [_db]} [_event-id merge-result]]
-   {:fx [[:dispatch [:open-db/dialog-hide]]
-         [:dispatch [:common/reload-on-merge]]
-         ;; As we show this dialog with merge result, we do not call the usual ':common/message-snackbar-open'
-         [:dispatch [:generic-dialog-show-with-state :merge-result-dialog {:data merge-result}]]]}))
+ (fn [{:keys [db]} [_event-id merge-result]]
+   {:fx (cond-> [[:dispatch [:open-db/dialog-hide]]
+                 [:dispatch [:common/reload-on-merge]]
+                 ;; As we show this dialog with merge result, we do not call the usual ':common/message-snackbar-open'
+                 [:dispatch [:generic-dialog-show-with-state :merge-result-dialog {:data merge-result}]]]
+          ;; Only mark the target db as having unsaved changes when the merge
+          ;; actually modified something. Otherwise the save icon would light
+          ;; up even though all merge-result counts are zero.
+          (:merge-done merge-result)
+          (conj [:dispatch [:common/db-save-pending-set true (active-db-key db)]]))}))
 
 
 ;;;; "Merge Opened Databases" flow (both databases already open) ;;;;
@@ -112,14 +117,18 @@
 
 (reg-event-fx
  :merging-merge-opened-dbs-completed
- ;; Switches the active tab to target so that subsequent effects (reload-on-merge,
- ;; and the queued db-api-call-completed that sets save-pending) all operate on
- ;; the correct database.
+ ;; Switches the active tab to target so subsequent effects (reload-on-merge,
+ ;; etc.) all operate on the correct database.
  (fn [{:keys [db]} [_event-id merge-result target-db-key]]
    {:db (assoc db :current-db-file-name target-db-key)
-    :fx [[:dispatch [:generic-dialog-close :merge-opened-dbs-dialog]]
-         [:dispatch [:common/reload-on-merge]]
-         [:dispatch [:generic-dialog-show-with-state :merge-result-dialog {:data merge-result}]]]}))
+    :fx (cond-> [[:dispatch [:generic-dialog-close :merge-opened-dbs-dialog]]
+                 [:dispatch [:common/reload-on-merge]]
+                 [:dispatch [:generic-dialog-show-with-state :merge-result-dialog {:data merge-result}]]]
+          ;; Only mark the target db as having unsaved changes when the merge
+          ;; actually modified something. Avoids a misleading save icon when
+          ;; merge_done is false (all counts zero).
+          (:merge-done merge-result)
+          (conj [:dispatch [:common/db-save-pending-set true target-db-key]]))}))
 
 
 (comment

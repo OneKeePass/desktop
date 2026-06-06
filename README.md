@@ -39,8 +39,11 @@ All created database files are encrypted using the best and most secure encrypti
 - Merging of databases
 - CSV file import
 - Fully offline 
-- Browser extension and integration (alpha version) - [Firefox](https://addons.mozilla.org/en-US/firefox/addon/onekeepass-browser/) and [Chrome](https://chromewebstore.google.com/detail/onekeepass-browser/cmdmojmbfcpkloflnjkkdjcflaidangh) 
+- Browser extension and integration (alpha version) - [Firefox](https://addons.mozilla.org/en-US/firefox/addon/onekeepass-browser/), [Chrome](https://chromewebstore.google.com/detail/onekeepass-browser/cmdmojmbfcpkloflnjkkdjcflaidangh) and Brave
 - Supports password autofill, passkey registration and passkey authentication - OneKeePass-Browser extension is required
+- Custom icons support — upload icons from a file or fetch from a URL/favicon; assign to entries and groups
+- Direct SFTP and WebDAV remote server support — create or open databases stored on a remote server without any third-party sync tool
+- Remote server credentials stored as **SFTP Connection** or **WebDAV Connection** entries inside the database
 
 ## Installation and Quick start
 

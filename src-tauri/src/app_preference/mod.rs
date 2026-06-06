@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use onekeepass_core::db_service as kp_service;
 
-pub(crate) use crate::app_preference::browser_ext_preference::{BrowserExtSupportData};
+pub(crate) use crate::app_preference::browser_ext_preference::BrowserExtSupportData;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub(crate) struct BackupPreference {
@@ -37,7 +37,7 @@ impl RecentFile {
     }
 }
 
-#[derive(Debug,Deserialize)]
+#[derive(Debug, Deserialize)]
 pub(crate) struct PreferenceData {
     session_timeout: Option<u8>,
     clipboard_timeout: Option<u16>,
@@ -46,6 +46,6 @@ pub(crate) struct PreferenceData {
     language: Option<String>,
     backup: Option<BackupPreference>,
     pass_phrase_options: Option<kp_service::PassphraseGenerationOptions>,
-    browser_ext_support:Option<BrowserExtSupportData>,
+    browser_ext_support: Option<BrowserExtSupportData>,
     // browser_ext_supported_databases:Option<Vec<DatabaseBrowserExtSupport>>,
 }

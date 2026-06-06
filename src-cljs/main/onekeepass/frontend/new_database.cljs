@@ -1,32 +1,34 @@
 (ns onekeepass.frontend.new-database
   (:require
-   [reagent.core :as r]
+   [onekeepass.frontend.common-components :refer [cipher-algorithms
+                                                  kdf-algorithms]]
+   [onekeepass.frontend.events.generic-dialogs :as gd-events]
    [onekeepass.frontend.events.new-database :as nd-events]
-   [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-t tr-h tr-m]]
-   [onekeepass.frontend.common-components :refer [cipher-algorithms kdf-algorithms]]
-   [onekeepass.frontend.mui-components :as m :refer [mui-menu-item
-                                                     mui-alert
+   [onekeepass.frontend.mui-components :as m :refer [mui-alert mui-box
+                                                     mui-button mui-checkbox
+                                                     mui-dialog
+                                                     mui-dialog-actions
+                                                     mui-dialog-content
+                                                     mui-dialog-title
                                                      mui-divider
-                                                     mui-linear-progress
-                                                     mui-input-adornment
+                                                     mui-form-control-label
                                                      mui-icon-button
                                                      mui-icon-folder-outlined
                                                      mui-icon-visibility
                                                      mui-icon-visibility-off
-                                                     mui-link
-                                                     mui-tooltip
-                                                     mui-typography
-                                                     mui-dialog
-                                                     mui-dialog-title
-                                                     mui-dialog-actions
-                                                     mui-dialog-content
-                                                     mui-box mui-stack
-                                                     mui-button]]))
+                                                     mui-input-adornment
+                                                     mui-linear-progress
+                                                     mui-link mui-menu-item
+                                                     mui-stack mui-tooltip
+                                                     mui-typography]]
+   [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-t tr-h tr-m]
+    :refer [lstr-bl lstr-dlg-text lstr-dlg-title lstr-l]]
+   [reagent.core :as r]))
 
 (set! *warn-on-infer* true)
 
 (defn- basic-info
-  [{:keys [database-name database-description error-fields]}]
+  [{:keys [database-name database-description save-remote? error-fields]}]
   ;; error-fields is a map
   [mui-stack
    [mui-typography (tr-t basicDatabaseInformation)]
@@ -45,7 +47,16 @@
      [m/text-field {:label (tr-l description)
                     :value database-description
                     :on-change (nd-events/field-update-factory :database-description)
-                    :variant "standard" :fullWidth true}]]]])
+                    :variant "standard" :fullWidth true}]]
+
+    [mui-box {:sx {:width "80%"}}
+     [mui-form-control-label
+      {:control (r/as-element
+                 [mui-checkbox
+                  {:checked (boolean save-remote?)
+                   :on-change (fn [^js/CheckedEvent e]
+                                (nd-events/save-remote-toggle (-> e .-target .-checked)))}])
+       :label (t/lstr-l "saveRemote")}]]]])
 
 
 
@@ -142,7 +153,7 @@
           [mui-typography {:variant "caption"}
            (tr-m newDbPage txt2)]])])]])
 
-(defn- file-info [{:keys [database-file-name db-file-file-exists database-name]}]
+(defn- file-info [{:keys [database-file-name db-file-file-exists database-name remote?]}]
   [mui-stack {:spacing 2}
    [mui-typography (tr-l saveAs)]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
@@ -150,16 +161,22 @@
      [m/text-field {:label (tr-l "fileName")
                     :value database-file-name
                     :required true
+                    :disabled remote?
                     :autoFocus true
                     :on-change (nd-events/field-update-factory :database-file-name)
                     :variant "standard" :fullWidth true
 
                     :slotProps {:input {:endAdornment (r/as-element [mui-input-adornment {:position "end"}
                                                                   [mui-icon-button {:edge "end" :sx {:mr "-8px"}
+                                                                                    :disabled remote?
                                                                                     :onClick #(nd-events/save-as-file-explorer-on-click database-name database-file-name)}
                                                                    [mui-icon-folder-outlined]]])}}}]
 
-     (when db-file-file-exists
+     (cond
+       remote?
+       [mui-typography {:variant "caption" :sx {:mt 1}} (lstr-l "rsTargetRemote")]
+
+       db-file-file-exists
        [mui-alert {:severity "warning" :sx {:mt 1}} (tr-m newDbPage txt4)])]]]) ;;"** Database file already exists and will be replaced with this new one **"
 
 (defn- security-info [{:keys [cipher-id error-fields]
@@ -268,6 +285,24 @@
         [mui-button {:disabled in-progress?
                      :on-click nd-events/done-on-click} (tr-l "done")])]]))
 
+(defn- no-remote-warning-dialog []
+  (let [{:keys [dialog-show]} @(gd-events/new-database-no-remote-warning-dialog-data)]
+    [mui-dialog {:open (boolean dialog-show)
+                 :dir (t/dir)
+                 :on-click #(.stopPropagation ^js/Event %)
+                 :sx {"& .MuiPaper-root" {:width "440px"}}}
+     [mui-dialog-title (lstr-dlg-title 'noRemoteConnections)]
+     [mui-divider]
+     [mui-dialog-content {:sx {:pt 2}}
+      [mui-typography {:variant "body1"} (lstr-dlg-text 'noRemoteConnections)]]
+     [mui-dialog-actions
+      [mui-button {:color "secondary"
+                   :on-click nd-events/no-remote-warning-uncheck}
+       (lstr-bl "uncheck")]
+      [mui-button {:variant "contained"
+                   :on-click nd-events/no-remote-warning-continue}
+       (lstr-bl "continue")]]]))
+
 (defn new-database-dialog-main []
   (let [m @(nd-events/dialog-data)]
     ;; Following shows how to use backdrop when a background action is initiated in a dialog box
@@ -277,4 +312,6 @@
           [mui-circular-progress {:color "inherit"}]]
          [new-database-dialog m])]
 
-    [new-database-dialog m]))
+    [:<>
+     [new-database-dialog m]
+     [no-remote-warning-dialog]]))

@@ -96,6 +96,7 @@
                                 FavoriteBorder
                                 FeedOutlined
                                 FlightTakeoffOutlined
+                                Image
                                 Launch
                                 LoginOutlined
                                 LockOpenOutlined
@@ -139,6 +140,7 @@
                                 error
 
                                 ;; Translations related
+                                enableBrowserIntegration
                                 entryForm
                                 cloneEntryTitleName
                                 discard

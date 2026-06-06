@@ -9,12 +9,34 @@
 
 (def ^:private GENERIC-DIALOGS :generic-dialogs)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; :custom-icons-delete-confirm-dialog ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn-generic-dialog-disp-events :custom-icons-delete-confirm-dialog [[close nil]
+                                                                      [show-with-state state-m]])
+
+(defn-generic-dialog-subs-events :custom-icons-delete-confirm-dialog [[data nil]])
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; :about-dialog ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn-generic-dialog-disp-events :about-dialog [[close nil]
                                                 [show nil]])
 
 (defn-generic-dialog-subs-events :about-dialog [[data nil]])
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; :new-database-no-remote-warning-dialog ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn-generic-dialog-disp-events :new-database-no-remote-warning-dialog [[close nil]
+                                                                          [show nil]])
+
+(defn-generic-dialog-subs-events :new-database-no-remote-warning-dialog [[data nil]])
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; :check-for-updates-dialog ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn-generic-dialog-disp-events :check-for-updates-dialog [[close nil]
+                                                            [show-with-state state-m]
+                                                            [update-with-map state-m]])
+
+(defn-generic-dialog-subs-events :check-for-updates-dialog [[data nil]])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  merge-result-dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -71,7 +93,7 @@
 ; native-messaging manifest for a browser. dialog-identifier-kw:
 ; :browser-extension-install-grant-dialog
 (defn-generic-dialog-disp-events :browser-extension-install-grant-dialog [[close nil]
-                                                                           [show-with-state state-m]])
+                                                                          [show-with-state state-m]])
 
 (defn-generic-dialog-subs-events :browser-extension-install-grant-dialog [[data nil]])
 

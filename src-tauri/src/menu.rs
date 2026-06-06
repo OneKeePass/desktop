@@ -3,360 +3,422 @@ use crate::{constants::event_names::TAURI_MENU_EVENT, translation::SystemMenuTra
 use log::info;
 use onekeepass_core::db_service as kp_service;
 use serde::{Deserialize, Serialize};
-use tauri::menu::{
-  MenuBuilder, MenuEvent, MenuItem, MenuItemBuilder, Submenu, SubmenuBuilder,
-};
+use tauri::menu::{MenuBuilder, MenuEvent, MenuItem, MenuItemBuilder, Submenu, SubmenuBuilder};
 use tauri::{AppHandle, Emitter, Runtime};
 
 #[allow(dead_code)]
 pub mod menu_ids {
 
-  pub const MAIN_MENU_EDIT: &str = "Edit";
-  pub const MAIN_MENU_DATABASE: &str = "Database";
-  pub const MAIN_MENU_ENTRIES: &str = "Entries";
-  pub const MAIN_MENU_GROUPS: &str = "Groups";
-  pub const MAIN_MENU_TOOLS: &str = "Tools";
+    pub const MAIN_MENU_EDIT: &str = "Edit";
+    pub const MAIN_MENU_DATABASE: &str = "Database";
+    pub const MAIN_MENU_ENTRIES: &str = "Entries";
+    pub const MAIN_MENU_GROUPS: &str = "Groups";
+    pub const MAIN_MENU_TOOLS: &str = "Tools";
+    pub const MAIN_MENU_HELP: &str = "Help";
 
-  pub const QUIT: &str = "Quit";
-  pub const APP_SETTINGS: &str = "AppSettings";
-  pub const NEW_DATABASE: &str = "NewDatabase";
-  pub const OPEN_DATABASE: &str = "OpenDatabase";
-  pub const SAVE_DATABASE: &str = "SaveDatabase";
-  pub const SAVE_DATABASE_AS: &str = "SaveDatabaseAs";
-  pub const SAVE_DATABASE_BACKUP: &str = "SaveDatabaseBackup";
-  pub const CLOSE_DATABASE: &str = "CloseDatabase";
-  pub const LOCK_DATABASE: &str = "LockDatabase";
-  pub const LOCK_ALL_DATABASES: &str = "LockAllDatabases";
+    pub const QUIT: &str = "Quit";
+    pub const CHECK_FOR_UPDATES: &str = "CheckForUpdates";
+    pub const APP_SETTINGS: &str = "AppSettings";
+    pub const NEW_DATABASE: &str = "NewDatabase";
+    pub const OPEN_DATABASE: &str = "OpenDatabase";
+    pub const OPEN_REMOTE: &str = "OpenRemote";
+    pub const SAVE_DATABASE: &str = "SaveDatabase";
+    pub const SAVE_DATABASE_AS: &str = "SaveDatabaseAs";
+    pub const SAVE_DATABASE_BACKUP: &str = "SaveDatabaseBackup";
+    pub const CLOSE_DATABASE: &str = "CloseDatabase";
+    pub const LOCK_DATABASE: &str = "LockDatabase";
+    pub const LOCK_ALL_DATABASES: &str = "LockAllDatabases";
 
-  pub const OPEN_RECENT: &str = "OpenRecent";
+    pub const CHECK_REMOTE_CHANGES: &str = "CheckRemoteChanges";
 
-  pub const MERGE_DATABASE: &str = "MergeDatabase";
-  pub const MERGE_OPENED_DATABASES: &str = "MergeOpenedDatabases";
-  pub const IMPORT: &str = "Import";
+    pub const OPEN_RECENT: &str = "OpenRecent";
 
-  pub const NEW_GROUP: &str = "NewGroup";
-  pub const EDIT_GROUP: &str = "EditGroup";
+    pub const MERGE_DATABASE: &str = "MergeDatabase";
+    pub const MERGE_OPENED_DATABASES: &str = "MergeOpenedDatabases";
+    pub const IMPORT: &str = "Import";
 
-  pub const SEARCH: &str = "Search";
-  pub const NEW_ENTRY: &str = "NewEntry";
-  pub const EDIT_ENTRY: &str = "EditEntry";
-  pub const PASSWORD_GENERATOR: &str = "PasswordGenerator";
+    pub const NEW_GROUP: &str = "NewGroup";
+    pub const EDIT_GROUP: &str = "EditGroup";
 
-  pub const ABOUT: &str = "About";
+    pub const SEARCH: &str = "Search";
+    pub const NEW_ENTRY: &str = "NewEntry";
+    pub const EDIT_ENTRY: &str = "EditEntry";
+    pub const PASSWORD_GENERATOR: &str = "PasswordGenerator";
+
+    pub const ABOUT: &str = "About";
 }
 use menu_ids::*;
 
 pub(crate) fn build_menus<R: Runtime>(app_handle: &AppHandle<R>) -> Result<(), tauri::Error> {
-  let app_name = "OneKeePass";
+    let app_name = "OneKeePass";
 
-  let pref_str = app_state::read_preference_file();
-  let language = app_state::read_language_selection(&pref_str);
+    let pref_str = app_state::read_preference_file();
+    let language = app_state::read_language_selection(&pref_str);
 
-  let system_menu_translation: SystemMenuTranslation =
-    translation::load_system_menu_translations(&language, app_handle);
+    let system_menu_translation: SystemMenuTranslation =
+        translation::load_system_menu_translations(&language, app_handle);
 
-  let app_settings =
-    MenuItemBuilder::new(system_menu_translation.sub_menu(APP_SETTINGS, "Settings..."))
-      .id(APP_SETTINGS)
-      .accelerator("CmdOrCtrl+,")
-      .build(app_handle)?;
+    let app_settings =
+        MenuItemBuilder::new(system_menu_translation.sub_menu(APP_SETTINGS, "Settings..."))
+            .id(APP_SETTINGS)
+            .accelerator("CmdOrCtrl+,")
+            .build(app_handle)?;
 
-  let quit = MenuItemBuilder::new(system_menu_translation.sub_menu(QUIT, "Quit OneKeePass"))
-    .id(QUIT)
-    .accelerator("CmdOrControl+Q")
+    let quit = MenuItemBuilder::new(system_menu_translation.sub_menu(QUIT, "Quit OneKeePass"))
+        .id(QUIT)
+        .accelerator("CmdOrControl+Q")
+        .build(app_handle)?;
+
+    let about_menu_item =
+        MenuItemBuilder::new(system_menu_translation.sub_menu(ABOUT, "About OneKeePass"))
+            .id(ABOUT)
+            .build(app_handle)?;
+
+    // Mac App Store builds may not bundle their own update checker — Apple
+    // requires updates to flow through the App Store. Omit the menu item
+    // and the Help submenu entirely in that build.
+    #[cfg(not(all(target_os = "macos", feature = "mas-build")))]
+    let check_for_updates_item = MenuItemBuilder::new(
+        system_menu_translation.sub_menu(CHECK_FOR_UPDATES, "Check for Updates..."),
+    )
+    .id(CHECK_FOR_UPDATES)
     .build(app_handle)?;
 
-  let about_menu_item =
-    MenuItemBuilder::new(system_menu_translation.sub_menu(ABOUT, "About OneKeePass"))
-      .id(ABOUT)
-      .build(app_handle)?;
+    #[cfg(all(target_os = "macos", not(feature = "mas-build")))]
+    let app_submenu = SubmenuBuilder::with_id(app_handle, app_name, app_name)
+        .item(&about_menu_item)
+        .item(&check_for_updates_item)
+        .separator()
+        .item(&app_settings)
+        .separator()
+        .item(&quit)
+        .build()?;
 
-  let app_submenu = SubmenuBuilder::with_id(app_handle, app_name, app_name)
-    .item(&about_menu_item)
+    #[cfg(any(not(target_os = "macos"), feature = "mas-build"))]
+    let app_submenu = SubmenuBuilder::with_id(app_handle, app_name, app_name)
+        .item(&about_menu_item)
+        .separator()
+        .item(&app_settings)
+        .separator()
+        .item(&quit)
+        .build()?;
+
+    let search_menu_item = MenuItemBuilder::new(system_menu_translation.sub_menu(SEARCH, "Search"))
+        .id(SEARCH)
+        .accelerator("CmdOrControl+F")
+        .enabled(false)
+        .build(app_handle)?;
+
+    let edit_sub_menu = SubmenuBuilder::with_id(
+        app_handle,
+        MAIN_MENU_EDIT,
+        system_menu_translation.main_menu(MAIN_MENU_EDIT),
+    )
+    .cut()
+    .copy()
+    .paste()
     .separator()
-    .item(&app_settings)
-    .separator()
-    .item(&quit)
+    .item(&search_menu_item)
     .build()?;
 
-  let search_menu_item = MenuItemBuilder::new(system_menu_translation.sub_menu(SEARCH, "Search"))
-    .id(SEARCH)
-    .accelerator("CmdOrControl+F")
-    .enabled(false)
-    .build(app_handle)?;
+    let db_menu = build_database_menus(app_handle, &system_menu_translation)?;
 
-  let edit_sub_menu = SubmenuBuilder::with_id(
-    app_handle,
-    MAIN_MENU_EDIT,
-    system_menu_translation.main_menu(MAIN_MENU_EDIT),
-  )
-  .cut()
-  .copy()
-  .paste()
-  .separator()
-  .item(&search_menu_item)
-  .build()?;
+    #[cfg(target_os = "macos")]
+    let menu = MenuBuilder::new(app_handle)
+        .items(&[
+            &app_submenu,
+            &edit_sub_menu,
+            &db_menu,
+            &build_entries_menus(app_handle, &system_menu_translation)?,
+            &build_groups_menus(app_handle, &system_menu_translation)?,
+            &build_tools_menus(app_handle, &system_menu_translation)?,
+        ])
+        .build()?;
 
-  let db_menu = build_database_menus(app_handle, &system_menu_translation)?;
-
-  let menu = MenuBuilder::new(app_handle)
-    .items(&[
-      &app_submenu,
-      &edit_sub_menu,
-      &db_menu,
-      &build_entries_menus(app_handle, &system_menu_translation)?,
-      &build_groups_menus(app_handle, &system_menu_translation)?,
-      &build_tools_menus(app_handle, &system_menu_translation)?,
-    ])
+    #[cfg(not(target_os = "macos"))]
+    let help_sub_menu = SubmenuBuilder::with_id(
+        app_handle,
+        MAIN_MENU_HELP,
+        system_menu_translation.main_menu(MAIN_MENU_HELP),
+    )
+    .item(&check_for_updates_item)
     .build()?;
 
-  app_handle.set_menu(menu)?;
+    #[cfg(not(target_os = "macos"))]
+    let menu = MenuBuilder::new(app_handle)
+        .items(&[
+            &app_submenu,
+            &edit_sub_menu,
+            &db_menu,
+            &build_entries_menus(app_handle, &system_menu_translation)?,
+            &build_groups_menus(app_handle, &system_menu_translation)?,
+            &build_tools_menus(app_handle, &system_menu_translation)?,
+            &help_sub_menu,
+        ])
+        .build()?;
 
-  Ok(())
+    app_handle.set_menu(menu)?;
+
+    Ok(())
 }
 
 fn build_database_menus<R: Runtime>(
-  app_handle: &AppHandle<R>,
-  system_menu_translation: &SystemMenuTranslation,
+    app_handle: &AppHandle<R>,
+    system_menu_translation: &SystemMenuTranslation,
 ) -> Result<Submenu<R>, tauri::Error> {
-  let db_menus = SubmenuBuilder::new(
-    app_handle,
-    system_menu_translation.main_menu(MAIN_MENU_DATABASE),
-  )
-  .id(MAIN_MENU_DATABASE)
-  .items(&[
-    &MenuItem::with_id(
-      app_handle,
-      NEW_DATABASE,
-      system_menu_translation.sub_menu(NEW_DATABASE, "New Database"),
-      true,
-      Some("Shift+CmdOrControl+N"),
-    )?,
-    &MenuItem::with_id(
-      app_handle,
-      OPEN_DATABASE,
-      system_menu_translation.sub_menu(OPEN_DATABASE, "Open Database"),
-      true,
-      Some("CmdOrControl+O"),
-    )?,
-    &MenuItem::with_id(
-      app_handle,
-      OPEN_RECENT,
-      system_menu_translation.sub_menu(OPEN_RECENT, "Open Recent"),
-      true,
-      None::<&str>,
-    )?,
-    &MenuItem::with_id(
-      app_handle,
-      SAVE_DATABASE,
-      system_menu_translation.sub_menu(SAVE_DATABASE, "Save Database"),
-      false,
-      Some("CmdOrControl+S"),
-    )?,
-    &MenuItem::with_id(
-      app_handle,
-      SAVE_DATABASE_AS,
-      system_menu_translation.sub_menu(SAVE_DATABASE_AS, "Save Database As"),
-      false,
-      Some("Shift+CmdOrControl+S"),
-    )?,
-    &MenuItem::with_id(
-      app_handle,
-      SAVE_DATABASE_BACKUP,
-      system_menu_translation.sub_menu(SAVE_DATABASE_BACKUP, "Save Database Backup"),
-      false,
-      None::<&str>,
-    )?,
-    &MenuItem::with_id(
-      app_handle,
-      CLOSE_DATABASE,
-      system_menu_translation.sub_menu(CLOSE_DATABASE, "Close Database"),
-      false,
-      Some("CmdOrControl+W"),
-    )?,
-  ])
-  .separator()
-  .items(&[
-    &MenuItem::with_id(
-      app_handle,
-      LOCK_DATABASE,
-      system_menu_translation.sub_menu(LOCK_DATABASE, "Lock Database"),
-      false,
-      Some("CmdOrControl+L"),
-    )?,
-    &MenuItem::with_id(
-      app_handle,
-      LOCK_ALL_DATABASES,
-      system_menu_translation.sub_menu(LOCK_ALL_DATABASES, "Lock All Databases"),
-      false,
-      Some("Shift+CmdOrControl+L"),
-    )?,
-  ])
-  .separator()
-  .items(&[
-    &MenuItem::with_id(
-      app_handle,
-      MERGE_DATABASE,
-      system_menu_translation.sub_menu(MERGE_DATABASE, "Merge Database..."),
-      false,
-      None::<&str>,
-    )?,
-    &MenuItem::with_id(
-      app_handle,
-      MERGE_OPENED_DATABASES,
-      system_menu_translation.sub_menu(MERGE_OPENED_DATABASES, "Merge Opened Databases"),
-      false,
-      None::<&str>,
-    )?,
-  ])
-  .separator()
-  .items(&[
-    &MenuItem::with_id(
-      app_handle,
-      IMPORT,
-      system_menu_translation.sub_menu(IMPORT, "Import"),
-      true,
-      None::<&str>,
-    )?,
-  ])
-  .build();
+    let db_menus = SubmenuBuilder::new(
+        app_handle,
+        system_menu_translation.main_menu(MAIN_MENU_DATABASE),
+    )
+    .id(MAIN_MENU_DATABASE)
+    .items(&[
+        &MenuItem::with_id(
+            app_handle,
+            NEW_DATABASE,
+            system_menu_translation.sub_menu(NEW_DATABASE, "New Database"),
+            true,
+            Some("Shift+CmdOrControl+N"),
+        )?,
+        &MenuItem::with_id(
+            app_handle,
+            OPEN_DATABASE,
+            system_menu_translation.sub_menu(OPEN_DATABASE, "Open Database"),
+            true,
+            Some("CmdOrControl+O"),
+        )?,
+        &MenuItem::with_id(
+            app_handle,
+            OPEN_REMOTE,
+            system_menu_translation.sub_menu(OPEN_REMOTE, "Open Remote..."),
+            true,
+            Some("Shift+CmdOrControl+O"),
+        )?,
+        &MenuItem::with_id(
+            app_handle,
+            OPEN_RECENT,
+            system_menu_translation.sub_menu(OPEN_RECENT, "Open Recent"),
+            true,
+            None::<&str>,
+        )?,
+        &MenuItem::with_id(
+            app_handle,
+            SAVE_DATABASE,
+            system_menu_translation.sub_menu(SAVE_DATABASE, "Save Database"),
+            false,
+            Some("CmdOrControl+S"),
+        )?,
+        &MenuItem::with_id(
+            app_handle,
+            SAVE_DATABASE_AS,
+            system_menu_translation.sub_menu(SAVE_DATABASE_AS, "Save Database As"),
+            false,
+            Some("Shift+CmdOrControl+S"),
+        )?,
+        &MenuItem::with_id(
+            app_handle,
+            SAVE_DATABASE_BACKUP,
+            system_menu_translation.sub_menu(SAVE_DATABASE_BACKUP, "Save Database Backup"),
+            false,
+            None::<&str>,
+        )?,
+        &MenuItem::with_id(
+            app_handle,
+            CLOSE_DATABASE,
+            system_menu_translation.sub_menu(CLOSE_DATABASE, "Close Database"),
+            false,
+            Some("CmdOrControl+W"),
+        )?,
+    ])
+    .separator()
+    .items(&[
+        &MenuItem::with_id(
+            app_handle,
+            LOCK_DATABASE,
+            system_menu_translation.sub_menu(LOCK_DATABASE, "Lock Database"),
+            false,
+            Some("CmdOrControl+L"),
+        )?,
+        &MenuItem::with_id(
+            app_handle,
+            LOCK_ALL_DATABASES,
+            system_menu_translation.sub_menu(LOCK_ALL_DATABASES, "Lock All Databases"),
+            false,
+            Some("Shift+CmdOrControl+L"),
+        )?,
+    ])
+    .separator()
+    .items(&[
+        &MenuItem::with_id(
+            app_handle,
+            MERGE_DATABASE,
+            system_menu_translation.sub_menu(MERGE_DATABASE, "Merge Database..."),
+            false,
+            None::<&str>,
+        )?,
+        &MenuItem::with_id(
+            app_handle,
+            MERGE_OPENED_DATABASES,
+            system_menu_translation.sub_menu(MERGE_OPENED_DATABASES, "Merge Opened Databases"),
+            false,
+            None::<&str>,
+        )?,
+        // Manual remote-change check. Only active when the active db is an
+        // unlocked remote (Sftp/Webdav) db - the UI toggles it via
+        // menu_action_requested (see tool_bar.cljs).
+        &MenuItem::with_id(
+            app_handle,
+            CHECK_REMOTE_CHANGES,
+            system_menu_translation.sub_menu(CHECK_REMOTE_CHANGES, "Check Remote Changes"),
+            false,
+            None::<&str>,
+        )?,
+    ])
+    .separator()
+    .items(&[&MenuItem::with_id(
+        app_handle,
+        IMPORT,
+        system_menu_translation.sub_menu(IMPORT, "Import"),
+        true,
+        None::<&str>,
+    )?])
+    .build();
 
-  db_menus
+    db_menus
 }
 
 fn build_entries_menus<R: Runtime>(
-  app_handle: &AppHandle<R>,
-  system_menu_translation: &SystemMenuTranslation,
+    app_handle: &AppHandle<R>,
+    system_menu_translation: &SystemMenuTranslation,
 ) -> Result<Submenu<R>, tauri::Error> {
-  let entries_menus = SubmenuBuilder::new(
-    app_handle,
-    system_menu_translation.main_menu(MAIN_MENU_ENTRIES),
-  )
-  .id(MAIN_MENU_ENTRIES)
-  .items(&[
-    &MenuItem::with_id(
-      app_handle,
-      NEW_ENTRY,
-      system_menu_translation.sub_menu(NEW_ENTRY, "New Entry"),
-      false,
-      Some("CmdOrControl+N"),
-    )?,
-    &MenuItem::with_id(
-      app_handle,
-      EDIT_ENTRY,
-      system_menu_translation.sub_menu(EDIT_ENTRY, "Edit Entry"),
-      false,
-      Some("CmdOrControl+E"),
-    )?,
-  ])
-  .build();
+    let entries_menus = SubmenuBuilder::new(
+        app_handle,
+        system_menu_translation.main_menu(MAIN_MENU_ENTRIES),
+    )
+    .id(MAIN_MENU_ENTRIES)
+    .items(&[
+        &MenuItem::with_id(
+            app_handle,
+            NEW_ENTRY,
+            system_menu_translation.sub_menu(NEW_ENTRY, "New Entry"),
+            false,
+            Some("CmdOrControl+N"),
+        )?,
+        &MenuItem::with_id(
+            app_handle,
+            EDIT_ENTRY,
+            system_menu_translation.sub_menu(EDIT_ENTRY, "Edit Entry"),
+            false,
+            Some("CmdOrControl+E"),
+        )?,
+    ])
+    .build();
 
-  entries_menus
+    entries_menus
 }
 
 fn build_groups_menus<R: Runtime>(
-  app_handle: &AppHandle<R>,
-  system_menu_translation: &SystemMenuTranslation,
+    app_handle: &AppHandle<R>,
+    system_menu_translation: &SystemMenuTranslation,
 ) -> Result<Submenu<R>, tauri::Error> {
-  let groups_menus = SubmenuBuilder::new(
-    app_handle,
-    system_menu_translation.main_menu(MAIN_MENU_GROUPS),
-  )
-  .id(MAIN_MENU_GROUPS)
-  .item(&MenuItem::with_id(
-    app_handle,
-    NEW_GROUP,
-    system_menu_translation.sub_menu(NEW_GROUP, "New Group"),
-    false,
-    None::<&str>,
-  )?)
-  .separator()
-  .item(&MenuItem::with_id(
-    app_handle,
-    EDIT_GROUP,
-    system_menu_translation.sub_menu(EDIT_GROUP, "Edit Group"),
-    false,
-    None::<&str>,
-  )?)
-  .build();
+    let groups_menus = SubmenuBuilder::new(
+        app_handle,
+        system_menu_translation.main_menu(MAIN_MENU_GROUPS),
+    )
+    .id(MAIN_MENU_GROUPS)
+    .item(&MenuItem::with_id(
+        app_handle,
+        NEW_GROUP,
+        system_menu_translation.sub_menu(NEW_GROUP, "New Group"),
+        false,
+        None::<&str>,
+    )?)
+    .separator()
+    .item(&MenuItem::with_id(
+        app_handle,
+        EDIT_GROUP,
+        system_menu_translation.sub_menu(EDIT_GROUP, "Edit Group"),
+        false,
+        None::<&str>,
+    )?)
+    .build();
 
-  groups_menus
+    groups_menus
 }
 
 fn build_tools_menus<R: Runtime>(
-  app_handle: &AppHandle<R>,
-  system_menu_translation: &SystemMenuTranslation,
+    app_handle: &AppHandle<R>,
+    system_menu_translation: &SystemMenuTranslation,
 ) -> Result<Submenu<R>, tauri::Error> {
-  let tools_menus = SubmenuBuilder::new(
-    app_handle,
-    system_menu_translation.main_menu(MAIN_MENU_TOOLS),
-  )
-  .id(MAIN_MENU_TOOLS)
-  .item(&MenuItem::with_id(
-    app_handle,
-    PASSWORD_GENERATOR,
-    system_menu_translation.sub_menu(PASSWORD_GENERATOR, "Password Generator"),
-    true,
-    Some("CmdOrControl+G"),
-  )?)
-  .build();
+    let tools_menus = SubmenuBuilder::new(
+        app_handle,
+        system_menu_translation.main_menu(MAIN_MENU_TOOLS),
+    )
+    .id(MAIN_MENU_TOOLS)
+    .item(&MenuItem::with_id(
+        app_handle,
+        PASSWORD_GENERATOR,
+        system_menu_translation.sub_menu(PASSWORD_GENERATOR, "Password Generator"),
+        true,
+        Some("CmdOrControl+G"),
+    )?)
+    .build();
 
-  tools_menus
+    tools_menus
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MenuAction {
-  Close,
-  Enable,
-  Disable,
+    Close,
+    Enable,
+    Disable,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MenuActionRequest {
-  menu_id: String,
-  menu_action: MenuAction,
+    menu_id: String,
+    menu_action: MenuAction,
 }
 
 #[derive(Clone, serde::Serialize)]
 // Payload to send to the UI layer
 struct MenuPayload {
-  menu_id: String,
+    menu_id: String,
 }
 
 // This handles all menu events for any window ('main' window or any other window if used) for now
 // All requested menu_id are just forwarded to the UI layer and UI layer decides what to do
 // See functions in 'onekeepass.frontend.events.tauri-events' particularly 'handle-menu-events'
 pub fn handle_menu_events<R: Runtime>(
-  app_handle: &AppHandle<R>,
-  menu_event: &MenuEvent,
+    app_handle: &AppHandle<R>,
+    menu_event: &MenuEvent,
 ) -> Result<(), tauri::Error> {
-  app_handle.emit(
-    TAURI_MENU_EVENT,
-    MenuPayload {
-      menu_id: menu_event.id().0.clone(),
-    },
-  )
+    app_handle.emit(
+        TAURI_MENU_EVENT,
+        MenuPayload {
+            menu_id: menu_event.id().0.clone(),
+        },
+    )
 }
 
 fn toggle_enable_disable<R: Runtime>(
-  app_hanle: &AppHandle<R>,
-  sub_menu_id: &str,
-  menu_item_id: &str,
-  enabled: bool,
+    app_hanle: &AppHandle<R>,
+    sub_menu_id: &str,
+    menu_item_id: &str,
+    enabled: bool,
 ) {
-  // debug!("sub_menu_id is {}", &sub_menu_id);
+    // debug!("sub_menu_id is {}", &sub_menu_id);
 
-  // Need to get the sub menu first and then menu item under that submenu
-  if let Some(mk1) = app_hanle.menu().and_then(|m| m.get(sub_menu_id)) {
-    // Get the menu item from the sub menu
-    if let Some(mk2) = mk1.as_submenu().and_then(|sm1| sm1.get(menu_item_id)) {
-      if let Some(i) = mk2.as_menuitem() {
-        if i.id() == menu_item_id {
-          let _ = i.set_enabled(enabled);
+    // Need to get the sub menu first and then menu item under that submenu
+    if let Some(mk1) = app_hanle.menu().and_then(|m| m.get(sub_menu_id)) {
+        // Get the menu item from the sub menu
+        if let Some(mk2) = mk1.as_submenu().and_then(|sm1| sm1.get(menu_item_id)) {
+            if let Some(i) = mk2.as_menuitem() {
+                if i.id() == menu_item_id {
+                    let _ = i.set_enabled(enabled);
+                }
+            }
         }
-      }
     }
-  }
 }
 
 // Called to act on some menu action or to enable/disable certain App menus based
@@ -364,49 +426,53 @@ fn toggle_enable_disable<R: Runtime>(
 // See 'onekeepass.frontend.background/menu-action-requested' ,
 // 'onekeepass.frontend.events.tauri-events/enable-app-menu'
 pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app_handle: &AppHandle<R>) {
-  let menu_enabled = match request.menu_action {
-    MenuAction::Enable => true,
-    MenuAction::Disable => false,
-    _ => false,
-  };
-  let menu_id = request.menu_id.as_str();
-  match menu_id {
-    QUIT => {
-      info!("Quit requested from UI {:?}", request);
-      let _r = kp_service::close_all_databases();
-      info!("Closed all databases");
+    let menu_enabled = match request.menu_action {
+        MenuAction::Enable => true,
+        MenuAction::Disable => false,
+        _ => false,
+    };
+    let menu_id = request.menu_id.as_str();
+    match menu_id {
+        QUIT => {
+            info!("Quit requested from UI {:?}", request);
+            let _r = kp_service::close_all_databases();
+            info!("Closed all databases");
 
-      let r = kp_service::remove_app_temp_dir_content();
-      info!("Temp cache dir removed - result {:?} ", r);
+            let r = kp_service::remove_app_temp_dir_content();
+            info!("Temp cache dir removed - result {:?} ", r);
 
-      app_handle.exit(0);
+            app_handle.exit(0);
+        }
+        SEARCH => {
+            // all_menus(app_handle);
+            //debug!("Calling toggle_enable_disable for SEARCH");
+            toggle_enable_disable(app_handle, MAIN_MENU_EDIT, menu_id, menu_enabled);
+        }
+        LOCK_DATABASE
+        | LOCK_ALL_DATABASES
+        | CLOSE_DATABASE
+        | SAVE_DATABASE
+        | SAVE_DATABASE_AS
+        | SAVE_DATABASE_BACKUP
+        | MERGE_DATABASE
+        | MERGE_OPENED_DATABASES
+        | CHECK_REMOTE_CHANGES => {
+            toggle_enable_disable(app_handle, MAIN_MENU_DATABASE, menu_id, menu_enabled);
+        }
+        EDIT_ENTRY | NEW_ENTRY => {
+            toggle_enable_disable(app_handle, MAIN_MENU_ENTRIES, menu_id, menu_enabled);
+        }
+        EDIT_GROUP | NEW_GROUP => {
+            toggle_enable_disable(app_handle, MAIN_MENU_GROUPS, menu_id, menu_enabled);
+        }
+        // PASSWORD_GENERATOR => {
+        //   toggle_enable_disable(app_handle, MAIN_MENU_TOOLS, menu_id, menu_enabled);
+        // }
+        _ => {
+            info!("Not yet handled menu action: {:?}", request);
+        }
     }
-    SEARCH => {
-      // all_menus(app_handle);
-      //debug!("Calling toggle_enable_disable for SEARCH");
-      toggle_enable_disable(app_handle, MAIN_MENU_EDIT, menu_id, menu_enabled);
-    }
-    LOCK_DATABASE | LOCK_ALL_DATABASES | CLOSE_DATABASE | SAVE_DATABASE | SAVE_DATABASE_AS
-    | SAVE_DATABASE_BACKUP | MERGE_DATABASE | MERGE_OPENED_DATABASES  => {
-      toggle_enable_disable(app_handle, MAIN_MENU_DATABASE, menu_id, menu_enabled);
-    }
-    EDIT_ENTRY | NEW_ENTRY => {
-      toggle_enable_disable(app_handle, MAIN_MENU_ENTRIES, menu_id, menu_enabled);
-    }
-    EDIT_GROUP | NEW_GROUP => {
-      toggle_enable_disable(app_handle, MAIN_MENU_GROUPS, menu_id, menu_enabled);
-    }
-    // PASSWORD_GENERATOR => {
-    //   toggle_enable_disable(app_handle, MAIN_MENU_TOOLS, menu_id, menu_enabled);
-    // }
-
-    _ => {
-      info!("Not yet handled menu action: {:?}", request);
-    }
-  }
 }
-
-
 
 /*
 fn print_menu<R: Runtime>(menu: &Menu<R>) {
@@ -468,5 +534,3 @@ fn all_menus<R: Runtime>(app_hanle: &AppHandle<R>) {
     .for_each(|mk| print_debug_msg(mk));
 }
 */
-
-

@@ -3,6 +3,7 @@ use std::path::PathBuf;
 // App Group identifier shared between OneKeePass.app and onekeepass-proxy
 // in the Mac App Store build. Must also be registered for both bundle IDs
 // in the Apple Developer Portal and listed in their entitlements.
+#[cfg(all(target_os = "macos", feature = "mas-build"))]
 pub const APP_GROUP_ID: &str = "group.com.onekeepass.desktop";
 
 // True when running inside macOS App Sandbox. Detection is via launchd's
@@ -34,14 +35,21 @@ pub(crate) fn real_home_dir() -> Option<PathBuf> {
 }
 
 // Path to the macOS App Group container shared by OneKeePass.app and
-// onekeepass-proxy. Always returns Some on macOS (sandboxed or not) so the
-// IPC socket location is consistent between the main app and the proxy across
-// both MAS and DMG builds. Under App Sandbox the application-groups entitlement
-// authorises writes here; non-sandboxed DMG builds can write here freely.
+// onekeepass-proxy in the Mac App Store build. Direct-download/dev builds use
+// tipsy's default socket location instead, avoiding macOS "access data from
+// other apps" privacy prompts caused by touching Group Containers.
 #[cfg(target_os = "macos")]
 pub fn group_container_path() -> Option<PathBuf> {
-    let home = real_home_dir()?;
-    Some(home.join("Library/Group Containers").join(APP_GROUP_ID))
+    #[cfg(not(feature = "mas-build"))]
+    {
+        return None;
+    }
+
+    #[cfg(feature = "mas-build")]
+    {
+        let home = real_home_dir()?;
+        Some(home.join("Library/Group Containers").join(APP_GROUP_ID))
+    }
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -58,7 +66,12 @@ pub(crate) fn browser_manifest_dir(browser_id: &str) -> Option<PathBuf> {
     let home = real_home_dir()?;
     match browser_id.to_ascii_lowercase().as_str() {
         "firefox" => Some(home.join("Library/Application Support/Mozilla/NativeMessagingHosts")),
-        "chrome" => Some(home.join("Library/Application Support/Google/Chrome/NativeMessagingHosts")),
+        "chrome" => {
+            Some(home.join("Library/Application Support/Google/Chrome/NativeMessagingHosts"))
+        }
+        "brave" => Some(
+            home.join("Library/Application Support/BraveSoftware/Brave-Browser/NativeMessagingHosts"),
+        ),
         _ => None,
     }
 }

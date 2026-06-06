@@ -53,8 +53,7 @@ impl DbFileWatcherState {
 
                 // Only react to data-modifying or file-creation events.
                 // Atomic-save patterns (write-to-temp + rename) may emit Create events.
-                let is_relevant =
-                    matches!(event.kind, EventKind::Modify(_) | EventKind::Create(_));
+                let is_relevant = matches!(event.kind, EventKind::Modify(_) | EventKind::Create(_));
                 if !is_relevant {
                     return;
                 }

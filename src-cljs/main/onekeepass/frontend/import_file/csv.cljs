@@ -32,9 +32,9 @@
 
 (defn csv-imoprt-start-dialog-content []
   [mui-stack {:sx {}}
-   [m/mui-typography {:sx {:mb 1}} "Importing only a generic comma separated values(csv) file is supported at this time."]
-   [m/mui-typography {:sx {:mb 1}} "The first row of this csv file should be a header row."]
-   [m/mui-typography {:sx {:mb 1}} "After loading the csv file, you need to map the header fields to keepass entry fields."]])
+   [mui-typography {:sx {:mb 1}} "Importing only a generic comma separated values(csv) file is supported at this time."]
+   [mui-typography {:sx {:mb 1}} "The first row of this csv file should be a header row."]
+   [mui-typography {:sx {:mb 1}} "After loading the csv file, you need to map the header fields to keepass entry fields."]])
 
 (defn csv-imoprt-start-dialog []
   [confirm-text-dialog

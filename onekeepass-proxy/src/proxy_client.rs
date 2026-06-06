@@ -6,53 +6,73 @@ use std::{
 use tipsy::Connection;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf};
 
-// Using 1024 * 1024 = 1,048,576 worked on both Mac and Linux, it crashed the Windows impl
-// Using a separate testing client, the reason is found to be "thread 'main' has overflowed its stack"
-// It appears on Windows the default stack size 1MB. Using a buf size well below (100KB) that worked
-// Any attempt to use tokio::runtime::Builder based custom runtime with increased stack size failed with error
-// when using 1024 * 1024.
-// Final solution is to use a heap allocated buffer using Box::new. But need to use a size below 1_048_576 to work on windows
+// BUFFER_SIZE is the upper bound on a single framed message body in either direction
+// on this proxy <-> main-app socket. The Phase 1/2 framing now heap-allocates one
+// vec![0; message_length] per message, so this cap is purely a sanity ceiling against
+// a malformed or hostile length prefix — it is no longer a stack-size workaround.
+// Kept slightly under 1 MB on Windows as a defensive margin; aligns with the
+// 1 MB native-messaging host-to-extension cap that Chrome/Firefox enforce.
 
 cfg_if::cfg_if! {
     if #[cfg(target_os = "windows")] {
-        const BUFFER_SIZE: usize = 1_000_000; // Windows to avoid stack overflow
+        const BUFFER_SIZE: usize = 1_000_000;
     } else {
-        const BUFFER_SIZE: usize = 1_048_576; // 1024 * 1024 bytes for other OS
+        const BUFFER_SIZE: usize = 1_048_576; // 1024 * 1024 bytes
     }
+}
+
+async fn read_framed_message(reader: &mut ReadHalf<Connection>) -> std::io::Result<Vec<u8>> {
+    let mut length_bytes = [0; 4];
+    reader.read_exact(&mut length_bytes).await?;
+
+    let message_length = u32::from_ne_bytes(length_bytes) as usize;
+    if message_length == 0 {
+        return Ok(Vec::new());
+    }
+    if message_length > BUFFER_SIZE {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Main app message content response size exceeded the limit",
+        ));
+    }
+
+    let mut message_bytes = vec![0; message_length];
+    reader.read_exact(&mut message_bytes).await?;
+    Ok(message_bytes)
+}
+
+async fn write_framed_to_app(
+    writer: &mut WriteHalf<Connection>,
+    body: &[u8],
+) -> std::io::Result<()> {
+    let len = body.len() as u32;
+    writer.write_all(&len.to_ne_bytes()).await?;
+    writer.write_all(body).await?;
+    writer.flush().await
 }
 
 // Receive the response from okp main app and write to stdout continuously in a spawned task loop
 pub(crate) fn main_app_to_stdout(mut app_connection_reader: ReadHalf<Connection>) {
     tokio::spawn(async move {
-        // Stack allocated buffer may cause stack overflow on Windows
-        // See above BUFFER_SIZE comment
-        // let mut buf = [0u8; BUFFER_SIZE];
-
-        // Heap allocated buffer to avoid stack overflow on Windows
-        let mut buf = Box::new([0u8; BUFFER_SIZE]);
-
         // 'main_app_to_stdout_outer: loop and then use break 'main_app_to_stdout_outer;
         'main_app_to_stdout_outer: loop {
             log::debug!("main_app_to_stdout: Waiting to read from the app...");
 
-            // &mut *buf or buf.as_mut() will work in read call
-
-            if let Ok(len) = app_connection_reader.read(&mut *buf).await {
-                // This happens when the map connection is closed
-                if len == 0 {
-                    log::debug!("Received zero byte from app and breaking and exiting the proxy after sending error to extension");
-                    send_app_connection_not_available_error();
-                    break 'main_app_to_stdout_outer;
-                }
-                if len <= BUFFER_SIZE {
-                    // log::debug!("Sending server mesage {:?} of size {} to extension in proxy", &buf[..len], len);
+            match read_framed_message(&mut app_connection_reader).await {
+                Ok(message_bytes) => {
+                    let len = message_bytes.len();
+                    if len == 0 {
+                        log::debug!("Received zero byte from app and breaking and exiting the proxy after sending error to extension");
+                        send_app_connection_not_available_error();
+                        break 'main_app_to_stdout_outer;
+                    }
 
                     // The main app sends "DISCONNECT" string when user disables a previously connected browser
                     // Here the utf-8 bytes length of this string is 10
-                    if len == 10 && String::from_utf8(buf[..len].to_vec()).is_ok() {
-                        let s = String::from_utf8(buf[..len].to_vec()).unwrap();
+                    if len == 10 && String::from_utf8(message_bytes.to_vec()).is_ok() {
+                        let s = String::from_utf8(message_bytes.to_vec()).unwrap();
                         // Check to ensure that string is DISCONNECT and if so exit the native program launched by the browser
-                        // When this native app exits, the extension side the onDisconnect callback of 'port' will be called 
+                        // When this native app exits, the extension side the onDisconnect callback of 'port' will be called
                         if s == "DISCONNECT" {
                             send_app_connection_disconnected();
                             log::debug!("Received disconnect message from app and breaking and exiting the proxy");
@@ -64,22 +84,17 @@ pub(crate) fn main_app_to_stdout(mut app_connection_reader: ReadHalf<Connection>
                     let response_length = len as u32;
                     std::io::stdout().write_all(&response_length.to_ne_bytes()).unwrap();
 
-                    log::debug!("Writing message to stdout for extension  {:?}", String::from_utf8(buf[..len].to_vec()));
-                    
+                    log::debug!("Writing message to stdout for extension  {:?}", String::from_utf8(message_bytes.clone()));
+
                     // The message content is written. This should be parseable as json
-                    std::io::stdout().write_all(&buf[..len]).unwrap();
+                    std::io::stdout().write_all(&message_bytes).unwrap();
                     std::io::stdout().flush().unwrap();
-                } else {
-                    // Should not happen
-                    log::error!("Main app message content response size exceeded the limit");
-                    send_proxy_error_message("Main app message content response size exceeded the limit");
-                    // Should we break or continue?
+                }
+                Err(e) => {
+                    log::debug!("Proxy error of reading reply message from server: {}", e);
+                    send_proxy_error_message("Reading reply message from main app failed");
                     break 'main_app_to_stdout_outer;
                 }
-            } else {
-                log::debug!("Proxy error of reading reply mesage from  server");
-                send_proxy_error_message("Reading reply message from main app failed");
-                break 'main_app_to_stdout_outer;
             }
         }
 
@@ -156,20 +171,15 @@ pub(crate) fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
 
                 log::debug!("STD-IN-TO-APP: In the spawned task BEFORE writing to the app");
 
-                // Write extension message content to the main app
-
-                if let Err(e) = app_connection_writer.write_all(&message_bytes_buf).await {
+                // Write the [length: u32 native-endian][body] frame to the main app.
+                // Symmetric with the response path framing introduced in Phase 1.
+                if let Err(e) = write_framed_to_app(&mut app_connection_writer, &message_bytes_buf).await {
                     // Seen this error if the main is closed - Error is Broken pipe (os error 32)
-                    log::error!("Unable to write message to the main app connection. Error is {}", &e);
-                    // Need to send an error to extension if there is a possibilty the application is closed.
+                    log::error!("Unable to write framed message to the main app connection. Error is {}", &e);
                     send_app_connection_not_available_error();
                     log::debug!("Exiting the proxy?");
                     std::process::exit(32);
-                    // return;
-                    // Do we need to exit the loop and how ?
                 }
-
-                let _ = app_connection_writer.flush().await;
 
                 log::debug!("STD-IN-TO-APP: In the spawned task AFTER writing to app");
             });

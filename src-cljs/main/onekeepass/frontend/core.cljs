@@ -11,6 +11,7 @@
             [onekeepass.frontend.events.move-group-entry :as move-events]
             ;; Just to load events defined in this ns
             [onekeepass.frontend.events.auto-open]
+            [onekeepass.frontend.events.check-for-updates :as check-updates-events]
             [onekeepass.frontend.events.tauri-events :as tauri-events]
             [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                               mui-box
@@ -38,8 +39,8 @@
   "Component that has entry list and any selected entry content"
   []
   [split-pane {:split "vertical"
-               :defaultSize 200
-               :minSize 200
+               :defaultSize 225
+               :minSize 225
                :maxSize 275
                :primary "first"
                :resizerClassName  (if (= @(cmn-events/app-theme) THEME_LIGHT)
@@ -318,4 +319,8 @@
   (cmn-events/sync-initialize)
   (tauri-events/register-tauri-events)
   (cmn-events/init-session-timeout-tick)
+  ;; Silent update check on launch — shows the dialog only when a new
+  ;; release is available. Delayed so it does not contend with the
+  ;; initial database load on slow networks.
+  (js/setTimeout check-updates-events/start-silent-check 3000)
   (start))

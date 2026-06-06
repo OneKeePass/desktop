@@ -41,6 +41,7 @@
    [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
    [onekeepass.frontend.events.entry-form-ex :as form-events :refer [place-holder-resolved-value]]
    [onekeepass.frontend.events.move-group-entry :as move-events]
+   [onekeepass.frontend.events.remote-storage :as rs-events]
    [onekeepass.frontend.group-tree-content :as gt-content]
    [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                      mui-alert mui-avatar
@@ -78,63 +79,77 @@
       (handler-name field-name-kw (-> e .-target  .-checked)))))
 
 (defn- entry-context-items
-  [entry-uuid group-uuid active-db-key favorites? history-available? os-name multi-db-open? deleted? mas-build?]
-  (if deleted?
-    [(ctx-menu/action-item
-      {:id "entry-form-put-back"
-       :text (lstr-ml 'putBack)
-       :action #(move-events/move-group-entry-dialog-show :entry true)})
-     (ctx-menu/action-item
-      {:id "entry-form-delete-permanently"
-       :text (lstr-ml 'deletePermanent)
-       :action #(move-events/delete-permanent-group-entry-dialog-show :entry true)})]
-    (vec
-     (remove nil?
-             [(ctx-menu/action-item
-               {:id "entry-form-edit"
-                :text (lstr-ml 'edit)
-                :action form-events/edit-mode-menu-clicked})
-              (ctx-menu/action-item
-               {:id "entry-form-clone"
-                :text (lstr-ml 'clone)
-                :action #(dlg-events/clone-entry-options-dialog-show entry-uuid)})
-              (when multi-db-open?
+  [entry-uuid group-uuid active-db-key favorites? history-available? os-name multi-db-open? deleted? mas-build? entry-type-name]
+  (let [remote-connection-entry? (const/remote-connection-entry-type? entry-type-name)]
+    (if deleted?
+      [(ctx-menu/action-item
+        {:id "entry-form-put-back"
+         :text (lstr-ml 'putBack)
+         :action #(move-events/move-group-entry-dialog-show :entry true)})
+       (ctx-menu/action-item
+        {:id "entry-form-delete-permanently"
+         :text (lstr-ml 'deletePermanent)
+         :action #(move-events/delete-permanent-group-entry-dialog-show :entry true)})]
+      (vec
+       (remove nil?
+               [(ctx-menu/action-item
+                 {:id "entry-form-edit"
+                  :text (lstr-ml 'edit)
+                  :action form-events/edit-mode-menu-clicked})
                 (ctx-menu/action-item
-                 {:id "entry-form-clone-to-database"
-                  :text (lstr-ml "cloneToDatabase")
-                  :action #(clone-events/clone-entry-to-other-db-dialog-show entry-uuid)}))
-              (ctx-menu/action-item
-               {:id "entry-form-move"
-                :text (lstr-ml 'move)
-                :action #(gt-content/move-group-or-entry-dialog-show-with-state
-                          :entry
-                          (lstr-dlg-title 'moveEntry)
-                          entry-uuid
-                          group-uuid
-                          active-db-key)})
-              (ctx-menu/action-item
-               {:id "entry-form-delete"
-                :text (lstr-ml 'delete)
-                :action #(form-events/entry-delete-start entry-uuid)})
-              (ctx-menu/action-item
-               {:id "entry-form-favorite"
-                :text (lstr-ml 'favorites)
-                :action #(form-events/favorite-menu-checked (not favorites?))})
-              ;; Auto-type is kernel-blocked under macOS App Sandbox and the
-              ;; Rust impl is compile-gated out of the MAS binary. Suppress
-              ;; the right-click menu entry too so MAS users don't see a
-              ;; non-functional button. See entry_form/menus.cljs for parallel
-              ;; gating in the kebab-menu.
-              (when (and (= os-name const/MACOS) (not mas-build?))
+                 {:id "entry-form-clone"
+                  :text (lstr-ml 'clone)
+                  :action #(dlg-events/clone-entry-options-dialog-show entry-uuid)})
+                (when multi-db-open?
+                  (ctx-menu/action-item
+                   {:id "entry-form-clone-to-database"
+                    :text (lstr-ml "cloneToDatabase")
+                    :action #(clone-events/clone-entry-to-other-db-dialog-show entry-uuid)}))
                 (ctx-menu/action-item
-                 {:id "entry-form-auto-type"
-                  :text (lstr-ml 'performAutoType)
-                  :action form-events/perform-auto-type-start}))
-              (ctx-menu/action-item
-               {:id "entry-form-history"
-                :text (lstr-ml 'history)
-                :enabled? history-available?
-                :action #(form-events/load-history-entries-summary entry-uuid)})]))))
+                 {:id "entry-form-move"
+                  :text (lstr-ml 'move)
+                  :action #(gt-content/move-group-or-entry-dialog-show-with-state
+                            :entry
+                            (lstr-dlg-title 'moveEntry)
+                            entry-uuid
+                            group-uuid
+                            active-db-key)})
+                (ctx-menu/action-item
+                 {:id "entry-form-delete"
+                  :text (lstr-ml 'delete)
+                  :action #(form-events/entry-delete-start entry-uuid)})
+                (ctx-menu/separator-item)
+                (ctx-menu/action-item
+                 {:id "entry-form-favorite"
+                  :text (lstr-ml 'favorites)
+                  :action #(form-events/favorite-menu-checked (not favorites?))})
+                ;; Auto-type is kernel-blocked under macOS App Sandbox and the
+                ;; Rust impl is compile-gated out of the MAS binary. Suppress
+                ;; the right-click menu entry too so MAS users don't see a
+                ;; non-functional button. See entry_form/menus.cljs for parallel
+                ;; gating in the kebab-menu.
+                (when (and (= os-name const/MACOS) (not mas-build?))
+                  (ctx-menu/separator-item))
+                (when (and (= os-name const/MACOS) (not mas-build?))
+                  (ctx-menu/action-item
+                   {:id "entry-form-auto-type"
+                    :text (lstr-ml 'performAutoType)
+                    :action form-events/perform-auto-type-start}))
+                (ctx-menu/separator-item)
+                (ctx-menu/action-item
+                 {:id "entry-form-history"
+                  :text (lstr-ml 'history)
+                  :enabled? history-available?
+                  :action #(form-events/load-history-entries-summary entry-uuid)})
+                (when remote-connection-entry?
+                  (ctx-menu/separator-item))
+                (when remote-connection-entry?
+                  (ctx-menu/action-item
+                   {:id "entry-form-open-remote"
+                    :text (lstr-l "openRemote")
+                    :action #(rs-events/open-entry-remote
+                              entry-type-name
+                              entry-uuid)}))])))))
 
 #_(defn on-check-factory [handler-name field-name-kw]
     (fn [e]
@@ -280,7 +295,7 @@
     ;; if it has some fields with non blank value. 
     (when (or edit (boolean (seq (filter (fn [kv] (not (str/blank? (:value kv)))) section-data))))  ;;(seq section-data)
       (let [refs (atom {})]
-        [mui-box {:sx (theme-content-sx @m/custom-theme-atom)
+        [mui-box {:sx (theme-content-sx @custom-theme-atom)
                   ;;:sx content-sx
                   ;;:style {:background @m/entry-content-bg-color}
                   }
@@ -321,6 +336,14 @@
                   [otp-field (assoc kv :edit edit
                                     :section-name section-name
                                     :group-uuid group-uuid)]
+
+                  (= data-type const/BOOL_TYPE)
+                  [fields/bool-switch-field
+                   (assoc kv
+                          :edit edit
+                          :error-text (get errors key)
+                          :on-change-handler #(form-events/update-section-value-on-change
+                                               section-name key (if % "True" "False")))]
 
                   ;; we are now using 'single-or-multiline-text-field' instead of earlier 'text-field'
                   ;; All text-fields are now either single line or multiline text area fields
@@ -426,7 +449,8 @@
 
 (defn title-with-icon-field  []
   ;;(println "title-with-icon-field called ")
-  (let [fields @(form-events/entry-form-data-fields [:title :icon-id])
+  (let [fields @(form-events/entry-form-data-fields [:title :icon-id :custom-icon-uuid])
+        url-value @(form-events/entry-form-url-value)
         edit @(form-events/form-edit-mode)
         errors @(form-events/entry-form-field :error-fields)]
     (when edit
@@ -446,8 +470,9 @@
           (tr-l "icons")]
          [mui-icon-button {:edge "end" :color "primary"
                            :sx {} #_{:margin-top "16px" :margin-right "-8px"}
-                           :on-click  show-icons-dialog}
-          [entry-icon (:icon-id fields)]]]
+                           :on-click #(show-icons-dialog url-value)}
+          [db-icons/render-entry-icon {:icon-id (:icon-id fields)
+                                       :custom-icon-uuid (:custom-icon-uuid fields)}]]]
         [icons-dialog @icons-dialog-flag]]])))
 
 (defn tags-selection []
@@ -592,6 +617,8 @@
           title (place-holder-resolved-value parsed-fields :title  title)
 
           icon-id @(form-events/entry-form-data-fields :icon-id)
+          custom-icon-uuid @(form-events/entry-form-data-fields :custom-icon-uuid)
+          entry-type-name @(form-events/entry-form-data-fields :entry-type-name)
           entry-uuid  @(form-events/entry-form-data-fields :uuid)
           group-uuid @(form-events/entry-form-data-fields :group-uuid)
           active-db-key @(ce/active-db-key)
@@ -604,6 +631,7 @@
           deleted-cat? @(form-events/deleted-category-showing)
           recycle-bin? @(form-events/recycle-group-selected?)
           group-in-recycle-bin? @(form-events/selected-group-in-recycle-bin?)
+          remote-connection-entry? (const/remote-connection-entry-type? entry-type-name)
           pd-dlg-data  @(move-events/delete-permanent-group-entry-dialog-data :entry)]
       [:div {:class "gbox"
              :style {:margin 0
@@ -622,15 +650,17 @@
                                     os-name
                                     multi-db-open?
                                     (or deleted-cat? recycle-bin? group-in-recycle-bin?)
-                                    mas-build?))))}
+                                    mas-build?
+                                    entry-type-name))))}
 
        [:div {:class "gheader" :style {:background  (theme-color @custom-theme-atom :bg-default)}}
         (when-not edit
           [mui-stack {:direction "row"}
-           [mui-stack {:direction "row"  :sx {:width "95%" :justify-content "center"}}
-            [entry-icon icon-id]
+           [mui-stack {:direction "row"  :sx {:width "95%" :justify-content "center" :align-items "center"}}
+            [db-icons/render-entry-icon {:icon-id icon-id
+                                         :custom-icon-uuid custom-icon-uuid}]
             [mui-typography {;; Need to use this margin value so that text aligns properly with icon
-                             :style {:margin-left 2 :margin-top 2}
+                             :style {:margin-left 4 :margin-top 2}
                              ;; If we use :sx, we need to use "2px" instead of 2
                              ;; Otherwise mui will interpret as 16px
                              ;;:sx {:margin-left "2px" :margin-top "2px"}
@@ -760,7 +790,7 @@
         entry-type-uuid @(form-events/entry-form-data-fields :entry-type-uuid)
         field-error-text (:group-selection @(form-events/entry-form-field :error-fields))]
     ;;(println "entry-type-uuid is " entry-type-uuid)
-    [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
+    [mui-box {:sx (theme-content-sx @custom-theme-atom)}
      [mui-stack {:spacing 1}
       [mui-stack {:direction "row" :sx {:width "100%"}}
        [mui-stack {:direction "row" :sx {:width "90%"}}
@@ -880,7 +910,7 @@
 
 (defn entry-type-section-content [edit section-name section-data]
   (let [errors @(form-events/entry-form-field :error-fields)]
-    [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
+    [mui-box {:sx (theme-content-sx @custom-theme-atom)}
      [section-header section-name]
      (doall
       (for [{:keys [key
@@ -934,7 +964,7 @@
   (let [{:keys [entry-type-name entry-type-icon-name]} @(form-events/entry-form-data-fields
                                                          [:entry-type-name :entry-type-icon-name])
         errors @(form-events/entry-form-field :error-fields)]
-    [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
+    [mui-box {:sx (theme-content-sx @custom-theme-atom)}
      [mui-stack {:direction "row" :spacing 1}
       [mui-stack {:direction "row" :sx {:width "90%" :justify-content "center"}}
        [text-field {:key (tr-l entryType)
@@ -1000,7 +1030,8 @@
 
 (defn history-entry-content []
   (fn []
-    (let [{:keys [title icon-id]} @(form-events/entry-form-data-fields [:title :icon-id])
+    (let [{:keys [title icon-id custom-icon-uuid]}
+          @(form-events/entry-form-data-fields [:title :icon-id :custom-icon-uuid])
           edit @(form-events/form-edit-mode)]
       [:div {:class "gbox"
              :style {:margin 0
@@ -1009,9 +1040,11 @@
        [:div {:class "gheader" :style {:background (theme-color @custom-theme-atom :entry-content-bg)}}
         (when-not edit
           [mui-stack {:direction "row"}
-           [mui-stack {:direction "row"  :sx {:width "95%" :justify-content "center"}}
-            [entry-icon icon-id]
-            [mui-typography {:align "center" :paragraph false :variant "h6"} title]]])]
+           [mui-stack {:direction "row"  :sx {:width "95%" :justify-content "center" :align-items "center"}}
+            [db-icons/render-entry-icon {:icon-id icon-id
+                                         :custom-icon-uuid custom-icon-uuid}]
+            [mui-typography {:style {:margin-left 4 :margin-top 2}
+                             :align "center" :paragraph false :variant "h6"} title]]])]
 
        [:div {:class "gcontent" :style {:overflow-y "scroll"
                                         :background (theme-color @custom-theme-atom :entry-content-bg)}}
@@ -1046,6 +1079,7 @@
                   title
                   secondary-title ;; Datetime formatted string in Local tz
                   icon-id
+                  custom-icon-uuid
                   history-index]} (nth @items (:index props))
           selected-id (form-events/selected-history-index)]
       ;;(println "props " props)
@@ -1061,7 +1095,8 @@
                       ;;:secondaryAction (when (= @selected-id (:uuid item)) (r/as-element [mui-icon-button {:edge "end"} [mui-icon-more-vert]]))
                       }
        [mui-list-item-avatar
-        [mui-avatar [entry-icon icon-id]]
+        [mui-avatar [db-icons/render-entry-icon {:icon-id icon-id
+                                                 :custom-icon-uuid custom-icon-uuid}]]
         #_[mui-avatar [mui-icon-vpn-key-outlined]]]
        [mui-list-item-text
         {:primary title

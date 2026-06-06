@@ -213,6 +213,13 @@
   [url dispatch-fn]
   (tauri-shell-open url dispatch-fn))
 
+(defn check-for-updates
+  "Calls the backend command that queries GitHub for the latest release and
+   returns a map with keys :update-available?, :current-version, :latest-version,
+   :release-notes, :download-url."
+  [dispatch-fn]
+  (invoke-api "check_for_updates" {} dispatch-fn))
+
 (defn write-to-clipboard
   "Copies given data to the clipboard - equivalent to Cmd + C"
   [data]
@@ -618,6 +625,9 @@
   [browser-id dispatch-fn]
   (invoke-api "browser_ext_pick_install_dir" {:browser-id browser-id} dispatch-fn :convert-response false))
 
+(defn browser-ext-manifest-statuses [dispatch-fn]
+  (invoke-api "browser_ext_manifest_statuses" {} dispatch-fn))
+
 (defn clear-recent-files [dispatch-fn]
   (invoke-api "clear_recent_files" {} dispatch-fn))
 
@@ -791,6 +801,8 @@
 
 (defn test-simulate-run-verifier [confirmed]
   (invoke-api "test_simulate_run_verifier" {:confirmed confirmed} #(println %)))
+
+;;;-------------- Custom icon API wrappers moved to onekeepass.frontend.background-custom-icons
 
 (comment
   (def auto-open-properties {:source-db-key "/Users/jeyasankar/Documents/OneKeePass/TestAutoOpenXC.kdbx"

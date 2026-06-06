@@ -7,7 +7,7 @@
                                                              MODIFIED_TIME
                                                              TITLE
                                                              UUID_OF_ENTRY_TYPE_LOGIN]]
-            [onekeepass.frontend.db-icons :refer [entry-icon]]
+            [onekeepass.frontend.db-icons :refer [entry-icon render-entry-icon]]
             [onekeepass.frontend.dnd :as dnd]
             [onekeepass.frontend.entry-form-ex :as entry-form-ex]
             [onekeepass.frontend.events.clone-entry-to-other-db :as clone-events]
@@ -17,6 +17,7 @@
             [onekeepass.frontend.events.entry-list :as el-events]
             [onekeepass.frontend.events.group-tree-content :as gt-events]
             [onekeepass.frontend.events.move-group-entry :as move-events]
+            [onekeepass.frontend.events.remote-storage :as rs-events]
             [onekeepass.frontend.events.tauri-events :as tauri-events]
             [onekeepass.frontend.group-tree-content :as gt-content]
             [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
@@ -147,7 +148,16 @@
                  {:id "entry-history"
                   :text (t/lstr-ml 'history)
                   :enabled? history-available?
-                  :action #(form-events/load-history-entries-summary uuid)})])))))
+                  :action #(form-events/load-history-entries-summary uuid)})
+                (when (const/remote-connection-entry-type? (:entry-type-name item))
+                  (ctx-menu/separator-item))
+                (when (const/remote-connection-entry-type? (:entry-type-name item))
+                  (ctx-menu/action-item
+                   {:id "entry-open-remote"
+                    :text (t/lstr-l "openRemote")
+                    :action #(rs-events/open-entry-remote
+                              (:entry-type-name item)
+                              uuid)}))])))))
 
 (defn- row-item-draggable
   "Form-1 component rendered with :f> so React treats it as a function component.
@@ -225,7 +235,9 @@
        (assoc :on-key-down (.-onKeyDown listeners)))
      
      [mui-list-item-avatar
-      [mui-avatar [entry-icon (:icon-id item)]]]
+      [mui-avatar [render-entry-icon {:db-key active-db-key
+                                      :icon-id (:icon-id item)
+                                      :custom-icon-uuid (:custom-icon-uuid item)}]]]
      [mui-list-item-text
       {:primaryTypographyProps {:max-width 155
                                 :white-space "nowrap"

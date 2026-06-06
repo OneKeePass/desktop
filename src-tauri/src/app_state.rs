@@ -1,8 +1,10 @@
-use chrono::Local;
 use log::{debug, LevelFilter};
 use log4rs::append::console::ConsoleAppender;
-use log4rs::append::file::FileAppender;
-use log4rs::config::{Appender, Config, Root};
+use log4rs::append::rolling_file::policy::compound::roll::fixed_window::FixedWindowRoller;
+use log4rs::append::rolling_file::policy::compound::trigger::size::SizeTrigger;
+use log4rs::append::rolling_file::policy::compound::CompoundPolicy;
+use log4rs::append::rolling_file::RollingFileAppender;
+use log4rs::config::{Appender, Config, Logger, Root};
 use log4rs::encode::pattern::PatternEncoder;
 use serde::{Deserialize, Serialize};
 
@@ -77,7 +79,12 @@ pub(crate) fn init_app(app: &App) {
 
     key_secure::init_key_main_store();
 
-    // callback_service_provider::init_callback_service_provider(app.app_handle().clone());
+    // Register the (no-op) remote-storage callback service so the shared
+    // storage_service in onekeepass-core can dispatch into its host-trait
+    // hooks. Desktop is kdbx-only — no private-key file management, no
+    // blob secure store — so all hooks are stubs. See
+    // `remote_storage/callback_service_provider.rs`.
+    crate::remote_storage::callback_service_provider::init();
 
     onekeepass_core::async_service::start_runtime();
 
@@ -88,28 +95,51 @@ pub(crate) fn init_app(app: &App) {
 }
 
 fn init_log(log_dir: &PathBuf) {
-    let local_time = Local::now().format("%Y-%m-%d-%H%M%S").to_string();
-    let log_file = format!("{}.log", local_time);
-    let log_file = log_dir.join(log_file);
+    let max_file_size_mb: u64 = 5;
+    let backup_count: u32 = 2;
 
-    let time_format = "{d(%Y-%m-%d %H:%M:%S)} - {m}{n}";
+    #[cfg(not(feature = "onekeepass-dev"))]
+    let (level, log_file_name) = (LevelFilter::Info, "onekeepass.log");
+
+    #[cfg(feature = "onekeepass-dev")]
+    let (level, log_file_name) = (LevelFilter::Debug, "onekeepass-dev.log");
+
+    let log_file_path = log_dir.join(log_file_name);
+
+    let time_format = "{d(%Y-%m-%d %H:%M:%S)} [{l}] {t} - {m}{n}";
+
     let stdout = ConsoleAppender::builder()
         .encoder(Box::new(PatternEncoder::new(time_format)))
         .build();
-    let tofile = FileAppender::builder()
+
+    // Size-based rotation: when the current file reaches `max_file_size_mb`,
+    // it is renamed to `<name>.1.log`, prior backups shift up, and anything
+    // past `backup_count` is dropped. Bounds total log disk usage at roughly
+    // (backup_count + 1) * max_file_size_mb per build variant.
+    let size_trigger = Box::new(SizeTrigger::new(max_file_size_mb * 1024 * 1024));
+    let roller_pattern = format!(
+        "{}.{{}}.log",
+        log_file_path.to_str().unwrap().replace(".log", "")
+    );
+    let roller = Box::new(
+        FixedWindowRoller::builder()
+            .build(&roller_pattern, backup_count)
+            .unwrap(),
+    );
+    let policy = Box::new(CompoundPolicy::new(size_trigger, roller));
+
+    let tofile = RollingFileAppender::builder()
         .encoder(Box::new(PatternEncoder::new(time_format)))
-        .build(log_file)
+        .build(log_file_path, policy)
         .unwrap();
-
-    #[cfg(not(feature = "onekeepass-dev"))]
-    let level = LevelFilter::Info;
-
-    #[cfg(feature = "onekeepass-dev")]
-    let level = LevelFilter::Debug;
 
     let config = Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
         .appender(Appender::builder().build("file", Box::new(tofile)))
+        // russh is chatty at Debug; floor it at Info so our own Debug logs
+        // stay readable in dev. Applies to russh and all russh::* submodules.
+        .logger(Logger::builder().build("russh", LevelFilter::Info))
+        .logger(Logger::builder().build("russh_sftp", LevelFilter::Info))
         .build(Root::builder().appenders(["stdout", "file"]).build(level))
         .unwrap();
 
@@ -133,6 +163,11 @@ pub(crate) struct AppState {
     // macOS App Sandbox security-scoped bookmark handles currently held open.
     // Empty on non-MAS builds. See `crate::mas`.
     scoped_access: Mutex<HashMap<mas::ScopedAccessKey, mas::BookmarkHandle>>,
+    // Per-db remote file modified-time recorded at open or last save, used
+    // for intra-session conflict detection on remote-storage saves. None
+    // value means the remote backend didn't report mtime (treated as
+    // "unknown" — no false-positive conflict). See remote_storage/mod.rs.
+    remote_mtimes: Mutex<HashMap<String, Option<i64>>>,
 }
 
 impl AppState {
@@ -143,7 +178,23 @@ impl AppState {
             resource_dir_path: Mutex::new(None),
             db_file_watcher: crate::db_file_watcher::DbFileWatcherState::new(),
             scoped_access: Mutex::new(HashMap::new()),
+            remote_mtimes: Mutex::new(HashMap::new()),
         }
+    }
+
+    pub(crate) fn set_remote_mtime(&self, db_key: &str, mtime: Option<i64>) {
+        let mut store = self.remote_mtimes.lock().unwrap();
+        store.insert(db_key.to_string(), mtime);
+    }
+
+    pub(crate) fn remote_mtime(&self, db_key: &str) -> Option<i64> {
+        let store = self.remote_mtimes.lock().unwrap();
+        store.get(db_key).cloned().flatten()
+    }
+
+    pub(crate) fn clear_remote_mtime(&self, db_key: &str) {
+        let mut store = self.remote_mtimes.lock().unwrap();
+        store.remove(db_key);
     }
 
     // This should be called once in 'init_app' fn
@@ -208,6 +259,13 @@ impl AppState {
         let (backup_dir_path, use_timestamped_name) = if store_pref.backup.enabled {
             let backup_dir = store_pref.backup.dir.as_ref()?.trim();
             if backup_dir.is_empty() {
+                return None;
+            }
+            if !mas::can_use_backup_dir(backup_dir) {
+                log::warn!(
+                    "Skipping custom backup dir because MAS sandbox access is not available: {}",
+                    backup_dir
+                );
                 return None;
             }
             (PathBuf::from(backup_dir), true)

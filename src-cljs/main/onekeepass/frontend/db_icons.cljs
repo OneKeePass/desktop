@@ -10,7 +10,8 @@
                                                      mui-icon-launch
                                                      mui-icon-login-outlined
                                                      mui-icon-wifi-outlined
-                                                     mui-icon-account-balance-outlined]]))
+                                                     mui-icon-account-balance-outlined]]
+   [onekeepass.frontend.events.custom-icons :as ci-events]))
 
 ;; TODO: May need to replace this with the techique used for custom icon loadings from resource files
 ;; All standard KP icons with the mapping from icon idex to the svg icon reagent component
@@ -791,3 +792,29 @@
     (if icon
       [icon]
       [entry-icon (str->int icon-name)])))
+
+(defn render-entry-icon
+  "Form-2 component. Renders a custom PNG icon when custom-icon-uuid is set,
+   otherwise falls back to the built-in entry-icon for icon-id."
+  []
+  (fn [{:keys [db-key icon-id custom-icon-uuid]}]
+    (if (seq custom-icon-uuid)
+      (let [data-url @(ci-events/icon-data-url custom-icon-uuid)]
+        (if (seq data-url)
+          [mui-box {:sx {:display "flex" :alignItems "center" :width "1.25em" :height "1.25em"}}
+           [:img {:src data-url :style {:width "100%" :height "100%" :object-fit "contain"}}]]
+          [entry-icon icon-id]))
+      [entry-icon icon-id])))
+
+(defn render-group-icon
+  "Form-2 component. Renders a custom PNG icon when custom-icon-uuid is set,
+   otherwise falls back to the built-in group-icon for icon-id."
+  []
+  (fn [{:keys [db-key icon-id custom-icon-uuid]}]
+    (if (seq custom-icon-uuid)
+      (let [data-url @(ci-events/icon-data-url custom-icon-uuid)]
+        (if (seq data-url)
+          [mui-box {:sx {:display "flex" :alignItems "center" :width "1em" :height "1em"}}
+           [:img {:src data-url :style {:width "100%" :height "100%" :object-fit "contain"}}]]
+          [group-icon icon-id]))
+      [group-icon icon-id])))

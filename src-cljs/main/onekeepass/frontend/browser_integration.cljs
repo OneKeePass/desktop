@@ -57,6 +57,7 @@
                        (case browser-id
                          "firefox" "~/Library/Application Support/Mozilla/NativeMessagingHosts"
                          "chrome"  "~/Library/Application Support/Google/Chrome/NativeMessagingHosts"
+                         "brave"   "~/Library/Application Support/BraveSoftware/Brave-Browser/NativeMessagingHosts"
                          "the browser's NativeMessagingHosts folder"))]
       [mui-dialog {:open dialog-show
                    :dir (t/dir)

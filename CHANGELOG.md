@@ -1,3 +1,16 @@
+### 0.22.0
+
+#### Changes
+- Custom icons support — upload icons from a local file or auto-fetch a site's favicon by URL; assign custom icons to any entry or group; manage all custom icons stored in the database from the new **Manage Icons** dialog
+- Direct SFTP and WebDAV remote database support — create new databases or open existing ones stored on a remote SFTP or WebDAV server without any intermediate sync tool
+- New entry types **SFTP Connection** and **WebDAV Connection** — store remote server credentials securely inside the database; these entries are used automatically when opening or saving a remote database
+- Check for Updates — the app now checks for new releases at startup and a manual check is available from the Help menu
+- Brave browser extension support added alongside existing Firefox and Chrome support
+- Application log files now use rotation instead of a new timestamped file per session
+
+### 0.21.0
+- This is Mac store release of previous version 0.20.0
+
 ### 0.20.0
 
 #### Changes

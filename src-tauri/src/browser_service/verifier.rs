@@ -80,7 +80,7 @@ impl ConnectionVerifier {
     // stored in app preference for later use - See 'VERIFIED' flag use above
     async fn run_verifier_and_remove(confirmed: bool) {
         // Take the verifier out under the lock, then drop the lock before await
-        log::debug!("In run_verifier_and_remove...");   
+        log::debug!("In run_verifier_and_remove...");
         let verifier = {
             let g = VERIFIER.get();
 

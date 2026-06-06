@@ -80,6 +80,10 @@ pub(crate) fn auto_open_root_dir_access(_db_file_name: &str) -> ScopedAccessGuar
     ScopedAccessGuard
 }
 
+pub(crate) fn db_file_access(_db_file_name: &str) -> ScopedAccessGuard {
+    ScopedAccessGuard
+}
+
 pub(crate) fn prepare_auto_open_db(
     _db_file_name: &str,
     _key_file_name: Option<&str>,
@@ -96,6 +100,10 @@ pub(crate) fn store_auto_open_success_handles(
 }
 
 pub(crate) fn create_backup_dir_bookmark(_dir: &str) {}
+
+pub(crate) fn can_use_backup_dir(_dir: &str) -> bool {
+    true
+}
 
 pub(crate) fn record_user_granted_db_file(
     _db_file_name: &str,

@@ -2,6 +2,9 @@
   (:require
    [onekeepass.frontend.about :as about]
    [onekeepass.frontend.app-settings :refer [app-settings-dialog-main]]
+   [onekeepass.frontend.check-for-updates :as check-updates]
+   [onekeepass.frontend.manage-custom-icons :refer [manage-custom-icons-dialog-main custom-icons-delete-confirm-dialog]]
+   [onekeepass.frontend.events.custom-icons :as ci-events]
    [onekeepass.frontend.auto-type :as at-form]
    [onekeepass.frontend.browser-integration :as browser-integration]
    [onekeepass.frontend.common-components :refer [confirm-text-dialog
@@ -10,6 +13,7 @@
                                                   progress-message-dialog]]
    [onekeepass.frontend.constants :as const :refer [DB_CHANGED]]
    [onekeepass.frontend.db-settings :as settings-form]
+   [onekeepass.frontend.remote-storage :as rs-form]
    [onekeepass.frontend.events.auto-type :as at-events]
    [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.events.db-settings :as settings-events]
@@ -38,6 +42,7 @@
                                                      mui-icon-save-as
                                                      mui-icon-search
                                                      mui-icon-settings-outlined
+                                                     mui-icon-image
                                                      mui-linear-progress
                                                      mui-stack mui-toolbar
                                                      mui-tooltip
@@ -93,47 +98,61 @@
       {:label (t/lstr-bl 'cancel) :on-click tb-events/conflict-action-confirm-dialog-hide}]
      {:dialog-show dialog-show}]))
 
-(defn content-change-action-dialog [open?]
-  [mui-dialog {:open open? :on-click #(.stopPropagation ^js/Event %)}
-   [mui-dialog-title (tr-dlg-title conflictOnSave)]
-   [mui-dialog-content
-    [mui-stack (tr-dlg-text "conflictOnSaveTxt1")]
+;; This is somewhat similar to the modal dialog fn 'save-error-modal' of 
+;; src-cljs/cljs-main-app-src/main/onekeepass/mobile/save_error_dialog.cljs
+;; TODO: Need to move these save related fns to a separate ns
 
-    [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
-    [mui-stack {:style {:align-items "center"}}
-     [mui-button {:color "secondary"
-                  :variant "text"
-                  :on-click tb-events/conflict-action-save-as} (tr-bl saveAs)]]
-    [mui-stack
-     [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
-      (tr-dlg-text "conflictOnSaveTxt2")]]
+(defn- content-change-action-dialog [open?]
+  (let [active-key @(cmn-events/active-db-key)]
+    [mui-dialog {:open open? :on-click #(.stopPropagation ^js/Event %)}
+     [mui-dialog-title (tr-dlg-title conflictOnSave)]
+     [mui-dialog-content
+      [mui-stack (tr-dlg-text "conflictOnSaveTxt1")]
 
-    [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
-    [mui-stack  {:direction "column"}
-     [mui-stack {:style {:align-items "center"}}
-      [mui-button {:color "error"
-                   :variant "text"
-                   :on-click tb-events/confirm-overwrite-external-db} (tr-bl overwrite)]]
+      ;; Merge is offered for both local (disk-version) and remote
+      ;; (remote-version) dbs; :external-change-merge-start routes by db type.
+      [:<>
+       [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
+       [mui-stack {:style {:align-items "center"}}
+        [mui-button {:color "primary"
+                     :variant "text"
+                     :on-click #(tb-events/conflict-action-merge active-key)}
+         (tr-bl merge)]]
+       [mui-stack
+        [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
+         (tr-dlg-text "conflictOnSaveMergeTxt")]]]
 
-     [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
-      (tr-dlg-text "conflictOnSaveTxt3")]]
+      [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
+      [mui-stack {:style {:align-items "center"}}
+       [mui-button {:color "secondary"
+                    :variant "text"
+                    :on-click tb-events/conflict-action-save-as} (tr-bl saveAs)]]
+      [mui-stack
+       [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
+        (tr-dlg-text "conflictOnSaveTxt2")]]
 
-    [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
-    [mui-stack  {:direction "column"}
+      [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
+      [mui-stack {:direction "column"}
+       [mui-stack {:style {:align-items "center"}}
+        [mui-button {:color "error"
+                     :variant "text"
+                     :on-click tb-events/confirm-overwrite-external-db} (tr-bl overwrite)]]
+       [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
+        (tr-dlg-text "conflictOnSaveTxt3")]]
 
-     [mui-stack {:style {:align-items "center"}}
-      [mui-button {:color "error"
-                   :variant "text"
-                   :on-click tb-events/confirm-discard-current-db} (tr-bl discardClose)]]
+      [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
+      [mui-stack {:direction "column"}
+       [mui-stack {:style {:align-items "center"}}
+        [mui-button {:color "error"
+                     :variant "text"
+                     :on-click tb-events/confirm-discard-current-db} (tr-bl discardClose)]]
+       [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
+        (tr-dlg-text "conflictOnSaveTxt4")]]
+      [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]]
 
-     [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
-      (tr-dlg-text "conflictOnSaveTxt4")]]
-    [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]]
-
-   [mui-dialog-actions
-
-    [mui-button {:color "secondary"
-                 :on-click tb-events/save-current-db-msg-dialog-hide} (t/lstr-bl 'cancel)]]])
+     [mui-dialog-actions
+      [mui-button {:color "secondary"
+                   :on-click tb-events/save-current-db-msg-dialog-hide} (t/lstr-bl 'cancel)]]]))
 
 (defn save-info-dialog [{:keys [status api-error-text]}]
   (if (= api-error-text DB_CHANGED)
@@ -163,7 +182,9 @@
           locked? @(cmn-events/locked?)
           biometric-type @(cmn-events/biometric-type-available)
           save-disabled? (or locked? (not @(cmn-events/db-save-pending?)))
-          multiple-dbs? (>= (count @(merging-events/multiple-unlocked-dbs?)) 2)]
+          multiple-dbs? (>= (count @(merging-events/multiple-unlocked-dbs?)) 2)
+          ;; "Check Remote Changes" is only meaningful for an unlocked remote db
+          remote? (cmn-events/remote-db-key? @(cmn-events/active-db-key))]
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE (not save-disabled?))
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_AS (not locked?))
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_BACKUP (not locked?))
@@ -175,6 +196,10 @@
                             (tauri-events/enable-app-menu const/MENU_ID_SEARCH true)
                             (tauri-events/enable-app-menu const/MENU_ID_MERGE_DATABASE (not locked?))
                             (tauri-events/enable-app-menu const/MENU_ID_MERGE_OPENED_DATABASES multiple-dbs?)
+                            ;; Active for an unlocked remote db. Kept inside the effect (not the
+                            ;; render body) so it isn't clobbered by this effect's own cleanup,
+                            ;; which runs on every deps change - remote? is in the deps below.
+                            (tauri-events/enable-app-menu const/MENU_ID_CHECK_REMOTE_CHANGES (and remote? (not locked?)))
 
                             ;; cleanup fn is returned which is called when this component unmounts
                             (fn []
@@ -185,7 +210,8 @@
                               (tauri-events/enable-app-menu const/MENU_ID_MERGE_DATABASE false)
                               (tauri-events/enable-app-menu const/MENU_ID_MERGE_OPENED_DATABASES false)
                               (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_BACKUP false)
-                              (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js [locked? multiple-dbs?]))
+                              (tauri-events/enable-app-menu const/MENU_ID_CHECK_REMOTE_CHANGES false)
+                              (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js [locked? multiple-dbs? remote?]))
 
       [:div {:style {:flex-grow 1}}
        [mui-app-bar {:position "static" :color "primary" :dir (t/dir)}  ;; 
@@ -232,6 +258,15 @@
               [mui-icon-lock-open-outlined]]])]
          [:span  {:style {:flex-grow "1"}}]
 
+         [mui-tooltip {:title "Manage Custom Icons" :enterDelay 2000}
+          [mui-icon-button {:edge "end"
+                            :disabled locked?
+                            :color "inherit"
+                            :on-click #(do (ci-events/refresh-icons-for-db)
+                                           (ci-events/show-manage-dialog))}
+           ;;"🖼"
+           [mui-icon-image]]]
+
          [mui-tooltip {:title "Settings" :enterDelay 2000}
           [mui-icon-button {:edge "end"
                             :disabled locked?
@@ -249,7 +284,7 @@
 
        ;; Include all dialogs that we need to use when the toll bar is visibible
        ;; Also see start_page.cljs for other dialogs  
-       
+
        ;; Auto type dialogs
        [at-form/perform-auto-type-dialog @(at-events/auto-type-perform-dialog-data)]
        [at-form/auto-type-edit-dialog @(at-events/auto-type-edit-dialog-data)]
@@ -258,6 +293,7 @@
        [message-dialog]
        [app-settings-dialog-main]
        [about/about-dialog-main]
+       [check-updates/check-for-updates-dialog-main]
        [browser-integration/browser-extension-connection-permit-dialog]
        [browser-integration/browser-extension-install-grant-dialog]
 
@@ -279,4 +315,7 @@
        [csv/csv-imoprt-start-dialog]
        [merging/merge-result-dialog]
        [merging/merge-opened-dbs-dialog]
-       [merging/external-db-change-dialog]])))
+       [merging/external-db-change-dialog]
+       [manage-custom-icons-dialog-main]
+       [custom-icons-delete-confirm-dialog]
+       [rs-form/remote-storage-dialog-main]])))

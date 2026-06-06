@@ -23,12 +23,54 @@
 (declare active-db-key)
 (declare assoc-in-key-db)
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Remote connections related ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn remote-db-key?
+  "True when db-key was minted by the remote-storage open/create flow
+   (prefixed Sftp- or Webdav-)."
+  [db-key]
+  (and (string? db-key)
+       (or (str/starts-with? db-key (str const/V-SFTP "-"))
+           (str/starts-with? db-key (str const/V-WEBDAV "-")))))
+
+(defn remote-db-key-display
+  "Renders a remote db-key as a short, human-readable label like
+   'Test1.kdbx (SFTP)' / 'db.kdbx (WebDAV)'. Returns nil if the db-key
+   doesn't match the expected remote shape (caller falls back to db-key as-is)."
+  [db-key]
+  (when (remote-db-key? db-key)
+    (let [[prefix label] (cond
+                           (str/starts-with? db-key (str const/V-SFTP "-"))
+                           [(str const/V-SFTP "-") "SFTP"]
+         
+                           (str/starts-with? db-key (str const/V-WEBDAV "-"))
+                           [(str const/V-WEBDAV "-") "WebDAV"])
+          ;; "<prefix>-<36-char-uuid>-<path>" — strip prefix and uuid+dash to
+          ;; reach the path part, then take the trailing file name.
+          after-prefix (subs db-key (count prefix))
+         
+          after-uuid (if (> (count after-prefix) 37)
+                       (subs after-prefix 37)
+                       after-prefix)
+          ;; file-name (-> after-uuid (str/split #"/") last)
+          ]
+      #_(println "after-prefix after-uuid file-name" after-prefix after-uuid file-name)
+      (str label after-uuid)
+      #_(str label "/" (if (str/blank? file-name) after-uuid file-name))
+      #_(str (if (str/blank? file-name) after-uuid file-name)
+             " (" label ")"))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn sync-initialize
   "Called just before rendering to set all requied values in re-frame db"
   []
   ;;(re-frame.core/dispatch-sync [:initialise-db]) 
   (dispatch-sync [:custom-icons/load-custom-icons])
   (dispatch-sync [:init-process]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn open-file-explorer-on-click
   "Shows OS specific file explorer dialog to pick a from the local file system
@@ -475,6 +517,7 @@
          [:dispatch [:entry-category/category-data-load-start
                      (-> db :app-preference :default-entry-category-groupings)]]
          [:dispatch [:common/load-entry-type-headers]]
+         [:dispatch [:custom-icons/load]]
          [:dispatch [:common/message-snackbar-open
                      (lstr-sm 'dbOpened {:dbFileName db-key})]]
          ;; This db may have AutoOpen group
@@ -489,6 +532,7 @@
          [:dispatch [:entry-category/category-data-load-start
                      (-> db :app-preference :default-entry-category-groupings)]]
          [:dispatch [:common/load-entry-type-headers]]
+         [:dispatch [:custom-icons/refresh]]
          [:dispatch [:entry-list/entry-updated]]]}))
 
 ;; A common refresh all forms after an entry form changes - delete, put back , delete permanent
@@ -665,8 +709,16 @@
          ;; authentication using existing credential
          ;; If the file watcher already flagged an external change while the db was locked,
          ;; show the merge/reload dialog directly — otherwise do the normal verify check.
-         (if (get-in db [(active-db-key db) :external-change-pending])
+         ;; For a remote db there is no local file to stat; use the remote-mtime
+         ;; poll instead so external changes are surfaced via the same dialog flow.
+         (cond
+           (get-in db [(active-db-key db) :external-change-pending])
            [:dispatch [:external-db-change/check-external-change-pending (active-db-key db)]]
+
+           (remote-db-key? (active-db-key db))
+           [:dispatch [:external-db-change/poll-open-remote-dbs]]
+
+           :else
            [:bg-read-and-verify-db-file [(active-db-key db)]])]}))
 
 ;; Dispatched when the browser extension creates/updates a passkey in a db.
@@ -966,7 +1018,7 @@
   (subscribe [:progress-message-box]))
 
 ;; IMPORTANT: Need to ensure that :common/progress-message-box-hide is called for every
-;; :common/progress-message-box-show. Otherwise user can not do anhything on the page
+;; :common/progress-message-box-show. Otherwise user can not do anything on the page
 (reg-event-db
  :common/progress-message-box-show
  (fn [db [_event-id title message]]
@@ -974,7 +1026,6 @@
        (assoc-in [:progress-message-box :dialog-show] true)
        (assoc-in [:progress-message-box :title] title)
        (assoc-in [:progress-message-box :message] message))))
-
 
 (reg-event-db
  :common/progress-message-box-hide
@@ -1121,9 +1172,13 @@
    "delete_custom_entry_type"
    "set_db_settings"
 
-   "merge_databases"
+   ;; "merge_databases" is intentionally NOT in this list. A merge call may
+   ;; complete without changing the target db (merge_done = false), in which
+   ;; case the save icon should stay off. The merge-complete handlers in
+   ;; events/merging.cljs set save-pending themselves, gated on :merge-done.
    ;;"merge_kdbx_with_disk_version"
-   "update_db_with_imported_csv"])
+   "update_db_with_imported_csv"
+   "remove_custom_icon"])
 
 (defn db-save-pending?
   "Checks whether there is any unsaved changes for the current db

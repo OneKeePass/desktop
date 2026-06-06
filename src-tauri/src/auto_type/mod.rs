@@ -17,29 +17,29 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WindowInfo {
-  pub owner: Option<String>,
-  pub title: Option<String>,
-  pub process_id: i32,
+    pub owner: Option<String>,
+    pub title: Option<String>,
+    pub process_id: i32,
 }
 
 #[inline]
 pub fn window_titles() -> kp_service::Result<Vec<WindowInfo>> {
-  platform::active_window_titles()
+    platform::active_window_titles()
 }
 
 // The window to which auto typing sequence will be sent
 pub fn active_window_to_auto_type() -> Option<WindowInfo> {
-  // None is returned if there is no other window is open other than the app
-  window_titles().ok().map(|v| v.first().cloned()).flatten()
+    // None is returned if there is no other window is open other than the app
+    window_titles().ok().map(|v| v.first().cloned()).flatten()
 }
 
 pub async fn send_sequence_to_winow_async(
-  window: WindowInfo,
-  sequence: &str,
-  entry_fields: HashMap<String, String>,
+    window: WindowInfo,
+    sequence: &str,
+    entry_fields: HashMap<String, String>,
 ) -> kp_service::Result<()> {
-  platform::send_sequence_to_winow_async(window, sequence, entry_fields).await?;
-  Ok(())
+    platform::send_sequence_to_winow_async(window, sequence, entry_fields).await?;
+    Ok(())
 }
 
 /*

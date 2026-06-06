@@ -29,7 +29,11 @@
   (dispatch [:open-db-update-key-file-name (->  e .-target .-value)]))
 
 (defn recent-file-link-on-click [file-name]
-  (dispatch [:open-db-dialog-show-on-file-selection file-name]))
+  (if (cmn-events/remote-db-key? file-name)
+    ;; Remote recent entry — route to the remote login flow so the OK click
+    ;; calls rs_read_kdbx instead of the local bg-load-kdbx-file path.
+    (dispatch [:open-db-form/remote-open-show file-name nil])
+    (dispatch [:open-db-dialog-show-on-file-selection file-name])))
 
 (defn cancel-on-click []
   (dispatch [:open-db/dialog-hide])
@@ -63,7 +67,7 @@
   (subscribe [:open-db-dialog-data]))
 
 (defn- init-open-db-vals
-  "Initializes all open db related values in the incoming main app db 
+  "Initializes all open db related values in the incoming main app db
   and returns the updated main app db
   "
   [db]
@@ -71,6 +75,7 @@
       (assoc-in [:open-db :dialog-show] false)
       (assoc-in [:open-db :unlock-request] false)
       (assoc-in [:open-db :dbs-merge-request] false)
+      (assoc-in [:open-db :remote?] false)
       (assoc-in [:open-db :password-visibility-on] false)
       (assoc-in [:open-db :key-file-visibility-on] false)
       (assoc-in [:open-db :status] nil)
@@ -140,7 +145,19 @@
               (assoc-in [:open-db :key-file-name] key-file-name)
               (assoc-in [:open-db :file-name] file-name))})))
 
-;; After unlock, we detected database change. But reloading of database fails  
+;; Show the existing open-db login dialog with the prefixed remote db_key
+;; pre-filled as :file-name. The :remote? flag routes the OK click to
+;; remote-storage/read-kdbx instead of the local bg-load-kdbx-file path.
+(reg-event-fx
+ :open-db-form/remote-open-show
+ (fn [{:keys [db]} [_event-id db-file-name _file-name]]
+   {:db (-> db
+            init-open-db-vals
+            (assoc-in [:open-db :dialog-show] true)
+            (assoc-in [:open-db :remote?] true)
+            (assoc-in [:open-db :file-name] db-file-name))}))
+
+;; After unlock, we detected database change. But reloading of database fails
 ;; because the credentials of database has been changed outside our app
 ;; Need to do relogin
 (reg-event-fx
@@ -178,8 +195,12 @@
  :open-db-login-credential-entered
  (fn [{:keys [db]} [_event-id file-name pwd key-file-name]]
    (let [unlock-request (get-in db [:open-db :unlock-request])
-         dbs-merge-request (get-in db [:open-db :dbs-merge-request])]
-     ;; (println "dbs-merge-request is " dbs-merge-request)
+         dbs-merge-request (get-in db [:open-db :dbs-merge-request])
+         remote? (get-in db [:open-db :remote?])
+         ;; In remote mode the dialog's :file-name carries the prefixed db_key,
+         ;; and the local file-name arg is unused — feed the db_key to the
+         ;; remote read fx instead.
+         remote-db-key (when remote? (get-in db [:open-db :file-name]))]
      {:db (-> db
               (assoc-in [:open-db :error-fields] {})
               (assoc-in [:open-db :status] :in-progress))
@@ -190,12 +211,11 @@
              dbs-merge-request
              [:dispatch [:merging/credentials-entered file-name pwd key-file-name]]
 
-             :else
-             [:bg-load-kdbx-file [file-name pwd key-file-name on-file-loading]])
+             remote?
+             [:dispatch [:remote-storage/read-kdbx remote-db-key pwd key-file-name]]
 
-           #_(if unlock-request
-               [:bg-unlock-kdbx-file [(active-db-key db) pwd key-file-name unlock-response-handler]]
-               [:bg-load-kdbx-file [file-name pwd key-file-name on-file-loading]])]})))
+             :else
+             [:bg-load-kdbx-file [file-name pwd key-file-name on-file-loading]])]})))
 
 #_(reg-event-db
    :open-db-error

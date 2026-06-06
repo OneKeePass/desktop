@@ -62,6 +62,9 @@
       (= menu-id const/MENU_ID_OPEN_DATABASE)
       (dispatch [:open-db-form/open-db])
 
+      (= menu-id const/MENU_ID_OPEN_REMOTE)
+      (dispatch [:remote-storage/dialog-show :open])
+
       (= menu-id const/MENU_ID_SAVE_DATABASE)
       (dispatch [:save-current-db false])
 
@@ -83,6 +86,9 @@
       (= menu-id const/MENU_ID_MERGE_OPENED_DATABASES)
       (dispatch [:merging/merge-opened-dbs-start])
 
+      (= menu-id const/MENU_ID_CHECK_REMOTE_CHANGES)
+      (dispatch [:external-db-change/manual-check-remote-changes])
+
       (= menu-id const/MENU_ID_IMPORT)
       (dispatch [:import/import-csv-file-start])
 
@@ -91,6 +97,9 @@
 
       (= menu-id MENU_ID_ABOUT)
       (dispatch [:about/dialog-show])
+
+      (= menu-id const/MENU_ID_CHECK_FOR_UPDATES)
+      (dispatch [:check-for-updates/start {:silent? false}])
 
       :else
       (dispatch [:common/message-box-show "Work In Progress" (str "Menu action for " menu-id " will be implemented soon")]))))
@@ -111,8 +120,11 @@
       (dispatch [:tool-bar/app-quit-called])
 
       (= action WINDOW_FOCUS_CHANGED)
-      #()
-      #_(println "Window focused val is " focused)
+      ;; On regaining focus, poll open remote dbs for external changes.
+      ;; The poll event filters to remote db_keys and is a no-op when
+      ;; none are open, so this is essentially free in the common case.
+      (when focused
+        (dispatch [:external-db-change/poll-open-remote-dbs]))
 
       (= action FILE_DROP)
       (when-let [file-path (-> cljs-response :payload :file-path)]
@@ -169,7 +181,10 @@
   (let [{:keys [db-key]} (-> js-event to-cljs :payload)]
     (dispatch [:external-db-change/db-file-changed-externally db-key])))
 
-(defn- register-db-file-changed-event []
+(defn- register-db-file-changed-event 
+  "This event is fired by a file watcher when a local db is changed externally. 
+  The remote db changes are tracked in WINDOW_FOCUS_CHANGED"
+  []
   (bg/register-event-listener DB_FILE_CHANGED_EVENT handle-db-file-changed-event))
 
 (defn register-tauri-events []

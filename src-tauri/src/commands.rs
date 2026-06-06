@@ -15,12 +15,19 @@ use crate::app_state::SystemInfoWithPreference;
 use crate::auto_open::{self, AutoOpenProperties, AutoOpenPropertiesResolved};
 #[cfg(not(feature = "mas-build"))]
 use crate::auto_type;
+use crate::browser_service;
 use crate::menu::MenuActionRequest;
 use crate::{app_preference, app_state};
 use crate::{biometric, OTP_TOKEN_UPDATE_EVENT};
+#[cfg(not(feature = "mas-build"))]
+use crate::updater;
 use crate::{mas, menu, pass_phrase, translation};
 use onekeepass_core::async_service as kp_async_service;
 use onekeepass_core::db_service as kp_service;
+use onekeepass_core::remote_storage::storage_service::{
+    ConnectStatus, RemoteStorageOperation, RemoteStorageOperationType, RemoteStorageType,
+    RemoteStorageTypeConfig, ServerDirEntry,
+};
 
 /*
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -249,6 +256,13 @@ pub(crate) async fn browser_ext_pick_install_dir<R: tauri::Runtime>(
     browser_id: String,
 ) -> Result<()> {
     Ok(app_state.browser_ext_pick_install_dir(&app, &browser_id)?)
+}
+
+#[tauri::command]
+pub(crate) async fn browser_ext_manifest_statuses()
+    -> Result<Vec<browser_service::NativeMessagingManifestStatus>>
+{
+    Ok(browser_service::native_messaging_manifest_statuses()?)
 }
 
 //clear_recent_files
@@ -716,8 +730,34 @@ pub(crate) async fn save_kdbx(
     overwrite: bool,
     app_state: State<'_, app_state::AppState>,
 ) -> Result<kp_service::KdbxSaved> {
+    // Remote dbs (Sftp-/Webdav- prefixed db_keys) cannot go through the local
+    // backup-then-rename path: there is no local file to write to, the
+    // backup-file resolver would produce a nonsense path containing slashes
+    // from the prefix, and the local checksum-based external-change check
+    // would always fire. Route them to the remote save path which does its
+    // own mtime-based conflict detection against the remote server.
+    if crate::remote_storage::is_remote_db_key(db_key) {
+        let recorded_mtime = app_state.remote_mtime(db_key);
+        let backup_file_name = app_state.get_backup_file(db_key);
+        let db_key_owned = db_key.to_string();
+        let db_key_for_cache = db_key_owned.clone();
+        let (kdbx_saved, remote_mtime) = tokio::task::spawn_blocking(move || {
+            crate::remote_storage::rs_save_kdbx(
+                &db_key_owned,
+                overwrite,
+                recorded_mtime,
+                backup_file_name.as_deref(),
+            )
+        })
+        .await
+        .map_err(spawn_blocking_join_err)??;
+        app_state.set_remote_mtime(&db_key_for_cache, remote_mtime);
+        return Ok(kdbx_saved);
+    }
+
     // db_key is the full database file name and backup file name is derived from that
     let backup_file_name = app_state.get_backup_file(db_key);
+    let _db_file_access = mas::db_file_access(db_key);
     Ok(kp_service::save_kdbx_with_backup(
         db_key,
         backup_file_name.as_deref(),
@@ -735,15 +775,58 @@ pub(crate) async fn save_all_modified_dbs(
     db_keys: Vec<String>,
     app_state: State<'_, app_state::AppState>,
 ) -> Result<Vec<kp_service::SaveAllResponse>> {
-    // Need to prepare back file paths for all db_keys
-    let dbs_with_backups: Vec<(String, Option<String>)> = db_keys
+    // Partition local vs remote. Local dbs go through the existing batched
+    // save-with-backup path; remote dbs are saved one-by-one via the remote
+    // save path (which handles its own mtime-based conflict detection and
+    // does not use any local backup file).
+    let (remote_keys, local_keys): (Vec<String>, Vec<String>) = db_keys
+        .into_iter()
+        .partition(|k| crate::remote_storage::is_remote_db_key(k));
+
+    let _db_file_access: Vec<_> = local_keys
+        .iter()
+        .map(|db_key| mas::db_file_access(db_key))
+        .collect();
+
+    let dbs_with_backups: Vec<(String, Option<String>)> = local_keys
         .iter()
         .map(|s| (s.clone(), app_state.get_backup_file(s)))
         .collect();
 
-    Ok(kp_service::save_all_modified_dbs_with_backups(
-        dbs_with_backups,
-    )?)
+    let mut results = kp_service::save_all_modified_dbs_with_backups(dbs_with_backups)?;
+
+    for db_key in remote_keys {
+        let recorded_mtime = app_state.remote_mtime(&db_key);
+        let backup_file_name = app_state.get_backup_file(&db_key);
+        let db_key_for_cache = db_key.clone();
+        let db_key_for_task = db_key.clone();
+        let response = match tokio::task::spawn_blocking(move || {
+            crate::remote_storage::rs_save_kdbx(
+                &db_key_for_task,
+                false,
+                recorded_mtime,
+                backup_file_name.as_deref(),
+            )
+        })
+        .await
+        .map_err(spawn_blocking_join_err)?
+        {
+            Ok((_kdbx_saved, remote_mtime)) => {
+                app_state.set_remote_mtime(&db_key_for_cache, remote_mtime);
+                kp_service::SaveAllResponse {
+                    db_key,
+                    save_status: kp_service::SaveStatus::Success,
+                }
+            }
+            Err(e) => kp_service::SaveAllResponse {
+                db_key,
+                save_status: kp_service::SaveStatus::Failed(format!("{}", e)),
+            },
+        };
+        results.push(response);
+    }
+
+    Ok(results)
 }
 
 #[command]
@@ -757,6 +840,8 @@ pub(crate) async fn close_kdbx(
     app_state.release_scoped_access(&mas::ScopedAccessKey::Db(db_key.to_string()));
     kp_service::close_kdbx(db_key)?;
     app_state.remove_app_home_backup_file(db_key);
+    // Drop any in-memory connection config cached while this remote db was open.
+    crate::remote_storage::clear_cached_connection_config(db_key);
     Ok(())
 }
 
@@ -1041,6 +1126,320 @@ pub async fn send_sequence_to_winow_async(
 //   Ok(crate::auto_type::test_call(arg))
 // }
 //
+
+///-------------- Custom icon commands
+
+#[tauri::command]
+pub async fn list_custom_icons(db_key: &str) -> Result<Vec<kp_service::CustomIconSummary>> {
+    Ok(kp_service::list_custom_icons(db_key)?)
+}
+
+#[tauri::command]
+pub async fn get_custom_icon_data(db_key: &str, custom_icon_uuid: &str) -> Result<String> {
+    let data = kp_service::get_custom_icon(db_key, custom_icon_uuid)?.data;
+    Ok(data_encoding::BASE64.encode(&data))
+}
+
+#[tauri::command]
+pub async fn add_custom_icon_from_url(
+    db_key: &str,
+    url: &str,
+) -> Result<kp_service::CustomIconSummary> {
+    let png = onekeepass_core::favicon::download_favicon(url)
+        .await
+        .map_err(|e| e.to_string())?;
+    // Extract hostname as icon name without pulling in the url crate.
+    // Strip scheme ("https://"), then take up to the first '/' or end of string.
+    let name = url
+        .split("://")
+        .nth(1)
+        .unwrap_or(url)
+        .split('/')
+        .next()
+        .unwrap_or(url)
+        .to_string();
+    let uuid = kp_service::add_custom_icon(db_key, name, png)?;
+    let icons = kp_service::list_custom_icons(db_key)?;
+    icons
+        .into_iter()
+        .find(|i| i.uuid == uuid)
+        .ok_or_else(|| "Icon not found after add".to_string())
+}
+
+#[tauri::command]
+pub async fn add_custom_icon_from_file(
+    db_key: &str,
+    file_path: &str,
+) -> Result<kp_service::CustomIconSummary> {
+    let bytes = std::fs::read(file_path).map_err(|e| e.to_string())?;
+    let png =
+        onekeepass_core::favicon::normalize_image_to_png(&bytes, 64).map_err(|e| e.to_string())?;
+    let name = std::path::Path::new(file_path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("icon")
+        .to_string();
+    let uuid = kp_service::add_custom_icon(db_key, name, png)?;
+    let icons = kp_service::list_custom_icons(db_key)?;
+    icons
+        .into_iter()
+        .find(|i| i.uuid == uuid)
+        .ok_or_else(|| "Icon not found after add".to_string())
+}
+
+#[tauri::command]
+pub async fn remove_custom_icon(db_key: &str, custom_icon_uuid: &str) -> Result<()> {
+    Ok(kp_service::remove_custom_icon(db_key, custom_icon_uuid)?)
+}
+
+#[tauri::command]
+pub async fn set_entry_custom_icon(
+    db_key: &str,
+    entry_uuid: &str,
+    custom_icon_uuid: Option<String>,
+) -> Result<()> {
+    Ok(kp_service::set_entry_custom_icon(
+        db_key,
+        entry_uuid,
+        custom_icon_uuid,
+    )?)
+}
+
+#[tauri::command]
+pub async fn set_group_custom_icon(
+    db_key: &str,
+    group_uuid: &str,
+    custom_icon_uuid: Option<String>,
+) -> Result<()> {
+    Ok(kp_service::set_group_custom_icon(
+        db_key,
+        group_uuid,
+        custom_icon_uuid,
+    )?)
+}
+
+// ----- Remote storage (SFTP / WebDAV) commands -----
+//
+// Desktop is kdbx-only: connection configs live as entries inside open
+// databases, not in a local blob store. There are no rs_remote_storage_configs
+// / rs_read_configs / rs_delete_config commands on desktop — those are the
+// blob-store CRUD surface that only mobile exposes. To delete a desktop
+// connection the user edits or deletes the kdbx entry directly.
+
+// The SFTP/WebDAV layer in onekeepass-core uses
+// `tokio::sync::oneshot::Receiver::blocking_recv()` (via the
+// `receive_from_async_fn!` macro) which panics if called from a thread that
+// is being driven by an async executor. Tauri's async commands run on its
+// Tokio worker pool, so each command that ends up in the macro must hand the
+// blocking work off via `tokio::task::spawn_blocking`. AppState mtime cache
+// updates are applied around the spawn_blocking call to avoid borrowing
+// `State` into the 'static closure.
+
+fn spawn_blocking_join_err(e: tokio::task::JoinError) -> String {
+    format!("Remote storage worker join error: {}", e)
+}
+
+#[tauri::command]
+pub async fn rs_connect_and_retrieve_root_dir(
+    rs_operation_type: RemoteStorageOperationType,
+) -> Result<ConnectStatus> {
+    Ok(tokio::task::spawn_blocking(move || {
+        rs_operation_type.connect_and_retrieve_root_dir()
+    })
+    .await
+    .map_err(spawn_blocking_join_err)??)
+}
+
+#[tauri::command]
+pub async fn rs_connect_by_id_and_retrieve_root_dir(
+    rs_operation_type: RemoteStorageOperationType,
+) -> Result<ConnectStatus> {
+    Ok(tokio::task::spawn_blocking(move || {
+        rs_operation_type.connect_by_id_and_retrieve_root_dir()
+    })
+    .await
+    .map_err(spawn_blocking_join_err)??)
+}
+
+#[tauri::command]
+pub async fn rs_list_sub_dir(
+    rs_operation_type: RemoteStorageOperationType,
+) -> Result<ServerDirEntry> {
+    Ok(tokio::task::spawn_blocking(move || rs_operation_type.list_sub_dir())
+        .await
+        .map_err(spawn_blocking_join_err)??)
+}
+
+#[tauri::command]
+pub async fn rs_read_kdbx(
+    db_file_name: String,
+    password: Option<String>,
+    key_file_name: Option<String>,
+    app_state: State<'_, app_state::AppState>,
+) -> Result<kp_service::KdbxLoaded> {
+    let db_key_for_cache = db_file_name.clone();
+    let (kdbx_loaded, remote_mtime) = tokio::task::spawn_blocking(move || {
+        crate::remote_storage::rs_read_kdbx(
+            &db_file_name,
+            password.as_deref(),
+            key_file_name.as_deref(),
+        )
+    })
+    .await
+    .map_err(spawn_blocking_join_err)??;
+    app_state.set_remote_mtime(&db_key_for_cache, remote_mtime);
+    if crate::remote_storage::is_kdbx_entry_backed(&db_key_for_cache) {
+        app_state
+            .preference
+            .lock()
+            .unwrap()
+            .add_recent_file(&db_key_for_cache);
+    }
+    Ok(kdbx_loaded)
+}
+
+#[tauri::command]
+pub async fn rs_save_kdbx(
+    db_key: String,
+    overwrite: bool,
+    app_state: State<'_, app_state::AppState>,
+) -> Result<kp_service::KdbxSaved> {
+    let recorded_mtime = app_state.remote_mtime(&db_key);
+    let backup_file_name = app_state.get_backup_file(&db_key);
+    let db_key_for_cache = db_key.clone();
+    let (kdbx_saved, remote_mtime) = tokio::task::spawn_blocking(move || {
+        crate::remote_storage::rs_save_kdbx(
+            &db_key,
+            overwrite,
+            recorded_mtime,
+            backup_file_name.as_deref(),
+        )
+    })
+    .await
+    .map_err(spawn_blocking_join_err)??;
+    app_state.set_remote_mtime(&db_key_for_cache, remote_mtime);
+    Ok(kdbx_saved)
+}
+
+#[tauri::command]
+pub async fn rs_create_kdbx(
+    new_db: kp_service::NewDatabase,
+    app_state: State<'_, app_state::AppState>,
+) -> Result<kp_service::KdbxLoaded> {
+    let backup_file_name = app_state.get_backup_file(&new_db.database_file_name);
+    let (kdbx_loaded, db_key, remote_mtime) =
+        tokio::task::spawn_blocking(move || {
+            crate::remote_storage::rs_create_kdbx(new_db, backup_file_name.as_deref())
+        })
+        .await
+        .map_err(spawn_blocking_join_err)??;
+    app_state.set_remote_mtime(&db_key, remote_mtime);
+    if crate::remote_storage::is_kdbx_entry_backed(&db_key) {
+        app_state
+            .preference
+            .lock()
+            .unwrap()
+            .add_recent_file(&db_key);
+    }
+    Ok(kdbx_loaded)
+}
+
+// Refreshes the cached remote mtime to the current server value
+// without touching the in-memory db. Called when the user chooses
+// "Ignore" on the conflict dialog for a remote db, so the next
+// focus-poll doesn't re-prompt for the same diverged state.
+#[tauri::command]
+pub async fn rs_acknowledge_remote_change(
+    db_key: String,
+    app_state: State<'_, app_state::AppState>,
+) -> Result<()> {
+    let db_key_for_call = db_key.clone();
+    let current = tokio::task::spawn_blocking(move || {
+        crate::remote_storage::rs_current_remote_mtime(&db_key_for_call)
+    })
+    .await
+    .map_err(spawn_blocking_join_err)??;
+    app_state.set_remote_mtime(&db_key, current);
+    Ok(())
+}
+
+// Returns true when the remote file's mtime has diverged from what was
+// recorded at open / last save. Polled by the frontend on window-focus
+// for every open remote db. A false-positive-free design: when either
+// the recorded value or the current value is missing (some servers
+// don't report mtime), returns false rather than prompting the user.
+#[tauri::command]
+pub async fn rs_check_remote_modified(
+    db_key: String,
+    app_state: State<'_, app_state::AppState>,
+) -> Result<bool> {
+    let recorded = app_state.remote_mtime(&db_key);
+    let Some(recorded) = recorded else {
+        return Ok(false);
+    };
+    let db_key_for_call = db_key.clone();
+    let current = tokio::task::spawn_blocking(move || {
+        crate::remote_storage::rs_current_remote_mtime(&db_key_for_call)
+    })
+    .await
+    .map_err(spawn_blocking_join_err)??;
+    let Some(current) = current else {
+        return Ok(false);
+    };
+    Ok(current != recorded)
+}
+
+// Downloads the current remote bytes and merges them into the in-memory
+// db using the stored composite key (no credential re-entry). On success
+// the in-memory db is marked save_pending, and the recorded mtime is
+// updated to the just-downloaded version so the user isn't immediately
+// re-prompted by the next focus-poll.
+#[tauri::command]
+pub async fn rs_merge_with_remote(
+    db_key: String,
+    app_state: State<'_, app_state::AppState>,
+) -> Result<kp_service::MergeResult> {
+    let db_key_for_cache = db_key.clone();
+    let (merge_result, remote_mtime) = tokio::task::spawn_blocking(move || {
+        crate::remote_storage::rs_merge_with_remote(&db_key)
+    })
+    .await
+    .map_err(spawn_blocking_join_err)??;
+    app_state.set_remote_mtime(&db_key_for_cache, remote_mtime);
+    Ok(merge_result)
+}
+
+#[tauri::command]
+pub async fn rs_list_kdbx_source_connections(
+    rs_storage_type: RemoteStorageType,
+) -> Result<Vec<kp_service::RemoteConnectionEntrySummary>> {
+    Ok(crate::remote_storage::list_kdbx_source_connections(
+        rs_storage_type,
+    )?)
+}
+
+#[tauri::command]
+pub async fn rs_get_remote_storage_config(
+    rs_storage_type: RemoteStorageType,
+    connection_id: &str,
+) -> Result<RemoteStorageTypeConfig> {
+    Ok(crate::remote_storage::get_remote_storage_config(
+        rs_storage_type,
+        connection_id,
+    )?)
+}
+
+// Mac App Store builds: Apple requires updates to flow through the App
+// Store, so we omit the update-check command entirely. The cljs side
+// silently no-ops on missing-command errors via the :silent? branch.
+#[cfg(not(feature = "mas-build"))]
+#[tauri::command]
+pub(crate) async fn check_for_updates(
+    app_state: State<'_, app_state::AppState>,
+) -> Result<updater::UpdateCheckResult> {
+    let current_version = app_state.app_version();
+    updater::check_for_updates(current_version).await
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 // Tried these to use with macOS 13 and macOS 10. Only the async version will work with all macOS
