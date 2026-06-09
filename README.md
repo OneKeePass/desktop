@@ -57,11 +57,11 @@ The macOS app can also be downloaded from the Mac App Store:
 
 ### OneKeePass-Browser
 
-Browser extensions is available for [Firefox](https://addons.mozilla.org/en-US/firefox/addon/onekeepass-browser/) and [Chrome](https://chromewebstore.google.com/detail/onekeepass-browser/cmdmojmbfcpkloflnjkkdjcflaidangh) at this time
+Browser extensions are available for [Firefox](https://addons.mozilla.org/en-US/firefox/addon/onekeepass-browser/), [Chrome](https://chromewebstore.google.com/detail/onekeepass-browser/cmdmojmbfcpkloflnjkkdjcflaidangh) and [Brave](https://chromewebstore.google.com/detail/onekeepass-browser/cmdmojmbfcpkloflnjkkdjcflaidangh)  at this time
 
 ### Mobile apps
 
-OneKeePass is also available for iOS and Android platforms. See [here](https://github.com/OneKeePass/mobile) for details and downloading
+OneKeePass is also available for iOS and Android platforms. See [here](https://github.com/OneKeePass/mobile) for details and download
 
 ## FAQ
 
