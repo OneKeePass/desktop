@@ -49,14 +49,23 @@ All created database files are encrypted using the best and most secure encrypti
 
 You can start using OneKeePass on your Windows, macOS, or Linux computer using the latest pre-compiled binaries from the **[downloads page](https://github.com/OneKeePass/desktop/releases)**
 
-OneKeePass is also available for iOS and Android platforms. See [here](https://github.com/OneKeePass/mobile) for details
+The macOS app can also be downloaded from the Mac App Store:
 
-
-Common **FAQ** about the application can be found [here](./docs/FAQ.md)
+<a href="https://apps.apple.com/us/app/onekeepass-password-manager/id6764709055">
+  <img src="./screenshots/mac-app-store-badge.svg" alt="Download on the Mac App Store" height="48" />
+</a>
 
 ### OneKeePass-Browser
 
 Browser extensions is available for [Firefox](https://addons.mozilla.org/en-US/firefox/addon/onekeepass-browser/) and [Chrome](https://chromewebstore.google.com/detail/onekeepass-browser/cmdmojmbfcpkloflnjkkdjcflaidangh) at this time
+
+### Mobile apps
+
+OneKeePass is also available for iOS and Android platforms. See [here](https://github.com/OneKeePass/mobile) for details and downloading
+
+## FAQ
+
+Common **FAQ** about the application can be found [here](./docs/FAQ.md)
 
 ## How to build
 
