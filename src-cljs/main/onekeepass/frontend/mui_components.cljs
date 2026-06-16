@@ -499,7 +499,20 @@
   MoreHoriz
   GroupWorkOutlined
   ;;TextSnippetOutlined
-  WifiOutlined] "mui-icon-" "mui-icons/")
+  WifiOutlined
+  ;; Icons for the extended standard entry types
+  BadgeOutlined                  ;; Identity
+  DirectionsCarOutlined          ;; Driver License
+  EmailOutlined                  ;; Email Account
+  TerminalOutlined               ;; SSH Login
+  ApiOutlined                    ;; API Credential
+  StorageOutlined                ;; Database Credential
+  WorkspacePremiumOutlined       ;; Software License
+  CardMembershipOutlined         ;; Membership
+  AccountBalanceWalletOutlined   ;; Crypto Wallet
+  PolicyOutlined                 ;; Insurance Policy
+  LanOutlined                    ;; SFTP Connection
+  CloudOutlined] "mui-icon-" "mui-icons/")
 
 ;;;;;;;;;;;;;;;;
 ;;; Follwings are based on this example

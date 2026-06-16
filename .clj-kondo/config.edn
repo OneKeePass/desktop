@@ -122,6 +122,19 @@
                                 ArticleOutlined
                                 PreviewOutlined
                                 LocalizationProvider
+                                BadgeOutlined                  
+                                DirectionsCarOutlined          
+                                EmailOutlined                  
+                                TerminalOutlined               
+                                ApiOutlined                    
+                                StorageOutlined                
+                                WorkspacePremiumOutlined       
+                                CardMembershipOutlined         
+                                AccountBalanceWalletOutlined  
+                                PolicyOutlined                 
+                                LanOutlined                    
+                                CloudOutlined
+                                SimpleTreeView
 
                                 ;; Dialogs related
                                 merge-result-dialog

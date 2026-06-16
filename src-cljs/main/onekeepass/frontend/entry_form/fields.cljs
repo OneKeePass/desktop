@@ -11,6 +11,7 @@
    [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom mui-box
                                                      mui-circular-progress
                                                      mui-date-time-picker
+                                                     mui-desktop-date-picker
                                                      mui-form-control-label
                                                      mui-icon-autorenew
                                                      mui-icon-button
@@ -348,6 +349,52 @@
                           :slotProps {:textField {:variant "standard"
                                                   :sx {:margin-top cc/entry-cnt-field-margin-top}
                                                   :fullWidth true}}}]])
+
+;; A date-only picker for entry-type fields whose data-type is Date (core FieldDataType::Date).
+;; The stored value is always a 'yyyy-MM-dd' string (locale-independent, sortable). This is used
+;; only in edit mode; in read mode the field falls through to the plain text field, showing the
+;; same 'yyyy-MM-dd' string like any other field.
+(defn date-field
+  [{:keys [key value error-text helper-text on-change-handler]
+    :or {on-change-handler #()}
+    :as kv}]
+  (let [label (translated-label kv)
+        ;; value is a 'yyyy-MM-dd' string; parse to a Date for the picker (nil when blank)
+        date-val (when-not (str/blank? value)
+                   (.parse m/date-fns-utils value "yyyy-MM-dd"))]
+    [mui-localization-provider {:dateAdapter m/adapter-date-fns}
+     [mui-desktop-date-picker
+      {:label label
+       :value (or date-val nil)
+       :format "yyyy-MM-dd"
+       ;; onChange gives a Date (or nil when cleared); store back as a 'yyyy-MM-dd' string
+       :onChange (fn [^js/Date d]
+                   (on-change-handler
+                    (if (and d (not (js/isNaN (.getTime d))))
+                      (.formatByString m/date-fns-utils d "yyyy-MM-dd")
+                      "")))
+       :slotProps {:textField
+                   {:variant "standard"
+                    :error (not (nil? error-text))
+                    :helperText (if (nil? error-text) helper-text error-text)
+                    :fullWidth true
+                    :InputProps {:disableUnderline true}
+                    ;; Give the picker the same bordered look as the surrounding standard text
+                    ;; fields in edit mode. This mirrors the edit branch of
+                    ;; common-components/theme-text-field-sx, applied to the picker's inner Input
+                    ;; root via a descendant selector so the calendar button is left untouched.
+                    ;; MUI-X v8 renders PickersTextField, whose standard picker Input needs
+                    ;; InputProps.disableUnderline to suppress its own underline pseudo-elements.
+                    :sx {:margin-top cc/entry-cnt-field-margin-top
+                         "& .MuiPickersInputBase-root"
+                         {:border "1px solid grey"
+                          :outline "1px solid transparent"}
+
+                         "& .MuiPickersInputBase-root.Mui-focused"
+                         {:border "1px solid"
+                          :border-color "primary.main"
+                          :outline "1px solid"
+                          :outline-color "primary.main"}}}}}]]))
 
 (defn text-area-field [{:keys [key value edit on-change-handler]
                         :or {edit false

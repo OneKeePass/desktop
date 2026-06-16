@@ -345,6 +345,17 @@
                           :on-change-handler #(form-events/update-section-value-on-change
                                                section-name key (if % "True" "False")))]
 
+                  ;; Date fields (core FieldDataType::Date) show a date-only picker in edit mode.
+                  ;; In read mode they fall through to the plain text field (showing the stored
+                  ;; 'yyyy-MM-dd' string). The on-change-handler receives the formatted string.
+                  (and edit (= data-type const/DATE_TYPE))
+                  [fields/date-field
+                   (assoc kv
+                          :edit edit
+                          :error-text (get errors key)
+                          :on-change-handler #(form-events/update-section-value-on-change
+                                               section-name key %))]
+
                   ;; we are now using 'single-or-multiline-text-field' instead of earlier 'text-field'
                   ;; All text-fields are now either single line or multiline text area fields
                   :else
