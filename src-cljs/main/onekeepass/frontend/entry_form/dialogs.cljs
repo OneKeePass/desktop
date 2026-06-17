@@ -2,8 +2,9 @@
   (:require [clojure.string :as str]
             [onekeepass.frontend.common-components
              :refer [alert-dialog-factory confirm-text-dialog
-                     enter-key-pressed-factory selection-autocomplete on-change-factory
-                     on-check-factory]]
+                     enter-key-pressed-factory on-change-factory
+                     on-check-factory selection-autocomplete]]
+            [onekeepass.frontend.constants :as const]
             [onekeepass.frontend.db-icons :as db-icons]
             [onekeepass.frontend.entry-form.common :as ef-cmn :refer [popper-button-sx
                                                                       theme-popper-box-sx]]
@@ -13,13 +14,13 @@
             [onekeepass.frontend.events.move-group-entry :as move-events]
             [onekeepass.frontend.mui-components :as m
              :refer [custom-theme-atom mui-alert mui-alert-title mui-box
-                     mui-button mui-divider mui-checkbox mui-dialog
-                     mui-dialog-actions mui-dialog-content mui-dialog-title
+                     mui-button mui-checkbox mui-dialog mui-dialog-actions
+                     mui-dialog-content mui-dialog-title mui-divider
                      mui-form-control-label mui-grid mui-link mui-menu-item
                      mui-popper mui-stack mui-tab mui-tabs mui-text-field
                      mui-tooltip mui-typography]]
             [onekeepass.frontend.translation :as t
-             :refer [lstr-dlg-title]
+             :refer [lstr-dlg-title lstr-l]
              :refer-macros [tr-l tr-dlg-title tr-dlg-text tr-h tr-bl tr-m]]
             [reagent.core :as r]))
 
@@ -176,12 +177,20 @@
                   :on-click #(form-events/section-name-add-modify dialog-data)}
       (t/lstr-bl 'ok)]]]])
 
+;; Field types offered when adding a custom field. The :value is stored as the KV's
+;; :data-type and must match the core FieldDataType variant names. Only these three
+;; have dedicated edit-mode rendering (text input, switch, date picker).
+(def ^:private custom-field-type-options
+  [{:value const/TEXT_TYPE :label-key "fieldTypeText"}
+   {:value const/BOOL_TYPE :label-key "fieldTypeBoolean"}
+   {:value const/DATE_TYPE :label-key "fieldTypeDate"}])
+
 (defn add-modify-section-field-dialog
   [{:keys [dialog-show
            section-name
            field-name
            protected
-           _data-type
+           data-type
            mode
            add-more
            error-fields]
@@ -191,7 +200,10 @@
                   (form-events/section-field-add
                    (select-keys m [:field-name :protected :required :section-name :data-type]))
                   (form-events/section-field-modify
-                   (select-keys m [:field-name :current-field-name :data-type :protected :required :section-name]))))]
+                   (select-keys m [:field-name :current-field-name :data-type :protected :required :section-name]))))
+        ;; Boolean/Date fields are never masked, so 'protected' is irrelevant for them
+        protected-disabled? (contains? #{const/BOOL_TYPE const/DATE_TYPE}
+                                       (or data-type const/TEXT_TYPE))]
     [mui-dialog {:open dialog-show 
                  :dir (t/dir)
                  :on-click #(.stopPropagation ^js/Event %)
@@ -220,13 +232,33 @@
                                       (.focus (.getElementById js/document comp-id)))))
                       :on-change (on-change-factory form-events/section-field-dialog-update :field-name)
                       :variant "standard" :fullWidth true}]
-       [mui-stack {:direction "row"}
+       ;; Field type select (left) and Protected (right) share one row. Field type
+       ;; selection is offered only when adding a new field; modifying an existing field
+       ;; keeps its type to avoid converting a stored value to an incompatible format
+       ;; (e.g. arbitrary text into a date), so in modify mode only Protected is shown.
+       [mui-stack {:direction "row" :spacing 2 :sx {:align-items "flex-end" :mt 2}}
+        (when (= mode :add)
+          [m/text-field {:sx {:flex-grow 1}
+                         :select true
+                         :label (lstr-l 'fieldType)
+                         :value (or data-type const/TEXT_TYPE)
+                         :on-change (on-change-factory form-events/section-field-dialog-update :data-type)
+                         :variant "standard" :fullWidth true}
+           (doall (for [{:keys [value label-key]} custom-field-type-options]
+                    ^{:key value} [mui-menu-item {:value value} (t/lstr-l label-key)]))])
         [mui-form-control-label
-         {:control (r/as-element
+         {:label-placement "start"
+          :disabled protected-disabled?
+          :sx {:ml 0 :mr 0 :white-space "nowrap"}
+          :control (r/as-element
                     [mui-checkbox
-                     {:checked protected
+                     {:checked (and protected (not protected-disabled?))
+                      :disabled protected-disabled?
                       :on-change (on-check-factory form-events/section-field-dialog-update :protected)}])
-          :label (tr-l protected)}]
+          :label (tr-l protected)}
+         
+         
+         ]
         #_[mui-form-control-label
            {:control (r/as-element
                       [mui-checkbox {:checked required

@@ -375,6 +375,7 @@
                                                   {:key key
                                                    :protected protected
                                                    :required required
+                                                   :data-type data-type
                                                    :popper-anchor-el (get @refs key)
                                                    :section-name section-name})}
                     [mui-icon-edit-outlined]]]

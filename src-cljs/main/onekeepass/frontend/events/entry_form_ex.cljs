@@ -1076,17 +1076,23 @@
 
 (reg-event-db
  :section-field-modify-dialog-open
- (fn [db [_event-id {:keys [key section-name protected required popper-anchor-el]}]]
-   (-> db
-       (init-section-field-dialog-data)
-       (to-section-field-data :popper-anchor-el popper-anchor-el
-                              :section-name section-name
-                              :mode :modify
-                              :field-name key
-                              :current-field-name key
-                              :protected protected
-                              :required required
-                              :dialog-show true)
+ (fn [db [_event-id {:keys [key section-name protected required data-type popper-anchor-el]}]]
+   (let [;; Derive the field's actual type from the form data (single source of truth) so the
+         ;; dialog can disable 'protected' for Boolean/Date fields, regardless of the caller.
+         ;; Falls back to the passed data-type, then Text.
+         stored-data-type (->> (get-in-key-db db [entry-form-key :data :section-fields section-name])
+                               (some (fn [m] (when (= (:key m) key) (:data-type m)))))]
+     (-> db
+         (init-section-field-dialog-data)
+         (to-section-field-data :popper-anchor-el popper-anchor-el
+                                :section-name section-name
+                                :mode :modify
+                                :field-name key
+                                :current-field-name key
+                                :protected protected
+                                :required required
+                                :data-type (or stored-data-type data-type const/TEXT_TYPE)
+                                :dialog-show true))
        ;;  (to-section-field-data :popper-anchor-el popper-anchor-el)
        ;;  (to-section-field-data :section-name section-name)
        ;;  (to-section-field-data :mode :modify)
@@ -1099,10 +1105,18 @@
 (reg-event-db
  :section-field-dialog-update
  (fn [db [_event-id field-name-kw value]]
-   (if (and (= field-name-kw :dialog-show) (not value))
+   (cond
+     (and (= field-name-kw :dialog-show) (not value))
      (init-section-field-dialog-data db)
-     (-> db
-         (to-section-field-data field-name-kw value)))))
+
+     ;; Boolean/Date fields are rendered as a switch/date-picker and are never masked,
+     ;; so 'protected' is irrelevant for them. Clear it when such a type is chosen.
+     (and (= field-name-kw :data-type)
+          (contains? #{const/BOOL_TYPE const/DATE_TYPE} value))
+     (to-section-field-data db field-name-kw value :protected false)
+
+     :else
+     (to-section-field-data db field-name-kw value))))
 
 (reg-event-fx
  :section-field-add

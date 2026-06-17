@@ -554,26 +554,51 @@
       [single-line-text-field (assoc kv :label label :val val :helper-text helper-text)]
       [multiline-text-field (assoc kv :label label :val val :helper-text helper-text)])))
 
+(defn- bool-field-border-sx
+  "Border styling for the boolean field's container so it matches the text fields:
+   a rectangular border in edit mode and a single bottom line in read mode (theme-aware).
+   Mirrors common-components/theme-text-field-sx, which can't be reused directly here
+   because it targets the MuiInput-root that the Switch row does not have."
+  [edit theme]
+  (if edit
+    {:border "1px solid grey"
+     :outline "1px solid transparent"
+     "&:focus-within" {:border "1px solid var(--color-primary-main)"
+                       :outline "1px solid var(--color-primary-main)"}}
+    {:border 0
+     :border-bottom (if (m/is-light-theme? theme)
+                      "1px solid #eeeeee"
+                      "1px solid rgba(255, 255, 255, 0.3)")}))
+
 (defn bool-switch-field
+  "Renders a boolean field (core FieldDataType::Bool) as a labeled Switch in both edit and
+   read mode. In read mode the Switch is shown but disabled (not editable). The value is
+   stored as a string ('True'/'False'); the core treats true/yes/1 (case-insensitive) as true."
   [{:keys [value edit on-change-handler] :as kv}]
-  (if-not edit
-    [single-or-multiline-text-field kv]
-    (let [label (translated-label kv)
-          checked? (contains? #{"true" "yes" "1"}
-                              (some-> value str/trim str/lower-case))]
-      [mui-stack {:direction "row" :sx {:width "100%" :align-items "center"}}
-       [mui-form-control-label
-        {:label-placement "start"
-         :sx {:ml 0 :mr 0 :width "100%" :justify-content "space-between"}
-         :control (r/as-element
-                   [mui-switch
-                    {:checked checked?
-                     :on-change (fn [^js/Event e]
-                                  (on-change-handler (.. e -target -checked)))}])
-         :label (r/as-element
-                 [mui-typography {:variant "caption"
-                                  :sx {:color "text.secondary"}}
-                  label])}]])))
+  (let [label (translated-label kv)
+        checked? (contains? #{"true" "yes" "1"}
+                            (some-> value str/trim str/lower-case))]
+    ;; :margin-top matches the text fields (single-line-text-field) so the boolean row
+    ;; has the same vertical spacing as the other fields in the form. The border sx gives
+    ;; it the same rectangular (edit) / underlined (read) look as the text fields.
+    [mui-stack {:direction "row"
+                :sx (merge {:width "100%" :align-items "center" :margin-top "16px"
+                            :px "5px"}
+                           (bool-field-border-sx edit @custom-theme-atom))}
+     [mui-form-control-label
+      {:label-placement "start"
+       :sx {:ml 0 :mr 0 :width "100%" :justify-content "space-between"}
+       :control (r/as-element
+                 [mui-switch
+                  {:checked checked?
+                   :disabled (not edit)
+                   :on-change (fn [^js/Event e]
+                                (when edit
+                                  (on-change-handler (.. e -target -checked))))}])
+       :label (r/as-element
+               [mui-typography {:variant "caption"
+                                :sx {:color "text.secondary"}}
+                label])}]]))
 
 
 
