@@ -260,8 +260,15 @@
 
 (defn context-menu-root []
   (let [{:keys [open position items]} @menu-state]
+    ;; disableEnforceFocus: the Copy/Cut actions copy via the webview's native
+    ;; copy (document.execCommand 'copy'), which briefly focuses a temporary
+    ;; textarea. With MUI's default focus trap, the menu synchronously yanks
+    ;; focus back before execCommand runs, so the copy operates on the wrong
+    ;; selection. Disabling enforce-focus lets the temporary textarea keep
+    ;; focus long enough for the copy to succeed.
     [mui-menu {:open open
                :on-close close-context-menu!
+               :disableEnforceFocus true
                :anchorReference "anchorPosition"
                :anchorPosition position}
      (doall

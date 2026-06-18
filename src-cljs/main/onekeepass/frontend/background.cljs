@@ -220,14 +220,60 @@
   [dispatch-fn]
   (invoke-api "check_for_updates" {} dispatch-fn))
 
-(defn write-to-clipboard
-  "Copies given data to the clipboard - equivalent to Cmd + C"
+(defn- webview-native-copy
+  "Copies 'data' to the clipboard using the webview's own synchronous copy
+   (document.execCommand 'copy') via a temporary off-screen textarea.
+
+   This uses the same clipboard path as the webview's built-in Ctrl/Cmd+C,
+   which works across platforms - including Linux/Wayland where the
+   arboard-backed Tauri clipboard plugin fails because it falls back to X11
+   (most Wayland compositors do not implement the wlr-data-control protocol
+   arboard needs). Must be called from a user gesture (e.g. a click handler).
+
+   Returns true when execCommand reports success."
   [data]
-  (go
+  (let [doc js/document
+        body (.-body doc)
+        textarea (.createElement doc "textarea")
+        style (.-style textarea)
+        previously-focused (.-activeElement doc)]
+    (set! (.-value textarea) (str data))
+    ;; Keep the textarea out of view and non-disruptive to layout/scroll
+    (.setAttribute textarea "readonly" "")
+    (set! (.-position style) "fixed")
+    (set! (.-top style) "-9999px")
+    (set! (.-left style) "-9999px")
+    (set! (.-opacity style) "0")
+    (.appendChild body textarea)
     (try
-      (let [_r (<p! (writeText data))]
-        #_(println "Data is copied to clipboard" _r))
-      (catch js/Error err (js/console.log "Error: " (ex-cause err))))))
+      (.focus textarea)
+      (.select textarea)
+      (.execCommand doc "copy")
+      (finally
+        (.removeChild body textarea)
+        ;; Restore focus to whatever the user was on before
+        (when (and previously-focused (fn? (.-focus previously-focused)))
+          (.focus previously-focused))))))
+
+(defn write-to-clipboard
+  "Copies given data to the clipboard - equivalent to Cmd + C.
+   Uses the webview-native copy first (works on Linux/Wayland), and falls
+   back to the arboard-backed Tauri plugin if that reports failure."
+  [data]
+  (try
+    (when-not (webview-native-copy data)
+      (go
+        (try
+          (<p! (writeText data))
+          (catch js/Error err
+            (js/console.error "write-to-clipboard (Tauri plugin fallback) failed: " err)))))
+    (catch js/Error err
+      (js/console.error "write-to-clipboard (webview-native) failed, trying Tauri plugin: " err)
+      (go
+        (try
+          (<p! (writeText data))
+          (catch js/Error err2
+            (js/console.error "write-to-clipboard (Tauri plugin fallback) failed: " err2)))))))
 
 (defn clear-clipboard []
   (write-to-clipboard ""))
@@ -240,9 +286,9 @@
   (go
     (try
       (let [r (<p! (readText))]
-        (callback-fn r)
-        (js/console.log "Data read " r))
-      (catch js/Error err (js/console.log "Error: " (ex-cause err))))))
+        (callback-fn r))
+      (catch js/Error err
+        (js/console.error "read-from-clipboard (Tauri plugin) failed: " err)))))
 
 (defn load-kdbx
   "Calls the API to read and parse the selected db file.
