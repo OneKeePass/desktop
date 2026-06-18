@@ -114,9 +114,13 @@ pub(crate) fn build_menus<R: Runtime>(app_handle: &AppHandle<R>) -> Result<(), t
         MAIN_MENU_EDIT,
         system_menu_translation.main_menu(MAIN_MENU_EDIT),
     )
+    .undo()
+    .redo()
+    .separator()
     .cut()
     .copy()
     .paste()
+    .select_all()
     .separator()
     .item(&search_menu_item)
     .build()?;
