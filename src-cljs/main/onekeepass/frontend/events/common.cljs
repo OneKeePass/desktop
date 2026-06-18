@@ -11,7 +11,7 @@
                                                utc-to-local-datetime-str]]
             [re-frame.core :refer [dispatch dispatch-sync reg-event-db
                                    reg-event-fx reg-fx reg-sub subscribe]]
-            #_[re-frame.db :as rf-db]))
+            [re-frame.db :as rf-db]))
 
 ;; ns onekeepass.frontend.events.common-supports introduced 
 ;; to avoid dependency issue to use transalation fns
@@ -1270,13 +1270,58 @@
   (bg/write-to-clipboard data)
   (notify-copied-to-clipboard))
 
+(defn- on-linux? []
+  ;; Read os-name from app-db directly (not via subscribe) since this runs in
+  ;; event/callback context, not a reactive one.
+  (= (:os-name @rf-db/app-db) const/LINUX))
+
+;; On Linux the arboard-backed clipboard plugin fails (it falls back to X11 and
+;; times out on Wayland), so clipboard read/clear go through the GTK backend
+;; commands. Mac/Windows keep the existing plugin path unchanged.
+(defn read-clipboard-text [callback-fn]
+  (if (on-linux?)
+    (bg/read-from-clipboard-gtk callback-fn)
+    (bg/read-from-clipboard callback-fn)))
+
+(defn- clear-clipboard []
+  (if (on-linux?)
+    (bg/clear-clipboard-gtk)
+    (bg/clear-clipboard)))
+
+;; Holds a sensitive value awaiting clearing. On Wayland the compositor only
+;; lets the focused app modify the clipboard, so a timer-driven clear can be
+;; silently dropped while we are unfocused; we then retry it when the window
+;; regains focus (see clipboard-clear-on-window-focus).
+(def ^:private pending-sensitive-clipboard-clear (atom nil))
+
+(defn- clear-clipboard-if-matches
+  "Clears the clipboard only if it still holds 'data', so we never clobber
+   something the user copied afterwards."
+  [data]
+  (read-clipboard-text
+   (fn [clipboard-text]
+     (when (= clipboard-text data)
+       (clear-clipboard)))))
+
 (defn schedule-sensitive-clipboard-clear [data]
   (go
     (<! (timeout @clipboard-timeout))
-    (bg/read-from-clipboard
-     (fn [clipboard-text]
-       (when (= clipboard-text data)
-         (bg/clear-clipboard))))))
+    ;; Record as pending so a clear dropped while unfocused (Wayland) is retried
+    ;; on focus-regain. Only meaningful on Linux; elsewhere the clear succeeds
+    ;; immediately and the pending value is never acted on again.
+    (when (on-linux?)
+      (reset! pending-sensitive-clipboard-clear data))
+    (clear-clipboard-if-matches data)))
+
+(defn clipboard-clear-on-window-focus
+  "Called when the main window regains focus. Retries a pending sensitive
+   clipboard clear that may have been dropped while the window was unfocused
+   (Wayland only allows the focused app to modify the clipboard). The
+   match-check inside ensures we never clear something copied afterwards."
+  []
+  (when-let [data @pending-sensitive-clipboard-clear]
+    (reset! pending-sensitive-clipboard-clear nil)
+    (clear-clipboard-if-matches data)))
 
 (defn write-sensitive-to-clipboard [data]
   (write-to-clipboard data)

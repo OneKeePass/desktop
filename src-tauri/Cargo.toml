@@ -72,7 +72,12 @@ swift-rs = { version = "1.0.7", features = ["build"] }
 tauri-plugin-global-shortcut = "2"
 
 [target."cfg(target_os = \"windows\")".dependencies]
-winreg = "0.55.0" 
+winreg = "0.55.0"
+
+# GTK3 clipboard backend used on Linux (see src/clipboard.rs). Pinned to the
+# same gtk version webkit2gtk/Tauri use so we share the one GdkDisplay/main loop.
+[target."cfg(target_os = \"linux\")".dependencies]
+gtk = "0.18"
 
 [features]
 default = ["custom-protocol"]

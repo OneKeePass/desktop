@@ -3954,6 +3954,7 @@ dependencies = [
  "env_logger",
  "futures-util",
  "gethostname 0.5.0",
+ "gtk",
  "hex",
  "log",
  "log4rs",

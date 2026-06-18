@@ -1,6 +1,5 @@
 (ns onekeepass.frontend.context-menu
   (:require
-   [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.mui-components :refer [mui-divider mui-menu mui-menu-item]]
    [onekeepass.frontend.translation :refer [lstr-ml]]
@@ -149,7 +148,7 @@
 
 (defn- paste-into-selection!
   [target-el selection]
-  (bg/read-from-clipboard
+  (cmn-events/read-clipboard-text
    (fn [clipboard-text]
      (when (= :input (:type selection))
        (replace-input-selection! target-el selection (or clipboard-text ""))))))

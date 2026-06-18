@@ -133,6 +133,7 @@
 
 (def MACOS "macos")
 (def WINDOWS "windows")
+(def LINUX "linux")
 
 (def GROUP "Group")
 

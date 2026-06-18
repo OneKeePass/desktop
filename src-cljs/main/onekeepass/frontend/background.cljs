@@ -290,6 +290,28 @@
       (catch js/Error err
         (js/console.error "read-from-clipboard (Tauri plugin) failed: " err)))))
 
+;; Linux-only clipboard read/clear via the GTK backend commands (see
+;; src-tauri/src/clipboard.rs). The arboard-backed Tauri plugin used by
+;; read-from-clipboard/clear-clipboard fails on Linux/Wayland, so the events
+;; layer routes Linux through these instead (based on os-name).
+
+(defn clear-clipboard-gtk []
+  (invoke-api "clipboard_clear" {}
+              (fn [{:keys [error]}]
+                (when error
+                  (js/console.error "clipboard_clear failed: " error)))))
+
+(defn read-from-clipboard-gtk
+  "Linux GTK-backed clipboard read. 'callback-fn' is called with the clipboard
+   text (or nil). convert-response false keeps the text verbatim."
+  [callback-fn]
+  (invoke-api "clipboard_get_text" {}
+              (fn [{:keys [result error]}]
+                (if error
+                  (js/console.error "clipboard_get_text failed: " error)
+                  (callback-fn result)))
+              :convert-response false))
+
 (defn load-kdbx
   "Calls the API to read and parse the selected db file.
    Calls the dispatch-fn with the received map of type 'KdbxLoaded' 

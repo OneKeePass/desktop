@@ -11,6 +11,8 @@ mod auto_open;
 mod auto_type;
 mod biometric;
 mod browser_service;
+#[cfg(target_os = "linux")]
+mod clipboard;
 mod commands;
 mod constants;
 mod db_file_watcher;
@@ -102,6 +104,10 @@ fn main() {
             commands::check_for_updates,
             commands::clear_csv_data_cache,
             commands::clear_recent_files,
+            #[cfg(target_os = "linux")]
+            commands::clipboard_clear,
+            #[cfg(target_os = "linux")]
+            commands::clipboard_get_text,
             commands::clone_entry,
             commands::close_kdbx,
             commands::collect_entry_group_tags,

@@ -219,6 +219,22 @@ pub(crate) async fn system_info_with_preference<R: Runtime>(
     Ok(SystemInfoWithPreference::init(app))
 }
 
+// Linux clipboard read/clear via the GTK/GDK clipboard. See crate::clipboard
+// for why the arboard-backed clipboard plugin is bypassed on Linux.
+#[cfg(target_os = "linux")]
+#[tauri::command]
+pub(crate) async fn clipboard_get_text<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<Option<String>> {
+    crate::clipboard::get_text(&app)
+}
+
+#[cfg(target_os = "linux")]
+#[tauri::command]
+pub(crate) async fn clipboard_clear<R: Runtime>(app: tauri::AppHandle<R>) -> Result<()> {
+    crate::clipboard::clear(&app)
+}
+
 #[tauri::command]
 pub(crate) async fn update_preference(
     app_state: State<'_, app_state::AppState>,

@@ -4,6 +4,7 @@
    [camel-snake-kebab.core :as csk]
    [camel-snake-kebab.extras :as cske]
    [onekeepass.frontend.background :as bg]
+   [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.constants :as const :refer
     [BROWSER_CONNECTION_REQUEST_EVENT CLOSE_REQUESTED DB_FILE_CHANGED_EVENT FILE_DROP MAIN_WINDOW_EVENT
      MENU_ID_ABOUT OTP_TOKEN_UPDATE_EVENT PASSKEY_DATA_CHANGED_EVENT TAURI_MENU_EVENT WINDOW_FOCUS_CHANGED]]
@@ -124,7 +125,10 @@
       ;; The poll event filters to remote db_keys and is a no-op when
       ;; none are open, so this is essentially free in the common case.
       (when focused
-        (dispatch [:external-db-change/poll-open-remote-dbs]))
+        (dispatch [:external-db-change/poll-open-remote-dbs])
+        ;; Retry a sensitive clipboard clear that may have been dropped while
+        ;; unfocused (Wayland only lets the focused app modify the clipboard).
+        (cmn-events/clipboard-clear-on-window-focus))
 
       (= action FILE_DROP)
       (when-let [file-path (-> cljs-response :payload :file-path)]
