@@ -254,9 +254,14 @@
        (assoc :on-key-down (.-onKeyDown listeners)))
      
      [mui-list-item-avatar
-      [mui-avatar [render-entry-icon {:db-key active-db-key
-                                      :icon-id (:icon-id item)
-                                      :custom-icon-uuid (:custom-icon-uuid item)}]]]
+      ;; Rounded-square avatar with a subtle tinted background, so both built-in
+      ;; SVG icons and custom PNG icons sit on a consistent surface in the list.
+      [mui-avatar {:variant "rounded"
+                   :sx {:bgcolor (theme-color @custom-theme-atom :selected-item)
+                        :border-radius 2}}
+       [render-entry-icon {:db-key active-db-key
+                           :icon-id (:icon-id item)
+                           :custom-icon-uuid (:custom-icon-uuid item)}]]]
      [mui-list-item-text
       {:primaryTypographyProps {:max-width 155
                                 :white-space "nowrap"
