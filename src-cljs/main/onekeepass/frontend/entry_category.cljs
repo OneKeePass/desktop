@@ -213,9 +213,25 @@
 
 (defn category-title
   [showing-groups-as]
-  [mui-stack {:direction "row" :sx {:width "100%"}}
+  ;; Section header that separates the top general categories from the group/type/tag
+  ;; list below. A top divider + extra vertical spacing give breathing room above and
+  ;; below, and the label itself is styled distinctly (section-header color, small bold
+  ;; uppercase) so it reads as a heading rather than a selectable row.
+  [mui-stack {:direction "row"
+              :sx {:width "100%"
+                   :align-items "center"
+                   :mt "12px"
+                   :mb "6px"
+                   :pt "8px"
+                   :border-top "1px solid"
+                   :border-color "divider"}}
    [mui-stack {:direction "row" :sx {:width "90%"  :align-items "center"}}
-    [mui-typography {:sx {:padding-left "16px"}}
+    [mui-typography {:sx {:padding-left "16px"
+                          :color (theme-color @custom-theme-atom :section-header)
+                          :font-size "0.75rem"
+                          :font-weight 700
+                          :letter-spacing "0.08em"
+                          :text-transform "uppercase"}}
      (cond
        (or (nil? showing-groups-as) (= showing-groups-as :type))
        (tr-l-cv GROUPING_LABEL_TYPES)
@@ -387,6 +403,8 @@
                       ;; left side panel when the height of main window is small
                       :overflow-y "auto"
                       :overflow-x "hidden"
+                      ;; Space below the group tree so it isn't flush with the bottom edge
+                      :padding-bottom "12px"
                       :width "100%"}}
      [mui-box
       [mui-list
