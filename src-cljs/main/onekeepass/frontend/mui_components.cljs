@@ -177,6 +177,21 @@
     (= color-kw :info-main)
     (->  theme .-palette .-info .-main)
 
+    ;; Background of a section card in the read (non-edit) entry form. White in light
+    ;; mode. In dark mode use an elevated surface that is distinctly lighter than the
+    ;; form background (palette paper/default are both ~#121212, so use an explicit value).
+    (= color-kw :entry-section-card-bg)
+    (if (= "light" (-> theme .-palette .-mode))
+      "#ffffff"
+      "#2a2a2a")
+
+    ;; Background behind the read-mode entry form, slightly off-white/grey so the white
+    ;; section cards are visually distinct. Uses the default background in dark mode.
+    (= color-kw :entry-form-bg)
+    (if (= "light" (-> theme .-palette .-mode))
+      (gobj/get color-grey 100)
+      (-> theme .-palette .-background .-default))
+
     ;; Translucent primary tint for selected list rows, shared by all lists.
     ;; Defined once in the theme (customColors.selectedItem); adjust via
     ;; 'selected-item-opacity'. Works for both light and dark themes.

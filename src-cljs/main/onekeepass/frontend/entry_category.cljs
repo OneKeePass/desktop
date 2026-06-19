@@ -16,6 +16,7 @@
             [onekeepass.frontend.group-tree-content :as gt]
             [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                               mui-box
+                                                              mui-divider
                                                               mui-icon-access-time
                                                               mui-icon-button
                                                               mui-icon-check
@@ -220,18 +221,24 @@
   [mui-stack {:direction "row"
               :sx {:width "100%"
                    :align-items "center"
-                   :mt "12px"
+                   :mt "6px"
                    :mb "6px"
                    :pt "8px"
-                   :border-top "1px solid"
-                   :border-color "divider"}}
+                   :pb "8px"
+                   :background-color (theme-color @custom-theme-atom :color1)
+                   
+                   ;; :border-top ".5px solid"
+                   ;; :border-color "divider"
+                   
+                   }}
    [mui-stack {:direction "row" :sx {:width "90%"  :align-items "center"}}
     [mui-typography {:sx {:padding-left "16px"
                           :color (theme-color @custom-theme-atom :section-header)
-                          :font-size "0.75rem"
+                          :font-size "0.95rem"
                           :font-weight 700
                           :letter-spacing "0.08em"
-                          :text-transform "uppercase"}}
+                          ;;:text-transform "uppercase"
+                          }}
      (cond
        (or (nil? showing-groups-as) (= showing-groups-as :type))
        (tr-l-cv GROUPING_LABEL_TYPES)
@@ -411,6 +418,7 @@
        ^{:key :all} [category-item all :general-categories]
        ^{:key :fav} [category-item fav :general-categories]
        ^{:key :deleted} [category-item deleted :general-categories]]
+      #_[mui-divider {:sx {}}]
       [category-title showing-groups-as]
 
       (cond

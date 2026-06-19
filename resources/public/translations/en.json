@@ -75,6 +75,7 @@
         "capitalizeWords": "Capitalize words",
         "categories": "Categories",
         "category": "Category",
+        "changeIcon": "Click to change icon",
         "changePassword": "Change password",
         "clearList": "Clear list",
         "clipboardTimeout": "Clipboard Timeout(in sec)",

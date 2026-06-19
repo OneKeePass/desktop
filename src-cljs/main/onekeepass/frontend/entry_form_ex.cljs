@@ -14,6 +14,7 @@
    [onekeepass.frontend.db-icons :as db-icons :refer [entry-icon
                                                       entry-type-icon]]
    [onekeepass.frontend.entry-form.common :as ef-cmn :refer [ENTRY_DATETIME_FORMAT
+                                                             theme-content-read-sx
                                                              theme-content-sx]]
    [onekeepass.frontend.entry-form.dialogs :as dlg :refer [add-modify-section-field-dialog
                                                            add-modify-section-popper
@@ -172,6 +173,22 @@
   [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :section-header)}}
                    :variant  "button"} text])
 
+(defn read-section-title
+  "Section title shown above a card in read (non-edit) mode. Uses the theme primary
+   (section-header) color in sentence case, rather than the uppercase 'button'
+   caption used inside the edit-mode boxes."
+  [text]
+  [mui-typography {:sx {:color (theme-color @custom-theme-atom :section-header)
+                       :font-weight 600
+                       :font-size "0.8rem"
+                       :letter-spacing "0.05em"
+                       ;; Align with the card's left edge (card has margin-left 16px) and
+                       ;; leave a clear gap before the card below.
+                       :padding-left "16px"
+                       :margin-top "10px"
+                       :margin-bottom "8px"}}
+   text])
+
 (defn expiry-content []
   (let [edit @(form-events/form-edit-mode)
         expiry-duration-selection @(form-events/entry-form-field :expiry-duration-selection)
@@ -218,28 +235,32 @@
         parent-group-uuid @(form-events/entry-form-data-fields :group-uuid)
         {:keys [name]} @(dlg-events/selected-group-info parent-group-uuid)]
     (when-not edit
-      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
+      [mui-box {:sx {:margin-bottom "8px"}}
+       [read-section-title (tr-l "info")]
+       [mui-box {:sx (theme-content-read-sx @custom-theme-atom)}
 
-       [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
-        [mui-typography (str (tr-l "uuid") ":")]
-        [mui-typography @(form-events/entry-form-data-fields :uuid)]]
+       ;; Two-column rows: a fixed-width muted label and a left-aligned value, so the
+       ;; values line up in a column instead of hugging the right edge.
+       [mui-stack {:direction "row" :sx {:margin-bottom "10px"}}
+        [mui-typography {:sx {:width "30%" :color "text.secondary" :text-align "right" :padding-right "16px"}} (str (tr-l "uuid") ":")]
+        [mui-typography {:sx {:width "70%"}} @(form-events/entry-form-data-fields :uuid)]]
 
-       [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
-        [mui-typography (str (tr-l "created") ":")]
-        [mui-typography (u/to-local-datetime-str creation-time ENTRY_DATETIME_FORMAT)]]
+       [mui-stack {:direction "row" :sx {:margin-bottom "10px"}}
+        [mui-typography {:sx {:width "30%" :color "text.secondary" :text-align "right" :padding-right "16px"}} (str (tr-l "created") ":")]
+        [mui-typography {:sx {:width "70%"}} (u/to-local-datetime-str creation-time ENTRY_DATETIME_FORMAT)]]
 
-       [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
-        [mui-typography (str (tr-l "lastModified") ":")]
-        [mui-typography (u/to-local-datetime-str last-modification-time ENTRY_DATETIME_FORMAT)]]
+       [mui-stack {:direction "row" :sx {:margin-bottom "10px"}}
+        [mui-typography {:sx {:width "30%" :color "text.secondary" :text-align "right" :padding-right "16px"}} (str (tr-l "lastModified") ":")]
+        [mui-typography {:sx {:width "70%"}} (u/to-local-datetime-str last-modification-time ENTRY_DATETIME_FORMAT)]]
 
-       [mui-stack {:direction "row" :sx {:justify-content "space-between"}}
-        [mui-typography (str (tr-l "group") ":")]
-        [mui-typography name]]
+       [mui-stack {:direction "row"}
+        [mui-typography {:sx {:width "30%" :color "text.secondary" :text-align "right" :padding-right "16px"}} (str (tr-l "group") ":")]
+        [mui-typography {:sx {:width "70%"}} name]]
 
        (when-not (= expiry-duration-selection "no-expiry")
-         [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-top "10px"}}
-          [mui-typography (str (tr-l "expires") ":")]
-          [mui-typography (u/to-local-datetime-str expiry-dt ENTRY_DATETIME_FORMAT)]])])))
+         [mui-stack {:direction "row" :sx {:margin-top "10px"}}
+          [mui-typography {:sx {:width "30%" :color "text.secondary" :text-align "right" :padding-right "16px"}} (str (tr-l "expires") ":")]
+          [mui-typography {:sx {:width "70%"}} (u/to-local-datetime-str expiry-dt ENTRY_DATETIME_FORMAT)]])]])))
 
 (defn section-field-add-icon-button [section-name]
   (if (not= section-name ADDITIONAL_ONE_TIME_PASSWORDS)
@@ -294,13 +315,12 @@
     ;; Show a section in edit mode irrespective of its contents; In non edit mode a section is shown only 
     ;; if it has some fields with non blank value. 
     (when (or edit (boolean (seq (filter (fn [kv] (not (str/blank? (:value kv)))) section-data))))  ;;(seq section-data)
-      (let [refs (atom {})]
-        [mui-box {:sx (theme-content-sx @custom-theme-atom)
-                  ;;:sx content-sx
-                  ;;:style {:background @m/entry-content-bg-color}
-                  }
-         [section-header section-name]
-         (doall
+      (let [refs (atom {})
+            standard-sections @(form-events/entry-form-data-fields :standard-section-names)
+            standard-section? (contains-val? standard-sections section-name)
+            section-title (if standard-section? (tr-entry-section-name-cv section-name) section-name)
+            fields-content
+            (doall
           (for [{:keys [key
                         value
                         protected
@@ -382,9 +402,17 @@
                   [mui-tooltip  {:title (lstr-l 'deleteField) :enterDelay 2500}
                    [mui-icon-button {:edge "end"
                                      :on-click #(form-events/field-delete section-name key)}
-                    [mui-icon-delete-outline]]]])])))
-         #_[custom-field-delete-confirm @(form-events/field-delete-dialog-data)]
-         #_[custom-section-delete-confirm @(form-events/section-delete-dialog-data)]]))))
+                    [mui-icon-delete-outline]]]])])))]
+        ;; Edit mode keeps the bordered box with the section header (and edit icons) inside.
+        ;; Read mode shows a blue section title above a borderless rounded card.
+        (if edit
+          [mui-box {:sx (theme-content-sx @custom-theme-atom)}
+           [section-header section-name]
+           fields-content]
+          [mui-box {:sx {:margin-bottom "8px"}}
+           [read-section-title section-title]
+           [mui-box {:sx (theme-content-read-sx @custom-theme-atom)}
+            fields-content]])))))
 
 (defn get-section-data
   "Called to set up any entry type specific data in kv
@@ -478,13 +506,13 @@
                       :on-change-handler  (on-change-factory form-events/entry-form-data-update-field-value :title)}]]
 
         [mui-stack {:direction "row" :sx {:width "12%" :justify-content "center" :align-items "center"}}
-         [mui-typography {:sx {:padding-left "5px"} :align "center" :paragraph false :variant "subtitle1"}
-          (tr-l "icons")]
-         [mui-icon-button {:edge "end" :color "primary"
-                           :sx {} #_{:margin-top "16px" :margin-right "-8px"}
-                           :on-click #(show-icons-dialog url-value)}
-          [db-icons/render-entry-icon {:icon-id (:icon-id fields)
-                                       :custom-icon-uuid (:custom-icon-uuid fields)}]]]
+         ;; Tooltip indicates the icon is clickable to change it (replaces the "Icons" label).
+         [mui-tooltip {:title (lstr-l 'changeIcon) :enterDelay 800}
+          [mui-icon-button {:edge "end" :color "primary"
+                            :sx {:border "1px dashed" :border-color "divider" :border-radius "8px"}
+                            :on-click #(show-icons-dialog url-value)}
+           [db-icons/render-entry-icon {:icon-id (:icon-id fields)
+                                        :custom-icon-uuid (:custom-icon-uuid fields)}]]]]
         [icons-dialog @icons-dialog-flag]]])))
 
 (defn tags-selection []
@@ -494,43 +522,41 @@
         edit @(form-events/form-edit-mode)]
     ;;(println "tags-selection called tags:" tags " all-tags:" all-tags)
     (when (or edit (boolean (seq tags)))
-      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
-       [mui-stack {:direction "row"}]
-       [tags-field all-tags tags form-events/on-tags-selection edit]
-       (when edit
-         [mui-typography {:variant "caption"} (tr-h "selectTag")])])))
+      (if edit
+        [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
+         [mui-stack {:direction "row"}]
+         [tags-field all-tags tags form-events/on-tags-selection edit]
+         [mui-typography {:variant "caption"} (tr-h "selectTag")]]
+        [mui-box {:sx {:margin-bottom "8px"}}
+         [read-section-title (tr-l "tags")]
+         [mui-box {:sx (theme-content-read-sx @m/custom-theme-atom)}
+          [tags-field all-tags tags form-events/on-tags-selection edit]]]))))
 
 (defn notes-content []
   (let [edit @(form-events/form-edit-mode)
-        notes @(form-events/entry-form-data-fields :notes)]
+        notes @(form-events/entry-form-data-fields :notes)
+        body [mui-stack
+              [text-area-field {:key "Notes"
+                                :value notes
+                                :edit edit
+                                :on-change-handler (on-change-factory form-events/entry-form-data-update-field-value :notes)
+                                #_#(form-events/entry-form-data-update-field-value :notes (-> % .-target  .-value))}]]]
     (when (or edit (not (str/blank? notes)))
-      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
-       [mui-stack {:direction "row"} [box-caption (tr-entry-section-name-cv "Notes")]]
-       [mui-stack
-        [text-area-field {:key "Notes"
-                          :value notes
-                          :edit edit
-                          :on-change-handler (on-change-factory form-events/entry-form-data-update-field-value :notes)
-                          #_#(form-events/entry-form-data-update-field-value :notes (-> % .-target  .-value))}]]])))
+      (if edit
+        [mui-box {:sx (theme-content-sx @custom-theme-atom)}
+         [mui-stack {:direction "row"} [box-caption (tr-entry-section-name-cv "Notes")]]
+         body]
+        [mui-box {:sx {:margin-bottom "8px"}}
+         [read-section-title (tr-entry-section-name-cv "Notes")]
+         [mui-box {:sx (theme-content-read-sx @custom-theme-atom)}
+          body]]))))
 
 (defn attachments-content []
   (let [edit @(form-events/form-edit-mode)
         attachments @(form-events/attachments)]
     (when (or edit (boolean (seq attachments)))
-      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
-       [mui-stack {:direction "row"}
-        [mui-stack {:direction "row" :sx {:margin-bottom "10px" :width "90%"}}
-         [box-caption (tr-entry-section-name-cv "Attachments")]]
-        (when edit
-          [mui-stack {:direction "row"
-                      :sx {:width "10%"
-                           :justify-content "flex-end"}}
-           [mui-tooltip {:title (lstr-l 'uploadFile)}
-            [mui-icon-button {:edge "end" :color "primary"
-                              :on-click #(form-events/upload-attachment-start)}
-             [mui-icon-add-circle-outline-outlined]]]])]
-
-       (doall
+      (let [attachment-list
+            (doall
 
         (for [{:keys [key value data-size data-hash] :as kv} attachments]
           ^{:key key} [mui-stack {:direction "row"}
@@ -578,8 +604,28 @@
                                               :edge "end"
                                               :on-click #(form-events/attachment-delete-confirm-dialog-open data-hash)}
                              [mui-icon-delete-outline]]]]])]))
-
-       [attachment-delete-confirm-dialog @(form-events/attachment-delete-dialog-data)]])))
+            delete-dialog [attachment-delete-confirm-dialog @(form-events/attachment-delete-dialog-data)]]
+        ;; Edit: bordered box with the caption + upload icon inside.
+        ;; Read: blue title above a borderless rounded card.
+        (if edit
+          [mui-box {:sx (theme-content-sx @custom-theme-atom)}
+           [mui-stack {:direction "row"}
+            [mui-stack {:direction "row" :sx {:margin-bottom "10px" :width "90%"}}
+             [box-caption (tr-entry-section-name-cv "Attachments")]]
+            [mui-stack {:direction "row"
+                        :sx {:width "10%"
+                             :justify-content "flex-end"}}
+             [mui-tooltip {:title (lstr-l 'uploadFile)}
+              [mui-icon-button {:edge "end" :color "primary"
+                                :on-click #(form-events/upload-attachment-start)}
+               [mui-icon-add-circle-outline-outlined]]]]]
+           attachment-list
+           delete-dialog]
+          [mui-box {:sx {:margin-bottom "8px"}}
+           [read-section-title (tr-entry-section-name-cv "Attachments")]
+           [mui-box {:sx (theme-content-read-sx @custom-theme-atom)}
+            attachment-list
+            delete-dialog]])))))
 
 (defn add-section-content []
   (let [edit @(form-events/form-edit-mode)]
@@ -665,24 +711,33 @@
                                     mas-build?
                                     entry-type-name))))}
 
-       [:div {:class "gheader" :style {:background  (theme-color @custom-theme-atom :bg-default)}}
+       ;; Read mode: title sits on a white (card) surface with a bottom divider so it is
+       ;; clearly separated from the grey content below. Edit mode keeps the plain bg.
+       [:div {:class "gheader" :style (if edit
+                                        {:background (theme-color @custom-theme-atom :bg-default)}
+                                        {:background (theme-color @custom-theme-atom :entry-section-card-bg)
+                                         :border-bottom (str "1px solid "
+                                                             (theme-color @custom-theme-atom :divider-color1))})}
         (when-not edit
           [mui-stack {:direction "row"}
            [mui-stack {:direction "row"  :sx {:width "95%" :justify-content "center" :align-items "center"}}
             [db-icons/render-entry-icon {:icon-id icon-id
                                          :custom-icon-uuid custom-icon-uuid}]
             [mui-typography {;; Need to use this margin value so that text aligns properly with icon
-                             :style {:margin-left 4 :margin-top 2}
+                             :style {:margin-left 12 :margin-top 2}
                              ;; If we use :sx, we need to use "2px" instead of 2
                              ;; Otherwise mui will interpret as 16px
-                             ;;:sx {:margin-left "2px" :margin-top "2px"}
+                             :sx {:font-weight 700 :color "text.primary" :font-size "1.05rem"}
                              :align "center" :paragraph false :variant "h6"} title]]
            [mui-stack {:direction "row" :sx {:width "5%"}}
             [:div {:style {:margin-right "8px"}}
              [form-menu entry-uuid]]]])]
 
+       ;; In read mode use a slightly grey form background so the white section cards
+       ;; stand out; edit mode keeps the default background behind its bordered boxes.
        [:div {:class "gcontent" :style {:overflow-y "scroll"
-                                        :background (theme-color @custom-theme-atom :bg-default)}}
+                                        :background (theme-color @custom-theme-atom
+                                                                 (if edit :bg-default :entry-form-bg))}}
         [center-content]
         #_[custom-field-dialogs]]
 

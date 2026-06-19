@@ -33,8 +33,23 @@
    :background (theme-color theme :entry-content-bg)
    :boxShadow 0
    :borderRadius 1
-   :margin "5px"
-   :padding "8px 8px 8px 8px"})
+   ;; Wider left/right margin keeps the box clear of the content edge and scrollbar;
+   ;; wider left/right padding gives the fields breathing room inside the box.
+   :margin "5px 16px"
+   :padding "8px 16px 8px 16px"})
+
+(defn theme-content-read-sx
+  "Card style for a section in read (non-edit) mode: a borderless rounded card with a
+   subtle shadow on a slightly grey form background, so sections read as distinct cards.
+   Used instead of 'theme-content-sx' (the bordered edit-mode box)."
+  [theme]
+  {:background (theme-color theme :entry-section-card-bg)
+   :border 0
+   :borderRadius 2
+   :boxShadow 1
+   ;; Wider left/right margins so the card clears the panel edges and the scrollbar.
+   :margin "0 16px 16px 16px"
+   :padding "4px 16px 10px 16px"})
 
 (def delete-totp-confirm-dialog-data (r/atom {:dialog-show false :section-name nil :otp-field-name nil}))
 
