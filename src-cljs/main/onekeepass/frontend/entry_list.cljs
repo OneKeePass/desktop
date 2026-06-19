@@ -183,20 +183,39 @@
         drag-style       (if (or is-dragging (and drag-in-progress is-selected))
                            (assoc style :opacity 1)
                            style)]
+    ;; The outer div occupies the full react-window slot (carries the positioning
+    ;; style). The inner mui-list-item is inset with transparent margins, which
+    ;; creates the visible gap between rows and lets the selection show as a
+    ;; rounded rectangle.
+    [:div {:style drag-style}
     [mui-list-item
      (cond-> {:ref    set-node-ref
-              :style  drag-style
 
-              ;; The selection color is set to one from "action.selected" instead of
-              ;; Mui-selected color "rgba(25, 118, 210, 0.08)" because of dnd. Need to see how to use that color
-              ;; for selected rows for both light and dark mode
-              :sx (cond-> {"& .MuiListItemSecondaryAction-root" {:right 0}}
+              ;; Inset the row inside its slot: :my creates the vertical gap between
+              ;; entries, :mx the horizontal inset, :border-radius the rounded corners.
+              ;; height is reduced by the total vertical margin so rows don't overlap.
+              :sx (cond-> {"& .MuiListItemSecondaryAction-root" {:right 0}
+                           :height "calc(100% - 8px)"
+                           :my "4px"
+                           :mx 1
+                           ;; ListItem defaults to width:100%; with the 8px left+right
+                           ;; margins (:mx 1) that overflows the slot, clipping the right
+                           ;; rounded corners. Shrink the width to keep both margins visible
+                           ;; so the box is fully rounded and clears the vertical divider.
+                           :width "calc(100% - 16px)"
+                           :box-sizing "border-box"
+                           :border-radius 2
+                           ;; Thin separator line between entries (kept commented out;
+                           ;; using spacing + rounded selection instead).
+                           #_:border-bottom #_"1px solid"
+                           #_:border-color #_"divider"}
                     ;; MUI v7 ListItem does not visually reflect :selected prop; apply bgcolor explicitly
                     ;; covers both single-select (selected-id) and multi-select (selected-ids).
+                    ;; Subtle translucent primary tint (:selected-item), keeping normal text color.
                     ;; "&:hover" keeps the same bg on mouse-over to suppress hover color on selected items.
                     is-selected
-                    (assoc :bgcolor "action.selected"
-                           "&:hover" {:bgcolor "action.selected"}))
+                    (assoc :bgcolor (theme-color @custom-theme-atom :selected-item)
+                           "&:hover" {:bgcolor (theme-color @custom-theme-atom :selected-item)}))
               :button true
               :value  uuid
               :on-click (fn [^js e]
@@ -247,7 +266,7 @@
                                   :white-space "nowrap"
                                   :text-overflow "ellipsis"
                                   :overflow "hidden"}
-       :primary (:title item) :secondary (:secondary-title item)}]]))
+       :primary (:title item) :secondary (:secondary-title item)}]]]))
 
 (defn row-item
   "Renders a list item.

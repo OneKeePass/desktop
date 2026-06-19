@@ -93,6 +93,8 @@
 
 (def ^:private create-theme mui-mat-styles/createTheme)
 
+(def ^:private alpha mui-mat-styles/alpha)
+
 (def color-grey ^js/Mui.Colors (.-grey  mui-colors))
 
 ;; We can change the theme type to 'light' or 'dark' by reseting this atom
@@ -167,6 +169,14 @@
 
     (= color-kw :info-main)
     (->  theme .-palette .-info .-main)
+
+    ;; Matches MUI's native .Mui-selected background used by ListItemButton
+    ;; (see entry-category rows) so entry-list selected rows use the same color
+    ;; in both light and dark themes.
+    (= color-kw :selected-item)
+    (let [^js palette (.-palette theme)]
+      (alpha (-> palette .-primary .-main)
+             (-> palette .-action .-selectedOpacity)))
 
     :else
     (->  theme .-palette .-primary .-main)))
