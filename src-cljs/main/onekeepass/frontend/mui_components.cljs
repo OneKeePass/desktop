@@ -95,6 +95,10 @@
 
 (def ^:private alpha mui-mat-styles/alpha)
 
+;; Opacity used for the selected-row highlight (a translucent tint of primary.main).
+;; Single place to make the selection lighter/darker for all lists.
+(def ^:private selected-item-opacity 0.20)
+
 (def color-grey ^js/Mui.Colors (.-grey  mui-colors))
 
 ;; We can change the theme type to 'light' or 'dark' by reseting this atom
@@ -126,6 +130,9 @@
      :background-default bg
      :popper-box-bg (if light? "whitesmoke" bg)
      :section-header pm
+     ;; Translucent primary tint for selected list rows. alpha() composites over the
+     ;; mode-specific background, so this adapts to both light and dark themes.
+     :selected-item (alpha pm selected-item-opacity)
      :text-primary (->  theme .-palette .-text .-primary)}))
 
 (defn theme-color [^js/Mui.Theme theme color-kw]
@@ -170,13 +177,11 @@
     (= color-kw :info-main)
     (->  theme .-palette .-info .-main)
 
-    ;; Matches MUI's native .Mui-selected background used by ListItemButton
-    ;; (see entry-category rows) so entry-list selected rows use the same color
-    ;; in both light and dark themes.
+    ;; Translucent primary tint for selected list rows, shared by all lists.
+    ;; Defined once in the theme (customColors.selectedItem); adjust via
+    ;; 'selected-item-opacity'. Works for both light and dark themes.
     (= color-kw :selected-item)
-    (let [^js palette (.-palette theme)]
-      (alpha (-> palette .-primary .-main)
-             (-> palette .-action .-selectedOpacity)))
+    (-> theme .-customColors .-selectedItem)
 
     :else
     (->  theme .-palette .-primary .-main)))
@@ -232,6 +237,7 @@
                 popper-box-bg
                 header-footer
                 section-header
+                selected-item
                 text-primary]} (prepare-theme-colors theme1)
 
         ;;IMPORTANT: All theme properties name should be in camelCase
@@ -247,7 +253,8 @@
                                             ;;property name in camelCase is expected
                                             :dbSettingsIcons db-settings-icons
                                             :dividerColor1 divider-color1
-                                            :sectionHeader section-header}
+                                            :sectionHeader section-header
+                                            :selectedItem selected-item}
 
                              :popperBox {:bg popper-box-bg}
 

@@ -311,7 +311,19 @@
           custom-entry-type?  (if-not type-category? false @(cmn-events/is-custom-entry-type entry-type-uuid))
           display-name (translate-category-item-title display-name categories-kind custom-entry-type?)]
 
-      [mui-list-item-button {:sx {"&.MuiListItemButton-root" {:padding-right "1px"}}
+      [mui-list-item-button {:sx {"&.MuiListItemButton-root" {:padding-right "1px"}
+                                  ;; Match the entry-list rows: inset rounded rectangle with a
+                                  ;; gap between items. width is shrunk by the 8px left+right
+                                  ;; margins so both sides stay rounded and clear of the edges.
+                                  :border-radius 2
+                                  :my "4px"
+                                  :mx 1
+                                  :width "calc(100% - 16px)"
+                                  :box-sizing "border-box"
+                                  ;; Use the shared selection tint (theme customColors.selectedItem)
+                                  ;; instead of MUI's default .Mui-selected color.
+                                  "&.Mui-selected" {:bgcolor (theme-color @custom-theme-atom :selected-item)}
+                                  "&.Mui-selected:hover" {:bgcolor (theme-color @custom-theme-atom :selected-item)}}
                              :on-click #(ec-events/load-category-entry-items
                                          category-detail-m categories-kind)
                              :on-context-menu (fn [^js/Event e]
