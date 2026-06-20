@@ -15,6 +15,7 @@
             [onekeepass.frontend.group-form :as gf]
             [onekeepass.frontend.group-tree-content :as gt]
             [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
+                                                              mui-avatar
                                                               mui-box
                                                               mui-divider
                                                               mui-icon-access-time
@@ -261,6 +262,57 @@
 (defn general-category-icon [name]
   [(get general-category-icons name mui-icon-access-time)])
 
+(def ^:private category-icon-colors
+  "Per entry-type / general-category icon colors. Keyed by the category title
+   (entry-type name constant, or general-category constant). The avatar
+   background uses a light alpha tint of the same color — see 'category-colors'.
+   Tags use a single color and group categories fall back to the theme color
+   (their KeePass icons are already multi-colored).
+
+   To tweak later:
+   - Change an individual icon color: edit its hex value below (and 'tag-icon-color'
+     for tags). The avatar background tint is derived automatically from it.
+   - Change how strong the background tint is for ALL icons: edit the alpha suffix
+     in 'category-colors' (the (str c \"33\") part). It is the last two hex digits of
+     an 8-digit #RRGGBBAA color: \"33\" ≈ 20%, \"4d\" ≈ 30%, \"66\" ≈ 40%, \"1a\" ≈ 10%.
+     Bump it up if the tint looks too faint (e.g. on the dark theme)."
+  {const/LOGIN_TYPE_NAME "#1e88e5"                     ;; blue
+   const/CREDIT_DEBIT_CARD_TYPE_NAME "#43a047"         ;; green
+   const/BANK_ACCOUNT_TYPE_NAME "#00897b"              ;; teal
+   const/WIRELESS_ROUTER_TYPE_NAME "#3949ab"           ;; indigo
+   const/PASSPORT_TYPE_NAME "#5e35b1"                  ;; deep purple
+   const/AUTO_DB_OPEN_TYPE_NAME "#6d4c41"              ;; brown
+   const/IDENTITY_TYPE_NAME "#00acc1"                  ;; cyan
+   const/DRIVER_LICENSE_TYPE_NAME "#f4511e"            ;; deep orange
+   const/EMAIL_ACCOUNT_TYPE_NAME "#e53935"             ;; red
+   const/SSH_LOGIN_TYPE_NAME "#546e7a"                 ;; blue grey
+   const/API_CREDENTIAL_TYPE_NAME "#8e24aa"            ;; purple
+   const/DATABASE_CREDENTIAL_TYPE_NAME "#5c6bc0"       ;; indigo light
+   const/SOFTWARE_LICENSE_TYPE_NAME "#7cb342"          ;; light green
+   const/MEMBERSHIP_TYPE_NAME "#fb8c00"                ;; orange
+   const/CRYPTO_WALLET_TYPE_NAME "#fdd835"             ;; yellow
+   const/INSURANCE_POLICY_TYPE_NAME "#039be5"          ;; light blue
+   const/REMOTE_CONNECTION_SFTP_TYPE_NAME "#26a69a"    ;; teal light
+   const/REMOTE_CONNECTION_WEBDAV_TYPE_NAME "#00acc1"  ;; cyan
+   const/CATEGORY_ALL_ENTRIES "#5c6bc0"                ;; indigo
+   const/CATEGORY_FAV_ENTRIES "#e53935"                ;; red
+   const/CATEGORY_DELETED_ENTRIES "#757575"})          ;; grey
+
+(def ^:private tag-icon-color "#fb8c00")               ;; amber for all tags
+
+(defn- category-colors
+  "Returns [icon-color avatar-bg] for a category row. When a specific color is
+   defined, the avatar background is a ~20% alpha tint of it (8-digit hex). Falls
+   back to the theme icon color + neutral selection tint otherwise."
+  [theme categories-kind title]
+  (let [c (if (= categories-kind :tag-categories)
+            tag-icon-color
+            (get category-icon-colors title))]
+    (if c
+      [c (str c "33")]
+      [(theme-color theme :entry-category-icons)
+       (theme-color theme :selected-item)])))
+
 (defn translate-category-item-title
   [title categories-kind custom-entry-type?]
   (cond
@@ -332,7 +384,8 @@
 
           row-selected? @(ec-events/is-selected-category category-detail-m)
           custom-entry-type?  (if-not type-category? false @(cmn-events/is-custom-entry-type entry-type-uuid))
-          display-name (translate-category-item-title display-name categories-kind custom-entry-type?)]
+          display-name (translate-category-item-title display-name categories-kind custom-entry-type?)
+          [icon-color icon-bg] (category-colors @custom-theme-atom categories-kind title)]
 
       [mui-list-item-button {:sx {"&.MuiListItemButton-root" {:padding-right "1px"}
                                   ;; Match the entry-list rows: inset rounded rectangle with a
@@ -363,14 +416,28 @@
 
      ;;Include context menus for a category
        #_[category-context-menu]
-       [mui-stack {:direction "row" :sx {:width "100%"}}
+       [mui-stack {:direction "row" :sx {:width "100%" :align-items "center"}}
 
         [mui-stack {:sx {:width "10%"}}
-         [mui-box {:sx {"& .MuiSvgIcon-root" {:color (theme-color @custom-theme-atom :entry-category-icons)}}}
+         ;; Rounded-square tinted avatar matching the entry-list item icons, so
+         ;; both panels share a consistent icon surface. The SvgIcon color
+         ;; override keeps the monochrome category icons on theme.
+         [mui-avatar {:variant "rounded"
+                      :sx {:width 28 :height 28
+                           :bgcolor icon-bg
+                           :border-radius 2
+                           ;; Normalize every icon to one size regardless of source
+                           ;; (MUI type/general icons render ~24px, KeePass group icons
+                           ;; ~16px). '&&' raises specificity to beat the per-icon
+                           ;; '& svg' em sizing set inside entry-icon / group-icon.
+                           ;; Tune the avatar (:width/:height above) and the icon size
+                           ;; (18px below) together if you want them larger/smaller.
+                           "&& .MuiSvgIcon-root" {:color icon-color
+                                                  :width "18px" :height "18px" :font-size "18px"}}}
           icon-comp]]
 
         [mui-stack {:sx {:width "70%"
-                         :padding-left "10px"
+                         :padding-left "16px"
                          :max-width "150px"
                          "& .MuiTypography-root" {:font-weight (if row-selected? "bold" "regular")}}}
          [:f> overflow-tool-tip display-name]]
