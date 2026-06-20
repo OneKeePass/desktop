@@ -514,8 +514,12 @@
  (fn [{:keys [db]} [_event-id {:keys [db-key] :as _kdbx-loaded}]]
    {:fx [[:dispatch [:load-all-tags]]
          [:dispatch [:group-tree-content/load-groups]]
+         ;; true => once the category data finishes loading, auto-select
+         ;; "All Entries" and load its entry list so the middle/right panes
+         ;; are not blank right after the db is opened
          [:dispatch [:entry-category/category-data-load-start
-                     (-> db :app-preference :default-entry-category-groupings)]]
+                     (-> db :app-preference :default-entry-category-groupings)
+                     true]]
          [:dispatch [:common/load-entry-type-headers]]
          [:dispatch [:custom-icons/load]]
          [:dispatch [:common/message-snackbar-open

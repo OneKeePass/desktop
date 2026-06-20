@@ -939,10 +939,17 @@
                    :background "var(--secondary)"}}
      [:div {:class "gheader"}]
      [:div {:class "gcontent"}
-      [mui-stack {:sx {:height "100%"
+      [mui-stack {:spacing 1.5
+                  :sx {:height "100%"
                        :align-items "center"
-                       :justify-content "center"}}
-       [mui-typography  {:variant "h6"}
+                       :justify-content "center"
+                       :px 3
+                       :color "text.secondary"}}
+       ;; Muted illustrative icon so the empty form reads as an intentional
+       ;; placeholder rather than a blank panel
+       [mui-icon-article-outlined {:sx {:font-size 64 :opacity 0.35}}]
+       [mui-typography  {:variant "h6"
+                         :sx {:text-align "center" :color "text.secondary"}}
         (if (not (nil? text-to-show))
           text-to-show
           (tr-h noEntrySelected))]]]

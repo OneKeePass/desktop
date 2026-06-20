@@ -63,8 +63,11 @@
     "windows": [
       {
         "title": "OneKeePass",
-        "width": 1000,
-        "height": 800,
+        "width": 1100,
+        "height": 740,
+        "minWidth": 1024,
+        "minHeight": 600,
+        "center": true,
         "resizable": true,
         "fullscreen": false,
         "useHttpsScheme": true
