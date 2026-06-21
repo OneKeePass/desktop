@@ -8,7 +8,7 @@
                                                              GROUPING_LABEL_TYPES]]
             [onekeepass.frontend.context-menu :as ctx-menu]
             [onekeepass.frontend.db-icons :refer [entry-type-icon group-icon]]
-            [onekeepass.frontend.events.common :as cmn-events] 
+            [onekeepass.frontend.events.common :as cmn-events]
             ;; need to be replaced events from ec-events?
             [onekeepass.frontend.events.entry-category :as ec-events]
             [onekeepass.frontend.events.group-form :as gf-events]
@@ -33,7 +33,7 @@
                                                               mui-menu
                                                               mui-menu-item
                                                               mui-stack
-                                                              mui-typography 
+                                                              mui-typography
                                                               theme-color]]
             [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-bl tr-ml tr-l-cv tr-entry-type-title-cv]]
             [reagent.core :as r]))
@@ -227,10 +227,9 @@
                    :pt "8px"
                    :pb "8px"
                    :background-color (theme-color @custom-theme-atom :color1)
-                   
+
                    ;; :border-top ".5px solid"
                    ;; :border-color "divider"
-                   
                    }}
    [mui-stack {:direction "row" :sx {:width "90%"  :align-items "center"}}
     [mui-typography {:sx {:padding-left "16px"
@@ -295,8 +294,13 @@
    const/REMOTE_CONNECTION_SFTP_TYPE_NAME "#26a69a"    ;; teal light
    const/REMOTE_CONNECTION_WEBDAV_TYPE_NAME "#00acc1"  ;; cyan
    const/CATEGORY_ALL_ENTRIES "#5c6bc0"                ;; indigo
-   const/CATEGORY_FAV_ENTRIES "#e53935"                ;; red
-   const/CATEGORY_DELETED_ENTRIES "#757575"})          ;; grey
+
+   ;; const/CATEGORY_FAV_ENTRIES "#e53935"                ;; red
+   ;; const/CATEGORY_DELETED_ENTRIES "#757575"            ;; grey
+
+   const/CATEGORY_FAV_ENTRIES       "#43a047"          ;; green
+   const/CATEGORY_DELETED_ENTRIES "#e53935"            ;; red
+   })
 
 (def ^:private tag-icon-color "#fb8c00")               ;; amber for all tags
 
@@ -415,7 +419,7 @@
                                                   entries-count)))
                              :selected row-selected?}
 
-     ;;Include context menus for a category
+       ;;Include context menus for a category
        #_[category-context-menu]
        [mui-stack {:direction "row" :sx {:width "100%" :align-items "center"}}
 

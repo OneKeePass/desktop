@@ -184,7 +184,36 @@
           save-disabled? (or locked? (not @(cmn-events/db-save-pending?)))
           multiple-dbs? (>= (count @(merging-events/multiple-unlocked-dbs?)) 2)
           ;; "Check Remote Changes" is only meaningful for an unlocked remote db
-          remote? (cmn-events/remote-db-key? @(cmn-events/active-db-key))]
+          remote? (cmn-events/remote-db-key? @(cmn-events/active-db-key))
+          light-theme? (= @(cmn-events/app-theme) const/THEME_LIGHT)
+          ;; Light-theme toolbar appearance. Swap which 'toolbar-style' line is
+          ;; active (keep exactly one). Dark theme is unaffected. Each option is
+          ;; {:bg background, :fg icon/text color, :border? thin bottom divider +
+          ;; no shadow (suits the light bars so they separate from the content)}.
+          ;;
+          ;; Colored bars (white icons) - bolder, Material-2 feel:
+          ;;   {:bg "#455a64" :fg "#ffffff"}  Blue Grey 700 - calm, professional
+          ;;   {:bg "#3949ab" :fg "#ffffff"}  Indigo 600    - cooler blue
+          ;;   {:bg "#00695c" :fg "#ffffff"}  Teal 800      - distinctive
+          ;;
+          ;; Light bars (dark icons + divider) - quieter, more modern/minimal:
+          ;;   {:bg "#ffffff" :fg "rgba(0,0,0,0.87)" :border? true}  White surface
+          ;;   {:bg "#fafafa" :fg "rgba(0,0,0,0.87)" :border? true}  Grey 50 (near-white)
+          ;;   {:bg "#eceff1" :fg "rgba(0,0,0,0.87)" :border? true}  Blue Grey 50 (cool tint)
+          ;;   {:bg "#e3f2fd" :fg "rgba(0,0,0,0.87)" :border? true}  Blue 50 (soft blue tint)
+          
+          ;; toolbar-style {:bg "#ffffff" :fg "rgba(0,0,0,0.87)" :border? true}
+          ;; toolbar-style {:bg "#455a64" :fg "#ffffff"}
+          ;; toolbar-style {:bg "#3949ab" :fg "#ffffff"}
+          ;; toolbar-style {:bg "#00695c" :fg "#ffffff"}
+          ;; toolbar-style {:bg "#fafafa" :fg "rgba(0,0,0,0.87)" :border? true}
+          toolbar-style {:bg "#eceff1" :fg "rgba(0,0,0,0.87)" :border? true}
+          ;; toolbar-style {:bg "#e3f2fd" :fg "rgba(0,0,0,0.87)" :border? true}
+          toolbar-sx (cond-> {:bgcolor (:bg toolbar-style)
+                              :color   (:fg toolbar-style)}
+                       (:border? toolbar-style)
+                       (assoc :box-shadow "none"
+                              :border-bottom "1px solid rgba(0,0,0,0.12)"))]
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE (not save-disabled?))
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_AS (not locked?))
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_BACKUP (not locked?))
@@ -214,7 +243,16 @@
                               (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js [locked? multiple-dbs? remote?]))
 
       [:div {:style {:flex-grow 1}}
-       [mui-app-bar {:position "static" :color "primary" :dir (t/dir)}  ;; 
+       ;; Light theme: override the default bright primary blue with the chosen
+       ;; toolbar-style (see options above). For light bars :fg flips the icons to
+       ;; dark so they stay legible. Dark theme is left as-is (MUI's default dark
+       ;; app-bar surface).
+       
+       ;; Previous one used for both light and dark theme cases
+       ;; mui-app-bar {:position "static" :color "primary" :dir (t/dir)}
+       
+       [mui-app-bar (cond-> {:position "static" :color "primary" :dir (t/dir)}
+                      light-theme? (assoc :sx toolbar-sx))
         [mui-toolbar {:style {:min-height 32}}
          ;; Using box to provide common styles - left margin -  for all its children - buttons 
          ;; Using "&.MuiIconButton-root" etc did not work
@@ -284,7 +322,7 @@
 
        ;; Include all dialogs that we need to use when the toll bar is visibible
        ;; Also see start_page.cljs for other dialogs  
-
+       
        ;; Auto type dialogs
        [at-form/perform-auto-type-dialog @(at-events/auto-type-perform-dialog-data)]
        [at-form/auto-type-edit-dialog @(at-events/auto-type-edit-dialog-data)]
