@@ -530,10 +530,10 @@
                                   (.stopPropagation e))} name]
 
      ;; Entry count pill, right-aligned (the name above has flex-grow + ellipsis
-     ;; so it truncates rather than colliding). Hidden when 0 to keep empty
-     ;; container groups uncluttered. When the row is selected the three-dots menu
-     ;; renders to the right of this, same as the entry-category panel.
-     (when (pos? entries-count)
+     ;; so it truncates rather than colliding). Shown only for the selected group
+     ;; (matching the bottom-panel grouped categories); the three-dots menu then
+     ;; renders to its right, same as the entry-category panel.
+     (when (= uuid @g-uuid)
        [mui-typography {:variant "caption"
                         :sx {:flex-shrink 0
                              :ml 0.5

@@ -381,6 +381,7 @@
 
           group-category?  (= categories-kind :group-categories)
           type-category?  (= categories-kind :type-categories)
+          general-category? (= categories-kind :general-categories)
 
           row-selected? @(ec-events/is-selected-category category-detail-m)
           custom-entry-type?  (if-not type-category? false @(cmn-events/is-custom-entry-type entry-type-uuid))
@@ -443,16 +444,20 @@
          [:f> overflow-tool-tip display-name]]
 
         [mui-stack {:sx {:width "10%"}}
+         ;; General categories (AllEntries/Favorites/Deleted) always show the
+         ;; count; bottom-panel grouped items show it only when selected, to keep
+         ;; the grouping list uncluttered.
          ;; :variant "caption" keeps the count font size consistent with the
          ;; group tree count pill (see tree-label in group_tree_content)
-         [mui-typography  {:variant "caption"
-                           :sx {:padding-right "0px"
-                                :color "white"
-                                :background-color (theme-color @custom-theme-atom :category-item)
-                                :border-radius "10px"
-                                :text-align "center"
-                                :width "30px"}}
-          entries-count]]
+         (when (or general-category? row-selected?)
+           [mui-typography  {:variant "caption"
+                             :sx {:padding-right "0px"
+                                  :color "white"
+                                  :background-color (theme-color @custom-theme-atom :category-item)
+                                  :border-radius "10px"
+                                  :text-align "center"
+                                  :width "30px"}}
+            entries-count])]
         ;; Determine what menus to show based on grouping kind selection
         (cond
           (and row-selected? group-category?)

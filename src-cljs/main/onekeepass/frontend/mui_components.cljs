@@ -145,7 +145,9 @@
     (-> theme .-customColors .-sectionHeader)
 
     (= color-kw :category-item)
-    (->  theme .-palette .-secondary .-dark)
+    ;; secondary.main (was secondary.dark) - a softer pill background; the dark
+    ;; variant read as too strong. White pill text stays legible on .main.
+    (->  theme .-palette .-secondary .-main)
 
     (= color-kw :color1)
     (-> theme .-customColors .-color1)
