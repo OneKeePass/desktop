@@ -443,7 +443,10 @@
          [:f> overflow-tool-tip display-name]]
 
         [mui-stack {:sx {:width "10%"}}
-         [mui-typography  {:sx {:padding-right "0px"
+         ;; :variant "caption" keeps the count font size consistent with the
+         ;; group tree count pill (see tree-label in group_tree_content)
+         [mui-typography  {:variant "caption"
+                           :sx {:padding-right "0px"
                                 :color "white"
                                 :background-color (theme-color @custom-theme-atom :category-item)
                                 :border-radius "10px"

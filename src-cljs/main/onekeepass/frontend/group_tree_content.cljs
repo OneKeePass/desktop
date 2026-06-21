@@ -486,6 +486,9 @@
         recycle-bin?          (= uuid (get tree-data "recycle_bin_uuid"))
         group-in-recycle-bin? (contains? (set (get tree-data "deleted_group_uuids")) uuid)
         root-group?           (= uuid (get tree-data "root_uuid"))
+        ;; Direct entry count for this group - shown as a compact pill, mirroring
+        ;; the count badge in the entry-category panel
+        entries-count         (count (get-in tree-data ["groups" uuid "entry_uuids"]))
         parent-group-uuid     @(gt-events/selected-group-parent-uuid uuid)
         current-db-key        @(cmn-events/active-db-key)
         ^js drop-obj          (dnd/use-droppable #js {:id uuid})
@@ -525,6 +528,22 @@
                                   ;; Need to call this event so that group is selected without expanding or collapsing
                                   (gt-events/node-on-select nil uuid)
                                   (.stopPropagation e))} name]
+
+     ;; Entry count pill, right-aligned (the name above has flex-grow + ellipsis
+     ;; so it truncates rather than colliding). Hidden when 0 to keep empty
+     ;; container groups uncluttered. When the row is selected the three-dots menu
+     ;; renders to the right of this, same as the entry-category panel.
+     (when (pos? entries-count)
+       [mui-typography {:variant "caption"
+                        :sx {:flex-shrink 0
+                             :ml 0.5
+                             :px 0.75
+                             :min-width "20px"
+                             :color "white"
+                             :background-color (theme-color @custom-theme-atom :category-item)
+                             :border-radius "10px"
+                             :text-align "center"}}
+        entries-count])
 
      ;; Shows three dot vertical icon for the menu popup
      (when (= uuid @g-uuid)
