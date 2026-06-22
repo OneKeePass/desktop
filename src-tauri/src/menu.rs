@@ -435,6 +435,21 @@ pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app_handle:
     match menu_id {
         QUIT => {
             info!("Quit requested from UI {:?}", request);
+            // Remove all SSH agent keys before closing databases (need DB still open to read keys).
+            if let Ok(db_keys) = kp_service::all_kdbx_cache_keys() {
+                let has_loaded = db_keys
+                    .iter()
+                    .any(|k| !crate::ssh_agent::loader::loaded_entry_uuids(k).is_empty());
+                if has_loaded {
+                    tokio::task::block_in_place(|| {
+                        tokio::runtime::Handle::current().block_on(async {
+                            for db_key in &db_keys {
+                                crate::ssh_agent::loader::remove_all_on_close(db_key).await;
+                            }
+                        });
+                    });
+                }
+            }
             let _r = kp_service::close_all_databases();
             info!("Closed all databases");
 

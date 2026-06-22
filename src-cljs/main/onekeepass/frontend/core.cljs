@@ -14,8 +14,10 @@
             [onekeepass.frontend.events.check-for-updates :as check-updates-events]
             [onekeepass.frontend.events.tauri-events :as tauri-events]
             [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
+                                                              mui-backdrop
                                                               mui-box
                                                               mui-button
+                                                              mui-circular-progress
                                                               mui-css-baseline
                                                               mui-icon-button
                                                               mui-icon-fingerprint
@@ -27,6 +29,7 @@
                                                               mui-typography
                                                               split-pane
                                                               theme-color]]
+            [onekeepass.frontend.events.tool-bar :as tb-events]
             [onekeepass.frontend.start-page :as sp]
             [onekeepass.frontend.tool-bar :as tool-bar]
             [onekeepass.frontend.translation :as t :refer-macros [tr-t tr-bl]]
@@ -253,28 +256,39 @@
    ;; message-sanckbar-alert mostly for error notification
    [cc/message-sanckbar-alert]])
 
+(defn closing-overlay
+  "Full-screen spinner shown while the app is removing SSH keys and closing databases on quit."
+  []
+  (let [quitting? @(re-frame.core/subscribe [:app/quitting])]
+    [mui-backdrop {:open (boolean quitting?)
+                   :sx {:z-index 9999 :color "#fff" :flex-direction "column" :gap 2}}
+     [mui-circular-progress {:color "inherit" :size 56}]
+     [mui-typography {:variant "h6" :color "inherit"} "Closing…"]]))
+
 (defn root-content
   "A functional component which is the root of all the app components"
   []
   (fn []
-    (if @(cmn-events/show-start-page)
-      [:<>
-       [sp/welcome-content]
-       [common-snackbars]]
-      [:div {:class "box" :dir (t/dir)}  ;;:style {:height "100vh"}
-       [:div {:class "cust_row header"}
-        [header-bar]
+    [:<>
+     [closing-overlay]
+     (if @(cmn-events/show-start-page)
+       [:<>
+        [sp/welcome-content]
         [common-snackbars]]
+       [:div {:class "box" :dir (t/dir)}  ;;:style {:height "100vh"}
+        [:div {:class "cust_row header"}
+         [header-bar]
+         [common-snackbars]]
 
-       [:div {:class "cust_row content"
-              :style {:height "80%"}} ;;height "80%" added for WebKit
-        [:f> main-content]]
+        [:div {:class "cust_row content"
+               :style {:height "80%"}} ;;height "80%" added for WebKit
+         [:f> main-content]]
 
-       ;;At this time, no use case for the footer
-       #_[:div {:class "cust_row footer"}
-          #_[:span "footer (fixed height)"]
-          ;;need to make tag p's margin 0px if we use tag p. Include {:style {:margin 0}}
-          [:p "footer (fixed height)"]]])))
+        ;;At this time, no use case for the footer
+        #_[:div {:class "cust_row footer"}
+           #_[:span "footer (fixed height)"]
+           ;;need to make tag p's margin 0px if we use tag p. Include {:style {:margin 0}}
+           [:p "footer (fixed height)"]]])])))
 
 
 (defn main-app-with-theme

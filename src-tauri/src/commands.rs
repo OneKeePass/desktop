@@ -49,6 +49,27 @@ pub struct UpdatePayload {
 
 pub type Result<T> = std::result::Result<T, String>;
 
+#[derive(Clone, serde::Serialize)]
+struct SshKeysLoadedPayload {
+    db_key: String,
+    count: usize,
+}
+
+fn emit_ssh_keys_loaded<R: tauri::Runtime>(
+    app_handle: &tauri::AppHandle<R>,
+    db_key: &str,
+    count: usize,
+) {
+    use tauri::Emitter;
+    if count > 0 {
+        info!("SSH agent: {} key(s) loaded from '{}'", count, db_key);
+    }
+    let _ = app_handle.emit(
+        crate::constants::event_names::SSH_AGENT_KEYS_LOADED_EVENT,
+        SshKeysLoadedPayload { db_key: db_key.to_string(), count },
+    );
+}
+
 #[tauri::command]
 pub(crate) async fn init_timers<R: Runtime>(
     _app: tauri::AppHandle<R>,
@@ -138,11 +159,12 @@ pub(crate) async fn stop_polling_all_entries_otp_fields(_db_key: &str) -> Result
 // ----------
 
 #[command]
-pub(crate) async fn load_kdbx(
+pub(crate) async fn load_kdbx<R: tauri::Runtime>(
     db_file_name: &str,
     password: Option<&str>,
     key_file_name: Option<&str>,
     app_state: State<'_, app_state::AppState>,
+    app_handle: tauri::AppHandle<R>,
 ) -> Result<kp_service::KdbxLoaded> {
     let mut scoped_access = mas::LoadKdbxAccess::prepare(db_file_name, key_file_name);
 
@@ -179,6 +201,8 @@ pub(crate) async fn load_kdbx(
     if r.is_ok() {
         scoped_access.store_success_handles(db_file_name, key_file_name, &app_state);
         app_state.db_file_watcher.start_watching(db_file_name);
+        let loaded = crate::ssh_agent::loader::load_all_on_open(db_file_name).await;
+        emit_ssh_keys_loaded(&app_handle, db_file_name, loaded.len());
     } else {
         // Failure path with a held handle (e.g., wrong password). The user
         // will likely retry, but we shouldn't leak scoped access in the
@@ -590,7 +614,10 @@ pub(crate) async fn update_entry_from_form_data(
     db_key: &str,
     form_data: kp_service::EntryFormData,
 ) -> Result<()> {
-    Ok(kp_service::update_entry_from_form_data(db_key, form_data)?)
+    let entry_uuid = form_data.entry_uuid();
+    kp_service::update_entry_from_form_data(db_key, form_data)?;
+    crate::ssh_agent::loader::auto_load_entry(db_key, &entry_uuid).await;
+    Ok(())
 }
 
 #[tauri::command]
@@ -598,7 +625,10 @@ pub(crate) async fn insert_entry_from_form_data(
     db_key: &str,
     form_data: kp_service::EntryFormData,
 ) -> Result<()> {
-    Ok(kp_service::insert_entry_from_form_data(db_key, form_data)?)
+    let entry_uuid = form_data.entry_uuid();
+    kp_service::insert_entry_from_form_data(db_key, form_data)?;
+    crate::ssh_agent::loader::auto_load_entry(db_key, &entry_uuid).await;
+    Ok(())
 }
 
 #[tauri::command]
@@ -835,6 +865,7 @@ pub(crate) async fn close_kdbx(
     app_state: State<'_, app_state::AppState>,
 ) -> Result<()> {
     app_state.db_file_watcher.stop_watching(db_key);
+    crate::ssh_agent::loader::remove_all_on_close(db_key).await;
     // Release the scoped-access handle paired with this DB's load_kdbx (if any).
     // Safe to call on non-macOS / non-sandboxed paths — it's a HashMap remove.
     app_state.release_scoped_access(&mas::ScopedAccessKey::Db(db_key.to_string()));
@@ -874,23 +905,27 @@ pub(crate) async fn lock_kdbx(_db_key: &str) -> Result<()> {
 }
 
 #[command]
-pub(crate) async fn unlock_kdbx_on_biometric_authentication(
+pub(crate) async fn unlock_kdbx_on_biometric_authentication<R: tauri::Runtime>(
     db_key: &str,
+    app_handle: tauri::AppHandle<R>,
 ) -> Result<kp_service::KdbxLoaded> {
-    Ok(kp_service::unlock_kdbx_on_biometric_authentication(db_key)?)
+    let r = kp_service::unlock_kdbx_on_biometric_authentication(db_key)?;
+    let loaded = crate::ssh_agent::loader::load_all_on_open(db_key).await;
+    emit_ssh_keys_loaded(&app_handle, db_key, loaded.len());
+    Ok(r)
 }
 
 #[command]
-pub(crate) async fn unlock_kdbx(
+pub(crate) async fn unlock_kdbx<R: tauri::Runtime>(
     db_key: &str,
     password: Option<&str>,
     key_file_name: Option<&str>,
+    app_handle: tauri::AppHandle<R>,
 ) -> Result<kp_service::KdbxLoaded> {
-    // We need to get the session encryption key from KeyChain(macOS)
-    // In case of Linux and Windows, the key is kept in memory and need to use Linux and Windows specific credential stores
-    // similiar to macOS KeyChain
-
-    Ok(kp_service::unlock_kdbx(db_key, password, key_file_name)?)
+    let r = kp_service::unlock_kdbx(db_key, password, key_file_name)?;
+    let loaded = crate::ssh_agent::loader::load_all_on_open(db_key).await;
+    emit_ssh_keys_loaded(&app_handle, db_key, loaded.len());
+    Ok(r)
 }
 
 #[command]

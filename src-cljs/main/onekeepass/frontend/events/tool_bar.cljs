@@ -343,11 +343,25 @@
    {:db (-> db (assoc-in [:ask-save :status] :completed))
     :fx [[:bg-quit-app-menu-action-requested]]}))
 
+(reg-event-db
+ :app/quitting-started
+ (fn [db [_event-id]]
+   (assoc db :app/quitting true)))
+
+(reg-sub
+ :app/quitting
+ (fn [db _]
+   (get db :app/quitting false)))
+
 (reg-fx
  :bg-quit-app-menu-action-requested
  (fn []
-   ;; See menu-id and other info in 'tauri_events.cljs'
-   (bg/menu-action-requested "Quit" "Close" #(println %))))
+   ;; Show the closing overlay first, then yield to React so it can render
+   ;; before the blocking Rust quit handler removes keys and exits.
+   (re-frame.core/dispatch [:app/quitting-started])
+   (js/setTimeout
+    #(bg/menu-action-requested "Quit" "Close" (fn [_]))
+    50)))
 
 (reg-event-db
  :ask-save-dialog-save-error

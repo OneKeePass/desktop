@@ -5,6 +5,7 @@ pub mod event_names {
     pub const BROWSER_CONNECTION_REQUEST_EVENT: &str = "BrowserConnectionRequestEvent";
     pub const PASSKEY_DATA_CHANGED_EVENT: &str = "PasskeyDataChangedEvent";
     pub const DB_FILE_CHANGED_EVENT: &str = "DbFileChangedEvent";
+    pub const SSH_AGENT_KEYS_LOADED_EVENT: &str = "SshAgentKeysLoadedEvent";
 }
 
 pub mod event_action_names {

@@ -21,6 +21,7 @@ mod menu;
 mod pass_phrase;
 mod remote_storage;
 mod sandbox;
+mod ssh_agent;
 mod translation;
 #[cfg(not(feature = "mas-build"))]
 mod updater;
@@ -195,6 +196,13 @@ fn main() {
             #[cfg(not(feature = "mas-build"))]
             commands::send_sequence_to_winow_async,
             commands::sort_sub_groups,
+            ssh_agent::ssh_agent_available_agents,
+            ssh_agent::ssh_agent_debug_custom_data_keys,
+            ssh_agent::ssh_agent_test_load_file,
+            ssh_agent::ssh_agent_is_key_loaded,
+            ssh_agent::ssh_agent_load_key,
+            ssh_agent::ssh_agent_loaded_entries,
+            ssh_agent::ssh_agent_remove_key,
             // commands::standard_paths,
             commands::start_polling_entry_otp_fields,
             commands::stop_polling_entry_otp_fields,

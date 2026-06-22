@@ -6,7 +6,7 @@
    [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.constants :as const :refer
     [BROWSER_CONNECTION_REQUEST_EVENT CLOSE_REQUESTED DB_FILE_CHANGED_EVENT FILE_DROP MAIN_WINDOW_EVENT
-     MENU_ID_ABOUT OTP_TOKEN_UPDATE_EVENT PASSKEY_DATA_CHANGED_EVENT TAURI_MENU_EVENT WINDOW_FOCUS_CHANGED]]
+     MENU_ID_ABOUT OTP_TOKEN_UPDATE_EVENT PASSKEY_DATA_CHANGED_EVENT SSH_AGENT_KEYS_LOADED_EVENT TAURI_MENU_EVENT WINDOW_FOCUS_CHANGED]]
    [re-frame.core :refer [dispatch]]))
 
 (defn- to-cljs [js-event-repsonse]
@@ -187,13 +187,24 @@
   []
   (bg/register-event-listener DB_FILE_CHANGED_EVENT handle-db-file-changed-event))
 
+(defn- handle-ssh-agent-keys-loaded [js-event]
+  (let [cnt (-> js-event .-payload .-count)]
+    (when (and cnt (> cnt 0))
+      (js/setTimeout
+       #(dispatch [:common/message-snackbar-open (str cnt " SSH key(s) loaded into agent")])
+       2000))))
+
+(defn- register-ssh-agent-keys-loaded-event []
+  (bg/register-event-listener SSH_AGENT_KEYS_LOADED_EVENT handle-ssh-agent-keys-loaded))
+
 (defn register-tauri-events []
   (register-menu-events)
   (register-main-window-events)
   (register-otp-token-update-events)
   (register-browser-connection-request-event)
   (register-passkey-data-changed-event)
-  (register-db-file-changed-event))
+  (register-db-file-changed-event)
+  (register-ssh-agent-keys-loaded-event))
 
 (defn enable-app-menu [menu-id enable? & {:as menu-args}]
   ;; (println "Going to call for menu-id " menu-id enable? menu-args)

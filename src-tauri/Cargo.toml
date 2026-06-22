@@ -37,6 +37,9 @@ tipsy = "0.7.0"
 futures-util = "0.3"
 data-encoding = "2.9.0"
 crypto_box = "0.9.1"
+russh-keys = "0.49.2"
+# Used to parse PuTTY PPK key format; bridges to russh-keys via OpenSSH PEM roundtrip
+ssh-key-ppk = { package = "internal-russh-forked-ssh-key", version = "0.6", features = ["ppk"] }
 
 
 ## Adding "devtools" to features list enables devtools in production; But in mac it uses private api 
@@ -45,10 +48,10 @@ crypto_box = "0.9.1"
 tauri = { version = "2", features = [] }
 
 ## using from the local crate during development
-# onekeepass-core = {path = "../../onekeepass-core", version = "0.22.0", features = ["favicon"] }
+onekeepass-core = {path = "../onekeepass-core", features = ["favicon"] }
 
 ## Need to use the git ref for release
-onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.22.0", features = ["favicon"] }
+# onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.22.0", features = ["favicon"] }
 
 tauri-plugin-shell = "2"
 tauri-plugin-process = "2"
@@ -72,7 +75,14 @@ swift-rs = { version = "1.0.7", features = ["build"] }
 tauri-plugin-global-shortcut = "2"
 
 [target."cfg(target_os = \"windows\")".dependencies]
-winreg = "0.55.0" 
+winreg = "0.55.0"
+pageant = "0.0.3"
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_System_Memory",
+    "Win32_System_DataExchange",
+    "Win32_UI_WindowsAndMessaging",
+] }
 
 [features]
 default = ["custom-protocol"]
@@ -86,6 +96,10 @@ onekeepass-dev = []
 # and its Tauri commands). Enabled via `cargo build --features mas-build`
 # from the store build script wrapper.
 mas-build = []
+
+[profile.release]
+strip = false
+
 
 [dev-dependencies]
 env_logger = "0.11.8"
