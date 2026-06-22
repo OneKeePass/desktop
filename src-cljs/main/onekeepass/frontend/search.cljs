@@ -1,7 +1,7 @@
 (ns onekeepass.frontend.search
   (:require [clojure.string :as str]
             [onekeepass.frontend.common-components :refer [list-items-factory]]
-            [onekeepass.frontend.db-icons :refer [entry-icon]]
+            [onekeepass.frontend.db-icons :refer [render-entry-icon]]
             [onekeepass.frontend.events.common :as cmn-events]
             [onekeepass.frontend.events.search :as sch-event]
             [onekeepass.frontend.mui-components :as m :refer [mui-typography
@@ -36,7 +36,8 @@
   (fn [props]
     (let [items  (sch-event/search-result-entry-items)
           item (nth @items (:index props))
-          selected-id (sch-event/selected-entry-id)]
+          selected-id (sch-event/selected-entry-id)
+          active-db-key @(cmn-events/active-db-key)]
       ;; Need to use mui-list-item-button instead of mui-list-item so that focus to the list works
       ;; while using 'Tab' key. The other places the tab navigation works when mui-list-item is used
       ;; As per API doc mui-list-item autoFocus prop is deprecated and recommended to use mui-list-item-button
@@ -52,7 +53,14 @@
                              ;; mui-list-item-secondary-action as last child in mui-list-item-button
                              }
        [mui-list-item-avatar
-        [mui-avatar [entry-icon (:icon-id item)]]]
+        ;; Rounded-square avatar with a subtle tinted background, so both built-in
+        ;; SVG icons and custom PNG icons sit on a consistent surface in the list.
+        [mui-avatar {:variant "rounded"
+                     :sx {:bgcolor (get-theme-color :selected-item)
+                          :border-radius 2}}
+         [render-entry-icon {:db-key active-db-key
+                             :icon-id (:icon-id item)
+                             :custom-icon-uuid (:custom-icon-uuid item)}]]]
        [mui-list-item-text
         ;; We can use react node for primary and secondary props
         ;; e.g :primary (r/as-element [:span (str "Primary:" (:title  item))])
