@@ -168,6 +168,10 @@ pub(crate) struct AppState {
     // value means the remote backend didn't report mtime (treated as
     // "unknown" — no false-positive conflict). See remote_storage/mod.rs.
     remote_mtimes: Mutex<HashMap<String, Option<i64>>>,
+    // The db_key currently active (focused) in the main UI. Reported by the
+    // frontend on db open/switch. Used so the browser extension can pre-select
+    // the active database in the passkey-creation picker.
+    active_db_key: Mutex<Option<String>>,
 }
 
 impl AppState {
@@ -179,7 +183,17 @@ impl AppState {
             db_file_watcher: crate::db_file_watcher::DbFileWatcherState::new(),
             scoped_access: Mutex::new(HashMap::new()),
             remote_mtimes: Mutex::new(HashMap::new()),
+            active_db_key: Mutex::new(None),
         }
+    }
+
+    pub(crate) fn set_active_db_key(&self, db_key: Option<String>) {
+        let mut store = self.active_db_key.lock().unwrap();
+        *store = db_key;
+    }
+
+    pub(crate) fn active_db_key(&self) -> Option<String> {
+        self.active_db_key.lock().unwrap().clone()
     }
 
     pub(crate) fn set_remote_mtime(&self, db_key: &str, mtime: Option<i64>) {

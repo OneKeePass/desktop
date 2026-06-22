@@ -677,6 +677,8 @@
         "groupsSorted": "Groups sorted",
         "importCompleted": "Import completed",
         "launchingSystemViewer": "Launching the system viewer",
+        "passkeySaved": "Passkey saved",
+        "passkeySavedToDb": "Passkey saved in {{- dbName}}",
         "recycleBinEmptied": "Recycle bin is emptied",
         "remoteUpToDate": "Remote database is up to date"
     },

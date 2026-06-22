@@ -174,8 +174,10 @@
   (bg/register-event-listener BROWSER_CONNECTION_REQUEST_EVENT handle-browser-connection-request-event))
 
 (defn- handle-passkey-data-changed-event [js-event]
-  (let [{:keys [db-key]} (-> js-event to-cljs :payload)]
-    (dispatch [:common/passkey-db-data-changed db-key])))
+  (let [{:keys [db-key entry-uuid group-uuid entry-type-uuid entry-type-name tags]}
+        (-> js-event to-cljs :payload)]
+    (dispatch [:common/passkey-db-data-changed
+               db-key entry-uuid group-uuid entry-type-uuid entry-type-name tags])))
 
 (defn- register-passkey-data-changed-event []
   (println "PASSKEY_DATA_CHANGED_EVENT received")

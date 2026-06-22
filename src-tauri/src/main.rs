@@ -193,6 +193,7 @@ fn main() {
             commands::save_to_db_file,
             commands::score_password,
             commands::search_term,
+            commands::set_active_db_key,
             commands::set_db_settings,
             commands::set_entry_custom_icon,
             commands::set_group_custom_icon,

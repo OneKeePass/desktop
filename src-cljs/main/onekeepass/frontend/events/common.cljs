@@ -406,6 +406,14 @@
   [app-db db-key]
   (assoc app-db :current-db-file-name db-key))
 
+;; Reports the active (focused) db-key to the backend so the browser extension
+;; can pre-select it in the passkey-creation picker. Fire-and-forget; db-key may
+;; be nil (e.g. when the last db is closed).
+(reg-fx
+ :bg-set-active-db-key
+ (fn [db-key]
+   (bg/set-active-db-key db-key (fn [_api-response]))))
+
 (defn opened-db-list
   "Gets an atom to get all opened db summary list if app-db is not passed"
   ([]
@@ -512,7 +520,8 @@
 (reg-event-fx
  :common/kdbx-database-loading-complete
  (fn [{:keys [db]} [_event-id {:keys [db-key] :as _kdbx-loaded}]]
-   {:fx [[:dispatch [:load-all-tags]]
+   {:fx [[:bg-set-active-db-key db-key]
+         [:dispatch [:load-all-tags]]
          [:dispatch [:group-tree-content/load-groups]]
          ;; true => once the category data finishes loading, auto-select
          ;; "All Entries" and load its entry list so the middle/right panes
@@ -653,7 +662,8 @@
               (assoc :opened-db-list dbs)
               (assoc :current-db-file-name next-active-db-key)
               (dissoc db-key))
-      :fx [[:dispatch [:common/message-snackbar-open
+      :fx [[:bg-set-active-db-key next-active-db-key]
+           [:dispatch [:common/message-snackbar-open
                        (lstr-sm 'dbClosed {:dbFileName db-key})]]
            [:dispatch [:common/load-app-preference]]]})))
 
@@ -702,6 +712,8 @@
  (fn [{:keys [db]} [_event-id _kdbx-loaded]]
    {:db (assoc-in-key-db db [:locked] false)
     :fx [;; TODO: Combine these reset calls with 'common/kdbx-database-loading-complete'
+         ;; The active db-key is already set to this db by the unlock caller.
+         [:bg-set-active-db-key (active-db-key db)]
          [:dispatch [:load-all-tags]]
          [:dispatch [:group-tree-content/load-groups]]
          [:dispatch [:entry-category/category-data-load-start
@@ -726,18 +738,59 @@
            [:bg-read-and-verify-db-file [(active-db-key db)]])]}))
 
 ;; Dispatched when the browser extension creates/updates a passkey in a db.
-;; Sets UI state as if the database is freshly opened and active.
+;; entry-uuid/group-uuid/entry-type-uuid/entry-type-name/tags identify the entry
+;; the passkey was stored on (the passkey may update an existing entry, or create
+;; a new entry in an existing or brand new group).
+;;
+;; Hybrid behaviour:
+;;  - When the affected db is the currently active one, refresh the data and
+;;    navigate the category/entry-list/entry-form panels to the affected entry
+;;    (reusing the same view-refresh path as an in-app insert). The entry's type
+;;    and tags allow precise navigation under :type / :tag groupings.
+;;  - Otherwise the user is working elsewhere, so we do not steal focus - just
+;;    flag that db for a deferred refresh (its UI data is cached per db-key and
+;;    cannot be reloaded safely while another db is active) and show a snackbar.
+;;    The refresh runs when the user next switches to that db.
 (reg-event-fx
  :common/passkey-db-data-changed
- (fn [{:keys [db]} [_event-id db-key]]
+ (fn [{:keys [db]} [_event-id db-key entry-uuid group-uuid entry-type-uuid entry-type-name tags]]
    ;;(println "in :common/passkey-db-data-changed refreshing db" db-key)
-   {:db (set-active-db-key-direct db db-key)
+   (if (= db-key (active-db-key db))
+     {:fx [[:dispatch [:load-all-tags]]
+           [:dispatch [:common/load-entry-type-headers]]
+           [:dispatch [:custom-icons/refresh]]
+           ;; Reloads category + group-tree counts (preserving the current
+           ;; grouping), selects the entry's group/category, loads its entry
+           ;; list and selects the entry.
+           [:dispatch [:entry-category/entry-inserted
+                       entry-uuid group-uuid entry-type-uuid entry-type-name tags]]
+           ;; Show the affected entry in the form panel
+           [:dispatch [:entry-form-ex/find-entry-by-id entry-uuid]]
+           [:dispatch [:common/message-snackbar-open (lstr-sm 'passkeySaved)]]]}
+     ;; Target a specific (non-active) db-key directly - assoc-in-key-db cannot be
+     ;; used here as it always writes to the active db. Name the db in the message
+     ;; since the user is not currently looking at it.
+     (let [db-name (or (some (fn [m] (when (= db-key (:db-key m)) (:database-name m)))
+                             (:opened-db-list db))
+                       db-key)]
+       {:db (assoc-in db [db-key :passkey-refresh-pending] true)
+        :fx [[:dispatch [:common/message-snackbar-open
+                         (lstr-sm 'passkeySavedToDb {:dbName db-name})]]]}))))
+
+;; Refreshes the now-active db's panels after a passkey was added to it while it
+;; was not the active db. Dispatched from :common/change-active-db-complete.
+(reg-event-fx
+ :common/passkey-refresh-pending-db
+ (fn [{:keys [db]} [_event-id]]
+   {:db (assoc-in-key-db db [:passkey-refresh-pending] nil)
     :fx [[:dispatch [:load-all-tags]]
          [:dispatch [:group-tree-content/load-groups]]
-         [:dispatch [:entry-category/category-data-load-start
-                     (-> db :app-preference :default-entry-category-groupings)]]
+         [:dispatch [:entry-category/reload-category-data]]
+         ;; Reload the entry list for the db's currently selected category/group
+         ;; so a passkey entry added while this db was inactive becomes visible.
+         [:dispatch [:entry-list/entry-updated]]
          [:dispatch [:common/load-entry-type-headers]]
-         [:dispatch [:common/show-content :group-entry]]]}))
+         [:dispatch [:custom-icons/refresh]]]}))
 
 
 ;; Called to detect whether database has been changed externally or not
@@ -955,8 +1008,13 @@
  :common/change-active-db-complete
  (fn [{:keys [db]} [_event-id db-key]]
    {:db (assoc db :current-db-file-name db-key)
-    :fx [(when (get-in db [db-key :external-change-pending])
-           [:dispatch [:external-db-change/check-external-change-pending db-key]])]}))
+    :fx [[:bg-set-active-db-key db-key]
+         (when (get-in db [db-key :external-change-pending])
+           [:dispatch [:external-db-change/check-external-change-pending db-key]])
+         ;; A passkey was added to this db (via the browser extension) while it
+         ;; was not active; refresh its panels now that it is the active db.
+         (when (get-in db [db-key :passkey-refresh-pending])
+           [:dispatch [:common/passkey-refresh-pending-db]])]}))
 
 (reg-sub
  :current-db-file-name

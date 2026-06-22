@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use onekeepass_core::db_service as kp_service;
 use onekeepass_core::db_service::browser_extension::{
-    PasskeyEntry, PasskeyStorageInfo, PasskeySummary,
+    PasskeyEntry, PasskeyStorageInfo, PasskeyStoreOutcome, PasskeySummary,
 };
 use onekeepass_core::error::Result;
 
@@ -22,6 +22,14 @@ use crate::constants::window_labels::MAIN_WINDOW_LABEL;
 #[derive(Clone, Serialize)]
 struct PasskeyChangedPayload {
     db_key: String,
+    // The entry the passkey was stored on, plus its group, type and tags, so the
+    // UI can navigate/refresh to the affected entry - including precise
+    // navigation when entries are grouped by type or tag.
+    entry_uuid: String,
+    group_uuid: String,
+    entry_type_uuid: String,
+    entry_type_name: String,
+    tags: Vec<String>,
 }
 
 // ── Shared data structures ────────────────────────────────────────────────────
@@ -32,6 +40,10 @@ struct PasskeyChangedPayload {
 pub struct OpenedDbInfo {
     pub db_key: String,
     pub db_name: String,
+    // True for the database currently active (focused) in the main UI, so the
+    // extension can pre-select it in the picker while still allowing the user to
+    // choose any other open database.
+    pub active: bool,
 }
 
 // ── Passkey creation helpers ──────────────────────────────────────────────────
@@ -42,6 +54,7 @@ pub struct OpenedDbInfo {
 // passkey creation popup.
 pub(crate) fn get_opened_databases_for_passkey() -> Result<Vec<OpenedDbInfo>> {
     let db_keys = kp_service::all_kdbx_cache_keys()?;
+    let active_db_key = app_state::AppState::state_instance().active_db_key();
     let mut result = Vec::with_capacity(db_keys.len());
 
     for db_key in &db_keys {
@@ -52,6 +65,7 @@ pub(crate) fn get_opened_databases_for_passkey() -> Result<Vec<OpenedDbInfo>> {
             result.push(OpenedDbInfo {
                 db_key: db_key.clone(),
                 db_name,
+                active: active_db_key.as_deref() == Some(db_key.as_str()),
             });
         }
     }
@@ -122,13 +136,14 @@ pub(crate) fn create_and_store_passkey(
         &backup_file_name
     );
 
-    kp_service::browser_extension::create_and_store_passkey(
+    let outcome: PasskeyStoreOutcome = kp_service::browser_extension::create_and_store_passkey(
         db_key,
         storage_info,
         backup_file_name.as_deref(),
     )?;
 
-    // 5. Notify the main window so the UI reloads the entry list
+    // 5. Notify the main window so the UI reloads the entry list and can navigate
+    //    to the affected entry
     if let Some(win) =
         app_state::AppState::global_app_handle().get_webview_window(MAIN_WINDOW_LABEL)
     {
@@ -137,6 +152,11 @@ pub(crate) fn create_and_store_passkey(
             PASSKEY_DATA_CHANGED_EVENT,
             PasskeyChangedPayload {
                 db_key: db_key.to_string(),
+                entry_uuid: outcome.entry_uuid.to_string(),
+                group_uuid: outcome.group_uuid.to_string(),
+                entry_type_uuid: outcome.entry_type_uuid.to_string(),
+                entry_type_name: outcome.entry_type_name.clone(),
+                tags: outcome.tags.clone(),
             },
         );
     }

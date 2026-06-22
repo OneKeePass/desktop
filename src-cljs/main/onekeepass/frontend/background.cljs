@@ -342,6 +342,11 @@
 (defn read-and-verify-db-file [db-key dispatch-fn]
   (invoke-api "read_and_verify_db_file" {:db-key db-key} dispatch-fn))
 
+;; Records the active (focused) db-key on the backend so the browser extension
+;; can pre-select it in the passkey-creation picker. Pass nil to clear.
+(defn set-active-db-key [db-key dispatch-fn]
+  (invoke-api "set_active_db_key" {:db-key db-key} dispatch-fn))
+
 (defn reload-kdbx [db-key dispatch-fn]
   (invoke-api "reload_kdbx" {:db-key db-key} dispatch-fn))
 

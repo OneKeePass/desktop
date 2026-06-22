@@ -123,6 +123,18 @@ pub(crate) async fn stop_polling_all_entries_otp_fields(_db_key: &str) -> Result
     Ok(())
 }
 
+// Records the db_key currently active (focused) in the UI so the browser
+// extension can pre-select it in the passkey-creation picker. Pass null to
+// clear (e.g. when the last database is closed).
+#[tauri::command]
+pub(crate) async fn set_active_db_key(
+    db_key: Option<String>,
+    app_state: State<'_, app_state::AppState>,
+) -> Result<()> {
+    app_state.set_active_db_key(db_key);
+    Ok(())
+}
+
 // #[tauri::command]
 // pub(crate) async fn tokio_runtime_start() -> Result<()> {
 //   kp_async_service::start_runtime();
