@@ -156,12 +156,6 @@
              [:load-bg-groups-summary-data (active-db-key db)]]}
        {}))))
 
-;; TODO: It appears, 'load-groups' is not called for all db changes
-;; For example, when a new entry is created, the tree data is not loaded 
-;; and because of that 'entry_uuids' does not include the newly created 
-;; entry under the parent group
-;; Needs fixing
-
 ;;An event to reload group tree data whenever any group data update or insert is done
 (reg-event-fx
  :group-tree-content/load-groups
@@ -193,6 +187,12 @@
  :group-tree-content/entry-inserted
  (fn [{:keys [_db]} [_event-id entry-uuid  group-uuid]]
    {:fx [[:dispatch [:group-selected group-uuid]]
+         ;; Mirror manual group selection (node-on-select): clear any general/grouped
+         ;; category highlight so only the destination group in the tree stays selected
+         [:dispatch [:entry-category/clear-selected-category-info]]
+         ;; Reload the group tree summary data so each group's entry_uuids (and the
+         ;; count pills derived from them) include the newly inserted entry
+         [:dispatch [:group-tree-content/load-groups]]
          [:dispatch [:entry-list/entry-inserted entry-uuid {:group group-uuid}]]]}))
 
 (reg-sub

@@ -1348,8 +1348,13 @@
 (reg-event-db
  :new-blank-entry-created-ex
  (fn [db [_ form-data group-info]]
-   (let [form-data (assoc form-data :group-uuid (:uuid group-info)) ;; set the group uuid 
-         ]
+   (let [;; When the category view is showing tags and a tag category is selected,
+         ;; pre-tag the new entry with that tag (mirrors pre-filling the group).
+         ;; The user can still remove it in the form.
+         selected-tag (when (= :tag (get-in-key-db db [:entry-category :showing-groups-as]))
+                        (get-in-key-db db [:entry-category :selected-category-info :tag-id]))
+         form-data (cond-> (assoc form-data :group-uuid (:uuid group-info)) ;; set the group uuid
+                     (seq selected-tag) (assoc :tags [selected-tag]))]
      (-> db (assoc-in-key-db [entry-form-key :data] form-data)
          (init-expiry-duration-selection form-data)
          (assoc-in-key-db [entry-form-key :showing] :new)
@@ -1394,22 +1399,23 @@
 
 (reg-fx
  :bg-insert-entry
- (fn [[db-key {:keys [uuid group-uuid entry-type-uuid entry-type-name]
+ (fn [[db-key {:keys [uuid group-uuid entry-type-uuid entry-type-name tags]
                :as new-entry-form-data}]]
    (bg/insert-entry db-key
                     new-entry-form-data
                     (fn [api-response]
                       (when-not (on-error api-response)
-                        (dispatch [:insert-entry-form-data-complete uuid group-uuid entry-type-uuid entry-type-name]))))))
+                        (dispatch [:insert-entry-form-data-complete uuid group-uuid entry-type-uuid entry-type-name tags]))))))
 
 (reg-event-fx
  :insert-entry-form-data-complete
- (fn [{:keys [_db]} [_event-id entry-uuid group-uuid entry-type-uuid entry-type-name]]
+ (fn [{:keys [_db]} [_event-id entry-uuid group-uuid entry-type-uuid entry-type-name tags]]
    ;;(println "insert-entry-form-data-complete called")
    {:fx [[:dispatch [:entry-form-ex/show-welcome]]
-         ;; Furthur refreshing view event are delegated to entry-category/entry-inserted 
+         ;; Furthur refreshing view event are delegated to entry-category/entry-inserted
          ;; which in turn calls entry-list/entry-inserted, group-tree-content/entry-inserted
-         [:dispatch [:entry-category/entry-inserted entry-uuid group-uuid entry-type-uuid entry-type-name]]
+         ;; tags are forwarded so tag-grouping selection can follow the entry's tags
+         [:dispatch [:entry-category/entry-inserted entry-uuid group-uuid entry-type-uuid entry-type-name tags]]
          [:dispatch [:common/message-snackbar-open (lstr-sm 'entryCreated)]]]}))
 
 
