@@ -165,6 +165,20 @@
   [section key value]
   (dispatch [:entry-form-update-section-value section key value]))
 
+(defn load-section-field-from-file
+  "Opens a native file dialog, reads the selected file's text content and stores
+   it as the value of the given section field. Used by the SSH Key entry form to
+   load a private/public key file's contents into its text field."
+  [section key]
+  (bg/open-file-dialog
+   (fn [{:keys [result]}]
+     (when-not (str/blank? result)
+       (bg/read-text-file
+        result
+        (fn [api-response]
+          (when-let [content (check-error api-response)]
+            (update-section-value-on-change section key content))))))))
+
 (defn entry-form-data-update-field-value
   "Update a field found in :data"
   [field-name-kw value]

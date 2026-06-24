@@ -200,6 +200,12 @@
         (dispatch-fn {:error (ex-cause err)})
         (js/console.log (ex-cause err))))))
 
+(defn read-text-file
+  "Reads a small UTF-8 text file's contents (e.g. an SSH key file) and passes the
+   string to 'dispatch-fn' as {:result content} or {:error ...}."
+  [file-path dispatch-fn]
+  (invoke-api "read_text_file" {:file-path file-path} dispatch-fn :convert-response false))
+
 (defn open-file
   "Opens a file passed as 'file-name' from the local file system with the system's default app
    The arg 'file-name' expected to be the complete path.
@@ -700,6 +706,30 @@
 
 (defn browser-ext-manifest-statuses [dispatch-fn]
   (invoke-api "browser_ext_manifest_statuses" {} dispatch-fn))
+
+;; ---- SSH agent ----
+
+;; All three return the AgentStatus map {running, socket-path, key-count, error}
+;; (snake_case keys converted to kebab-case by invoke-api).
+
+(defn ssh-agent-status [dispatch-fn]
+  (invoke-api "ssh_agent_status" {} dispatch-fn))
+
+(defn start-ssh-agent
+  "Enables (persists) and starts the SSH agent. Returns the new status."
+  [dispatch-fn]
+  (invoke-api "start_ssh_agent" {} dispatch-fn))
+
+(defn stop-ssh-agent
+  "Disables (persists) and stops the SSH agent. Returns the new status."
+  [dispatch-fn]
+  (invoke-api "stop_ssh_agent" {} dispatch-fn))
+
+(defn ssh-agent-sign-confirm-result
+  "Sends the user's allow/deny answer for a pending SSH agent sign request."
+  [request-id allow dispatch-fn]
+  (invoke-api "ssh_agent_sign_confirm_result"
+              {:request-id request-id :allow allow} dispatch-fn :convert-response false))
 
 (defn clear-recent-files [dispatch-fn]
   (invoke-api "clear_recent_files" {} dispatch-fn))

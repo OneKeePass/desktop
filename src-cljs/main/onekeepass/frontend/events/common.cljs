@@ -953,6 +953,7 @@
 (reg-event-db
  :load-entry-type-headers-completed
  (fn [db [_event-id et-headers-m]]
+   (println "load-entry-type-headers-completed et-headers-m" et-headers-m)
    (assoc-in-key-db db [:entry-type-headers] et-headers-m)))
 
 ;; Gets a map formed by struct EntryTypeHeaders

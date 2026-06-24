@@ -7,6 +7,7 @@
    [onekeepass.frontend.events.custom-icons :as ci-events]
    [onekeepass.frontend.auto-type :as at-form]
    [onekeepass.frontend.browser-integration :as browser-integration]
+   [onekeepass.frontend.ssh-agent :as ssh-agent]
    [onekeepass.frontend.common-components :refer [confirm-text-dialog
                                                   error-info-dialog
                                                   message-dialog
@@ -341,6 +342,7 @@
        [check-updates/check-for-updates-dialog-main]
        [browser-integration/browser-extension-connection-permit-dialog]
        [browser-integration/browser-extension-install-grant-dialog]
+       [ssh-agent/ssh-agent-sign-confirm-dialog]
 
        [gen-form/password-generator-dialog @(gen-events/generator-dialog-data)]
 

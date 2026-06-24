@@ -1,8 +1,10 @@
 (ns onekeepass.frontend.app-settings
   (:require
    [clojure.string :as str]
+   [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.events.app-settings :as app-settings-events]
+   [onekeepass.frontend.events.ssh-agent :as ssh-agent-events]
    [onekeepass.frontend.events.common :as ce]
    [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom mui-box
                                                      mui-alert
@@ -17,6 +19,7 @@
                                                      mui-icon-open-in-browser
                                                      mui-icon-security-outlined
                                                      mui-icon-settings-outlined
+                                                     mui-icon-vpn-key-outlined
                                                      mui-input-adornment
                                                      mui-list
                                                      mui-list-item-button
@@ -57,7 +60,12 @@
     [mui-list-item-button {:on-click #(app-settings-events/app-settings-panel-select :browser-integration)
                            :selected (= panel :browser-integration)}
      [mui-list-item-icon [mui-icon-open-in-browser]]
-     [mui-list-item-text text-style-m (tr-l "browserIntegration")]]]])
+     [mui-list-item-text text-style-m (tr-l "browserIntegration")]]
+
+    [mui-list-item-button {:on-click #(app-settings-events/app-settings-panel-select :ssh-agent)
+                           :selected (= panel :ssh-agent)}
+     [mui-list-item-icon [mui-icon-vpn-key-outlined]]
+     [mui-list-item-text text-style-m (t/lstr-l "sshAgent")]]]])
 
 
 (def themes [{:name "Light" :value "light"} {:name "Dark" :value "dark"}])
@@ -234,6 +242,49 @@
                                    (app-settings-events/field-update [:preference-data :browser-ext-support :extension-use-enabled] checked?)))}])
         :label (tr-l "enableBrowserIntegration")}]]]]
    #_[browser-manifest-statuses]])
+
+;; SSH agent settings panel. Unlike the preference-form panels, the enable
+;; toggle acts immediately (the start/stop commands persist the flag AND
+;; start/stop the listener), so it is independent of the dialog's OK/Cancel.
+;; Status is fetched live on mount and refreshed after each toggle.
+(defn ssh-agent-panel [_dialog-data]
+  (r/with-let [_ (ssh-agent-events/load-status)]
+    (let [{:keys [running socket-path key-count error]} @(ssh-agent-events/agent-status)]
+      [mui-stack
+       [mui-stack {:sx {:pt 1 :pb 1}}
+        [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
+         (t/lstr-l "sshAgentService")]]
+
+       [mui-stack {:spacing 2 :sx {:alignItems "center"}}
+        [mui-box {:sx {:width "80%"}}
+         [mui-stack {:direction "row" :sx {:justify-content "space-between"}}
+          [mui-form-control-label
+           {:control (r/as-element
+                      [mui-checkbox
+                       {:checked (boolean running)
+                        :on-change (fn [^js/CheckedEvent e]
+                                     (ssh-agent-events/set-enabled (-> e .-target .-checked)))}])
+            :label (t/lstr-l "enableSshAgent")}]]
+
+         (when error
+           [mui-alert {:severity "error" :sx {:mt 1}} error])
+
+         (when running
+           [mui-stack {:spacing 1 :sx {:mt 2}}
+            [mui-typography {:variant "caption" :sx {:color "text.secondary"}}
+             (t/lstr-l "sshAgentSocketPath")]
+            [mui-stack {:direction "row" :sx {:alignItems "center" :justify-content "space-between"}}
+             [mui-typography {:sx {:fontFamily "monospace" :fontSize "0.8rem"
+                                   :wordBreak "break-all" :mr 1}}
+              socket-path]
+             [mui-button {:size "small"
+                          :on-click #(bg/write-to-clipboard socket-path)}
+              (t/lstr-bl "copy")]]
+            [mui-typography {:variant "caption" :sx {:color "text.secondary"}}
+             (str (t/lstr-l "sshAgentKeysServed") ": " (or key-count 0))]
+            [m/mui-divider {:sx {:mt 1 :mb 1}}]
+            [mui-typography {:variant "caption" :sx {:color "text.secondary"}}
+             (t/lstr-l "sshAgentUsageHint")]])]]])))
 
 (def ^:private FIREFOX "Firefox")
 (def ^:private CHROME "Chrome")
@@ -481,6 +532,9 @@
          [browser-integration dialog-data]
          [m/mui-divider {:sx {:mt 1 :mb 1}}]
          [supported-browsers dialog-data]]
+
+        :ssh-agent
+        [ssh-agent-panel dialog-data]
 
 
         ;;IMPORATNT:

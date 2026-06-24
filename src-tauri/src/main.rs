@@ -23,6 +23,7 @@ mod menu;
 mod pass_phrase;
 mod remote_storage;
 mod sandbox;
+mod ssh_agent;
 mod translation;
 #[cfg(not(feature = "mas-build"))]
 mod updater;
@@ -167,6 +168,7 @@ fn main() {
             commands::platform_window_titles,
             commands::read_and_verify_db_file,
             commands::read_app_preference,
+            commands::read_text_file,
             commands::reload_kdbx,
             commands::remove_custom_icon,
             commands::remove_entry_permanently,
@@ -203,6 +205,10 @@ fn main() {
             commands::send_sequence_to_winow_async,
             commands::sort_sub_groups,
             // commands::standard_paths,
+            commands::ssh_agent_status,
+            commands::ssh_agent_sign_confirm_result,
+            commands::start_ssh_agent,
+            commands::stop_ssh_agent,
             commands::start_polling_entry_otp_fields,
             commands::stop_polling_entry_otp_fields,
             commands::stop_polling_all_entries_otp_fields,

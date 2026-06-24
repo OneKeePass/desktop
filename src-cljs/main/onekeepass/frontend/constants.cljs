@@ -40,6 +40,7 @@
 (def DRIVER_LICENSE_TYPE_NAME "Driver License")
 (def EMAIL_ACCOUNT_TYPE_NAME "Email Account")
 (def SSH_LOGIN_TYPE_NAME "SSH Login")
+(def SSH_KEY_TYPE_NAME "SSH Key")
 (def API_CREDENTIAL_TYPE_NAME "API Credential")
 (def DATABASE_CREDENTIAL_TYPE_NAME "Database Credential")
 (def SOFTWARE_LICENSE_TYPE_NAME "Software License")
@@ -65,6 +66,7 @@
                            DRIVER_LICENSE_TYPE_NAME
                            EMAIL_ACCOUNT_TYPE_NAME
                            SSH_LOGIN_TYPE_NAME
+                           SSH_KEY_TYPE_NAME
                            API_CREDENTIAL_TYPE_NAME
                            DATABASE_CREDENTIAL_TYPE_NAME
                            SOFTWARE_LICENSE_TYPE_NAME
@@ -175,6 +177,7 @@
 (def BROWSER_CONNECTION_REQUEST_EVENT "BrowserConnectionRequestEvent")
 (def PASSKEY_DATA_CHANGED_EVENT "PasskeyDataChangedEvent")
 (def DB_FILE_CHANGED_EVENT "DbFileChangedEvent")
+(def SSH_AGENT_SIGN_REQUEST_EVENT "SshAgentSignRequestEvent")
 
 (def WINDOW_FOCUS_CHANGED "WindowFocusChanged")
 (def CLOSE_REQUESTED  "CloseRequested")

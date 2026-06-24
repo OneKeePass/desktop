@@ -1,0 +1,265 @@
+// Desktop SSH agent service.
+//
+// Serves SSH keys drawn from unlocked databases over the standard agent
+// transport so `ssh`, `git`, etc. can authenticate without the private key ever
+// touching disk. Phase 2 covers the unix-socket transport (macOS / Linux),
+// the in-memory key store, and the open/lock/close lifecycle hooks. The
+// confirmation flow (Phase 3) and the Windows transports (Phases 5-6) plug into
+// the same `SshAgentStore` / `AgentSession`.
+//
+// The agent is disabled by default; nothing is bound until the user enables it.
+
+// The unix-socket transport (macOS / Linux). The Windows transports
+// (OpenSSH named pipe, Pageant) arrive in later phases.
+#[cfg(unix)]
+mod server;
+mod session;
+mod store;
+
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, OnceLock, RwLock};
+use std::time::Duration;
+
+use serde::Serialize;
+use tauri::Emitter;
+use tokio::sync::{oneshot, Notify};
+
+use onekeepass_core::db_service as kp_service;
+
+use crate::app_state::AppState;
+use crate::constants::event_names::SSH_AGENT_SIGN_REQUEST_EVENT;
+
+use store::SshAgentStore;
+
+// How long a "Require Confirmation" sign request waits for the user before it
+// auto-denies, so a dropped/ignored dialog never wedges the ssh/git client.
+const CONFIRM_TIMEOUT_SECS: u64 = 60;
+
+// Snapshot of the agent state reported to the UI.
+#[derive(Serialize, Clone, Debug, Default)]
+pub(crate) struct AgentStatus {
+    pub running: bool,
+    pub socket_path: Option<String>,
+    pub key_count: usize,
+    // Last bind/start error, surfaced so the settings UI can explain a failure
+    // (path in use, permissions, etc.) instead of failing silently.
+    pub error: Option<String>,
+}
+
+struct AgentRuntime {
+    store: Arc<RwLock<SshAgentStore>>,
+    // `Some` exactly while the listener task is alive. Signalling it stops the
+    // accept loop and removes the socket file.
+    shutdown: Option<Arc<Notify>>,
+    socket_path: Option<String>,
+    last_error: Option<String>,
+}
+
+static RUNTIME: OnceLock<Mutex<AgentRuntime>> = OnceLock::new();
+
+// In-flight "Require Confirmation" sign requests, keyed by a generated request
+// id. The Session::sign task parks on the receiver; the UI's answer command
+// removes the sender and delivers the user's allow/deny.
+static PENDING_CONFIRMS: OnceLock<Mutex<HashMap<String, oneshot::Sender<bool>>>> = OnceLock::new();
+
+fn pending_confirms() -> &'static Mutex<HashMap<String, oneshot::Sender<bool>>> {
+    PENDING_CONFIRMS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+// Payload sent to the UI to raise the allow/deny dialog. There is no host on a
+// key entry, so we show the key title and fingerprint.
+#[derive(Serialize, Clone, Debug)]
+struct SignRequestPayload {
+    request_id: String,
+    title: String,
+    fingerprint: String,
+}
+
+fn runtime() -> &'static Mutex<AgentRuntime> {
+    RUNTIME.get_or_init(|| {
+        Mutex::new(AgentRuntime {
+            store: Arc::new(RwLock::new(SshAgentStore::new())),
+            shutdown: None,
+            socket_path: None,
+            last_error: None,
+        })
+    })
+}
+
+fn snapshot(rt: &AgentRuntime) -> AgentStatus {
+    AgentStatus {
+        running: rt.shutdown.is_some(),
+        socket_path: rt.socket_path.clone(),
+        key_count: rt.store.read().unwrap().len(),
+        error: rt.last_error.clone(),
+    }
+}
+
+// Starts the agent: rebuilds the key store from every open database and binds
+// the unix socket. Idempotent — calling it while already running just returns
+// the current status.
+pub(crate) fn start() -> AgentStatus {
+    let mut rt = runtime().lock().unwrap();
+
+    if rt.shutdown.is_some() {
+        return snapshot(&rt);
+    }
+
+    rt.last_error = None;
+
+    // Build the store from all currently-open databases before binding.
+    {
+        let sources = kp_service::ssh_agent::list_ssh_agent_key_sources();
+        rt.store.write().unwrap().set_all(sources);
+    }
+
+    #[cfg(unix)]
+    {
+        let path = server::socket_path();
+        let shutdown = Arc::new(Notify::new());
+
+        match server::bind_and_spawn(&path, rt.store.clone(), shutdown.clone()) {
+            Ok(()) => {
+                rt.shutdown = Some(shutdown);
+                rt.socket_path = Some(path.to_string_lossy().to_string());
+                log::info!("SSH agent started");
+            }
+            Err(e) => {
+                log::error!("SSH agent failed to start: {}", e);
+                rt.last_error = Some(e);
+                // Don't keep a half-built store around when we couldn't bind.
+                rt.store.write().unwrap().clear();
+            }
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        let msg = "SSH agent transport is not yet implemented on this platform";
+        log::warn!("{}", msg);
+        rt.last_error = Some(msg.into());
+        rt.store.write().unwrap().clear();
+    }
+
+    snapshot(&rt)
+}
+
+// Stops the agent, removes the socket, and wipes the key store from memory.
+pub(crate) fn stop() -> AgentStatus {
+    let mut rt = runtime().lock().unwrap();
+
+    if let Some(shutdown) = rt.shutdown.take() {
+        shutdown.notify_waiters();
+    }
+    if let Some(path) = rt.socket_path.take() {
+        let _ = std::fs::remove_file(&path);
+    }
+    rt.store.write().unwrap().clear();
+    rt.last_error = None;
+
+    log::info!("SSH agent stopped");
+    snapshot(&rt)
+}
+
+pub(crate) fn status() -> AgentStatus {
+    snapshot(&runtime().lock().unwrap())
+}
+
+fn is_running(rt: &AgentRuntime) -> bool {
+    rt.shutdown.is_some()
+}
+
+// Refreshes the agent's slice of keys for one database (open / unlock / reload).
+// No-op when the agent isn't running.
+pub(crate) fn reload_keys_for_db(db_key: &str) {
+    let rt = runtime().lock().unwrap();
+    if !is_running(&rt) {
+        return;
+    }
+    let sources = kp_service::ssh_agent::ssh_agent_key_sources_for_db(db_key);
+    let mut store = rt.store.write().unwrap();
+    store.replace_db(db_key, sources);
+    log::debug!("SSH agent: now serving {} key(s)", store.len());
+}
+
+// Removes (and zeroizes) the agent's keys for one database (lock / close).
+// No-op when the agent isn't running.
+pub(crate) fn clear_keys_for_db(db_key: &str) {
+    let rt = runtime().lock().unwrap();
+    if !is_running(&rt) {
+        return;
+    }
+    let mut store = rt.store.write().unwrap();
+    store.remove_db(db_key);
+    log::debug!("SSH agent: now serving {} key(s)", store.len());
+}
+
+// Clears every key (app quit). Stops the listener too.
+pub(crate) fn clear_all_keys() {
+    let _ = stop();
+    // Deny any sign requests still parked on a confirmation dialog.
+    let pending: Vec<_> = pending_confirms().lock().unwrap().drain().collect();
+    for (_, tx) in pending {
+        let _ = tx.send(false);
+    }
+}
+
+// Raises the allow/deny dialog for a "Require Confirmation" key and waits for the
+// user's answer (auto-denying after a timeout). Called from `Session::sign`
+// while no store lock is held. Returns true only on an explicit allow.
+pub(super) async fn request_confirmation(title: String, fingerprint: String) -> bool {
+    let request_id = uuid::Uuid::new_v4().to_string();
+    let (tx, rx) = oneshot::channel::<bool>();
+
+    pending_confirms()
+        .lock()
+        .unwrap()
+        .insert(request_id.clone(), tx);
+
+    let payload = SignRequestPayload {
+        request_id: request_id.clone(),
+        title,
+        fingerprint,
+    };
+
+    log::info!(
+        "SSH agent: emitting sign-confirm request {} to the UI",
+        request_id
+    );
+
+    // Emit to the UI. If emit fails there is no dialog to answer, so clean up
+    // and deny.
+    if let Err(e) = AppState::global_app_handle().emit(SSH_AGENT_SIGN_REQUEST_EVENT, payload) {
+        log::error!("SSH agent: failed to emit sign-confirm event: {}", e);
+        pending_confirms().lock().unwrap().remove(&request_id);
+        return false;
+    }
+
+    let outcome = tokio::time::timeout(Duration::from_secs(CONFIRM_TIMEOUT_SECS), rx).await;
+
+    // Always drop the sender from the registry (covers the timeout path, where
+    // the answer command never removed it).
+    pending_confirms().lock().unwrap().remove(&request_id);
+
+    match outcome {
+        Ok(Ok(allow)) => allow,
+        // Timed out, or the sender was dropped without an answer -> deny.
+        _ => {
+            log::info!("SSH agent: sign confirmation timed out or was abandoned; denying");
+            false
+        }
+    }
+}
+
+// Delivers the user's allow/deny answer to the parked sign request. Called from
+// the `ssh_agent_sign_confirm_result` command.
+pub(crate) fn submit_confirmation(request_id: &str, allow: bool) {
+    if let Some(tx) = pending_confirms().lock().unwrap().remove(request_id) {
+        let _ = tx.send(allow);
+    } else {
+        log::warn!(
+            "SSH agent: confirmation answer for unknown/expired request {}",
+            request_id
+        );
+    }
+}

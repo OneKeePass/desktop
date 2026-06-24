@@ -26,10 +26,10 @@
                                                      mui-text-field
                                                      mui-tooltip
                                                      mui-typography]]
-   [onekeepass.frontend.translation :as t :refer [lstr-l-cv] :refer-macros [tr-h
-                                                                            tr-l
-                                                                            tr-l-cv
-                                                                            tr-entry-field-name-cv]]
+   [onekeepass.frontend.translation :as t :refer [lstr-l lstr-l-cv] :refer-macros [tr-h
+                                                                                   tr-l
+                                                                                   tr-l-cv
+                                                                                   tr-entry-field-name-cv]]
    [reagent.core :as r]))
 
 (defn- to-value
@@ -532,6 +532,58 @@
                                                   (and protected (not visible))
                                                   (assoc :WebkitTextSecurity "disc"))}}}])
 
+
+(defn ssh-key-multiline-field
+  "A dedicated multi-row text area for the SSH Key entry type's 'Private Key' and
+   'Public Key' fields. Unlike the generic field, the action icons sit in a row
+   above the text area (instead of overlapping the text as an end adornment), and
+   the field is always a tall, monospaced text area with room for a full key:
+     - load-from-file (folder) — edit mode only, reads a key file into the field
+     - visibility toggle       — protected fields only (Private Key)
+     - copy"
+  [{:keys [key protected visible edit section-name error-text on-change-handler] :as kv}]
+  (let [label (translated-label kv)
+        val (to-value kv)
+        helper-text (helper-or-error-text kv)]
+    [mui-stack {:sx {:margin-top "16px" :width "100%"}}
+     ;; Action row above the text area
+     [mui-stack {:direction "row"
+                 :sx {:width "100%" :align-items "center" :justify-content "space-between"}}
+      [mui-typography {:variant "caption" :sx {:color "text.secondary"}} label]
+      [mui-stack {:direction "row" :sx {:align-items "center"}}
+       ;; Load the field content from a key file (edit mode only)
+       (when edit
+         [mui-tooltip {:title (lstr-l 'loadFromFile) :enterDelay 2500}
+          [mui-icon-button {:edge "end"
+                            :on-click #(form-events/load-section-field-from-file section-name key)}
+           [m/mui-icon-folder-outlined]]])
+       ;; Visibility toggle for the protected Private Key field
+       (when protected
+         [mui-icon-button {:edge "end"
+                           :on-click #(form-events/entry-form-field-visibility-toggle key)}
+          (if visible [mui-icon-visibility] [mui-icon-visibility-off])])
+       ;; Copy
+       [(if protected
+          (cc/copy-icon-factory #(cmn-events/write-sensitive-to-clipboard val))
+          (cc/copy-icon-factory))
+        val]]]
+     [m/text-field {:fullWidth true
+                    :id key
+                    :variant "standard"
+                    :value val
+                    :error (not (nil? error-text))
+                    :helperText helper-text
+                    :onChange on-change-handler
+                    :multiline true
+                    :rows 8
+                    :slotProps {:input {:id key
+                                        :sx (theme-text-field-sx edit @custom-theme-atom)}
+                                :htmlInput {:readOnly (not edit)
+                                            :sx {:ml ".5em" :mr ".5em"}
+                                            :style (cond-> {:resize "vertical"
+                                                            :font-family "monospace"}
+                                                     (and protected (not visible))
+                                                     (assoc :WebkitTextSecurity "disc"))}}}]]))
 
 (defn single-or-multiline-text-field
   "Decides whether to use text-field or text-area-field based on the

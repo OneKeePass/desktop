@@ -439,6 +439,8 @@ pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app_handle:
     match menu_id {
         QUIT => {
             info!("Quit requested from UI {:?}", request);
+            // Stop the SSH agent and wipe all decrypted keys before exit.
+            crate::ssh_agent::clear_all_keys();
             let _r = kp_service::close_all_databases();
             info!("Closed all databases");
 

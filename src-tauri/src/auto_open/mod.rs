@@ -149,6 +149,10 @@ fn inner_open_all_auto_open_dbs(
                             );
                             app_state.db_file_watcher.start_watching(&db_key_to_open);
 
+                            // Surface this auto-opened db's SSH keys to the agent
+                            // (this path bypasses the load_kdbx command's hook).
+                            crate::ssh_agent::reload_keys_for_db(&db_key_to_open);
+
                             auto_open_dbs_info.opened_dbs.push(auto_open_db);
                             // recursive call to check that the newly opened db has 'AutoOpen' group or not
                             inner_open_all_auto_open_dbs(

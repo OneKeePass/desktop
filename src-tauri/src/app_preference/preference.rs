@@ -62,6 +62,15 @@ pub(crate) struct Preference2 {
     browser_ext_support: BrowserExtSupport,
 }
 
+// Global SSH-agent service preference. Introduced after v0.21.0, so it is
+// `#[serde(default)]` on the Preference field below and existing TOMLs without
+// it deserialize cleanly (agent disabled).
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
+pub(crate) struct SshAgentSupport {
+    #[serde(default)]
+    pub(crate) enabled: bool,
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub(crate) struct Preference {
     version: String,
@@ -93,6 +102,10 @@ pub(crate) struct Preference {
 
     // Introduced browser ext releated preference in v0.17.0
     browser_ext_support: BrowserExtSupport,
+
+    // Global enable flag for the desktop SSH agent service. Disabled by default.
+    #[serde(default)]
+    ssh_agent_support: SshAgentSupport,
     // For now this feature is not used in the UI
     // This will be used in future to allow user to select which database to use with browser extension
     // Typically user will enable browser ext support for one or more databases in the database settings
@@ -118,6 +131,7 @@ impl Default for Preference {
             password_gen_preference: PasswordGeneratorPreference::default(),
 
             browser_ext_support: BrowserExtSupport::default(),
+            ssh_agent_support: SshAgentSupport::default(),
             // browser_ext_supported_databases: vec![],
         }
     }
@@ -428,6 +442,16 @@ impl Preference {
 
     pub(crate) fn browser_ext_support_preference(&self) -> &BrowserExtSupport {
         &self.browser_ext_support
+    }
+
+    pub(crate) fn is_ssh_agent_enabled(&self) -> bool {
+        self.ssh_agent_support.enabled
+    }
+
+    // Persists the SSH agent global enable flag.
+    pub(crate) fn set_ssh_agent_enabled(&mut self, enabled: bool) {
+        self.ssh_agent_support.enabled = enabled;
+        self.write_toml();
     }
 
     // Writes the native-messaging manifest for `browser_id` using the stored

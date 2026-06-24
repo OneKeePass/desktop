@@ -3,6 +3,7 @@
    [onekeepass.frontend.about :as about]
    [onekeepass.frontend.app-settings :refer [app-settings-dialog-main]]
    [onekeepass.frontend.browser-integration :as browser-integration]
+   [onekeepass.frontend.ssh-agent :as ssh-agent]
    [onekeepass.frontend.check-for-updates :as check-updates]
    [onekeepass.frontend.common-components :as cc :refer [message-dialog]]
    [onekeepass.frontend.custom-icons :as cust-icons]
@@ -143,6 +144,7 @@
    [check-updates/check-for-updates-dialog-main]
    [browser-integration/browser-extension-connection-permit-dialog]
    [browser-integration/browser-extension-install-grant-dialog]
+   [ssh-agent/ssh-agent-sign-confirm-dialog]
    [open-recent/open-recent-dialog-main]
    [rs-form/remote-storage-dialog-main]
    [message-dialog]])

@@ -800,6 +800,7 @@
    const/DRIVER_LICENSE_TYPE_NAME mui-icon-directions-car-outlined
    const/EMAIL_ACCOUNT_TYPE_NAME mui-icon-email-outlined
    const/SSH_LOGIN_TYPE_NAME mui-icon-terminal-outlined
+   const/SSH_KEY_TYPE_NAME mui-icon-vpn-key-outlined
    const/API_CREDENTIAL_TYPE_NAME mui-icon-api-outlined
    const/DATABASE_CREDENTIAL_TYPE_NAME mui-icon-storage-outlined
    const/SOFTWARE_LICENSE_TYPE_NAME mui-icon-workspace-premium-outlined

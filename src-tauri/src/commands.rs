@@ -17,6 +17,7 @@ use crate::auto_open::{self, AutoOpenProperties, AutoOpenPropertiesResolved};
 use crate::auto_type;
 use crate::browser_service;
 use crate::menu::MenuActionRequest;
+use crate::ssh_agent;
 use crate::{app_preference, app_state};
 use crate::{biometric, OTP_TOKEN_UPDATE_EVENT};
 #[cfg(not(feature = "mas-build"))]
@@ -191,6 +192,8 @@ pub(crate) async fn load_kdbx(
     if r.is_ok() {
         scoped_access.store_success_handles(db_file_name, key_file_name, &app_state);
         app_state.db_file_watcher.start_watching(db_file_name);
+        // Add this db's agent-enabled SSH keys to the running agent (if any).
+        ssh_agent::reload_keys_for_db(db_file_name);
     } else {
         // Failure path with a held handle (e.g., wrong password). The user
         // will likely retry, but we shouldn't leak scoped access in the
@@ -354,7 +357,10 @@ pub(crate) async fn move_group(db_key: &str, group_uuid: Uuid, new_parent_id: Uu
 
 #[command]
 pub(crate) async fn move_entry_to_recycle_bin(db_key: &str, entry_uuid: Uuid) -> Result<()> {
-    Ok(kp_service::move_entry_to_recycle_bin(db_key, entry_uuid)?)
+    kp_service::move_entry_to_recycle_bin(db_key, entry_uuid)?;
+    // A recycled SSH Key must stop being served.
+    ssh_agent::reload_keys_for_db(db_key);
+    Ok(())
 }
 
 #[command]
@@ -414,7 +420,9 @@ pub(crate) async fn remove_group_permanently(db_key: &str, group_uuid: Uuid) -> 
 
 #[command]
 pub(crate) async fn remove_entry_permanently(db_key: &str, entry_uuid: Uuid) -> Result<()> {
-    Ok(kp_service::remove_entry_permanently(db_key, entry_uuid)?)
+    kp_service::remove_entry_permanently(db_key, entry_uuid)?;
+    ssh_agent::reload_keys_for_db(db_key);
+    Ok(())
 }
 
 #[command]
@@ -618,7 +626,11 @@ pub(crate) async fn update_entry_from_form_data(
     db_key: &str,
     form_data: kp_service::EntryFormData,
 ) -> Result<()> {
-    Ok(kp_service::update_entry_from_form_data(db_key, form_data)?)
+    kp_service::update_entry_from_form_data(db_key, form_data)?;
+    // Reflect edits immediately: a toggled "Enable SSH Agent", a changed key, or
+    // a new passphrase should re-sync the agent's view of this db's keys.
+    ssh_agent::reload_keys_for_db(db_key);
+    Ok(())
 }
 
 #[tauri::command]
@@ -626,7 +638,10 @@ pub(crate) async fn insert_entry_from_form_data(
     db_key: &str,
     form_data: kp_service::EntryFormData,
 ) -> Result<()> {
-    Ok(kp_service::insert_entry_from_form_data(db_key, form_data)?)
+    kp_service::insert_entry_from_form_data(db_key, form_data)?;
+    // A newly added agent-enabled SSH Key is served right away (no db reopen).
+    ssh_agent::reload_keys_for_db(db_key);
+    Ok(())
 }
 
 #[tauri::command]
@@ -870,6 +885,40 @@ pub(crate) async fn close_kdbx(
     app_state.remove_app_home_backup_file(db_key);
     // Drop any in-memory connection config cached while this remote db was open.
     crate::remote_storage::clear_cached_connection_config(db_key);
+    // Remove this db's SSH keys from the agent (no-op if the agent isn't running).
+    ssh_agent::clear_keys_for_db(db_key);
+    Ok(())
+}
+
+// ---- SSH agent service commands ----
+
+#[command]
+pub(crate) async fn start_ssh_agent(
+    app_state: State<'_, app_state::AppState>,
+) -> Result<ssh_agent::AgentStatus> {
+    // Persist the enable flag first so the agent restarts on next boot.
+    app_state.set_ssh_agent_enabled(true);
+    Ok(ssh_agent::start())
+}
+
+#[command]
+pub(crate) async fn stop_ssh_agent(
+    app_state: State<'_, app_state::AppState>,
+) -> Result<ssh_agent::AgentStatus> {
+    app_state.set_ssh_agent_enabled(false);
+    Ok(ssh_agent::stop())
+}
+
+#[command]
+pub(crate) async fn ssh_agent_status() -> Result<ssh_agent::AgentStatus> {
+    Ok(ssh_agent::status())
+}
+
+// Delivers the user's allow/deny answer for a pending "Require Confirmation"
+// sign request back to the parked signer.
+#[command]
+pub(crate) async fn ssh_agent_sign_confirm_result(request_id: String, allow: bool) -> Result<()> {
+    ssh_agent::submit_confirmation(&request_id, allow);
     Ok(())
 }
 
@@ -898,6 +947,11 @@ pub(crate) async fn lock_kdbx(_db_key: &str) -> Result<()> {
     // Need to remove the session encryption key from memory in 'key_secure' module
     // This key need to be retreived during 'unlock_kdbx' call
 
+    // Drop this db's decrypted SSH keys from the agent on lock. This is correct
+    // regardless of the lock_kdbx stub above: a locked database must not keep
+    // serving its keys, so the agent's in-memory copy is wiped here.
+    ssh_agent::clear_keys_for_db(_db_key);
+
     Ok(())
 }
 
@@ -905,7 +959,10 @@ pub(crate) async fn lock_kdbx(_db_key: &str) -> Result<()> {
 pub(crate) async fn unlock_kdbx_on_biometric_authentication(
     db_key: &str,
 ) -> Result<kp_service::KdbxLoaded> {
-    Ok(kp_service::unlock_kdbx_on_biometric_authentication(db_key)?)
+    let r = kp_service::unlock_kdbx_on_biometric_authentication(db_key)?;
+    // Re-add this db's SSH keys now that it is unlocked.
+    ssh_agent::reload_keys_for_db(db_key);
+    Ok(r)
 }
 
 #[command]
@@ -918,7 +975,10 @@ pub(crate) async fn unlock_kdbx(
     // In case of Linux and Windows, the key is kept in memory and need to use Linux and Windows specific credential stores
     // similiar to macOS KeyChain
 
-    Ok(kp_service::unlock_kdbx(db_key, password, key_file_name)?)
+    let r = kp_service::unlock_kdbx(db_key, password, key_file_name)?;
+    // Re-add this db's SSH keys now that it is unlocked.
+    ssh_agent::reload_keys_for_db(db_key);
+    Ok(r)
 }
 
 #[command]
@@ -928,7 +988,11 @@ pub(crate) async fn read_and_verify_db_file(db_key: &str) -> Result<()> {
 
 #[command]
 pub(crate) async fn reload_kdbx(db_key: &str) -> Result<kp_service::KdbxLoaded> {
-    Ok(kp_service::reload_kdbx(db_key)?)
+    let r = kp_service::reload_kdbx(db_key)?;
+    // Refresh this db's SSH-agent slice because reload replaces in-memory DB
+    // content and may add/remove/change agent-enabled SSH Key entries.
+    ssh_agent::reload_keys_for_db(db_key);
+    Ok(r)
 }
 
 #[command]
@@ -1213,6 +1277,22 @@ pub async fn add_custom_icon_from_file(
         .into_iter()
         .find(|i| i.uuid == uuid)
         .ok_or_else(|| "Icon not found after add".to_string())
+}
+
+// Reads a small UTF-8 text file's contents. Used by the SSH Key entry form's
+// load-from-file affordance to read a private/public key file into a text field.
+// Capped so a stray large file selection cannot be slurped into memory.
+#[tauri::command]
+pub async fn read_text_file(file_path: &str) -> Result<String> {
+    const MAX_BYTES: u64 = 256 * 1024;
+    let meta = std::fs::metadata(file_path).map_err(|e| e.to_string())?;
+    if meta.len() > MAX_BYTES {
+        return Err(format!(
+            "File is too large to load ({} bytes); expected a key file",
+            meta.len()
+        ));
+    }
+    read_to_string(file_path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

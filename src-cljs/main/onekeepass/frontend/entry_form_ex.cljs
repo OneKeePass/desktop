@@ -316,6 +316,7 @@
     ;; if it has some fields with non blank value. 
     (when (or edit (boolean (seq (filter (fn [kv] (not (str/blank? (:value kv)))) section-data))))  ;;(seq section-data)
       (let [refs (atom {})
+            entry-type-name @(form-events/entry-form-data-fields :entry-type-name)
             standard-sections @(form-events/entry-form-data-fields :standard-section-names)
             standard-section? (contains-val? standard-sections section-name)
             section-title (if standard-section? (tr-entry-section-name-cv section-name) section-name)
@@ -375,6 +376,21 @@
                           :error-text (get errors key)
                           :on-change-handler #(form-events/update-section-value-on-change
                                                section-name key %))]
+
+                  ;; SSH Key entry type's key material: render the Private/Public Key
+                  ;; fields as dedicated tall multiline text areas with the action
+                  ;; icons above the field (not overlapping the text), plus a
+                  ;; load-from-file affordance in edit mode.
+                  (and (= entry-type-name const/SSH_KEY_TYPE_NAME)
+                       (contains? #{"Private Key" "Public Key"} key))
+                  [fields/ssh-key-multiline-field
+                   (assoc kv
+                          :edit edit
+                          :section-name section-name
+                          :error-text (get errors key)
+                          :visible @(form-events/visible? key)
+                          :on-change-handler #(form-events/update-section-value-on-change
+                                               section-name key (-> % .-target  .-value)))]
 
                   ;; we are now using 'single-or-multiline-text-field' instead of earlier 'text-field'
                   ;; All text-fields are now either single line or multiline text area fields

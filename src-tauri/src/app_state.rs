@@ -91,6 +91,9 @@ pub(crate) fn init_app(app: &App) {
     // Start the browser extennion proxy listener if required
     state.start_ext_proxy_service();
 
+    // Start the SSH agent service if the user enabled it on a prior run
+    state.start_ssh_agent_if_enabled();
+
     info!("{}", "Intit app is done");
 }
 
@@ -479,6 +482,22 @@ impl AppState {
         store_pref
             .browser_ext_support_preference()
             .start_proxy_handling_service();
+    }
+
+    // Called once at app boot. Binds the SSH agent socket only if the user left
+    // the feature enabled on a prior run; otherwise stays disabled-by-default.
+    fn start_ssh_agent_if_enabled(&self) {
+        let enabled = self.preference.lock().unwrap().is_ssh_agent_enabled();
+        if enabled {
+            crate::ssh_agent::start();
+        }
+    }
+
+    // Persists the SSH agent global enable flag. Called from the start/stop
+    // commands so the setting survives a restart.
+    pub(crate) fn set_ssh_agent_enabled(&self, enabled: bool) {
+        let mut store_pref = self.preference.lock().unwrap();
+        store_pref.set_ssh_agent_enabled(enabled);
     }
 
     pub(crate) fn clear_recent_files(&self) {
