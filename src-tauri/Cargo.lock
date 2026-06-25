@@ -4067,6 +4067,7 @@ dependencies = [
  "sha2 0.10.9",
  "signature 2.2.0",
  "ssh-agent-lib",
+ "ssh-encoding 0.2.0",
  "ssh-key 0.6.7",
  "swift-rs",
  "sys-locale",
@@ -4081,6 +4082,7 @@ dependencies = [
  "tokio",
  "toml 0.9.12+spec-1.1.0",
  "uuid",
+ "windows-sys 0.52.0",
  "winreg",
 ]
 

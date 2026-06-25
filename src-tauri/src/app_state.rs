@@ -326,11 +326,24 @@ impl AppState {
 
     pub(crate) fn update_preference(&self, preference_data: PreferenceData) -> Result<()> {
         let prior_dir = self.preference.lock().unwrap().backup.dir.clone();
+        let prior_ssh_agent_enabled = self.preference.lock().unwrap().is_ssh_agent_enabled();
 
         let result = {
             let mut store_pref = self.preference.lock().unwrap();
             store_pref.update(preference_data)
         };
+
+        // If the SSH agent enable flag flipped, start or stop the listener now.
+        // The flag itself was persisted by store_pref.update above; this only
+        // applies the runtime side effect.
+        let current_ssh_agent_enabled = self.preference.lock().unwrap().is_ssh_agent_enabled();
+        if prior_ssh_agent_enabled != current_ssh_agent_enabled {
+            if current_ssh_agent_enabled {
+                crate::ssh_agent::start();
+            } else {
+                crate::ssh_agent::stop();
+            }
+        }
 
         // If the backup dir actually changed, rotate the scoped-access handle
         // so the new dir's bookmark backs file writes for the rest of the

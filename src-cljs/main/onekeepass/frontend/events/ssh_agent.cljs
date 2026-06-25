@@ -8,21 +8,26 @@
 
 (set! *warn-on-infer* true)
 
-;; ---- Settings panel: enable toggle + live status ----
+;; ---- Settings panel: live status display ----
+;;
+;; The enable flag itself is an ordinary preference: the checkbox stages it into
+;; `[:preference-data :ssh-agent-support :enabled]` and OK persists it through the
+;; normal `update_preference` flow, which also starts/stops the listener (see
+;; AppState::update_preference). This namespace only owns the *live* runtime
+;; status (path / keys / error) shown alongside the checkbox, since that is not
+;; part of the persisted preference.
+;;
+;; AgentStatus map {:running :socket-path :key-count :error} is kept in app-db.
 
-;; AgentStatus map {:running :socket-path :key-count :error} kept in app-db.
-
-(defn load-status []
-  (dispatch [:ssh-agent/load-status]))
-
-(defn set-enabled [enabled?]
-  (dispatch [:ssh-agent/set-enabled enabled?]))
+;; Called on panel mount: fetch the live runtime status for display.
+(defn init-panel []
+  (dispatch [:ssh-agent/init-panel]))
 
 (defn agent-status []
   (subscribe [:ssh-agent/status]))
 
 (reg-event-fx
- :ssh-agent/load-status
+ :ssh-agent/init-panel
  (fn [{:keys [_db]} [_event-id]]
    {:fx [[:bg-ssh-agent-status]]}))
 
@@ -33,23 +38,6 @@
     (fn [api-response]
       (when-let [status (check-error api-response)]
         (dispatch [:ssh-agent-status-loaded status]))))))
-
-;; Enabling/disabling takes effect immediately (the command both persists the
-;; flag and starts/stops the listener) and returns the fresh status.
-(reg-event-fx
- :ssh-agent/set-enabled
- (fn [{:keys [_db]} [_event-id enabled?]]
-   {:fx [[:bg-ssh-agent-set-enabled enabled?]]}))
-
-(reg-fx
- :bg-ssh-agent-set-enabled
- (fn [enabled?]
-   (let [cb (fn [api-response]
-              (when-let [status (check-error api-response)]
-                (dispatch [:ssh-agent-status-loaded status])))]
-     (if enabled?
-       (bg/start-ssh-agent cb)
-       (bg/stop-ssh-agent cb)))))
 
 (reg-event-db
  :ssh-agent-status-loaded

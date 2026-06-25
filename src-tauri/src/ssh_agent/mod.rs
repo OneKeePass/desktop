@@ -9,10 +9,15 @@
 //
 // The agent is disabled by default; nothing is bound until the user enables it.
 
-// The unix-socket transport (macOS / Linux). The Windows transports
-// (OpenSSH named pipe, Pageant) arrive in later phases.
+// The unix-socket transport (macOS / Linux) and the two Windows transports
+// (OpenSSH named pipe, Pageant) are each gated to their platform; all three feed
+// the same `AgentSession` / `SshAgentStore`.
 #[cfg(unix)]
 mod server;
+#[cfg(windows)]
+mod pageant;
+#[cfg(windows)]
+mod pipe;
 mod session;
 mod store;
 
@@ -48,11 +53,16 @@ pub(crate) struct AgentStatus {
 
 struct AgentRuntime {
     store: Arc<RwLock<SshAgentStore>>,
-    // `Some` exactly while the listener task is alive. Signalling it stops the
-    // accept loop and removes the socket file.
+    // `Some` exactly while the stream listener task (unix socket or Windows
+    // OpenSSH named pipe) is alive. Signalling it stops the accept loop and, on
+    // unix, removes the socket file.
     shutdown: Option<Arc<Notify>>,
     socket_path: Option<String>,
     last_error: Option<String>,
+    // The Windows Pageant message-window, served on its own thread. `Some` while
+    // the Pageant transport is running.
+    #[cfg(windows)]
+    pageant: Option<pageant::PageantHandle>,
 }
 
 static RUNTIME: OnceLock<Mutex<AgentRuntime>> = OnceLock::new();
@@ -82,6 +92,8 @@ fn runtime() -> &'static Mutex<AgentRuntime> {
             shutdown: None,
             socket_path: None,
             last_error: None,
+            #[cfg(windows)]
+            pageant: None,
         })
     })
 }
@@ -133,9 +145,40 @@ pub(crate) fn start() -> AgentStatus {
         }
     }
 
-    #[cfg(not(unix))]
+    #[cfg(windows)]
     {
-        let msg = "SSH agent transport is not yet implemented on this platform";
+        // Primary transport: the OpenSSH named pipe. If it binds we are "running".
+        let shutdown = Arc::new(Notify::new());
+        match pipe::bind_and_spawn(rt.store.clone(), shutdown.clone()) {
+            Ok(()) => {
+                rt.shutdown = Some(shutdown);
+                rt.socket_path = Some(pipe::PIPE_PATH.to_string());
+                log::info!("SSH agent started (OpenSSH named pipe)");
+            }
+            Err(e) => {
+                log::error!("SSH agent failed to start: {}", e);
+                rt.last_error = Some(e);
+                rt.store.write().unwrap().clear();
+            }
+        }
+
+        // Secondary transport: Pageant for PuTTY-family clients. Best-effort — a
+        // failure here (e.g. a real Pageant already running) does not take down
+        // the named-pipe transport; it is only noted for the UI.
+        if rt.shutdown.is_some() {
+            match pageant::start(rt.store.clone()) {
+                Ok(handle) => rt.pageant = Some(handle),
+                Err(e) => {
+                    log::warn!("SSH agent: Pageant transport unavailable: {}", e);
+                    rt.last_error = Some(format!("Pageant transport unavailable: {e}"));
+                }
+            }
+        }
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    {
+        let msg = "SSH agent transport is not supported on this platform";
         log::warn!("{}", msg);
         rt.last_error = Some(msg.into());
         rt.store.write().unwrap().clear();
@@ -151,9 +194,23 @@ pub(crate) fn stop() -> AgentStatus {
     if let Some(shutdown) = rt.shutdown.take() {
         shutdown.notify_waiters();
     }
+
+    // On unix the socket_path is a real file to unlink; on Windows it is the
+    // named-pipe name (nothing to remove) and the Pageant window is torn down
+    // separately.
+    #[cfg(unix)]
     if let Some(path) = rt.socket_path.take() {
         let _ = std::fs::remove_file(&path);
     }
+    #[cfg(not(unix))]
+    {
+        rt.socket_path = None;
+    }
+    #[cfg(windows)]
+    if let Some(handle) = rt.pageant.take() {
+        handle.stop();
+    }
+
     rt.store.write().unwrap().clear();
     rt.last_error = None;
 

@@ -363,6 +363,14 @@ impl Preference {
             updated = true;
         }
 
+        // The enable flag is persisted here; the listener is started/stopped by
+        // AppState::update_preference, which compares the flag before/after this
+        // call (the side effect needs the agent runtime, not just the pref).
+        if let Some(v) = preference_data.ssh_agent_support {
+            self.ssh_agent_support = v;
+            updated = true;
+        }
+
         // For now this feature is not used in the UI
         // This will be used in future to allow user to select which database to use with browser extension
 

@@ -243,12 +243,13 @@
         :label (tr-l "enableBrowserIntegration")}]]]]
    #_[browser-manifest-statuses]])
 
-;; SSH agent settings panel. Unlike the preference-form panels, the enable
-;; toggle acts immediately (the start/stop commands persist the flag AND
-;; start/stop the listener), so it is independent of the dialog's OK/Cancel.
-;; Status is fetched live on mount and refreshed after each toggle.
-(defn ssh-agent-panel [_dialog-data]
-  (r/with-let [_ (ssh-agent-events/load-status)]
+;; SSH agent settings panel. Like the other preference panels, the enable
+;; checkbox only stages the desired flag into preference-data (lighting up the
+;; shared OK button); the agent is actually started/stopped on OK via
+;; :app-settings-save. The live status (path / keys / error) is fetched on mount
+;; and refreshed after the apply.
+(defn ssh-agent-panel [{{:keys [ssh-agent-support]} :preference-data}]
+  (r/with-let [_ (ssh-agent-events/init-panel)]
     (let [{:keys [running socket-path key-count error]} @(ssh-agent-events/agent-status)]
       [mui-stack
        [mui-stack {:sx {:pt 1 :pb 1}}
@@ -261,9 +262,11 @@
           [mui-form-control-label
            {:control (r/as-element
                       [mui-checkbox
-                       {:checked (boolean running)
+                       {:checked (boolean (:enabled ssh-agent-support))
                         :on-change (fn [^js/CheckedEvent e]
-                                     (ssh-agent-events/set-enabled (-> e .-target .-checked)))}])
+                                     (app-settings-events/field-update
+                                      [:preference-data :ssh-agent-support :enabled]
+                                      (-> e .-target .-checked)))}])
             :label (t/lstr-l "enableSshAgent")}]]
 
          (when error
