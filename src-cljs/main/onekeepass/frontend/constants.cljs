@@ -13,6 +13,10 @@
 (def UUID_OF_ENTRY_TYPE_REMOTE_CONNECTION_SFTP "c5a57a41-4cca-4a46-bac1-78a8803f4da0")
 (def UUID_OF_ENTRY_TYPE_REMOTE_CONNECTION_WEBDAV "0a14d76d-8c38-4c62-9ad7-390dc020a2af")
 
+;; Entry type id for the SSH Key type (the agent's key source). Must match
+;; entry_type_uuid::SSH_KEY in the core constants.rs.
+(def UUID_OF_ENTRY_TYPE_SSH_KEY "6421a61a-db18-413a-bdfb-715a5418216a")
+
 ;; Enum tags matching the Rust `RemoteStorageType` variant names. Used
 ;; verbatim in the JSON sent over the Tauri bridge.
 (def V-SFTP "Sftp")
@@ -48,11 +52,14 @@
 (def CRYPTO_WALLET_TYPE_NAME "Crypto Wallet")
 (def INSURANCE_POLICY_TYPE_NAME "Insurance Policy")
 
-(def REMOTE_CONNECTION_TYPE_NAMES #{REMOTE_CONNECTION_SFTP_TYPE_NAME
-                                    REMOTE_CONNECTION_WEBDAV_TYPE_NAME})
+;; Remote-connection entry types are identified by their stable type uuid (not
+;; the display name, which can change). entry-type-uuid comes from the entry's
+;; form data / EntrySummary.
+(def REMOTE_CONNECTION_TYPE_UUIDS #{UUID_OF_ENTRY_TYPE_REMOTE_CONNECTION_SFTP
+                                    UUID_OF_ENTRY_TYPE_REMOTE_CONNECTION_WEBDAV})
 
-(defn remote-connection-entry-type? [entry-type-name]
-  (contains? REMOTE_CONNECTION_TYPE_NAMES entry-type-name))
+(defn remote-connection-entry-type? [entry-type-uuid]
+  (contains? REMOTE_CONNECTION_TYPE_UUIDS entry-type-uuid))
 
 ;; Standard entry type names. The new-entry type menu is built from the
 ;; backend entry-type headers; this list is used to decide whether an entry

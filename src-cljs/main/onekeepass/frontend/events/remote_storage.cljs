@@ -50,10 +50,10 @@
 (defn- init-for-type [kw-type]
   (case kw-type :sftp (sftp-init-data) :webdav (webdav-init-data)))
 
-(defn- connection-entry-type->kw-type [entry-type]
-  (condp = entry-type
-    const/REMOTE_CONNECTION_SFTP_TYPE_NAME :sftp
-    const/REMOTE_CONNECTION_WEBDAV_TYPE_NAME :webdav
+(defn- connection-entry-type->kw-type [entry-type-uuid]
+  (condp = entry-type-uuid
+    const/UUID_OF_ENTRY_TYPE_REMOTE_CONNECTION_SFTP :sftp
+    const/UUID_OF_ENTRY_TYPE_REMOTE_CONNECTION_WEBDAV :webdav
     nil))
 
 (def ^:private blank-state
@@ -104,9 +104,8 @@
 (defn connect-by-id-start [connection-id]
   (dispatch [:remote-storage-connect-by-id-start connection-id]))
 
-(defn open-entry-remote [entry-type connection-id]
-  (println "open-entry-remote entry-type connection-id" entry-type connection-id)
-  (dispatch [:remote-storage-open-entry-remote entry-type connection-id]))
+(defn open-entry-remote [entry-type-uuid connection-id]
+  (dispatch [:remote-storage-open-entry-remote entry-type-uuid connection-id]))
 
 (defn enter-ad-hoc-form []
   (dispatch [:remote-storage-enter-ad-hoc-form]))
@@ -330,8 +329,8 @@
 
 (reg-event-fx
  :remote-storage-open-entry-remote
- (fn [_ [_ entry-type connection-id]]
-   (if-let [kw-type (connection-entry-type->kw-type entry-type)]
+ (fn [_ [_ entry-type-uuid connection-id]]
+   (if-let [kw-type (connection-entry-type->kw-type entry-type-uuid)]
      {:fx [[:dispatch [:common/progress-message-box-show "Connecting" "Please wait..."]]
            [:remote-storage-bg-open-entry-remote [kw-type connection-id]]]}
      {:fx [[:dispatch [:common/message-snackbar-error-open "Unsupported remote connection type"]]]})))

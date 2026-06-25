@@ -79,14 +79,14 @@
 
 (defn- end-icons [{:keys [key protected visible edit] :as kv}]
   (let [val (to-value kv)
-        entry-type-name @(form-events/entry-form-data-fields :entry-type-name)
+        entry-type-uuid @(form-events/entry-form-data-fields :entry-type-uuid)
         entry-uuid @(form-events/entry-form-data-fields :uuid)
         ;; Read-mode launch of the remote Storage Browser from a connection
         ;; entry's connection field: Host for SFTP, URL for WebDAV.
         rs-conn-launch? (and (not edit)
-                             (or (and (= entry-type-name const/REMOTE_CONNECTION_SFTP_TYPE_NAME)
+                             (or (and (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_REMOTE_CONNECTION_SFTP)
                                       (= key const/HOST))
-                                 (and (= entry-type-name const/REMOTE_CONNECTION_WEBDAV_TYPE_NAME)
+                                 (and (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_REMOTE_CONNECTION_WEBDAV)
                                       (= key URL))))]
     [:<>
      (when protected
@@ -103,7 +103,7 @@
      (when rs-conn-launch?
        [mui-icon-button {:sx {:margin-right "-8px"}
                          :edge "end"
-                         :on-click #(rs-events/open-entry-remote entry-type-name entry-uuid)}
+                         :on-click #(rs-events/open-entry-remote entry-type-uuid entry-uuid)}
         [m/mui-icon-launch]])
      ;; Open with the url (suppressed for a WebDAV connection entry's URL field,
      ;; which shows the storage-browser launch above instead)

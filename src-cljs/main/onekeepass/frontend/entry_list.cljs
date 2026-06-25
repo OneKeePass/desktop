@@ -149,14 +149,14 @@
                   :text (t/lstr-ml 'history)
                   :enabled? history-available?
                   :action #(form-events/load-history-entries-summary uuid)})
-                (when (const/remote-connection-entry-type? (:entry-type-name item))
+                (when (const/remote-connection-entry-type? (:entry-type-uuid item))
                   (ctx-menu/separator-item))
-                (when (const/remote-connection-entry-type? (:entry-type-name item))
+                (when (const/remote-connection-entry-type? (:entry-type-uuid item))
                   (ctx-menu/action-item
                    {:id "entry-open-remote"
                     :text (t/lstr-l "openRemote")
                     :action #(rs-events/open-entry-remote
-                              (:entry-type-name item)
+                              (:entry-type-uuid item)
                               uuid)}))])))))
 
 (defn- row-item-draggable

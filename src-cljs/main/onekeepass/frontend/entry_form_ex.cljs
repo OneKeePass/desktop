@@ -80,8 +80,8 @@
       (handler-name field-name-kw (-> e .-target  .-checked)))))
 
 (defn- entry-context-items
-  [entry-uuid group-uuid active-db-key favorites? history-available? os-name multi-db-open? deleted? mas-build? entry-type-name]
-  (let [remote-connection-entry? (const/remote-connection-entry-type? entry-type-name)]
+  [entry-uuid group-uuid active-db-key favorites? history-available? os-name multi-db-open? deleted? mas-build? entry-type-uuid]
+  (let [remote-connection-entry? (const/remote-connection-entry-type? entry-type-uuid)]
     (if deleted?
       [(ctx-menu/action-item
         {:id "entry-form-put-back"
@@ -149,7 +149,7 @@
                    {:id "entry-form-open-remote"
                     :text (lstr-l "openRemote")
                     :action #(rs-events/open-entry-remote
-                              entry-type-name
+                              entry-type-uuid
                               entry-uuid)}))])))))
 
 #_(defn on-check-factory [handler-name field-name-kw]
@@ -316,7 +316,7 @@
     ;; if it has some fields with non blank value. 
     (when (or edit (boolean (seq (filter (fn [kv] (not (str/blank? (:value kv)))) section-data))))  ;;(seq section-data)
       (let [refs (atom {})
-            entry-type-name @(form-events/entry-form-data-fields :entry-type-name)
+            entry-type-uuid @(form-events/entry-form-data-fields :entry-type-uuid)
             standard-sections @(form-events/entry-form-data-fields :standard-section-names)
             standard-section? (contains-val? standard-sections section-name)
             section-title (if standard-section? (tr-entry-section-name-cv section-name) section-name)
@@ -381,7 +381,7 @@
                   ;; fields as dedicated tall multiline text areas with the action
                   ;; icons above the field (not overlapping the text), plus a
                   ;; load-from-file affordance in edit mode.
-                  (and (= entry-type-name const/SSH_KEY_TYPE_NAME)
+                  (and (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_SSH_KEY)
                        (contains? #{"Private Key" "Public Key"} key))
                   [fields/ssh-key-multiline-field
                    (assoc kv
@@ -692,7 +692,7 @@
 
           icon-id @(form-events/entry-form-data-fields :icon-id)
           custom-icon-uuid @(form-events/entry-form-data-fields :custom-icon-uuid)
-          entry-type-name @(form-events/entry-form-data-fields :entry-type-name)
+          entry-type-uuid @(form-events/entry-form-data-fields :entry-type-uuid)
           entry-uuid  @(form-events/entry-form-data-fields :uuid)
           group-uuid @(form-events/entry-form-data-fields :group-uuid)
           active-db-key @(ce/active-db-key)
@@ -705,7 +705,7 @@
           deleted-cat? @(form-events/deleted-category-showing)
           recycle-bin? @(form-events/recycle-group-selected?)
           group-in-recycle-bin? @(form-events/selected-group-in-recycle-bin?)
-          remote-connection-entry? (const/remote-connection-entry-type? entry-type-name)
+          remote-connection-entry? (const/remote-connection-entry-type? entry-type-uuid)
           pd-dlg-data  @(move-events/delete-permanent-group-entry-dialog-data :entry)]
       [:div {:class "gbox"
              :style {:margin 0
@@ -725,7 +725,7 @@
                                     multi-db-open?
                                     (or deleted-cat? recycle-bin? group-in-recycle-bin?)
                                     mas-build?
-                                    entry-type-name))))}
+                                    entry-type-uuid))))}
 
        ;; Read mode: title sits on a white (card) surface with a bottom divider so it is
        ;; clearly separated from the grey content below. Edit mode keeps the plain bg.
