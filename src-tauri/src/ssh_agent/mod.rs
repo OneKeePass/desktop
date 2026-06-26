@@ -22,6 +22,7 @@ mod session;
 mod store;
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use std::time::Duration;
 
@@ -39,6 +40,11 @@ use store::SshAgentStore;
 // How long a "Require Confirmation" sign request waits for the user before it
 // auto-denies, so a dropped/ignored dialog never wedges the ssh/git client.
 const CONFIRM_TIMEOUT_SECS: u64 = 60;
+
+// How often the sweep task prunes keys whose "Agent Lifetime" has elapsed.
+// Expiry is enforced exactly on the read paths (identities/sign); this only
+// bounds how long an expired key's decrypted bytes linger before being zeroized.
+const PRUNE_INTERVAL_SECS: u64 = 15;
 
 // Snapshot of the agent state reported to the UI.
 #[derive(Serialize, Clone, Debug, Default)]
@@ -59,6 +65,9 @@ struct AgentRuntime {
     shutdown: Option<Arc<Notify>>,
     socket_path: Option<String>,
     last_error: Option<String>,
+    // Set to true to stop the Agent-Lifetime sweep task. `Some` while the agent
+    // is running; the sweep loop exits within one interval after this flips.
+    prune_stop: Option<Arc<AtomicBool>>,
     // The Windows Pageant message-window, served on its own thread. `Some` while
     // the Pageant transport is running.
     #[cfg(windows)]
@@ -92,6 +101,7 @@ fn runtime() -> &'static Mutex<AgentRuntime> {
             shutdown: None,
             socket_path: None,
             last_error: None,
+            prune_stop: None,
             #[cfg(windows)]
             pageant: None,
         })
@@ -184,7 +194,33 @@ pub(crate) fn start() -> AgentStatus {
         rt.store.write().unwrap().clear();
     }
 
+    // If a transport bound, start the Agent-Lifetime sweep that prunes expired
+    // keys. Transport-independent, so it is spawned once for any platform.
+    if rt.shutdown.is_some() {
+        let stop_flag = Arc::new(AtomicBool::new(false));
+        spawn_prune_task(rt.store.clone(), stop_flag.clone());
+        rt.prune_stop = Some(stop_flag);
+    }
+
     snapshot(&rt)
+}
+
+// Periodically drops keys whose "Agent Lifetime" has elapsed (and zeroizes them
+// via Drop). Exits within one interval after `stop_flag` is set, so each
+// start/stop cycle owns exactly one sweep task.
+fn spawn_prune_task(store: Arc<RwLock<SshAgentStore>>, stop_flag: Arc<AtomicBool>) {
+    tauri::async_runtime::spawn(async move {
+        loop {
+            tokio::time::sleep(Duration::from_secs(PRUNE_INTERVAL_SECS)).await;
+            if stop_flag.load(Ordering::Relaxed) {
+                break;
+            }
+            let removed = store.write().unwrap().prune_expired();
+            if removed > 0 {
+                log::debug!("SSH agent: pruned {removed} expired key(s) (Agent Lifetime)");
+            }
+        }
+    });
 }
 
 // Stops the agent, removes the socket, and wipes the key store from memory.
@@ -193,6 +229,10 @@ pub(crate) fn stop() -> AgentStatus {
 
     if let Some(shutdown) = rt.shutdown.take() {
         shutdown.notify_waiters();
+    }
+    // Signal the Agent-Lifetime sweep task to exit.
+    if let Some(stop_flag) = rt.prune_stop.take() {
+        stop_flag.store(true, Ordering::Relaxed);
     }
 
     // On unix the socket_path is a real file to unlink; on Windows it is the

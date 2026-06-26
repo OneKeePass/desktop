@@ -8,6 +8,7 @@
 // `identities()` / `sign()` entry points here.
 
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 use ssh_agent_lib::error::AgentError;
 use ssh_agent_lib::proto::{Identity, PublicCredential};
@@ -36,6 +37,11 @@ struct StoredIdentity {
     public_key_data: KeyData,
     // When true, each sign request for this key must be user-confirmed.
     require_confirmation: bool,
+    // "Agent Lifetime": when set, the identity stops being advertised/signable
+    // once this instant passes (and is pruned + zeroized by the sweep task).
+    // `None` means it lives until the database is locked/closed. The clock starts
+    // when the key is (re)loaded — on agent start, db unlock/open, or entry edit.
+    expires_at: Option<Instant>,
 }
 
 // Metadata the Session needs to decide whether (and how) to prompt before
@@ -94,17 +100,32 @@ impl StoredIdentity {
             src.title.clone()
         };
 
+        // An unparseable but non-empty lifetime is treated as "no expiry" so a
+        // typo never silently makes a key un-loadable; the parse warns instead.
+        let expires_at = src
+            .agent_lifetime
+            .as_deref()
+            .and_then(parse_lifetime)
+            .map(|d| Instant::now() + d);
+
         Ok(Self {
             db_key: src.db_key.clone(),
             comment,
             key,
             public_key_data,
             require_confirmation: src.require_confirmation,
+            expires_at,
         })
     }
 
     fn fingerprint(&self) -> String {
         self.public_key_data.fingerprint(HashAlg::Sha256).to_string()
+    }
+
+    // True once the "Agent Lifetime" deadline has passed. Keys with no lifetime
+    // never expire (they are cleared on db lock/close instead).
+    fn is_expired(&self) -> bool {
+        self.expires_at.map_or(false, |t| Instant::now() >= t)
     }
 
     fn sign(&self, data: &[u8], flags: u32) -> Result<Signature, String> {
@@ -116,6 +137,27 @@ impl StoredIdentity {
             // irrelevant, and the Signer path is correct.
             _ => signature::Signer::try_sign(&self.key, data)
                 .map_err(|e| format!("sign failed: {e}")),
+        }
+    }
+}
+
+// Parses an "Agent Lifetime" field into a duration. The desktop entry form
+// stores this as a whole number of seconds picked from a duration dropdown
+// ("3600", "86400", ...), so a bare integer is the only expected form. Returns
+// None for an empty or zero value (the key never expires); a non-empty value
+// that is not a positive integer is logged and treated as no-expiry so a stray
+// value never silently shortens a key's lifetime.
+fn parse_lifetime(input: &str) -> Option<Duration> {
+    let s = input.trim();
+    if s.is_empty() {
+        return None;
+    }
+
+    match s.parse::<u64>() {
+        Ok(secs) => (secs > 0).then(|| Duration::from_secs(secs)),
+        Err(_) => {
+            log::warn!("SSH agent: ignoring non-numeric Agent Lifetime '{input}'");
+            None
         }
     }
 }
@@ -214,13 +256,25 @@ impl SshAgentStore {
         }
     }
 
+    // Count of currently *servable* identities — expired ones (Agent Lifetime
+    // elapsed) are excluded even before the sweep prunes them, so the settings
+    // panel's "keys served" reflects what clients can actually use.
     pub(crate) fn len(&self) -> usize {
-        self.identities.len()
+        self.identities.iter().filter(|id| !id.is_expired()).count()
     }
 
     pub(crate) fn clear(&mut self) {
         // Dropping each StoredIdentity zeroizes its private key.
         self.identities.clear();
+    }
+
+    // Drops (and zeroizes, via Drop) every identity whose Agent Lifetime has
+    // elapsed. Returns how many were removed. Called periodically by the sweep
+    // task so an expired key's secret does not linger in memory until db lock.
+    pub(crate) fn prune_expired(&mut self) -> usize {
+        let before = self.identities.len();
+        self.identities.retain(|id| !id.is_expired());
+        before - self.identities.len()
     }
 
     // Replaces every identity drawn from `db_key` with a freshly decoded slice.
@@ -268,6 +322,10 @@ impl SshAgentStore {
         let mut seen: HashMap<String, ()> = HashMap::new();
         let mut out = Vec::new();
         for id in &self.identities {
+            // Expired keys are never advertised, even before the sweep prunes them.
+            if id.is_expired() {
+                continue;
+            }
             if seen.insert(id.fingerprint(), ()).is_none() {
                 out.push(Identity {
                     credential: PublicCredential::Key(id.public_key_data.clone()),
@@ -279,11 +337,11 @@ impl SshAgentStore {
     }
 
     // Returns the confirmation metadata for the identity matching `requested`,
-    // or None if no such key is currently served.
+    // or None if no such key is currently served (including an expired one).
     pub(crate) fn confirmation_info(&self, requested: &KeyData) -> Option<ConfirmInfo> {
         self.identities
             .iter()
-            .find(|id| &id.public_key_data == requested)
+            .find(|id| !id.is_expired() && &id.public_key_data == requested)
             .map(|id| ConfirmInfo {
                 require_confirmation: id.require_confirmation,
                 comment: id.comment.clone(),
@@ -302,12 +360,39 @@ impl SshAgentStore {
         let id = self
             .identities
             .iter()
-            .find(|id| &id.public_key_data == requested)
+            .find(|id| !id.is_expired() && &id.public_key_data == requested)
             .ok_or(AgentError::Failure)?;
 
         id.sign(data, flags).map_err(|e| {
             log::error!("SSH agent: signing failed for '{}': {}", id.comment, e);
             AgentError::Failure
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_lifetime;
+    use std::time::Duration;
+
+    #[test]
+    fn lifetime_seconds() {
+        // The duration picker stores whole seconds.
+        assert_eq!(parse_lifetime("3600"), Some(Duration::from_secs(3600)));
+        assert_eq!(parse_lifetime("900"), Some(Duration::from_secs(900)));
+        assert_eq!(parse_lifetime("604800"), Some(Duration::from_secs(604_800)));
+        assert_eq!(parse_lifetime("  90 "), Some(Duration::from_secs(90)));
+    }
+
+    #[test]
+    fn lifetime_none_or_invalid() {
+        // Empty / zero -> no expiry.
+        assert_eq!(parse_lifetime(""), None);
+        assert_eq!(parse_lifetime("   "), None);
+        assert_eq!(parse_lifetime("0"), None);
+        // Non-numeric -> no expiry (logged).
+        assert_eq!(parse_lifetime("abc"), None);
+        assert_eq!(parse_lifetime("30m"), None);
+        assert_eq!(parse_lifetime("-5"), None);
     }
 }
