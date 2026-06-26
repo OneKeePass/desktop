@@ -326,7 +326,10 @@ impl AppState {
 
     pub(crate) fn update_preference(&self, preference_data: PreferenceData) -> Result<()> {
         let prior_dir = self.preference.lock().unwrap().backup.dir.clone();
-        let prior_ssh_agent_enabled = self.preference.lock().unwrap().is_ssh_agent_enabled();
+        let (prior_ssh_agent_enabled, prior_ssh_agent_mode) = {
+            let pref = self.preference.lock().unwrap();
+            (pref.is_ssh_agent_enabled(), pref.ssh_agent_mode())
+        };
 
         let result = {
             let mut store_pref = self.preference.lock().unwrap();
@@ -336,13 +339,16 @@ impl AppState {
         // If the SSH agent enable flag flipped, start or stop the listener now.
         // The flag itself was persisted by store_pref.update above; this only
         // applies the runtime side effect.
-        let current_ssh_agent_enabled = self.preference.lock().unwrap().is_ssh_agent_enabled();
-        if prior_ssh_agent_enabled != current_ssh_agent_enabled {
-            if current_ssh_agent_enabled {
-                crate::ssh_agent::start();
-            } else {
-                crate::ssh_agent::stop();
-            }
+        let (current_ssh_agent_enabled, current_ssh_agent_mode) = {
+            let pref = self.preference.lock().unwrap();
+            (pref.is_ssh_agent_enabled(), pref.ssh_agent_mode())
+        };
+        let mode_changed = prior_ssh_agent_mode != current_ssh_agent_mode;
+        if prior_ssh_agent_enabled && (!current_ssh_agent_enabled || mode_changed) {
+            crate::ssh_agent::stop();
+        }
+        if current_ssh_agent_enabled && (!prior_ssh_agent_enabled || mode_changed) {
+            crate::ssh_agent::start();
         }
 
         // If the backup dir actually changed, rotate the scoped-access handle

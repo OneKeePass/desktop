@@ -17,6 +17,11 @@
 ;; entry_type_uuid::SSH_KEY in the core constants.rs.
 (def UUID_OF_ENTRY_TYPE_SSH_KEY "6421a61a-db18-413a-bdfb-715a5418216a")
 
+;; SSH agent support mode tags. These values must match the Rust
+;; SshAgentMode serde representation.
+(def SSH_AGENT_MODE_AGENT "agent")
+(def SSH_AGENT_MODE_CLIENT "client")
+
 ;; Enum tags matching the Rust `RemoteStorageType` variant names. Used
 ;; verbatim in the JSON sent over the Tauri bridge.
 (def V-SFTP "Sftp")

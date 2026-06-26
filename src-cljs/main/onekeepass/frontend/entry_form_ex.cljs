@@ -274,6 +274,14 @@
                        :on-click #(dlg-events/otp-settings-dialog-show section-name false)}
       [mui-icon-add-circle-outline-outlined]]]))
 
+(def ^:private SSH_KEY_SECTION "SSH Key")
+(def ^:private SSH_AGENT_SECTION "SSH Agent")
+(def ^:private ADD_TO_SSH_AGENT "Add to SSH Agent")
+(def ^:private REQUIRE_CONFIRMATION "Require Confirmation")
+(def ^:private AGENT_LIFETIME "Agent Lifetime")
+(def ^:private PRIVATE_KEY "Private Key")
+(def ^:private PUBLIC_KEY "Public Key")
+
 (defn section-header [section-name]
   (let [edit @(form-events/form-edit-mode)
         standard-sections @(form-events/entry-form-data-fields :standard-section-names)
@@ -338,19 +346,29 @@
             presets)
       presets)))
 
+(defn- get-ssh-key-section-data [section-name section-data ssh-agent-client-mode?]
+  (if (and (= section-name SSH_AGENT_SECTION)
+           ssh-agent-client-mode?)
+    (vec (remove #(= (:key %) REQUIRE_CONFIRMATION) section-data))
+    section-data))
+
 ;; Note translations for field names (labels) are done in 'text-field' defined in fields.cljs
-(defn section-content
+(defn- section-content
   "This is called for each section of an entry"
-  [{:keys [edit section-name section-data group-uuid entry-uuid]}]
+  [{:keys [edit entry-type-uuid ssh-agent-client-mode? section-name section-data group-uuid entry-uuid]}]
   (let [errors @(form-events/entry-form-field :error-fields)]
     ;; Show a section in edit mode irrespective of its contents; In non edit mode a section is shown only 
     ;; if it has some fields with non blank value. 
     (when (or edit (boolean (seq (filter (fn [kv] (not (str/blank? (:value kv)))) section-data))))  ;;(seq section-data)
       (let [refs (atom {})
-            entry-type-uuid @(form-events/entry-form-data-fields :entry-type-uuid)
             standard-sections @(form-events/entry-form-data-fields :standard-section-names)
             standard-section? (contains-val? standard-sections section-name)
             section-title (if standard-section? (tr-entry-section-name-cv section-name) section-name)
+            ssh-key-agent-section? (and (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_SSH_KEY)
+                                        (= section-name SSH_AGENT_SECTION))
+            ssh-key-agent-mode-hint (if ssh-agent-client-mode?
+                                      "sshAgentClientModeActive"
+                                      "sshAgentAgentModeActive")
             fields-content
             (doall
              (for [{:keys [key
@@ -413,7 +431,7 @@
                      ;; icons above the field (not overlapping the text), plus a
                      ;; load-from-file affordance in edit mode.
                      (and (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_SSH_KEY)
-                          (contains? #{"Private Key" "Public Key"} key))
+                          (contains? #{PRIVATE_KEY PUBLIC_KEY} key))
                      [fields/ssh-key-multiline-field
                       (assoc kv
                              :edit edit
@@ -427,7 +445,7 @@
                      ;; stores a whole number of seconds. Constrained choices, so no
                      ;; free-form input and no parse/validation errors are possible.
                      (and (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_SSH_KEY)
-                          (= key "Agent Lifetime"))
+                          (= key AGENT_LIFETIME))
                      [mui-stack {:sx {:width "50%" :margin-top "16px"}}
                       [cc/simple-selection-field
                        (assoc kv
@@ -473,17 +491,23 @@
         (if edit
           [mui-box {:sx (theme-content-sx @custom-theme-atom)}
            [section-header section-name]
+           (when ssh-key-agent-section?
+             [mui-alert {:severity "info" :sx {:mb 1}}
+              (lstr-l ssh-key-agent-mode-hint)])
            fields-content]
           [mui-box {:sx {:margin-bottom "8px"}}
            [read-section-title section-title]
            [mui-box {:sx (theme-content-read-sx @custom-theme-atom)}
+            (when ssh-key-agent-section?
+              [mui-alert {:severity "info" :sx {:mb 1}}
+               (lstr-l ssh-key-agent-mode-hint)])
             fields-content]])))))
 
-(defn get-section-data
+(defn- get-section-data
   "Called to set up any entry type specific data in kv
    Returns an vec of kvd map for a section
    "
-  [entry-type-uuid section-name section-fields parsed-fields]
+  [entry-type-uuid section-name section-fields parsed-fields ssh-agent-client-mode?]
   (let [section-data (get section-fields section-name)
 
         adjusted-section-data (mapv
@@ -491,8 +515,8 @@
                                  (assoc m :read-value (place-holder-resolved-value parsed-fields key)))
                                section-data)
 
-        adjusted-section-data  (if (not= entry-type-uuid const/UUID_OF_ENTRY_TYPE_AUTO_OPEN)
-                                 adjusted-section-data
+        adjusted-section-data  (cond
+                                 (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_AUTO_OPEN)
                                  (mapv
                                   (fn [{:keys [key] :as m}]
                                     ;; Note the use of lstr-field-name vs tr-entry-field-name-cv
@@ -515,7 +539,13 @@
 
                                       :else
                                       m))
-                                  adjusted-section-data))]
+                                 adjusted-section-data)
+
+                                 (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_SSH_KEY)
+                                 (get-ssh-key-section-data section-name adjusted-section-data ssh-agent-client-mode?)
+
+                                 :else
+                                 adjusted-section-data)]
     adjusted-section-data))
 
 (defn all-sections-content
@@ -526,7 +556,8 @@
          {:keys [entry-type-uuid section-names section-fields uuid group-uuid]} :data}
         @(form-events/entry-form-all)
         deleted? @(form-events/is-entry-parent-group-deleted group-uuid)
-        parsed-fields @(form-events/entry-form-data-fields :parsed-fields)]
+        parsed-fields @(form-events/entry-form-data-fields :parsed-fields)
+        ssh-agent-client-mode? @(ce/ssh-agent-client-mode?)]
     (m/react-use-effect
      (fn []
        #_(println "init - uuid showing edit deleted? : \n" uuid showing edit deleted?)
@@ -548,8 +579,9 @@
                                                :entry-uuid uuid
                                                :edit edit
                                                :parsed-fields parsed-fields
+                                               :ssh-agent-client-mode? ssh-agent-client-mode?
                                                :section-name section-name
-                                               :section-data (get-section-data entry-type-uuid section-name section-fields parsed-fields) #_(get section-fields section-name)
+                                               :section-data (get-section-data entry-type-uuid section-name section-fields parsed-fields ssh-agent-client-mode?) #_(get section-fields section-name)
                                                :group-uuid group-uuid}]))]))
 
 (defn title-with-icon-field  []

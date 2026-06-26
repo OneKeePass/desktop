@@ -65,10 +65,37 @@ pub(crate) struct Preference2 {
 // Global SSH-agent service preference. Introduced after v0.21.0, so it is
 // `#[serde(default)]` on the Preference field below and existing TOMLs without
 // it deserialize cleanly (agent disabled).
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum SshAgentMode {
+    Agent,
+    Client,
+}
+
+impl Default for SshAgentMode {
+    fn default() -> Self {
+        Self::Agent
+    }
+}
+
+impl SshAgentMode {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            Self::Agent => "agent",
+            Self::Client => "client",
+        }
+    }
+}
+
+// Global SSH-agent service preference. Introduced after v0.21.0, so it is
+// `#[serde(default)]` on the Preference field below and existing TOMLs without
+// it deserialize cleanly (agent disabled).
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub(crate) struct SshAgentSupport {
     #[serde(default)]
     pub(crate) enabled: bool,
+    #[serde(default)]
+    pub(crate) mode: SshAgentMode,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -454,6 +481,10 @@ impl Preference {
 
     pub(crate) fn is_ssh_agent_enabled(&self) -> bool {
         self.ssh_agent_support.enabled
+    }
+
+    pub(crate) fn ssh_agent_mode(&self) -> SshAgentMode {
+        self.ssh_agent_support.mode.clone()
     }
 
     // Persists the SSH agent global enable flag.

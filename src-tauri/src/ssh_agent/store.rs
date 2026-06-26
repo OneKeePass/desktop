@@ -53,67 +53,39 @@ pub(crate) struct ConfirmInfo {
     pub fingerprint: String,
 }
 
+// Shared decoded representation used by embedded Agent Mode and external Client
+// Mode. It is intentionally short-lived in Client Mode: after sending the
+// private key to the external agent, the value is dropped and zeroized by
+// ssh-key.
+pub(crate) struct DecodedIdentity {
+    pub(crate) db_key: String,
+    pub(crate) comment: String,
+    pub(crate) key: PrivateKey,
+    pub(crate) public_key_data: KeyData,
+    pub(crate) require_confirmation: bool,
+    pub(crate) lifetime: Option<Duration>,
+}
+
+impl DecodedIdentity {
+    pub(crate) fn fingerprint(&self) -> String {
+        self.public_key_data.fingerprint(HashAlg::Sha256).to_string()
+    }
+}
+
 impl StoredIdentity {
     // Decodes one key source into a signable identity. Returns a human-readable
     // error (logged by the caller) when the key can't be parsed/decrypted or
     // when the stored public key contradicts the private key.
     fn from_source(src: &SshAgentKeySource) -> Result<Self, String> {
-        let pem = normalize_openssh_pem(&src.private_key_pem);
-        let parsed = PrivateKey::from_openssh(pem.trim())
-            .map_err(|e| format!("private key parse failed: {e}"))?;
-
-        let key = if parsed.is_encrypted() {
-            let pass = src
-                .passphrase
-                .as_deref()
-                .filter(|p| !p.is_empty())
-                .ok_or_else(|| "key is encrypted but no passphrase is set".to_string())?;
-            parsed
-                .decrypt(pass)
-                .map_err(|e| format!("private key decrypt failed: {e}"))?
-        } else {
-            parsed
-        };
-
-        let public_key_data = key.public_key().key_data().clone();
-
-        // If the entry also stores a "Public Key", it must match the key we
-        // derived. We never advertise one public key while signing with a
-        // different private key.
-        if let Some(stored_pub) = src.public_key.as_deref().map(str::trim) {
-            if !stored_pub.is_empty() {
-                if let Ok(parsed_pub) = PublicKey::from_openssh(stored_pub) {
-                    if parsed_pub.key_data() != &public_key_data {
-                        return Err(
-                            "stored Public Key does not match the Private Key; skipping".into(),
-                        );
-                    }
-                }
-            }
-        }
-
-        // Prefer the entry title as the comment; fall back to any comment baked
-        // into the OpenSSH key.
-        let comment = if src.title.trim().is_empty() {
-            key.comment().to_string()
-        } else {
-            src.title.clone()
-        };
-
-        // An unparseable but non-empty lifetime is treated as "no expiry" so a
-        // typo never silently makes a key un-loadable; the parse warns instead.
-        let expires_at = src
-            .agent_lifetime
-            .as_deref()
-            .and_then(parse_lifetime)
-            .map(|d| Instant::now() + d);
+        let decoded = decode_identity(src)?;
+        let expires_at = decoded.lifetime.map(|d| Instant::now() + d);
 
         Ok(Self {
-            db_key: src.db_key.clone(),
-            comment,
-            key,
-            public_key_data,
-            require_confirmation: src.require_confirmation,
+            db_key: decoded.db_key,
+            comment: decoded.comment,
+            key: decoded.key,
+            public_key_data: decoded.public_key_data,
+            require_confirmation: decoded.require_confirmation,
             expires_at,
         })
     }
@@ -139,6 +111,61 @@ impl StoredIdentity {
                 .map_err(|e| format!("sign failed: {e}")),
         }
     }
+}
+
+pub(crate) fn decode_identity(src: &SshAgentKeySource) -> Result<DecodedIdentity, String> {
+    let pem = normalize_openssh_pem(&src.private_key_pem);
+    let parsed =
+        PrivateKey::from_openssh(pem.trim()).map_err(|e| format!("private key parse failed: {e}"))?;
+
+    let key = if parsed.is_encrypted() {
+        let pass = src
+            .passphrase
+            .as_deref()
+            .filter(|p| !p.is_empty())
+            .ok_or_else(|| "key is encrypted but no passphrase is set".to_string())?;
+        parsed
+            .decrypt(pass)
+            .map_err(|e| format!("private key decrypt failed: {e}"))?
+    } else {
+        parsed
+    };
+
+    let public_key_data = key.public_key().key_data().clone();
+
+    // If the entry also stores a "Public Key", it must match the key we
+    // derived. We never advertise one public key while signing with a different
+    // private key.
+    if let Some(stored_pub) = src.public_key.as_deref().map(str::trim) {
+        if !stored_pub.is_empty() {
+            if let Ok(parsed_pub) = PublicKey::from_openssh(stored_pub) {
+                if parsed_pub.key_data() != &public_key_data {
+                    return Err("stored Public Key does not match the Private Key; skipping".into());
+                }
+            }
+        }
+    }
+
+    // Prefer the entry title as the comment; fall back to any comment baked
+    // into the OpenSSH key.
+    let comment = if src.title.trim().is_empty() {
+        key.comment().to_string()
+    } else {
+        src.title.clone()
+    };
+
+    // An unparseable but non-empty lifetime is treated as "no expiry" so a typo
+    // never silently makes a key unloadable; the parse warns instead.
+    let lifetime = src.agent_lifetime.as_deref().and_then(parse_lifetime);
+
+    Ok(DecodedIdentity {
+        db_key: src.db_key.clone(),
+        comment,
+        key,
+        public_key_data,
+        require_confirmation: src.require_confirmation,
+        lifetime,
+    })
 }
 
 // Parses an "Agent Lifetime" field into a duration. The desktop entry form

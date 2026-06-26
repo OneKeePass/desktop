@@ -250,7 +250,11 @@
 ;; and refreshed after the apply.
 (defn ssh-agent-panel [{{:keys [ssh-agent-support]} :preference-data}]
   (r/with-let [_ (ssh-agent-events/init-panel)]
-    (let [{:keys [running socket-path key-count error]} @(ssh-agent-events/agent-status)]
+    (let [{:keys [running socket-path key-count error transport mode]} @(ssh-agent-events/agent-status)
+          enabled? (boolean (:enabled ssh-agent-support))
+          configured-mode (or (:mode ssh-agent-support) const/SSH_AGENT_MODE_AGENT)
+          active-selected-mode? (and running (= mode configured-mode))
+          client-mode? (= configured-mode const/SSH_AGENT_MODE_CLIENT)]
       [mui-stack
        [mui-stack {:sx {:pt 1 :pb 1}}
         [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
@@ -262,32 +266,57 @@
           [mui-form-control-label
            {:control (r/as-element
                       [mui-checkbox
-                       {:checked (boolean (:enabled ssh-agent-support))
+                       {:checked enabled?
                         :on-change (fn [^js/CheckedEvent e]
                                      (app-settings-events/field-update
                                       [:preference-data :ssh-agent-support :enabled]
                                       (-> e .-target .-checked)))}])
             :label (t/lstr-l "enableSshAgent")}]]
 
-         (when error
+         (when enabled?
+           [m/text-field {:label (t/lstr-l "sshAgentMode")
+                          :value configured-mode
+                          :select true
+                          :on-change (app-settings-events/field-update-factory
+                                      [:preference-data :ssh-agent-support :mode])
+                          :variant "standard"
+                          :fullWidth true
+                          :helperText (if client-mode?
+                                        (t/lstr-l "sshAgentClientModeHelp")
+                                        (t/lstr-l "sshAgentAgentModeHelp"))}
+            [mui-menu-item {:value const/SSH_AGENT_MODE_AGENT} (t/lstr-l "sshAgentModeAgent")]
+            [mui-menu-item {:value const/SSH_AGENT_MODE_CLIENT} (t/lstr-l "sshAgentModeClient")]])
+
+         (when (and enabled? active-selected-mode? error)
            [mui-alert {:severity "error" :sx {:mt 1}} error])
 
-         (when running
+         (when (and enabled? active-selected-mode?)
            [mui-stack {:spacing 1 :sx {:mt 2}}
             [mui-typography {:variant "caption" :sx {:color "text.secondary"}}
-             (t/lstr-l "sshAgentSocketPath")]
-            [mui-stack {:direction "row" :sx {:alignItems "center" :justify-content "space-between"}}
-             [mui-typography {:sx {:fontFamily "monospace" :fontSize "0.8rem"
-                                   :wordBreak "break-all" :mr 1}}
-              socket-path]
-             [mui-button {:size "small"
-                          :on-click #(bg/write-to-clipboard socket-path)}
-              (t/lstr-bl "copy")]]
+             (if client-mode?
+               (t/lstr-l "sshAgentTransport")
+               (t/lstr-l "sshAgentSocketPath"))]
+            (if client-mode?
+              [mui-typography {:sx {:fontFamily "monospace" :fontSize "0.8rem"
+                                    :wordBreak "break-all"}}
+               transport]
+              [mui-stack {:direction "row" :sx {:alignItems "center" :justify-content "space-between"}}
+               [mui-typography {:sx {:fontFamily "monospace" :fontSize "0.8rem"
+                                     :wordBreak "break-all" :mr 1}}
+                socket-path]
+               #_[mui-button {:size "small"
+                            :on-click #(bg/write-to-clipboard socket-path)}
+                (t/lstr-bl "copy")]])
             [mui-typography {:variant "caption" :sx {:color "text.secondary"}}
-             (str (t/lstr-l "sshAgentKeysServed") ": " (or key-count 0))]
+             (str (if client-mode?
+                    (t/lstr-l "sshAgentKeysAdded")
+                    (t/lstr-l "sshAgentKeysServed"))
+                  ": " (or key-count 0))]
             [m/mui-divider {:sx {:mt 1 :mb 1}}]
             [mui-typography {:variant "caption" :sx {:color "text.secondary"}}
-             (t/lstr-l "sshAgentUsageHint")]])]]])))
+             (if client-mode?
+               (t/lstr-l "sshAgentClientUsageHint")
+               (t/lstr-l "sshAgentUsageHint"))]])]]])))
 
 (def ^:private FIREFOX "Firefox")
 (def ^:private CHROME "Chrome")

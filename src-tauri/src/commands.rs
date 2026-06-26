@@ -627,7 +627,7 @@ pub(crate) async fn update_entry_from_form_data(
     form_data: kp_service::EntryFormData,
 ) -> Result<()> {
     kp_service::update_entry_from_form_data(db_key, form_data)?;
-    // Reflect edits immediately: a toggled "Enable SSH Agent", a changed key, or
+    // Reflect edits immediately: a toggled "Add to SSH Agent", a changed key, or
     // a new passphrase should re-sync the agent's view of this db's keys.
     ssh_agent::reload_keys_for_db(db_key);
     Ok(())

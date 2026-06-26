@@ -123,6 +123,12 @@
 (defn app-preference-loading-completed []
   (subscribe [:app-preference-loading-completed]))
 
+(defn ssh-agent-mode []
+  (subscribe [:ssh-agent-mode]))
+
+(defn ssh-agent-client-mode? []
+  (subscribe [:ssh-agent-client-mode?]))
+
 (defn language-translation-loading-completed []
   (subscribe [:language-translation-loading-completed]))
 
@@ -288,6 +294,18 @@
  (fn [pref _query-vec]
    ;; valid values (:theme pref) => light or dark
    (= "light" (:theme pref))))
+
+(reg-sub
+ :ssh-agent-mode
+ :<- [:app-preference]
+ (fn [pref _query-vec]
+   (or (get-in pref [:ssh-agent-support :mode]) const/SSH_AGENT_MODE_AGENT)))
+
+(reg-sub
+ :ssh-agent-client-mode?
+ :<- [:ssh-agent-mode]
+ (fn [mode _query-vec]
+   (= mode const/SSH_AGENT_MODE_CLIENT)))
 
 (reg-sub
  :app-version

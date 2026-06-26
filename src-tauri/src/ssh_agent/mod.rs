@@ -18,6 +18,7 @@ mod server;
 mod pageant;
 #[cfg(windows)]
 mod pipe;
+mod client;
 mod session;
 mod store;
 
@@ -33,8 +34,10 @@ use tokio::sync::{oneshot, Notify};
 use onekeepass_core::db_service as kp_service;
 
 use crate::app_state::AppState;
+use crate::app_preference::SshAgentMode;
 use crate::constants::event_names::SSH_AGENT_SIGN_REQUEST_EVENT;
 
+use client::ClientRuntime;
 use store::SshAgentStore;
 
 // How long a "Require Confirmation" sign request waits for the user before it
@@ -50,6 +53,8 @@ const PRUNE_INTERVAL_SECS: u64 = 15;
 #[derive(Serialize, Clone, Debug, Default)]
 pub(crate) struct AgentStatus {
     pub running: bool,
+    pub mode: Option<String>,
+    pub transport: Option<String>,
     pub socket_path: Option<String>,
     pub key_count: usize,
     // Last bind/start error, surfaced so the settings UI can explain a failure
@@ -65,6 +70,8 @@ struct AgentRuntime {
     shutdown: Option<Arc<Notify>>,
     socket_path: Option<String>,
     last_error: Option<String>,
+    mode: Option<SshAgentMode>,
+    client: ClientRuntime,
     // Set to true to stop the Agent-Lifetime sweep task. `Some` while the agent
     // is running; the sweep loop exits within one interval after this flips.
     prune_stop: Option<Arc<AtomicBool>>,
@@ -101,6 +108,8 @@ fn runtime() -> &'static Mutex<AgentRuntime> {
             shutdown: None,
             socket_path: None,
             last_error: None,
+            mode: None,
+            client: ClientRuntime::new(),
             prune_stop: None,
             #[cfg(windows)]
             pageant: None,
@@ -109,12 +118,34 @@ fn runtime() -> &'static Mutex<AgentRuntime> {
 }
 
 fn snapshot(rt: &AgentRuntime) -> AgentStatus {
+    let running = match rt.mode {
+        Some(SshAgentMode::Client) => rt.client.is_running(),
+        _ => rt.shutdown.is_some(),
+    };
+    let key_count = match rt.mode {
+        Some(SshAgentMode::Client) => rt.client.key_count(),
+        _ => rt.store.read().unwrap().len(),
+    };
+    let transport = match rt.mode {
+        Some(SshAgentMode::Client) => rt.client.transport(),
+        _ => rt.socket_path.clone(),
+    };
     AgentStatus {
-        running: rt.shutdown.is_some(),
+        running,
+        mode: rt.mode.as_ref().map(|m| m.as_str().to_string()),
+        transport,
         socket_path: rt.socket_path.clone(),
-        key_count: rt.store.read().unwrap().len(),
+        key_count,
         error: rt.last_error.clone(),
     }
+}
+
+fn configured_mode() -> SshAgentMode {
+    AppState::state_instance()
+        .preference
+        .lock()
+        .unwrap()
+        .ssh_agent_mode()
 }
 
 // Starts the agent: rebuilds the key store from every open database and binds
@@ -123,11 +154,36 @@ fn snapshot(rt: &AgentRuntime) -> AgentStatus {
 pub(crate) fn start() -> AgentStatus {
     let mut rt = runtime().lock().unwrap();
 
-    if rt.shutdown.is_some() {
+    if rt.mode.is_some() {
         return snapshot(&rt);
     }
 
     rt.last_error = None;
+    let mode = configured_mode();
+
+    if mode == SshAgentMode::Client {
+        let sources = kp_service::ssh_agent::list_ssh_agent_key_sources();
+        match rt.client.start(sources) {
+            Ok(()) => {
+                rt.mode = Some(SshAgentMode::Client);
+                rt.socket_path = None;
+                log::info!("SSH agent client mode started");
+            }
+            Err(e) => {
+                log::error!("SSH agent client mode failed to start: {}", e);
+                rt.last_error = Some(e);
+                if rt.client.is_running() {
+                    rt.mode = Some(SshAgentMode::Client);
+                    rt.socket_path = None;
+                    log::warn!(
+                        "SSH agent client mode started with {} key(s) despite errors",
+                        rt.client.key_count()
+                    );
+                }
+            }
+        }
+        return snapshot(&rt);
+    }
 
     // Build the store from all currently-open databases before binding.
     {
@@ -144,6 +200,7 @@ pub(crate) fn start() -> AgentStatus {
             Ok(()) => {
                 rt.shutdown = Some(shutdown);
                 rt.socket_path = Some(path.to_string_lossy().to_string());
+                rt.mode = Some(SshAgentMode::Agent);
                 log::info!("SSH agent started");
             }
             Err(e) => {
@@ -163,6 +220,7 @@ pub(crate) fn start() -> AgentStatus {
             Ok(()) => {
                 rt.shutdown = Some(shutdown);
                 rt.socket_path = Some(pipe::PIPE_PATH.to_string());
+                rt.mode = Some(SshAgentMode::Agent);
                 log::info!("SSH agent started (OpenSSH named pipe)");
             }
             Err(e) => {
@@ -227,6 +285,18 @@ fn spawn_prune_task(store: Arc<RwLock<SshAgentStore>>, stop_flag: Arc<AtomicBool
 pub(crate) fn stop() -> AgentStatus {
     let mut rt = runtime().lock().unwrap();
 
+    if rt.mode == Some(SshAgentMode::Client) {
+        if let Err(e) = rt.client.stop() {
+            log::warn!("SSH agent client mode stopped with cleanup errors: {}", e);
+            rt.last_error = Some(e);
+        } else {
+            rt.last_error = None;
+        }
+        rt.mode = None;
+        log::info!("SSH agent client mode stopped");
+        return snapshot(&rt);
+    }
+
     if let Some(shutdown) = rt.shutdown.take() {
         shutdown.notify_waiters();
     }
@@ -253,6 +323,7 @@ pub(crate) fn stop() -> AgentStatus {
 
     rt.store.write().unwrap().clear();
     rt.last_error = None;
+    rt.mode = None;
 
     log::info!("SSH agent stopped");
     snapshot(&rt)
@@ -263,17 +334,33 @@ pub(crate) fn status() -> AgentStatus {
 }
 
 fn is_running(rt: &AgentRuntime) -> bool {
-    rt.shutdown.is_some()
+    rt.mode.is_some()
 }
 
 // Refreshes the agent's slice of keys for one database (open / unlock / reload).
 // No-op when the agent isn't running.
 pub(crate) fn reload_keys_for_db(db_key: &str) {
-    let rt = runtime().lock().unwrap();
+    let mut rt = runtime().lock().unwrap();
     if !is_running(&rt) {
         return;
     }
     let sources = kp_service::ssh_agent::ssh_agent_key_sources_for_db(db_key);
+    if rt.mode == Some(SshAgentMode::Client) {
+        match rt.client.replace_db(db_key, sources) {
+            Ok(()) => {
+                rt.last_error = None;
+                log::debug!(
+                    "SSH agent client mode: now tracking {} key(s)",
+                    rt.client.key_count()
+                );
+            }
+            Err(e) => {
+                log::warn!("SSH agent client mode: reload failed: {}", e);
+                rt.last_error = Some(e);
+            }
+        }
+        return;
+    }
     let mut store = rt.store.write().unwrap();
     store.replace_db(db_key, sources);
     log::debug!("SSH agent: now serving {} key(s)", store.len());
@@ -282,8 +369,24 @@ pub(crate) fn reload_keys_for_db(db_key: &str) {
 // Removes (and zeroizes) the agent's keys for one database (lock / close).
 // No-op when the agent isn't running.
 pub(crate) fn clear_keys_for_db(db_key: &str) {
-    let rt = runtime().lock().unwrap();
+    let mut rt = runtime().lock().unwrap();
     if !is_running(&rt) {
+        return;
+    }
+    if rt.mode == Some(SshAgentMode::Client) {
+        match rt.client.remove_db(db_key) {
+            Ok(()) => {
+                rt.last_error = None;
+                log::debug!(
+                    "SSH agent client mode: now tracking {} key(s)",
+                    rt.client.key_count()
+                );
+            }
+            Err(e) => {
+                log::warn!("SSH agent client mode: remove failed: {}", e);
+                rt.last_error = Some(e);
+            }
+        }
         return;
     }
     let mut store = rt.store.write().unwrap();
