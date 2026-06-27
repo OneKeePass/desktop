@@ -575,7 +575,8 @@
                     :helperText helper-text
                     :onChange on-change-handler
                     :multiline true
-                    :rows 8
+                    ;; :rows 8
+                    :rows 4
                     :slotProps {:input {:id key
                                         :sx (theme-text-field-sx edit @custom-theme-atom)}
                                 :htmlInput {:readOnly (not edit)

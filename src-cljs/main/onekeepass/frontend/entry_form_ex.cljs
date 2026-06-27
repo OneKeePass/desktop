@@ -11,8 +11,7 @@
                                                     STANDARD_ENTRY_TYPES URL
                                                     USERNAME]]
    [onekeepass.frontend.context-menu :as ctx-menu]
-   [onekeepass.frontend.db-icons :as db-icons :refer [entry-icon
-                                                      entry-type-icon]]
+   [onekeepass.frontend.db-icons :as db-icons :refer [entry-type-icon]]
    [onekeepass.frontend.entry-form.common :as ef-cmn :refer [ENTRY_DATETIME_FORMAT
                                                              theme-content-read-sx
                                                              theme-content-sx]]
@@ -274,9 +273,8 @@
                        :on-click #(dlg-events/otp-settings-dialog-show section-name false)}
       [mui-icon-add-circle-outline-outlined]]]))
 
-(def ^:private SSH_KEY_SECTION "SSH Key")
 (def ^:private SSH_AGENT_SECTION "SSH Agent")
-(def ^:private ADD_TO_SSH_AGENT "Add to SSH Agent")
+(def ^:private SSH_KEY_SECTION "SSH Key")
 (def ^:private REQUIRE_CONFIRMATION "Require Confirmation")
 (def ^:private AGENT_LIFETIME "Agent Lifetime")
 (def ^:private PRIVATE_KEY "Private Key")
@@ -347,10 +345,20 @@
       presets)))
 
 (defn- get-ssh-key-section-data [section-name section-data ssh-agent-client-mode?]
-  (if (and (= section-name SSH_AGENT_SECTION)
-           ssh-agent-client-mode?)
-    (vec (remove #(= (:key %) REQUIRE_CONFIRMATION) section-data))
-    section-data))
+  (let [section-data (if (and (= section-name SSH_AGENT_SECTION)
+                              ssh-agent-client-mode?)
+                       (vec (remove #(= (:key %) REQUIRE_CONFIRMATION) section-data))
+                       section-data)]
+    (if (= section-name SSH_KEY_SECTION)
+      (mapv
+       (fn [{:keys [key] :as m}]
+         (if (= key PASSWORD)
+           (assoc m
+                  :field-name (lstr-field-name "privateKeyPassphrase")
+                  :protected true)
+           m))
+       section-data)
+      section-data)))
 
 ;; Note translations for field names (labels) are done in 'text-field' defined in fields.cljs
 (defn- section-content
@@ -539,7 +547,7 @@
 
                                       :else
                                       m))
-                                 adjusted-section-data)
+                                  adjusted-section-data)
 
                                  (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_SSH_KEY)
                                  (get-ssh-key-section-data section-name adjusted-section-data ssh-agent-client-mode?)
