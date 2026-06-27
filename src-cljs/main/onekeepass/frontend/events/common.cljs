@@ -126,6 +126,9 @@
 (defn ssh-agent-mode []
   (subscribe [:ssh-agent-mode]))
 
+(defn ssh-agent-enabled? []
+  (subscribe [:ssh-agent-enabled?]))
+
 (defn ssh-agent-client-mode? []
   (subscribe [:ssh-agent-client-mode?]))
 
@@ -300,6 +303,12 @@
  :<- [:app-preference]
  (fn [pref _query-vec]
    (or (get-in pref [:ssh-agent-support :mode]) const/SSH_AGENT_MODE_AGENT)))
+
+(reg-sub
+ :ssh-agent-enabled?
+ :<- [:app-preference]
+ (fn [pref _query-vec]
+   (boolean (get-in pref [:ssh-agent-support :enabled]))))
 
 (reg-sub
  :ssh-agent-client-mode?
