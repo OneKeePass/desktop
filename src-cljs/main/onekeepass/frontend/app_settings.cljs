@@ -253,8 +253,17 @@
     (let [{:keys [running socket-path key-count error transport mode]} @(ssh-agent-events/agent-status)
           enabled? (boolean (:enabled ssh-agent-support))
           configured-mode (or (:mode ssh-agent-support) const/SSH_AGENT_MODE_AGENT)
+          client-mode? (= configured-mode const/SSH_AGENT_MODE_CLIENT)
+          configured-transport (or (:client-transport ssh-agent-support)
+                                    const/SSH_AGENT_CLIENT_TRANSPORT_OPENSSH)
+          windows? (= @(ce/os-name) const/WINDOWS)
           active-selected-mode? (and running (= mode configured-mode))
-          client-mode? (= configured-mode const/SSH_AGENT_MODE_CLIENT)]
+          active-selected-transport? (or (not (and client-mode? windows?))
+                                         (and (= configured-transport const/SSH_AGENT_CLIENT_TRANSPORT_PAGEANT)
+                                              (= transport "Pageant"))
+                                         (and (= configured-transport const/SSH_AGENT_CLIENT_TRANSPORT_OPENSSH)
+                                              (str/starts-with? (or transport "") "OpenSSH pipe")))
+          active-selected-config? (and active-selected-mode? active-selected-transport?)]
       [mui-stack
        [mui-stack {:sx {:pt 1 :pb 1}}
         [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
@@ -287,10 +296,29 @@
             [mui-menu-item {:value const/SSH_AGENT_MODE_AGENT} (t/lstr-l "sshAgentModeAgent")]
             [mui-menu-item {:value const/SSH_AGENT_MODE_CLIENT} (t/lstr-l "sshAgentModeClient")]])
 
-         (when (and enabled? active-selected-mode? error)
+         ;; Windows Client Mode targets either the OpenSSH agent pipe or Pageant;
+         ;; the user picks. On macOS/Linux the client always uses SSH_AUTH_SOCK,
+         ;; so this is hidden there.
+         (when (and enabled? client-mode? windows?)
+           [m/text-field {:label (t/lstr-l "sshAgentClientTransport")
+                          :value configured-transport
+                          :select true
+                          :on-change (app-settings-events/field-update-factory
+                                      [:preference-data :ssh-agent-support :client-transport])
+                          :variant "standard"
+                          :fullWidth true
+                          ;;:helperText (t/lstr-l "sshAgentClientTransportHelp")
+                          
+                          }
+            [mui-menu-item {:value const/SSH_AGENT_CLIENT_TRANSPORT_OPENSSH}
+             (t/lstr-l "sshAgentClientTransportOpenssh")]
+            [mui-menu-item {:value const/SSH_AGENT_CLIENT_TRANSPORT_PAGEANT}
+             (t/lstr-l "sshAgentClientTransportPageant")]])
+
+         (when (and enabled? active-selected-config? error)
            [mui-alert {:severity "error" :sx {:mt 1}} error])
 
-         (when (and enabled? active-selected-mode?)
+         (when (and enabled? active-selected-config?)
            [mui-stack {:spacing 1 :sx {:mt 2}}
             [mui-typography {:variant "caption" :sx {:color "text.secondary"}}
              (if client-mode?

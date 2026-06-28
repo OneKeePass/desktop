@@ -34,7 +34,7 @@ use tokio::sync::{oneshot, Notify};
 use onekeepass_core::db_service as kp_service;
 
 use crate::app_state::AppState;
-use crate::app_preference::SshAgentMode;
+use crate::app_preference::{SshAgentClientTransport, SshAgentMode};
 use crate::constants::event_names::SSH_AGENT_SIGN_REQUEST_EVENT;
 
 use client::ClientRuntime;
@@ -148,6 +148,14 @@ fn configured_mode() -> SshAgentMode {
         .ssh_agent_mode()
 }
 
+fn configured_client_transport() -> SshAgentClientTransport {
+    AppState::state_instance()
+        .preference
+        .lock()
+        .unwrap()
+        .ssh_agent_client_transport()
+}
+
 // Starts the agent: rebuilds the key store from every open database and binds
 // the unix socket. Idempotent — calling it while already running just returns
 // the current status.
@@ -163,7 +171,8 @@ pub(crate) fn start() -> AgentStatus {
 
     if mode == SshAgentMode::Client {
         let sources = kp_service::ssh_agent::list_ssh_agent_key_sources();
-        match rt.client.start(sources) {
+        let transport = configured_client_transport();
+        match rt.client.start(sources, transport) {
             Ok(()) => {
                 rt.mode = Some(SshAgentMode::Client);
                 rt.socket_path = None;

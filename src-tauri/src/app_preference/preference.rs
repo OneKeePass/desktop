@@ -87,6 +87,24 @@ impl SshAgentMode {
     }
 }
 
+// Which external agent Client Mode pushes keys into on Windows. Ignored on
+// macOS/Linux, where the client always targets `$SSH_AUTH_SOCK`.
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum SshAgentClientTransport {
+    // Explicit so the wire value is "openssh", not kebab-case "open-ssh"; this
+    // matches `as_str()` and the cljs SSH_AGENT_CLIENT_TRANSPORT_OPENSSH tag.
+    #[serde(rename = "openssh")]
+    OpenSsh,
+    Pageant,
+}
+
+impl Default for SshAgentClientTransport {
+    fn default() -> Self {
+        Self::OpenSsh
+    }
+}
+
 // Global SSH-agent service preference. Introduced after v0.21.0, so it is
 // `#[serde(default)]` on the Preference field below and existing TOMLs without
 // it deserialize cleanly (agent disabled).
@@ -96,6 +114,9 @@ pub(crate) struct SshAgentSupport {
     pub(crate) enabled: bool,
     #[serde(default)]
     pub(crate) mode: SshAgentMode,
+    // Windows-only: which external agent Client Mode targets.
+    #[serde(default)]
+    pub(crate) client_transport: SshAgentClientTransport,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -485,6 +506,10 @@ impl Preference {
 
     pub(crate) fn ssh_agent_mode(&self) -> SshAgentMode {
         self.ssh_agent_support.mode.clone()
+    }
+
+    pub(crate) fn ssh_agent_client_transport(&self) -> SshAgentClientTransport {
+        self.ssh_agent_support.client_transport.clone()
     }
 
     // Persists the SSH agent global enable flag.

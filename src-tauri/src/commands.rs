@@ -626,10 +626,16 @@ pub(crate) async fn update_entry_from_form_data(
     db_key: &str,
     form_data: kp_service::EntryFormData,
 ) -> Result<()> {
+    // Only an SSH Key edit can affect the agent. Skipping other entry types
+    // avoids needless reloads — in Client Mode a reload re-pushes this db's keys
+    // to the external agent, so editing an unrelated entry must not trigger it.
+    let is_ssh_key = form_data.is_ssh_key_entry();
     kp_service::update_entry_from_form_data(db_key, form_data)?;
     // Reflect edits immediately: a toggled "Add to SSH Agent", a changed key, or
     // a new passphrase should re-sync the agent's view of this db's keys.
-    ssh_agent::reload_keys_for_db(db_key);
+    if is_ssh_key {
+        ssh_agent::reload_keys_for_db(db_key);
+    }
     Ok(())
 }
 
@@ -638,9 +644,13 @@ pub(crate) async fn insert_entry_from_form_data(
     db_key: &str,
     form_data: kp_service::EntryFormData,
 ) -> Result<()> {
+    let is_ssh_key = form_data.is_ssh_key_entry();
     kp_service::insert_entry_from_form_data(db_key, form_data)?;
     // A newly added agent-enabled SSH Key is served right away (no db reopen).
-    ssh_agent::reload_keys_for_db(db_key);
+    // Other entry types can't affect the agent, so don't reload for them.
+    if is_ssh_key {
+        ssh_agent::reload_keys_for_db(db_key);
+    }
     Ok(())
 }
 

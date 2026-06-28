@@ -326,9 +326,13 @@ impl AppState {
 
     pub(crate) fn update_preference(&self, preference_data: PreferenceData) -> Result<()> {
         let prior_dir = self.preference.lock().unwrap().backup.dir.clone();
-        let (prior_ssh_agent_enabled, prior_ssh_agent_mode) = {
+        let (prior_ssh_agent_enabled, prior_ssh_agent_mode, prior_ssh_agent_transport) = {
             let pref = self.preference.lock().unwrap();
-            (pref.is_ssh_agent_enabled(), pref.ssh_agent_mode())
+            (
+                pref.is_ssh_agent_enabled(),
+                pref.ssh_agent_mode(),
+                pref.ssh_agent_client_transport(),
+            )
         };
 
         let result = {
@@ -339,15 +343,22 @@ impl AppState {
         // If the SSH agent enable flag flipped, start or stop the listener now.
         // The flag itself was persisted by store_pref.update above; this only
         // applies the runtime side effect.
-        let (current_ssh_agent_enabled, current_ssh_agent_mode) = {
+        let (current_ssh_agent_enabled, current_ssh_agent_mode, current_ssh_agent_transport) = {
             let pref = self.preference.lock().unwrap();
-            (pref.is_ssh_agent_enabled(), pref.ssh_agent_mode())
+            (
+                pref.is_ssh_agent_enabled(),
+                pref.ssh_agent_mode(),
+                pref.ssh_agent_client_transport(),
+            )
         };
-        let mode_changed = prior_ssh_agent_mode != current_ssh_agent_mode;
-        if prior_ssh_agent_enabled && (!current_ssh_agent_enabled || mode_changed) {
+        // A mode flip or (Windows) a client-transport change targets a different
+        // agent, so the running service must be torn down and rebuilt.
+        let config_changed = prior_ssh_agent_mode != current_ssh_agent_mode
+            || prior_ssh_agent_transport != current_ssh_agent_transport;
+        if prior_ssh_agent_enabled && (!current_ssh_agent_enabled || config_changed) {
             crate::ssh_agent::stop();
         }
-        if current_ssh_agent_enabled && (!prior_ssh_agent_enabled || mode_changed) {
+        if current_ssh_agent_enabled && (!prior_ssh_agent_enabled || config_changed) {
             crate::ssh_agent::start();
         }
 

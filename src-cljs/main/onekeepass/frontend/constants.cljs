@@ -22,6 +22,11 @@
 (def SSH_AGENT_MODE_AGENT "agent")
 (def SSH_AGENT_MODE_CLIENT "client")
 
+;; Windows-only Client Mode target agent. Values must match the Rust
+;; SshAgentClientTransport serde representation.
+(def SSH_AGENT_CLIENT_TRANSPORT_OPENSSH "openssh")
+(def SSH_AGENT_CLIENT_TRANSPORT_PAGEANT "pageant")
+
 ;; Enum tags matching the Rust `RemoteStorageType` variant names. Used
 ;; verbatim in the JSON sent over the Tauri bridge.
 (def V-SFTP "Sftp")
