@@ -8,7 +8,8 @@
    [onekeepass.frontend.auto-type :as at-form]
    [onekeepass.frontend.browser-integration :as browser-integration]
    [onekeepass.frontend.ssh-agent :as ssh-agent]
-   [onekeepass.frontend.common-components :refer [confirm-text-dialog
+   [onekeepass.frontend.common-components :refer [app-bar-themed-props
+                                                  confirm-text-dialog
                                                   error-info-dialog
                                                   message-dialog
                                                   progress-message-dialog]]
@@ -174,43 +175,6 @@
                    :disabled (= status :in-progress)
                    :on-click tb-events/save-current-db-msg-dialog-hide} "Close"]]]))
 
-(defn- too-bar-themed-props []
-  (let [light-theme? (= @(cmn-events/app-theme) const/THEME_LIGHT)
-
-        ;; Light-theme toolbar appearance. Swap which 'toolbar-style' line is
-        ;; active (keep exactly one). Dark theme is unaffected. Each option is
-        ;; {:bg background, :fg icon/text color, :border? thin bottom divider +
-        ;; no shadow (suits the light bars so they separate from the content)}.
-        ;;
-        ;; Colored bars (white icons) - bolder, Material-2 feel:
-        ;;   {:bg "#455a64" :fg "#ffffff"}  Blue Grey 700 - calm, professional
-        ;;   {:bg "#3949ab" :fg "#ffffff"}  Indigo 600    - cooler blue
-        ;;   {:bg "#00695c" :fg "#ffffff"}  Teal 800      - distinctive
-        ;;
-        ;; Light bars (dark icons + divider) - quieter, more modern/minimal:
-        ;;   {:bg "#ffffff" :fg "rgba(0,0,0,0.87)" :border? true}  White surface
-        ;;   {:bg "#fafafa" :fg "rgba(0,0,0,0.87)" :border? true}  Grey 50 (near-white)
-        ;;   {:bg "#eceff1" :fg "rgba(0,0,0,0.87)" :border? true}  Blue Grey 50 (cool tint)
-        ;;   {:bg "#e3f2fd" :fg "rgba(0,0,0,0.87)" :border? true}  Blue 50 (soft blue tint)
-
-        ;; toolbar-style {:bg "#ffffff" :fg "rgba(0,0,0,0.87)" :border? true}
-        ;; toolbar-style {:bg "#455a64" :fg "#ffffff"}
-        ;; toolbar-style {:bg "#3949ab" :fg "#ffffff"}
-        ;; toolbar-style {:bg "#00695c" :fg "#ffffff"}
-        toolbar-style {:bg "#fafafa" :fg "rgba(0,0,0,0.87)" :border? true}
-        ;; toolbar-style {:bg "#eceff1" :fg "rgba(0,0,0,0.87)" :border? true}
-        ;; toolbar-style {:bg "#e3f2fd" :fg "rgba(0,0,0,0.87)" :border? true}
-
-
-
-        toolbar-sx (cond-> {:bgcolor (:bg toolbar-style)
-                            :color   (:fg toolbar-style)}
-                     (:border? toolbar-style)
-                     (assoc :box-shadow "none"
-                            :border-bottom "1px solid rgba(0,0,0,0.12)"))]
-    (cond-> {:position "static" :color "primary" :dir (t/dir)}
-      light-theme? (assoc :sx toolbar-sx))))
-
 (defn top-bar
   "A tool bar function component from Reagent a component so that 
    we can use effect to enable/disable certain App menus"
@@ -260,7 +224,7 @@
        ;; Previous one used for both light and dark theme cases
        ;; mui-app-bar {:position "static" :color "primary" :dir (t/dir)}
 
-       [mui-app-bar (too-bar-themed-props) 
+       [mui-app-bar (app-bar-themed-props)
         [mui-toolbar {:style {:min-height 32}}
          ;; Using box to provide common styles - left margin -  for all its children - buttons 
          ;; Using "&.MuiIconButton-root" etc did not work

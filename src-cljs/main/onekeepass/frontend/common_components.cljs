@@ -1,7 +1,7 @@
 (ns onekeepass.frontend.common-components
   (:require
    [clojure.string :as str]
-   [onekeepass.frontend.constants :refer [ADD_TAG_PREFIX]]
+   [onekeepass.frontend.constants :as const :refer [ADD_TAG_PREFIX]]
    [onekeepass.frontend.events.common :as cmn-events]
    ;;  [onekeepass.frontend.events.generic-dialogs :as gd-events]
    [onekeepass.frontend.mui-components :as m :refer [auto-sizer
@@ -32,7 +32,46 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Styles ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def entry-cnt-field-margin-top "16px") ;; twice --mui-theme-spacing-1 
+(def entry-cnt-field-margin-top "16px") ;; twice --mui-theme-spacing-1
+
+(defn app-bar-themed-props
+  "MUI AppBar props (incl. the light-theme :sx surface override) for the app's
+   top bars. Shared so the main toolbar (tool_bar.cljs) and the start-page
+   Welcome header (start_page.cljs) render the same bar and stay consistent.
+
+   Light theme: swap which 'toolbar-style' line is active (keep exactly one).
+   Dark theme is unaffected (MUI's default dark app-bar surface). Each option is
+   {:bg background, :fg icon/text color, :border? thin bottom divider + no shadow
+   (suits the light bars so they separate from the content)}.
+
+   Colored bars (white icons) - bolder, Material-2 feel:
+     {:bg \"#455a64\" :fg \"#ffffff\"}  Blue Grey 700 - calm, professional
+     {:bg \"#3949ab\" :fg \"#ffffff\"}  Indigo 600    - cooler blue
+     {:bg \"#00695c\" :fg \"#ffffff\"}  Teal 800      - distinctive
+
+   Light bars (dark icons + divider) - quieter, more modern/minimal:
+     {:bg \"#ffffff\" :fg \"rgba(0,0,0,0.87)\" :border? true}  White surface
+     {:bg \"#fafafa\" :fg \"rgba(0,0,0,0.87)\" :border? true}  Grey 50 (near-white)
+     {:bg \"#eceff1\" :fg \"rgba(0,0,0,0.87)\" :border? true}  Blue Grey 50 (cool tint)
+     {:bg \"#e3f2fd\" :fg \"rgba(0,0,0,0.87)\" :border? true}  Blue 50 (soft blue tint)"
+  []
+  (let [light-theme? (= @(cmn-events/app-theme) const/THEME_LIGHT)
+
+        ;; toolbar-style {:bg "#ffffff" :fg "rgba(0,0,0,0.87)" :border? true}
+        ;; toolbar-style {:bg "#455a64" :fg "#ffffff"}
+        ;; toolbar-style {:bg "#3949ab" :fg "#ffffff"}
+        ;; toolbar-style {:bg "#00695c" :fg "#ffffff"}
+        toolbar-style {:bg "#fafafa" :fg "rgba(0,0,0,0.87)" :border? true}
+        ;; toolbar-style {:bg "#eceff1" :fg "rgba(0,0,0,0.87)" :border? true}
+        ;; toolbar-style {:bg "#e3f2fd" :fg "rgba(0,0,0,0.87)" :border? true}
+
+        toolbar-sx (cond-> {:bgcolor (:bg toolbar-style)
+                            :color   (:fg toolbar-style)}
+                     (:border? toolbar-style)
+                     (assoc :box-shadow "none"
+                            :border-bottom "1px solid rgba(0,0,0,0.12)"))]
+    (cond-> {:position "static" :color "primary" :dir (t/dir)}
+      light-theme? (assoc :sx toolbar-sx))))
 
 ;; "&.MuiInput-root" works; "& .MuiInput-root" did not work 
 ;; However few other cases like "& .MuiInputBase-input", we need to use with space after &

@@ -12,11 +12,13 @@
    [onekeepass.frontend.events.open-db-form :as od-events]
    [onekeepass.frontend.events.password-generator :as gen-events]
    [onekeepass.frontend.import-file.csv :as csv-form]
-   [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom mui-box
+   [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
+                                                     mui-app-bar mui-box
                                                      mui-container mui-divider
                                                      mui-icon-button
                                                      mui-icon-folder-outlined
                                                      mui-link mui-stack
+                                                     mui-toolbar
                                                      mui-tooltip
                                                      mui-typography
                                                      theme-color]]
@@ -125,12 +127,14 @@
          :style {:style {:direction (t/dir)}
                  :overflow "hidden" ;; hidden used so to avoid showing scrollbar 
                  :background-color (theme-color @custom-theme-atom :bg-default)}}
-   [:div {:class "cust_row header" :style {:text-align "center"}}
-    ;; Another way of getting color from theme (fn [^js/Mui.Theme theme] (-> theme .-status .-danger))
-    [mui-stack {:direction "row" :justify-content "center"  :sx {:bgcolor "secondary.main"}}
-     [mui-typography {:variant "h5"
-                      :sx {:color "secondary.contrastText"}}
-      (tr-t getStarted)]]]
+   [:div {:class "cust_row header"}
+    ;; Reuse the main toolbar's themed AppBar so the Welcome header matches the
+    ;; opened-db toolbar (same light surface / hairline border in light theme,
+    ;; same dark app-bar in dark theme). Just centered title text, no icons.
+    [mui-app-bar (cc/app-bar-themed-props)
+     [mui-toolbar {:style {:min-height 32} :sx {:justify-content "center"}}
+      [mui-typography {:variant "h6" :color "inherit"}
+       (tr-t getStarted)]]]]
    [:div {:class "cust_row content" :style {:height "100%"}}
     [main-content]]
 
