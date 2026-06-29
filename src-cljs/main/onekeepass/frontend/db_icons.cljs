@@ -798,15 +798,7 @@
    const/AUTO_DB_OPEN_TYPE_NAME mui-icon-launch
    const/IDENTITY_TYPE_NAME mui-icon-badge-outlined
    const/DRIVER_LICENSE_TYPE_NAME mui-icon-directions-car-outlined
-   const/EMAIL_ACCOUNT_TYPE_NAME mui-icon-email-outlined
-   const/SSH_LOGIN_TYPE_NAME mui-icon-terminal-outlined
    const/SSH_KEY_TYPE_NAME mui-icon-vpn-key-outlined
-   const/API_CREDENTIAL_TYPE_NAME mui-icon-api-outlined
-   const/DATABASE_CREDENTIAL_TYPE_NAME mui-icon-storage-outlined
-   const/SOFTWARE_LICENSE_TYPE_NAME mui-icon-workspace-premium-outlined
-   const/MEMBERSHIP_TYPE_NAME mui-icon-card-membership-outlined
-   const/CRYPTO_WALLET_TYPE_NAME mui-icon-account-balance-wallet-outlined
-   const/INSURANCE_POLICY_TYPE_NAME mui-icon-policy-outlined
    const/REMOTE_CONNECTION_SFTP_TYPE_NAME mui-icon-lan-outlined
    const/REMOTE_CONNECTION_WEBDAV_TYPE_NAME mui-icon-cloud-outlined})
 

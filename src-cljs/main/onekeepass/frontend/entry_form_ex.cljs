@@ -979,11 +979,8 @@
                           :on-change (on-change-factory2 form-events/entry-type-uuid-on-change)
                           :variant "standard" :fullWidth true}
          ;; select fields options
-         ;; Skip any entry type temporarily hidden from the new-entry picker
-         ;; (see const/HIDDEN_NEW_ENTRY_TYPE_NAMES).
          (doall
-          (for [{:keys [name uuid]} @entry-type-headers
-                :when (not (contains? const/HIDDEN_NEW_ENTRY_TYPE_NAMES name))]
+          (for [{:keys [name uuid]} @entry-type-headers]
             ^{:key uuid} [mui-menu-item {:value uuid}
                           (translated-entry-type-name name)]))]]
        [mui-stack {:direction "row"

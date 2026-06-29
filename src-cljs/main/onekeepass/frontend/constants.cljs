@@ -52,15 +52,7 @@
 (def REMOTE_CONNECTION_WEBDAV_TYPE_NAME "WebDAV Connection")
 (def IDENTITY_TYPE_NAME "Identity")
 (def DRIVER_LICENSE_TYPE_NAME "Driver License")
-(def EMAIL_ACCOUNT_TYPE_NAME "Email Account")
-(def SSH_LOGIN_TYPE_NAME "SSH Login")
 (def SSH_KEY_TYPE_NAME "SSH Key")
-(def API_CREDENTIAL_TYPE_NAME "API Credential")
-(def DATABASE_CREDENTIAL_TYPE_NAME "Database Credential")
-(def SOFTWARE_LICENSE_TYPE_NAME "Software License")
-(def MEMBERSHIP_TYPE_NAME "Membership")
-(def CRYPTO_WALLET_TYPE_NAME "Crypto Wallet")
-(def INSURANCE_POLICY_TYPE_NAME "Insurance Policy")
 
 ;; Remote-connection entry types are identified by their stable type uuid (not
 ;; the display name, which can change). entry-type-uuid comes from the entry's
@@ -81,25 +73,11 @@
                            IDENTITY_TYPE_NAME
                            PASSPORT_TYPE_NAME
                            DRIVER_LICENSE_TYPE_NAME
-                           EMAIL_ACCOUNT_TYPE_NAME
-                           SSH_LOGIN_TYPE_NAME
                            SSH_KEY_TYPE_NAME
-                           API_CREDENTIAL_TYPE_NAME
-                           DATABASE_CREDENTIAL_TYPE_NAME
-                           SOFTWARE_LICENSE_TYPE_NAME
-                           MEMBERSHIP_TYPE_NAME
-                           CRYPTO_WALLET_TYPE_NAME
-                           INSURANCE_POLICY_TYPE_NAME
                            WIRELESS_ROUTER_TYPE_NAME
                            AUTO_DB_OPEN_TYPE_NAME
                            REMOTE_CONNECTION_SFTP_TYPE_NAME
                            REMOTE_CONNECTION_WEBDAV_TYPE_NAME])
-
-;; Standard entry types temporarily hidden from the new-entry type picker.
-;; The type still exists in the core - existing entries of this type render and
-;; work normally; we just don't let users CHOOSE it for new entries yet.
-;; To re-enable, remove the name from this set (or make the set empty).
-(def HIDDEN_NEW_ENTRY_TYPE_NAMES #{EMAIL_ACCOUNT_TYPE_NAME})
 
 (def ADDITIONAL_ONE_TIME_PASSWORDS "Additional One-Time Passwords")
 ;;

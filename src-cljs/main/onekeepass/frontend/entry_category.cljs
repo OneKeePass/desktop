@@ -283,14 +283,6 @@
    const/AUTO_DB_OPEN_TYPE_NAME "#6d4c41"              ;; brown
    const/IDENTITY_TYPE_NAME "#00acc1"                  ;; cyan
    const/DRIVER_LICENSE_TYPE_NAME "#f4511e"            ;; deep orange
-   const/EMAIL_ACCOUNT_TYPE_NAME "#e53935"             ;; red
-   const/SSH_LOGIN_TYPE_NAME "#546e7a"                 ;; blue grey
-   const/API_CREDENTIAL_TYPE_NAME "#8e24aa"            ;; purple
-   const/DATABASE_CREDENTIAL_TYPE_NAME "#5c6bc0"       ;; indigo light
-   const/SOFTWARE_LICENSE_TYPE_NAME "#7cb342"          ;; light green
-   const/MEMBERSHIP_TYPE_NAME "#fb8c00"                ;; orange
-   const/CRYPTO_WALLET_TYPE_NAME "#fdd835"             ;; yellow
-   const/INSURANCE_POLICY_TYPE_NAME "#039be5"          ;; light blue
    const/REMOTE_CONNECTION_SFTP_TYPE_NAME "#26a69a"    ;; teal light
    const/REMOTE_CONNECTION_WEBDAV_TYPE_NAME "#00acc1"  ;; cyan
    const/CATEGORY_ALL_ENTRIES "#5c6bc0"                ;; indigo
