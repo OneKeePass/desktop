@@ -114,7 +114,10 @@ impl StoredIdentity {
 }
 
 pub(crate) fn decode_identity(src: &SshAgentKeySource) -> Result<DecodedIdentity, String> {
-    let pem = normalize_openssh_pem(&src.private_key_pem);
+    let pem = normalize_private_key_pem(
+        &src.private_key_pem,
+        src.passphrase.as_deref().filter(|p| !p.is_empty()),
+    )?;
     let parsed =
         PrivateKey::from_openssh(pem.trim()).map_err(|e| format!("private key parse failed: {e}"))?;
 
@@ -187,6 +190,27 @@ fn parse_lifetime(input: &str) -> Option<Duration> {
             None
         }
     }
+}
+
+// Accepts the key formats stored by SSH Key entries and normalizes them to the
+// OpenSSH text format used by the rest of the agent code.
+fn normalize_private_key_pem(input: &str, passphrase: Option<&str>) -> Result<String, String> {
+    let trimmed = input.trim_start();
+    if trimmed.starts_with("PuTTY-User-Key-File-") {
+        return ppk_to_openssh(input, passphrase);
+    }
+
+    Ok(normalize_openssh_pem(input))
+}
+
+// Converts a PuTTY PPK key into OpenSSH text without changing the saved entry.
+fn ppk_to_openssh(input: &str, passphrase: Option<&str>) -> Result<String, String> {
+    let ppk_key = ssh_key_ppk::PrivateKey::from_ppk(input, passphrase.map(str::to_string))
+        .map_err(|e| format!("PPK private key parse failed: {e}"))?;
+    ppk_key
+        .to_openssh(ssh_key_ppk::LineEnding::LF)
+        .map(|pem| pem.to_string())
+        .map_err(|e| format!("PPK to OpenSSH conversion failed: {e}"))
 }
 
 // Repairs an OpenSSH private key whose PEM line structure was flattened — e.g.

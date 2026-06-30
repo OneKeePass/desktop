@@ -44,6 +44,7 @@ crypto_box = "0.9.1"
 ## drives the rsa crate directly because ssh-key 0.6.7's RSA Signer is broken.
 ssh-agent-lib = "0.6.0"
 ssh-key = { version = "0.6.7", features = ["ed25519", "rsa", "ecdsa", "encryption", "getrandom"] }
+ssh-key-ppk = { package = "internal-russh-forked-ssh-key", version = "0.6", features = ["ed25519", "rsa", "ecdsa", "ppk"] }
 rsa = "0.9"
 sha2 = "0.10"
 signature = "2"
@@ -55,7 +56,7 @@ signature = "2"
 tauri = { version = "2", features = [] }
 
 ## using from the local crate during development
-onekeepass-core = {path = "../../onekeepass-core", version = "0.23.0", features = ["favicon"] }
+onekeepass-core = {path = "../../onekeepass-core", version = "0.23.0", features = ["favicon", "desktop-ssh-agent"] }
 
 ## Need to use the git ref for release
 # onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.22.0", features = ["favicon"] }
