@@ -86,9 +86,29 @@ impl ClientRuntime {
             return Ok(());
         };
 
+        // The external agent dedupes by public key with no refcount, so a key
+        // shared by several open databases is a single entry in it. Removing it
+        // here when one database closes would yank it out from under the others
+        // that still need it. So skip any key still tracked by another open db;
+        // the removed map entry above already excludes the closing db itself.
+        let still_needed = |fingerprint: &str| {
+            self.added_by_db
+                .values()
+                .any(|ids| ids.iter().any(|t| t.fingerprint == fingerprint))
+        };
+
         let transport = self.transport_choice.clone();
         let mut first_error = None;
         for id in identities {
+            if still_needed(&id.fingerprint) {
+                log::debug!(
+                    "SSH agent client mode: keeping identity '{}' ({}); still used by another open db",
+                    id.comment,
+                    id.fingerprint
+                );
+                continue;
+            }
+
             let credential = id.credential.clone();
             let transport = transport.clone();
             match run_agent_client(async move {
@@ -128,8 +148,17 @@ impl ClientRuntime {
         self.transport.is_some()
     }
 
+    // Count of distinct keys handed to the external agent. A key shared by
+    // several open databases is one entry in the agent, so it is counted once
+    // here (deduped by fingerprint) to match what `ssh-add -l` reports.
     pub(crate) fn key_count(&self) -> usize {
-        self.added_by_db.values().map(Vec::len).sum()
+        let mut seen = std::collections::HashSet::new();
+        for ids in self.added_by_db.values() {
+            for t in ids {
+                seen.insert(t.fingerprint.as_str());
+            }
+        }
+        seen.len()
     }
 
     pub(crate) fn transport(&self) -> Option<String> {
