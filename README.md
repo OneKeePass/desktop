@@ -44,6 +44,9 @@ All created database files are encrypted using the best and most secure encrypti
 - Custom icons support — upload icons from a file or fetch from a URL/favicon; assign to entries and groups
 - Direct SFTP and WebDAV remote server support — create or open databases stored on a remote server without any third-party sync tool
 - Remote server credentials stored as **SFTP Connection** or **WebDAV Connection** entries inside the database
+- Additional built-in entry types — SSH Key, Identity, Passport and Driver License
+- Custom fields can be Text, Boolean or Date type (with a date picker for date fields)
+- SSH Agent service — store SSH keys as **SSH Key** entries and serve them to SSH clients in Agent Mode (own socket/named pipe) or Client Mode (existing system agent, including OpenSSH and Pageant on Windows)
 
 ## Installation and Quick start
 

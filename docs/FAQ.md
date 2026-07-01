@@ -65,7 +65,7 @@ It is just the flattened list of keepass groups instead of a tree/folder like st
 
 ## What is an entry type?
 Each entry type has certain set of fields. For example *Login* entry type include fields like username, password, url etc.
-OneKeePass supports some built-in standard entry types: Login, Credit/Debit Card, Bank Account and Wireless Router.
+OneKeePass supports several built-in standard entry types: Login, Credit/Debit Card, Bank Account, Identity, Passport, Driver License, SSH Key and Wireless Router.
 More standard entry types will be added. 
 
 
@@ -79,6 +79,24 @@ You can create a custom type with sections and fields. Such custom entry type ca
   <br>
 </h1>
 
+</details>
+
+## What field types can a custom field have?
+
+When you add a custom field to an entry, you can choose its data type: **Text**, **Boolean** or **Date**.
+
+- A **Text** field is a normal value field (and can be marked as a protected/secret field).
+- A **Boolean** field shows a switch that stores a true/false value.
+- A **Date** field shows a date value and provides a date picker for selecting and editing the date.
+
+These field types are also used by some of the built-in entry types (for example the date fields in *Passport* and *Driver License*).
+
+<details>
+<summary>See the field type selection here</summary>
+<h1 align="center">
+  <img src="../screenshots/Custom-Field-Type-Selection.jpg" alt=""  />
+  <br>
+</h1>
 </details>
 
 ## Are file attachments supported?
@@ -298,6 +316,39 @@ OneKeePass automatically checks for new releases at startup. If a new version is
 ## Does the Brave browser work with the OneKeePass browser extension?
 
 Yes. The OneKeePass-Browser extension supports Brave in addition to Firefox and Chrome. Install the Chrome-compatible extension in Brave, then enable it in OneKeePass **Application Settings -> Browser Integration**.
+
+## What is the "SSH Key" entry type?
+
+**SSH Key** is a built-in entry type for storing an SSH private key (and its passphrase) securely inside your database. The private key can be entered directly or loaded from an attachment, and both OpenSSH keys and PuTTY `.ppk` keys are supported. The passphrase is stored in the **Private Key Passphrase** field.
+
+Once a key is stored in an SSH Key entry, it can be served to SSH clients through the OneKeePass SSH agent (see below).
+
+<details>
+<summary>See the SSH Key entry here</summary>
+<h1 align="center">
+  <img src="../screenshots/SSH-Key-Entry-Type.jpg" alt=""  />
+  <br>
+</h1>
+</details>
+
+## How do I use my SSH keys with the OneKeePass SSH agent?
+
+OneKeePass includes an SSH agent service that can serve the keys stored in your **SSH Key** entries to SSH clients (for example `ssh` and `git`). Enable it from **Application Settings -> SSH Agent**.
+
+The agent supports two modes:
+
+- **Agent Mode** — OneKeePass runs its own SSH agent and exposes a socket (macOS/Linux) or a named pipe (Windows). Point your SSH client at it by adding `IdentityAgent <path>` to `~/.ssh/config`, or by exporting `SSH_AUTH_SOCK=<path>` for git SSH signing.
+- **Client Mode** — OneKeePass adds your keys to your existing system SSH agent instead of running its own. On Windows, both **OpenSSH** (agent pipe) and **Pageant** transports are supported.
+
+To serve a key, open an SSH Key entry and use **Add to SSH Agent**. You can configure how long keys remain loaded (the **Agent Lifetime**), and a key can be marked to **Require Confirmation**, so OneKeePass prompts you to allow or reject each signing request. Keys that OneKeePass added are removed automatically when the database is locked or the service is stopped.
+
+<details>
+<summary>See the SSH Agent settings here</summary>
+<h1 align="center">
+  <img src="../screenshots/SSH-Agent-Settings.jpg" alt=""  />
+  <br>
+</h1>
+</details>
 
 
 
