@@ -276,7 +276,7 @@
 (defn row-item
   "Renders a list item.
   The arg 'props' is a map passed from 'fixed-size-list'.
-  Subscriptions are obtained once in the outer fn (form-2 setup phase) and deref'd
+  Subscriptions are obtained once in the outer fn (form-2 setup) and deref'd
   in the inner fn so Reagent's reactive tracking registers them as dependencies.
   When selected-id, selected-ids, or drag-active-uuid change, Reagent force-updates
   this component and passes fresh plain values down to row-item-draggable (:f> React FC)."

@@ -1,5 +1,5 @@
 (ns onekeepass.frontend.ssh-agent
-  "UI for the desktop SSH agent service. Phase 3: the allow/deny dialog shown
+  "UI for the desktop SSH agent service.The allow/deny dialog shown
   when a 'Require Confirmation' key receives a sign request."
   (:require
    [onekeepass.frontend.events.generic-dialogs :as gd-events]

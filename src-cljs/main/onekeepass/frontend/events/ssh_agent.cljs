@@ -1,6 +1,6 @@
 (ns onekeepass.frontend.events.ssh-agent
   "Events for the desktop SSH agent service: the sign-request confirmation dialog
-  (Phase 3) and the settings-panel enable toggle + live status (Phase 4)."
+  and the settings-panel enable toggle + live status."
   (:require
    [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.events.common :refer [check-error on-error]]
@@ -49,7 +49,7 @@
  (fn [db [_event-id]]
    (get-in db [:ssh-agent :status])))
 
-;; ---- Sign-request confirmation dialog (Phase 3) ----
+;; ---- Sign-request confirmation dialog ----
 
 ;; Called from the dialog UI when the user clicks Allow / Deny.
 (defn sign-answer [request-id allow?]

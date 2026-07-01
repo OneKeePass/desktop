@@ -163,8 +163,8 @@ pub(crate) async fn load_kdbx(
     // implementation used.
     let r = kp_service::load_kdbx(db_file_name, password, key_file_name.as_deref());
 
-    // Phase 2: classify the result. On NotFound, drop the recent entry. Any
-    // started handle from Phase 1 must be released since we won't have a
+    // Classify the result. On NotFound, drop the recent entry. Any
+    // started handle must be released since we won't have a
     // session to bind it to.
     if let Err(kp_service::error::Error::DbFileIoError(m, ioe)) = &r {
         if let ("Database file opening failed", ErrorKind::NotFound) = (m.as_str(), ioe.kind()) {

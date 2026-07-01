@@ -2,9 +2,9 @@
 //
 // Serves SSH keys drawn from unlocked databases over the standard agent
 // transport so `ssh`, `git`, etc. can authenticate without the private key ever
-// touching disk. Phase 2 covers the unix-socket transport (macOS / Linux),
+// touching disk. This covers the unix-socket transport (macOS / Linux),
 // the in-memory key store, and the open/lock/close lifecycle hooks. The
-// confirmation flow (Phase 3) and the Windows transports (Phases 5-6) plug into
+// confirmation flow  and the Windows transports  plug into
 // the same `SshAgentStore` / `AgentSession`.
 //
 // The agent is disabled by default; nothing is bound until the user enables it.

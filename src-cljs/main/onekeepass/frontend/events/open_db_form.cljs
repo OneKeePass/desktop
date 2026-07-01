@@ -273,7 +273,7 @@
    (bg/open-file-dialog
     (fn [api-response]
       (when-let [picked-file (check-error api-response)]
-        ;; Re-enter the load path with the freshly-granted file. Phase 3 of
+        ;; Re-enter the load path with the freshly-granted file. 
         ;; load_kdbx will create a fresh bookmark on success and persist it
         ;; against the recent entry, so future opens will work without this
         ;; recovery flow.

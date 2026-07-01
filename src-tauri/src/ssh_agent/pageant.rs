@@ -1,4 +1,4 @@
-// Windows Pageant transport for the SSH agent (Phase 6).
+// Windows Pageant transport for the SSH agent.
 //
 // PuTTY-family clients (plink, WinSCP, TortoiseGit, FileZilla) talk to an agent
 // not over a socket but by:

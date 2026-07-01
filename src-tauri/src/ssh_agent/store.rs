@@ -3,8 +3,8 @@
 // material). ssh-key zeroizes that material when the value is dropped, so
 // removing a db's slice or clearing the store wipes the keys from memory.
 //
-// This module is transport-neutral: the unix-socket `Session` adapter (and, in
-// later phases, the Windows named-pipe / Pageant adapters) all call the same
+// This module is transport-neutral: the unix-socket `Session` adapter and, in
+// the Windows named-pipe / Pageant adapters all call the same
 // `identities()` / `sign()` entry points here.
 
 use std::collections::HashMap;

@@ -1,4 +1,4 @@
-// Windows OpenSSH named-pipe transport for the SSH agent (Phase 5).
+// Windows OpenSSH named-pipe transport for the SSH agent.
 //
 // Binds the well-known `\\.\pipe\openssh-ssh-agent` pipe that stock Win32-OpenSSH
 // and Git-for-Windows clients connect to with no extra configuration, and serves
