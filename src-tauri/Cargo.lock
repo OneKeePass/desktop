@@ -4040,6 +4040,7 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 [[package]]
 name = "onekeepass-core"
 version = "0.23.0"
+source = "git+https://github.com/OneKeePass/onekeepass-core.git?tag=v0.23.0#0ac8d8e8986b4629b5cc45519ef080edf221fc7e"
 dependencies = [
  "argon2-sys",
  "base64 0.22.1",
