@@ -98,6 +98,16 @@
 (defn-generic-dialog-subs-events :browser-extension-install-grant-dialog [[data nil]])
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; ssh-agent-sign-confirm-dialog
+
+; Shown when an agent-served SSH key with "Require Confirmation" receives a sign
+; request. dialog-identifier-kw :ssh-agent-sign-confirm-dialog
+(defn-generic-dialog-disp-events :ssh-agent-sign-confirm-dialog [[close nil]
+                                                                 [show-with-state state-m]])
+
+(defn-generic-dialog-subs-events :ssh-agent-sign-confirm-dialog [[data nil]])
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  external-db-change-dialog   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; dialog-identifier-kw :external-db-change-dialog

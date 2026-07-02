@@ -64,7 +64,7 @@
                                 Toolbar
                                 Tooltip
                                 Typography
-                                
+
 
                                 ArrowDropUpOutlined
                                 ArrowDropDownOutlined
@@ -124,6 +124,20 @@
                                 ArticleOutlined
                                 PreviewOutlined
                                 LocalizationProvider
+                                ;; Icons for the extended standard entry types
+                                BadgeOutlined
+                                DirectionsCarOutlined
+                                EmailOutlined
+                                TerminalOutlined
+                                ApiOutlined
+                                StorageOutlined
+                                WorkspacePremiumOutlined
+                                CardMembershipOutlined
+                                AccountBalanceWalletOutlined
+                                PolicyOutlined
+                                LanOutlined
+                                CloudOutlined
+                                SimpleTreeView
 
                                 ;; Dialogs related
                                 merge-result-dialog
@@ -298,8 +312,7 @@
                              onekeepass.frontend.background/go
                              onekeepass.frontend.events.generic-dialogs
                              cljs.core.async
-                             cljs.core.async.interop
-                             ]}
+                             cljs.core.async.interop]}
 
 
   ;;Following is not working 

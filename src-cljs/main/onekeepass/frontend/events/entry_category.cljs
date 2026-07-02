@@ -138,7 +138,7 @@
 ;; valid value for kind is one of :category,:group,:type,:tag
 (reg-event-fx
  :clear-and-show
- (fn [{:keys [_db]} [_event-id kind]]
+ (fn [{:keys [db]} [_event-id kind]]
    (let [cmn-actions [(if (= kind :group)
                         [:dispatch [:group-tree-content/load-groups-once]]
                         [:dispatch [:group-tree-content/clear-group-selection]])
@@ -149,7 +149,11 @@
                       [:bg-entry-category-groupings-preference [kind]]
                       ]]
      ;; here cmn-actions is a vec of vec
-     {:fx cmn-actions})))
+     ;; :first-non-empty => once the new grouping's category data is loaded,
+     ;; auto-select the first item that has entries (falls back to All Entries)
+     ;; so the list/form panels are not left blank after switching grouping.
+     {:db (assoc-in-key-db db [:entry-category :auto-select-on-load] :first-non-empty)
+      :fx cmn-actions})))
 
 (reg-fx
    :bg-entry-category-groupings-preference
@@ -192,13 +196,18 @@
      {:fx [[:dispatch [:load-combined-category-data view]]]})))
 
 ;; This is called called after the db is opened and also when db is unlocked
+;; select-all-on-load? (optional) - when true, "All Entries" is auto-selected and
+;; its entry list is loaded once the category data finishes loading (see
+;; :update-category-data). Used on db open so the panes are not blank.
 (reg-event-fx
  :entry-category/category-data-load-start
- (fn [{:keys [_db]} [_event-id start-view-to-show]]
+ (fn [{:keys [db]} [_event-id start-view-to-show select-all-on-load?]]
    ;; start-view-to-show is a string
    (let [start-view-to-show (to-entry-groupings-kind-kw start-view-to-show)]
      ;; valid value is one of :category or :group or :type or :tag
-     {:fx [[:dispatch [:load-combined-category-data start-view-to-show]]]})))
+     {:db (assoc-in-key-db db [:entry-category :auto-select-on-load]
+                           (when select-all-on-load? :all-entries))
+      :fx [[:dispatch [:load-combined-category-data start-view-to-show]]]})))
 
 (defn- show-as->grouping-kind
   "Converts the show-as kw to a string that is convertable to enum EntryCategoryGrouping"
@@ -250,58 +259,161 @@
          sorted-grouped-categories (if (= grouping-kind "AsTags")
                                      (sort-by-tag-name grouped-categories)
                                      grouped-categories)
-         entry-categories (merge entry-categories {:grouped-categories sorted-grouped-categories})]
-     {:db (assoc-in-key-db db [:entry-category :data] entry-categories)})))
+         entry-categories (merge entry-categories {:grouped-categories sorted-grouped-categories})
+         ;; One-shot mode set on db open (:all-entries) or on grouping switch
+         ;; (:first-non-empty). The entries-count needed to pick a non-empty item
+         ;; is only known now that the category data has loaded, so the
+         ;; auto-selection is done here and the mode is then cleared.
+         auto-mode (get-in-key-db db [:entry-category :auto-select-on-load])
+         new-db (-> db
+                    (assoc-in-key-db [:entry-category :data] entry-categories)
+                    (assoc-in-key-db [:entry-category :auto-select-on-load] nil))]
+     (cond-> {:db new-db}
+       (= auto-mode :all-entries)
+       (assoc :fx [[:dispatch [:entry-category/select-all-entries-category]]
+                   [:dispatch [:entry-list/load-entry-items const/CATEGORY_ALL_ENTRIES]]])
 
-(defn- is-in-group-categories
-  "Returns the category name if the group is shown in category view or nil"
-  [db category-group-uuid]
-  (let [group-categories (get-in-key-db db [:entry-category :data :grouped-categories])
-        found (filter (fn [{:keys [group-uuid]}]
-                        (= group-uuid category-group-uuid)) group-categories)]
-    (-> found first :title)))
+       (= auto-mode :first-non-empty)
+       (assoc :fx [[:dispatch [:entry-category/auto-select-first-non-empty]]])))))
+
+;; fx that selects "All Entries" and loads its list - the universal fallback
+;; when nothing better can be auto-selected after a grouping switch.
+(def ^:private all-entries-fallback-fx
+  [[:dispatch [:entry-category/select-all-entries-category]]
+   [:dispatch [:entry-list/load-entry-items const/CATEGORY_ALL_ENTRIES]]])
+
+(defn- first-group-with-entry
+  "Pre-order DFS from the root group over the groups-tree data (string-keyed map
+   from bg/groups-summary-data). Returns the uuid of the first group - starting
+   from root - that has at least one entry, skipping the recycle bin and any
+   deleted groups. Returns nil if no such group exists (or data is nil)."
+  [tree-data]
+  (when tree-data
+    (let [groups (get tree-data "groups")
+          recycle-bin (get tree-data "recycle_bin_uuid")
+          deleted (set (get tree-data "deleted_group_uuids"))
+          excluded? (fn [uuid] (or (= uuid recycle-bin) (contains? deleted uuid)))]
+      (letfn [(walk [uuid]
+                (when (and uuid (not (excluded? uuid)))
+                  (let [g (get groups uuid)]
+                    (if (seq (get g "entry_uuids"))
+                      uuid
+                      (some walk (get g "group_uuids"))))))]
+        (walk (get tree-data "root_uuid"))))))
+
+;; Selects the first item that has at least one entry and loads its entry list,
+;; so the list/form panels are not left blank after a grouping switch:
+;; - flat views (:type/:tag/:category): first non-empty grouped category
+;; - :group tree view: first group with an entry, walked from the root
+;; Falls back to "All Entries" when nothing non-empty is found.
+(reg-event-fx
+ :entry-category/auto-select-first-non-empty
+ (fn [{:keys [db]} [_event-id]]
+   (let [showing-as (get-in-key-db db [:entry-category :showing-groups-as])]
+     (if (= showing-as :group)
+       ;; Group tree view - pick the first group (from root) that has an entry
+       (if-let [g-uuid (first-group-with-entry (get-in-key-db db [:groups-tree :data]))]
+         {:fx [[:dispatch [:entry-category/clear-selected-category-info]]
+               [:dispatch [:group-selected g-uuid]]
+               ;; Expand the chain down to g-uuid so the selected group is visible
+               ;; even when it is nested under collapsed parents
+               [:dispatch [:group-tree-content/expand-ancestors g-uuid]]
+               [:dispatch [:entry-form-ex/show-welcome]]
+               [:dispatch [:entry-list/load-entry-items {:group g-uuid}]]]}
+         {:fx all-entries-fallback-fx})
+       ;; Flat views (:type/:tag/:category) - first non-empty grouped category
+       (let [grouped (get-in-key-db db [:entry-category :data :grouped-categories])
+             first-non-empty (->> grouped
+                                  (filter (fn [{:keys [group-uuid entry-type-uuid tag-id entries-count]}]
+                                            (and (or group-uuid entry-type-uuid tag-id)
+                                                 (pos? (or entries-count 0)))))
+                                  first)]
+         (if first-non-empty
+           (let [{:keys [group-uuid entry-type-uuid title]} first-non-empty
+                 category-source (case showing-as
+                                   :type {:entry-type-uuid entry-type-uuid}
+                                   :tag  {:tag title}
+                                   ;; :category (and any other flat view)
+                                   {:group group-uuid})]
+             {:db (assoc-in-key-db db [:entry-category :selected-category-info] first-non-empty)
+              :fx [[:dispatch [:group-tree-content/clear-group-selection]]
+                   [:dispatch [:entry-form-ex/show-welcome]]
+                   [:dispatch [:entry-list/load-entry-items category-source]]]})
+           {:fx all-entries-fallback-fx}))))))
+
+(defn- grouped-category-detail
+  "Finds a category detail map (struct CategoryDetail) from the grouped categories
+   whose value for key 'k' equals 'v'. Returns nil when there is no match."
+  [db k v]
+  (let [grouped-categories (get-in-key-db db [:entry-category :data :grouped-categories])]
+    (first (filter #(= (get % k) v) grouped-categories))))
 
 (defn- selected-category-source
-  "Gets the title, selected-category-detail and ecategory source based on  
-   current showing kind - :type :category or :group
-   Returns a map with keys [title category-source]
-   The 'category-source' is deserializable to 'EntryCategory' enum and used in entry-list
-  "
-  [db group-uuid entry-type-uuid entry-type-name]
+  "Determines which category should be selected/highlighted and which entry list
+   should be shown after a new entry is inserted into 'group-uuid' with 'tags'.
+
+   The selection follows the entry's destination so the category panel, the entry
+   list and the entry form stay consistent even when the user picks a group (or
+   edits tags) in the new entry form that differs from the currently selected
+   category.
+
+   Returns a map with keys [title selected-category-detail category-source], or nil
+   for the :group grouping where selection is delegated to the group tree.
+   The 'category-source' is deserializable to the 'EntryCategory' enum used by entry-list."
+  [db group-uuid entry-type-uuid entry-type-name tags]
   (let [showing-as (get-in-key-db db [:entry-category :showing-groups-as])
-        curr-cat-detail (get-in-key-db db [:entry-category :selected-category-info])
-        grp-title (is-in-group-categories db group-uuid)
-        category-source-title  (cond
-                                 (and (= showing-as :type) (= (:title curr-cat-detail) entry-type-name))
-                                 {:title entry-type-name
-                                  :selected-category-detail curr-cat-detail
-                                  :category-source {:entry-type-uuid entry-type-uuid}}
+        all-entries-source (fn []
+                             {:title const/CATEGORY_ALL_ENTRIES
+                              :selected-category-detail (general-category-detail-by-title db const/CATEGORY_ALL_ENTRIES)
+                              :category-source const/CATEGORY_ALL_ENTRIES})]
+    (cond
+      ;; Showing entry types: follow the new entry's own type category
+      (= showing-as :type)
+      (if-let [detail (grouped-category-detail db :entry-type-uuid entry-type-uuid)]
+        {:title entry-type-name
+         :selected-category-detail detail
+         :category-source {:entry-type-uuid entry-type-uuid}}
+        (all-entries-source))
 
-                                 (and (= showing-as :category) (not (nil? grp-title)))
-                                 {:title grp-title
-                                  :selected-category-detail curr-cat-detail
-                                  :category-source {:group group-uuid}}
+      ;; Showing group categories: follow the entry's destination group category
+      (= showing-as :category)
+      (if-let [detail (grouped-category-detail db :group-uuid group-uuid)]
+        {:title (:title detail)
+         :selected-category-detail detail
+         :category-source {:group group-uuid}}
+        (all-entries-source))
 
-                                 (= showing-as :group)
-                                 nil
+      ;; Showing tag categories: keep the previously selected tag highlighted only
+      ;; when the saved entry still carries that tag (the user may have edited tags
+      ;; in the form); otherwise fall back to All Entries
+      (= showing-as :tag)
+      (let [selected-tag (get-in-key-db db [:entry-category :selected-category-info :tag-id])]
+        (if-let [detail (and (seq selected-tag)
+                             (some #(= % selected-tag) tags)
+                             (grouped-category-detail db :tag-id selected-tag))]
+          {:title selected-tag
+           :selected-category-detail detail
+           :category-source {:tag selected-tag}}
+          (all-entries-source)))
 
-                                 ;; for all other cases including showing-as = :tag
-                                 :else
-                                 {:title const/CATEGORY_ALL_ENTRIES
-                                  :selected-category-detail (general-category-detail-by-title db const/CATEGORY_ALL_ENTRIES)
-                                  :category-source const/CATEGORY_ALL_ENTRIES})]
-    category-source-title))
+      ;; Showing the group tree: selection is handled by group-tree-content
+      (= showing-as :group)
+      nil
+
+      :else
+      (all-entries-source))))
 
 ;; Called from entry form after a new entry is inserted
 (reg-event-fx
  :entry-category/entry-inserted
- (fn [{:keys [db]} [_event-id entry-uuid group-uuid entry-type-uuid entry-type-name]]
+ (fn [{:keys [db]} [_event-id entry-uuid group-uuid entry-type-uuid entry-type-name tags]]
    (let [showing-as (get-in-key-db db [:entry-category :showing-groups-as])
          {:keys [title selected-category-detail category-source]} (selected-category-source
                                                                    db
                                                                    group-uuid
                                                                    entry-type-uuid
-                                                                   entry-type-name)]
+                                                                   entry-type-name
+                                                                   tags)]
      {;; For now first we set selected-category-info and then loading of EntryCategories is called
       ;; Ideally, we should complete loading EntryCategories and then set the selected-category-info
       :db (if-not (nil? selected-category-detail)

@@ -8,14 +8,16 @@
                                                              GROUPING_LABEL_TYPES]]
             [onekeepass.frontend.context-menu :as ctx-menu]
             [onekeepass.frontend.db-icons :refer [entry-type-icon group-icon]]
-            [onekeepass.frontend.events.common :as cmn-events] 
+            [onekeepass.frontend.events.common :as cmn-events]
             ;; need to be replaced events from ec-events?
             [onekeepass.frontend.events.entry-category :as ec-events]
             [onekeepass.frontend.events.group-form :as gf-events]
             [onekeepass.frontend.group-form :as gf]
             [onekeepass.frontend.group-tree-content :as gt]
             [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
+                                                              mui-avatar
                                                               mui-box
+                                                              mui-divider
                                                               mui-icon-access-time
                                                               mui-icon-button
                                                               mui-icon-check
@@ -31,7 +33,7 @@
                                                               mui-menu
                                                               mui-menu-item
                                                               mui-stack
-                                                              mui-typography 
+                                                              mui-typography
                                                               theme-color]]
             [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-bl tr-ml tr-l-cv tr-entry-type-title-cv]]
             [reagent.core :as r]))
@@ -213,9 +215,30 @@
 
 (defn category-title
   [showing-groups-as]
-  [mui-stack {:direction "row" :sx {:width "100%"}}
+  ;; Section header that separates the top general categories from the group/type/tag
+  ;; list below. A top divider + extra vertical spacing give breathing room above and
+  ;; below, and the label itself is styled distinctly (section-header color, small bold
+  ;; uppercase) so it reads as a heading rather than a selectable row.
+  [mui-stack {:direction "row"
+              :sx {:width "100%"
+                   :align-items "center"
+                   :mt "6px"
+                   :mb "6px"
+                   :pt "8px"
+                   :pb "8px"
+                   :background-color (theme-color @custom-theme-atom :color1)
+
+                   ;; :border-top ".5px solid"
+                   ;; :border-color "divider"
+                   }}
    [mui-stack {:direction "row" :sx {:width "90%"  :align-items "center"}}
-    [mui-typography {:sx {:padding-left "16px"}}
+    [mui-typography {:sx {:padding-left "16px"
+                          :color (theme-color @custom-theme-atom :section-header)
+                          :font-size "0.95rem"
+                          :font-weight 700
+                          :letter-spacing "0.08em"
+                          ;;:text-transform "uppercase"
+                          }}
      (cond
        (or (nil? showing-groups-as) (= showing-groups-as :type))
        (tr-l-cv GROUPING_LABEL_TYPES)
@@ -237,6 +260,54 @@
 
 (defn general-category-icon [name]
   [(get general-category-icons name mui-icon-access-time)])
+
+(def ^:private category-icon-colors
+  "Per entry-type / general-category icon colors. Keyed by the category title
+   (entry-type name constant, or general-category constant). The avatar
+   background uses a light alpha tint of the same color — see 'category-colors'.
+   Tags use a single color and group categories fall back to the theme color
+   (their KeePass icons are already multi-colored).
+
+   To tweak later:
+   - Change an individual icon color: edit its hex value below (and 'tag-icon-color'
+     for tags). The avatar background tint is derived automatically from it.
+   - Change how strong the background tint is for ALL icons: edit the alpha suffix
+     in 'category-colors' (the (str c \"33\") part). It is the last two hex digits of
+     an 8-digit #RRGGBBAA color: \"33\" ≈ 20%, \"4d\" ≈ 30%, \"66\" ≈ 40%, \"1a\" ≈ 10%.
+     Bump it up if the tint looks too faint (e.g. on the dark theme)."
+  {const/LOGIN_TYPE_NAME "#1e88e5"                     ;; blue
+   const/CREDIT_DEBIT_CARD_TYPE_NAME "#43a047"         ;; green
+   const/BANK_ACCOUNT_TYPE_NAME "#00897b"              ;; teal
+   const/WIRELESS_ROUTER_TYPE_NAME "#3949ab"           ;; indigo
+   const/PASSPORT_TYPE_NAME "#5e35b1"                  ;; deep purple
+   const/AUTO_DB_OPEN_TYPE_NAME "#6d4c41"              ;; brown
+   const/IDENTITY_TYPE_NAME "#00acc1"                  ;; cyan
+   const/DRIVER_LICENSE_TYPE_NAME "#f4511e"            ;; deep orange
+   const/REMOTE_CONNECTION_SFTP_TYPE_NAME "#26a69a"    ;; teal light
+   const/REMOTE_CONNECTION_WEBDAV_TYPE_NAME "#00acc1"  ;; cyan
+   const/CATEGORY_ALL_ENTRIES "#5c6bc0"                ;; indigo
+
+   ;; const/CATEGORY_FAV_ENTRIES "#e53935"                ;; red
+   ;; const/CATEGORY_DELETED_ENTRIES "#757575"            ;; grey
+
+   const/CATEGORY_FAV_ENTRIES       "#43a047"          ;; green
+   const/CATEGORY_DELETED_ENTRIES "#e53935"            ;; red
+   })
+
+(def ^:private tag-icon-color "#fb8c00")               ;; amber for all tags
+
+(defn- category-colors
+  "Returns [icon-color avatar-bg] for a category row. When a specific color is
+   defined, the avatar background is a ~20% alpha tint of it (8-digit hex). Falls
+   back to the theme icon color + neutral selection tint otherwise."
+  [theme categories-kind title]
+  (let [c (if (= categories-kind :tag-categories)
+            tag-icon-color
+            (get category-icon-colors title))]
+    (if c
+      [c (str c "33")]
+      [(theme-color theme :entry-category-icons)
+       (theme-color theme :selected-item)])))
 
 (defn translate-category-item-title
   [title categories-kind custom-entry-type?]
@@ -306,12 +377,26 @@
 
           group-category?  (= categories-kind :group-categories)
           type-category?  (= categories-kind :type-categories)
+          general-category? (= categories-kind :general-categories)
 
           row-selected? @(ec-events/is-selected-category category-detail-m)
           custom-entry-type?  (if-not type-category? false @(cmn-events/is-custom-entry-type entry-type-uuid))
-          display-name (translate-category-item-title display-name categories-kind custom-entry-type?)]
+          display-name (translate-category-item-title display-name categories-kind custom-entry-type?)
+          [icon-color icon-bg] (category-colors @custom-theme-atom categories-kind title)]
 
-      [mui-list-item-button {:sx {"&.MuiListItemButton-root" {:padding-right "1px"}}
+      [mui-list-item-button {:sx {"&.MuiListItemButton-root" {:padding-right "1px"}
+                                  ;; Match the entry-list rows: inset rounded rectangle with a
+                                  ;; gap between items. width is shrunk by the 8px left+right
+                                  ;; margins so both sides stay rounded and clear of the edges.
+                                  :border-radius 2
+                                  :my "4px"
+                                  :mx 1
+                                  :width "calc(100% - 16px)"
+                                  :box-sizing "border-box"
+                                  ;; Use the shared selection tint (theme customColors.selectedItem)
+                                  ;; instead of MUI's default .Mui-selected color.
+                                  "&.Mui-selected" {:bgcolor (theme-color @custom-theme-atom :selected-item)}
+                                  "&.Mui-selected:hover" {:bgcolor (theme-color @custom-theme-atom :selected-item)}}
                              :on-click #(ec-events/load-category-entry-items
                                          category-detail-m categories-kind)
                              :on-context-menu (fn [^js/Event e]
@@ -326,28 +411,49 @@
                                                   entries-count)))
                              :selected row-selected?}
 
-     ;;Include context menus for a category
+       ;;Include context menus for a category
        #_[category-context-menu]
-       [mui-stack {:direction "row" :sx {:width "100%"}}
+       [mui-stack {:direction "row" :sx {:width "100%" :align-items "center"}}
 
         [mui-stack {:sx {:width "10%"}}
-         [mui-box {:sx {"& .MuiSvgIcon-root" {:color (theme-color @custom-theme-atom :entry-category-icons)}}}
+         ;; Rounded-square tinted avatar matching the entry-list item icons, so
+         ;; both panels share a consistent icon surface. The SvgIcon color
+         ;; override keeps the monochrome category icons on theme.
+         [mui-avatar {:variant "rounded"
+                      :sx {:width 28 :height 28
+                           :bgcolor icon-bg
+                           :border-radius 2
+                           ;; Normalize every icon to one size regardless of source
+                           ;; (MUI type/general icons render ~24px, KeePass group icons
+                           ;; ~16px). '&&' raises specificity to beat the per-icon
+                           ;; '& svg' em sizing set inside entry-icon / group-icon.
+                           ;; Tune the avatar (:width/:height above) and the icon size
+                           ;; (18px below) together if you want them larger/smaller.
+                           "&& .MuiSvgIcon-root" {:color icon-color
+                                                  :width "18px" :height "18px" :font-size "18px"}}}
           icon-comp]]
 
         [mui-stack {:sx {:width "70%"
-                         :padding-left "10px"
+                         :padding-left "16px"
                          :max-width "150px"
                          "& .MuiTypography-root" {:font-weight (if row-selected? "bold" "regular")}}}
          [:f> overflow-tool-tip display-name]]
 
         [mui-stack {:sx {:width "10%"}}
-         [mui-typography  {:sx {:padding-right "0px"
-                                :color "white"
-                                :background-color (theme-color @custom-theme-atom :category-item)
-                                :border-radius "10px"
-                                :text-align "center"
-                                :width "30px"}}
-          entries-count]]
+         ;; General categories (AllEntries/Favorites/Deleted) always show the
+         ;; count; bottom-panel grouped items show it only when selected, to keep
+         ;; the grouping list uncluttered.
+         ;; :variant "caption" keeps the count font size consistent with the
+         ;; group tree count pill (see tree-label in group_tree_content)
+         (when (or general-category? row-selected?)
+           [mui-typography  {:variant "caption"
+                             :sx {:padding-right "0px"
+                                  :color "white"
+                                  :background-color (theme-color @custom-theme-atom :category-item)
+                                  :border-radius "10px"
+                                  :text-align "center"
+                                  :width "30px"}}
+            entries-count])]
         ;; Determine what menus to show based on grouping kind selection
         (cond
           (and row-selected? group-category?)
@@ -375,12 +481,15 @@
                       ;; left side panel when the height of main window is small
                       :overflow-y "auto"
                       :overflow-x "hidden"
+                      ;; Space below the group tree so it isn't flush with the bottom edge
+                      :padding-bottom "12px"
                       :width "100%"}}
      [mui-box
       [mui-list
        ^{:key :all} [category-item all :general-categories]
        ^{:key :fav} [category-item fav :general-categories]
        ^{:key :deleted} [category-item deleted :general-categories]]
+      #_[mui-divider {:sx {}}]
       [category-title showing-groups-as]
 
       (cond

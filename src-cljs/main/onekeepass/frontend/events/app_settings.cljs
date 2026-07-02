@@ -155,6 +155,7 @@
                                          :clipboard-timeout
                                          :backup
                                          :browser-ext-support
+                                         :ssh-agent-support
                                          :default-entry-category-groupings]))
               (assoc-in  [:app-settings :preference-data] pd))
         :fx [[:load-browser-manifest-statuses nil]]})))
@@ -246,13 +247,18 @@
                    clipboard-timeout
                    backup
                    browser-ext-support
+                   ssh-agent-support
                    default-entry-category-groupings]} (-> db :app-settings :preference-data)]
+       ;; ssh-agent-support rides the normal update-preference path like
+       ;; browser-ext-support; the backend persists the flag and starts/stops the
+       ;; listener when it changes (see AppState::update_preference).
        {:fx [[:bg-update-preference (as-map [theme
                                              language
                                              session-timeout
                                              clipboard-timeout
                                              backup
                                              browser-ext-support
+                                             ssh-agent-support
                                              default-entry-category-groupings])]]}))))
 
 (reg-event-fx

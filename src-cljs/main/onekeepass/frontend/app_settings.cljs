@@ -1,8 +1,10 @@
 (ns onekeepass.frontend.app-settings
   (:require
    [clojure.string :as str]
+   [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.events.app-settings :as app-settings-events]
+   [onekeepass.frontend.events.ssh-agent :as ssh-agent-events]
    [onekeepass.frontend.events.common :as ce]
    [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom mui-box
                                                      mui-alert
@@ -17,6 +19,7 @@
                                                      mui-icon-open-in-browser
                                                      mui-icon-security-outlined
                                                      mui-icon-settings-outlined
+                                                     mui-icon-vpn-key-outlined
                                                      mui-input-adornment
                                                      mui-list
                                                      mui-list-item-button
@@ -57,7 +60,12 @@
     [mui-list-item-button {:on-click #(app-settings-events/app-settings-panel-select :browser-integration)
                            :selected (= panel :browser-integration)}
      [mui-list-item-icon [mui-icon-open-in-browser]]
-     [mui-list-item-text text-style-m (tr-l "browserIntegration")]]]])
+     [mui-list-item-text text-style-m (tr-l "browserIntegration")]]
+
+    [mui-list-item-button {:on-click #(app-settings-events/app-settings-panel-select :ssh-agent)
+                           :selected (= panel :ssh-agent)}
+     [mui-list-item-icon [mui-icon-vpn-key-outlined]]
+     [mui-list-item-text text-style-m (t/lstr-l "sshAgent")]]]])
 
 
 (def themes [{:name "Light" :value "light"} {:name "Dark" :value "dark"}])
@@ -234,6 +242,109 @@
                                    (app-settings-events/field-update [:preference-data :browser-ext-support :extension-use-enabled] checked?)))}])
         :label (tr-l "enableBrowserIntegration")}]]]]
    #_[browser-manifest-statuses]])
+
+;; SSH agent settings panel. Like the other preference panels, the enable
+;; checkbox only stages the desired flag into preference-data (lighting up the
+;; shared OK button); the agent is actually started/stopped on OK via
+;; :app-settings-save. The live status (path / keys / error) is fetched on mount
+;; and refreshed after the apply.
+(defn ssh-agent-panel [{{:keys [ssh-agent-support]} :preference-data}]
+  (r/with-let [_ (ssh-agent-events/init-panel)]
+    (let [{:keys [running socket-path key-count error transport mode]} @(ssh-agent-events/agent-status)
+          enabled? (boolean (:enabled ssh-agent-support))
+          configured-mode (or (:mode ssh-agent-support) const/SSH_AGENT_MODE_AGENT)
+          client-mode? (= configured-mode const/SSH_AGENT_MODE_CLIENT)
+          configured-transport (or (:client-transport ssh-agent-support)
+                                    const/SSH_AGENT_CLIENT_TRANSPORT_OPENSSH)
+          windows? (= @(ce/os-name) const/WINDOWS)
+          active-selected-mode? (and running (= mode configured-mode))
+          active-selected-transport? (or (not (and client-mode? windows?))
+                                         (and (= configured-transport const/SSH_AGENT_CLIENT_TRANSPORT_PAGEANT)
+                                              (= transport "Pageant"))
+                                         (and (= configured-transport const/SSH_AGENT_CLIENT_TRANSPORT_OPENSSH)
+                                              (str/starts-with? (or transport "") "OpenSSH pipe")))
+          active-selected-config? (and active-selected-mode? active-selected-transport?)]
+      [mui-stack
+       [mui-stack {:sx {:pt 1 :pb 1}}
+        [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
+         (t/lstr-l "sshAgentService")]]
+
+       [mui-stack {:spacing 2 :sx {:alignItems "center"}}
+        [mui-box {:sx {:width "80%"}}
+         [mui-stack {:direction "row" :sx {:justify-content "space-between"}}
+          [mui-form-control-label
+           {:control (r/as-element
+                      [mui-checkbox
+                       {:checked enabled?
+                        :on-change (fn [^js/CheckedEvent e]
+                                     (app-settings-events/field-update
+                                      [:preference-data :ssh-agent-support :enabled]
+                                      (-> e .-target .-checked)))}])
+            :label (t/lstr-l "enableSshAgent")}]]
+
+         (when enabled?
+           [m/text-field {:label (t/lstr-l "sshAgentMode")
+                          :value configured-mode
+                          :select true
+                          :on-change (app-settings-events/field-update-factory
+                                      [:preference-data :ssh-agent-support :mode])
+                          :variant "standard"
+                          :fullWidth true
+                          :helperText (if client-mode?
+                                        (t/lstr-l "sshAgentClientModeHelp")
+                                        (t/lstr-l "sshAgentAgentModeHelp"))}
+            [mui-menu-item {:value const/SSH_AGENT_MODE_AGENT} (t/lstr-l "sshAgentModeAgent")]
+            [mui-menu-item {:value const/SSH_AGENT_MODE_CLIENT} (t/lstr-l "sshAgentModeClient")]])
+
+         ;; Windows Client Mode targets either the OpenSSH agent pipe or Pageant;
+         ;; the user picks. On macOS/Linux the client always uses SSH_AUTH_SOCK,
+         ;; so this is hidden there.
+         (when (and enabled? client-mode? windows?)
+           [m/text-field {:label (t/lstr-l "sshAgentClientTransport")
+                          :value configured-transport
+                          :select true
+                          :on-change (app-settings-events/field-update-factory
+                                      [:preference-data :ssh-agent-support :client-transport])
+                          :variant "standard"
+                          :fullWidth true
+                          ;;:helperText (t/lstr-l "sshAgentClientTransportHelp")
+                          
+                          }
+            [mui-menu-item {:value const/SSH_AGENT_CLIENT_TRANSPORT_OPENSSH}
+             (t/lstr-l "sshAgentClientTransportOpenssh")]
+            [mui-menu-item {:value const/SSH_AGENT_CLIENT_TRANSPORT_PAGEANT}
+             (t/lstr-l "sshAgentClientTransportPageant")]])
+
+         (when (and enabled? active-selected-config? error)
+           [mui-alert {:severity "error" :sx {:mt 1}} error])
+
+         (when (and enabled? active-selected-config?)
+           [mui-stack {:spacing 1 :sx {:mt 2}}
+            [mui-typography {:variant "caption" :sx {:color "text.secondary"}}
+             (if client-mode?
+               (t/lstr-l "sshAgentTransport")
+               (t/lstr-l "sshAgentSocketPath"))]
+            (if client-mode?
+              [mui-typography {:sx {:fontFamily "monospace" :fontSize "0.8rem"
+                                    :wordBreak "break-all"}}
+               transport]
+              [mui-stack {:direction "row" :sx {:alignItems "center" :justify-content "space-between"}}
+               [mui-typography {:sx {:fontFamily "monospace" :fontSize "0.8rem"
+                                     :wordBreak "break-all" :mr 1}}
+                socket-path]
+               #_[mui-button {:size "small"
+                            :on-click #(bg/write-to-clipboard socket-path)}
+                (t/lstr-bl "copy")]])
+            [mui-typography {:variant "caption" :sx {:color "text.secondary"}}
+             (str (if client-mode?
+                    (t/lstr-l "sshAgentKeysAdded")
+                    (t/lstr-l "sshAgentKeysServed"))
+                  ": " (or key-count 0))]
+            [m/mui-divider {:sx {:mt 1 :mb 1}}]
+            [mui-typography {:variant "caption" :sx {:color "text.secondary"}}
+             (if client-mode?
+               (t/lstr-l "sshAgentClientUsageHint")
+               (t/lstr-l "sshAgentUsageHint"))]])]]])))
 
 (def ^:private FIREFOX "Firefox")
 (def ^:private CHROME "Chrome")
@@ -481,6 +592,9 @@
          [browser-integration dialog-data]
          [m/mui-divider {:sx {:mt 1 :mb 1}}]
          [supported-browsers dialog-data]]
+
+        :ssh-agent
+        [ssh-agent-panel dialog-data]
 
 
         ;;IMPORATNT:

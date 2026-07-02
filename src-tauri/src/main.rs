@@ -11,6 +11,8 @@ mod auto_open;
 mod auto_type;
 mod biometric;
 mod browser_service;
+#[cfg(target_os = "linux")]
+mod clipboard;
 mod commands;
 mod constants;
 mod db_file_watcher;
@@ -21,6 +23,7 @@ mod menu;
 mod pass_phrase;
 mod remote_storage;
 mod sandbox;
+mod ssh_agent;
 mod translation;
 #[cfg(not(feature = "mas-build"))]
 mod updater;
@@ -102,6 +105,10 @@ fn main() {
             commands::check_for_updates,
             commands::clear_csv_data_cache,
             commands::clear_recent_files,
+            #[cfg(target_os = "linux")]
+            commands::clipboard_clear,
+            #[cfg(target_os = "linux")]
+            commands::clipboard_get_text,
             commands::clone_entry,
             commands::close_kdbx,
             commands::collect_entry_group_tags,
@@ -161,6 +168,7 @@ fn main() {
             commands::platform_window_titles,
             commands::read_and_verify_db_file,
             commands::read_app_preference,
+            commands::read_text_file,
             commands::reload_kdbx,
             commands::remove_custom_icon,
             commands::remove_entry_permanently,
@@ -187,6 +195,7 @@ fn main() {
             commands::save_to_db_file,
             commands::score_password,
             commands::search_term,
+            commands::set_active_db_key,
             commands::set_db_settings,
             commands::set_entry_custom_icon,
             commands::set_group_custom_icon,
@@ -196,6 +205,10 @@ fn main() {
             commands::send_sequence_to_winow_async,
             commands::sort_sub_groups,
             // commands::standard_paths,
+            commands::ssh_agent_status,
+            commands::ssh_agent_sign_confirm_result,
+            commands::start_ssh_agent,
+            commands::stop_ssh_agent,
             commands::start_polling_entry_otp_fields,
             commands::stop_polling_entry_otp_fields,
             commands::stop_polling_all_entries_otp_fields,

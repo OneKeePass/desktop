@@ -149,14 +149,14 @@
                   :text (t/lstr-ml 'history)
                   :enabled? history-available?
                   :action #(form-events/load-history-entries-summary uuid)})
-                (when (const/remote-connection-entry-type? (:entry-type-name item))
+                (when (const/remote-connection-entry-type? (:entry-type-uuid item))
                   (ctx-menu/separator-item))
-                (when (const/remote-connection-entry-type? (:entry-type-name item))
+                (when (const/remote-connection-entry-type? (:entry-type-uuid item))
                   (ctx-menu/action-item
                    {:id "entry-open-remote"
                     :text (t/lstr-l "openRemote")
                     :action #(rs-events/open-entry-remote
-                              (:entry-type-name item)
+                              (:entry-type-uuid item)
                               uuid)}))])))))
 
 (defn- row-item-draggable
@@ -183,20 +183,39 @@
         drag-style       (if (or is-dragging (and drag-in-progress is-selected))
                            (assoc style :opacity 1)
                            style)]
+    ;; The outer div occupies the full react-window slot (carries the positioning
+    ;; style). The inner mui-list-item is inset with transparent margins, which
+    ;; creates the visible gap between rows and lets the selection show as a
+    ;; rounded rectangle.
+    [:div {:style drag-style}
     [mui-list-item
      (cond-> {:ref    set-node-ref
-              :style  drag-style
 
-              ;; The selection color is set to one from "action.selected" instead of
-              ;; Mui-selected color "rgba(25, 118, 210, 0.08)" because of dnd. Need to see how to use that color
-              ;; for selected rows for both light and dark mode
-              :sx (cond-> {"& .MuiListItemSecondaryAction-root" {:right 0}}
+              ;; Inset the row inside its slot: :my creates the vertical gap between
+              ;; entries, :mx the horizontal inset, :border-radius the rounded corners.
+              ;; height is reduced by the total vertical margin so rows don't overlap.
+              :sx (cond-> {"& .MuiListItemSecondaryAction-root" {:right 0}
+                           :height "calc(100% - 8px)"
+                           :my "4px"
+                           :mx 1
+                           ;; ListItem defaults to width:100%; with the 8px left+right
+                           ;; margins (:mx 1) that overflows the slot, clipping the right
+                           ;; rounded corners. Shrink the width to keep both margins visible
+                           ;; so the box is fully rounded and clears the vertical divider.
+                           :width "calc(100% - 16px)"
+                           :box-sizing "border-box"
+                           :border-radius 2
+                           ;; Thin separator line between entries (kept commented out;
+                           ;; using spacing + rounded selection instead).
+                           #_:border-bottom #_"1px solid"
+                           #_:border-color #_"divider"}
                     ;; MUI v7 ListItem does not visually reflect :selected prop; apply bgcolor explicitly
                     ;; covers both single-select (selected-id) and multi-select (selected-ids).
+                    ;; Subtle translucent primary tint (:selected-item), keeping normal text color.
                     ;; "&:hover" keeps the same bg on mouse-over to suppress hover color on selected items.
                     is-selected
-                    (assoc :bgcolor "action.selected"
-                           "&:hover" {:bgcolor "action.selected"}))
+                    (assoc :bgcolor (theme-color @custom-theme-atom :selected-item)
+                           "&:hover" {:bgcolor (theme-color @custom-theme-atom :selected-item)}))
               :button true
               :value  uuid
               :on-click (fn [^js e]
@@ -235,9 +254,14 @@
        (assoc :on-key-down (.-onKeyDown listeners)))
      
      [mui-list-item-avatar
-      [mui-avatar [render-entry-icon {:db-key active-db-key
-                                      :icon-id (:icon-id item)
-                                      :custom-icon-uuid (:custom-icon-uuid item)}]]]
+      ;; Rounded-square avatar with a subtle tinted background, so both built-in
+      ;; SVG icons and custom PNG icons sit on a consistent surface in the list.
+      [mui-avatar {:variant "rounded"
+                   :sx {:bgcolor (theme-color @custom-theme-atom :selected-item)
+                        :border-radius 2}}
+       [render-entry-icon {:db-key active-db-key
+                           :icon-id (:icon-id item)
+                           :custom-icon-uuid (:custom-icon-uuid item)}]]]
      [mui-list-item-text
       {:primaryTypographyProps {:max-width 155
                                 :white-space "nowrap"
@@ -247,12 +271,12 @@
                                   :white-space "nowrap"
                                   :text-overflow "ellipsis"
                                   :overflow "hidden"}
-       :primary (:title item) :secondary (:secondary-title item)}]]))
+       :primary (:title item) :secondary (:secondary-title item)}]]]))
 
 (defn row-item
   "Renders a list item.
   The arg 'props' is a map passed from 'fixed-size-list'.
-  Subscriptions are obtained once in the outer fn (form-2 setup phase) and deref'd
+  Subscriptions are obtained once in the outer fn (form-2 setup) and deref'd
   in the inner fn so Reagent's reactive tracking registers them as dependencies.
   When selected-id, selected-ids, or drag-active-uuid change, Reagent force-updates
   this component and passes fresh plain values down to row-item-draggable (:f> React FC)."

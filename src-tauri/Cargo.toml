@@ -38,6 +38,17 @@ futures-util = "0.3"
 data-encoding = "2.9.0"
 crypto_box = "0.9.1"
 
+## SSH agent service. ssh-key is pinned to 0.6.7 so it unifies with the copy
+## ssh-agent-lib re-exports (the desktop tree separately resolves ssh-key
+## 0.7.0-rc via russh/SFTP; the two never cross at the type level). RSA signing
+## drives the rsa crate directly because ssh-key 0.6.7's RSA Signer is broken.
+ssh-agent-lib = "0.6.0"
+ssh-key = { version = "0.6.7", features = ["ed25519", "rsa", "ecdsa", "encryption", "getrandom"] }
+ssh-key-ppk = { package = "internal-russh-forked-ssh-key", version = "0.6", features = ["ed25519", "rsa", "ecdsa", "ppk"] }
+rsa = "0.9"
+sha2 = "0.10"
+signature = "2"
+
 
 ## Adding "devtools" to features list enables devtools in production; But in mac it uses private api 
 ## Tauri rust features are listed in the doc home page https://docs.rs/tauri/2.3.1/tauri/
@@ -45,10 +56,10 @@ crypto_box = "0.9.1"
 tauri = { version = "2", features = [] }
 
 ## using from the local crate during development
-# onekeepass-core = {path = "../../onekeepass-core", version = "0.22.0", features = ["favicon"] }
+# onekeepass-core = {path = "../../onekeepass-core", version = "0.23.0", features = ["favicon", "desktop-ssh-agent"] }
 
 ## Need to use the git ref for release
-onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.22.0", features = ["favicon"] }
+onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.23.0", features = ["favicon", "desktop-ssh-agent"] }
 
 tauri-plugin-shell = "2"
 tauri-plugin-process = "2"
@@ -72,7 +83,32 @@ swift-rs = { version = "1.0.7", features = ["build"] }
 tauri-plugin-global-shortcut = "2"
 
 [target."cfg(target_os = \"windows\")".dependencies]
-winreg = "0.55.0" 
+winreg = "0.55.0"
+
+## SSH agent Windows transports. The OpenSSH named pipe reuses
+## ssh-agent-lib's NamedPipeListener; the Pageant adapter is hand-written over
+## raw Win32 (message-only window + WM_COPYDATA + file-mapping + owner-SID check),
+## so it needs windows-sys plus ssh-encoding to frame/decode the agent messages
+## using the same Request/Response types ssh-agent-lib uses on the socket path.
+## windows-sys is pinned to 0.52 so handles are plain `isize` (Send) and
+## MapViewOfFile returns a raw pointer, which keeps the FFI straightforward.
+ssh-encoding = "0.2"
+windows-sys = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_System_DataExchange",
+    "Win32_System_Memory",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+# GTK3 clipboard backend used on Linux (see src/clipboard.rs). Pinned to the
+# same gtk version webkit2gtk/Tauri use so we share the one GdkDisplay/main loop.
+[target."cfg(target_os = \"linux\")".dependencies]
+gtk = "0.18"
 
 [features]
 default = ["custom-protocol"]

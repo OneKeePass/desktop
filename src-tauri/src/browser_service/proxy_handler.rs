@@ -24,7 +24,7 @@ cfg_if::cfg_if! {
 const BUFFER_SIZE: usize = 1024 * 1024;
 
 // Warn when an outbound response approaches the 1 MB native-messaging cap that
-// Chrome/Firefox enforce on host -> extension messages. Phase 3 lazy-fetching
+// Chrome/Firefox enforce on host -> extension messages. The lazy-fetching
 // keeps responses small in practice, so a hit here signals a payload regression
 // before users actually trip the browser-side limit.
 const SIZE_WARN_BYTES: usize = 800 * 1024;

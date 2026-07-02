@@ -62,6 +62,63 @@ pub(crate) struct Preference2 {
     browser_ext_support: BrowserExtSupport,
 }
 
+// Global SSH-agent service preference. Introduced after v0.21.0, so it is
+// `#[serde(default)]` on the Preference field below and existing TOMLs without
+// it deserialize cleanly (agent disabled).
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum SshAgentMode {
+    Agent,
+    Client,
+}
+
+impl Default for SshAgentMode {
+    fn default() -> Self {
+        Self::Agent
+    }
+}
+
+impl SshAgentMode {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            Self::Agent => "agent",
+            Self::Client => "client",
+        }
+    }
+}
+
+// Which external agent Client Mode pushes keys into on Windows. Ignored on
+// macOS/Linux, where the client always targets `$SSH_AUTH_SOCK`.
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum SshAgentClientTransport {
+    // Explicit so the wire value is "openssh", not kebab-case "open-ssh"; this
+    // matches `as_str()` and the cljs SSH_AGENT_CLIENT_TRANSPORT_OPENSSH tag.
+    #[serde(rename = "openssh")]
+    OpenSsh,
+    Pageant,
+}
+
+impl Default for SshAgentClientTransport {
+    fn default() -> Self {
+        Self::OpenSsh
+    }
+}
+
+// Global SSH-agent service preference. Introduced after v0.21.0, so it is
+// `#[serde(default)]` on the Preference field below and existing TOMLs without
+// it deserialize cleanly (agent disabled).
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
+pub(crate) struct SshAgentSupport {
+    #[serde(default)]
+    pub(crate) enabled: bool,
+    #[serde(default)]
+    pub(crate) mode: SshAgentMode,
+    // Windows-only: which external agent Client Mode targets.
+    #[serde(default)]
+    pub(crate) client_transport: SshAgentClientTransport,
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub(crate) struct Preference {
     version: String,
@@ -93,6 +150,10 @@ pub(crate) struct Preference {
 
     // Introduced browser ext releated preference in v0.17.0
     browser_ext_support: BrowserExtSupport,
+
+    // Global enable flag for the desktop SSH agent service. Disabled by default.
+    #[serde(default)]
+    ssh_agent_support: SshAgentSupport,
     // For now this feature is not used in the UI
     // This will be used in future to allow user to select which database to use with browser extension
     // Typically user will enable browser ext support for one or more databases in the database settings
@@ -118,6 +179,7 @@ impl Default for Preference {
             password_gen_preference: PasswordGeneratorPreference::default(),
 
             browser_ext_support: BrowserExtSupport::default(),
+            ssh_agent_support: SshAgentSupport::default(),
             // browser_ext_supported_databases: vec![],
         }
     }
@@ -349,6 +411,14 @@ impl Preference {
             updated = true;
         }
 
+        // The enable flag is persisted here; the listener is started/stopped by
+        // AppState::update_preference, which compares the flag before/after this
+        // call (the side effect needs the agent runtime, not just the pref).
+        if let Some(v) = preference_data.ssh_agent_support {
+            self.ssh_agent_support = v;
+            updated = true;
+        }
+
         // For now this feature is not used in the UI
         // This will be used in future to allow user to select which database to use with browser extension
 
@@ -428,6 +498,24 @@ impl Preference {
 
     pub(crate) fn browser_ext_support_preference(&self) -> &BrowserExtSupport {
         &self.browser_ext_support
+    }
+
+    pub(crate) fn is_ssh_agent_enabled(&self) -> bool {
+        self.ssh_agent_support.enabled
+    }
+
+    pub(crate) fn ssh_agent_mode(&self) -> SshAgentMode {
+        self.ssh_agent_support.mode.clone()
+    }
+
+    pub(crate) fn ssh_agent_client_transport(&self) -> SshAgentClientTransport {
+        self.ssh_agent_support.client_transport.clone()
+    }
+
+    // Persists the SSH agent global enable flag.
+    pub(crate) fn set_ssh_agent_enabled(&mut self, enabled: bool) {
+        self.ssh_agent_support.enabled = enabled;
+        self.write_toml();
     }
 
     // Writes the native-messaging manifest for `browser_id` using the stored

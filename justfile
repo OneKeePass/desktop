@@ -59,5 +59,8 @@ build-mac-aarch64-bundle:build-cljs-bundle
 
 # This will build linux "release" bundle when called in a Linux terminal
 build-linux-x86_64:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    export BOTAN_CONFIGURE_EXTRA_CXXFLAGS='-fPIC'
     just -f ./onekeepass-proxy/justfile build-cp-linux-x86_64 true
     cargo tauri build

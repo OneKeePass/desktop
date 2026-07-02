@@ -165,6 +165,20 @@
   [section key value]
   (dispatch [:entry-form-update-section-value section key value]))
 
+(defn load-section-field-from-file
+  "Opens a native file dialog, reads the selected file's text content and stores
+   it as the value of the given section field. Used by the SSH Key entry form to
+   load a private/public key file's contents into its text field."
+  [section key]
+  (bg/open-file-dialog
+   (fn [{:keys [result]}]
+     (when-not (str/blank? result)
+       (bg/read-text-file
+        result
+        (fn [api-response]
+          (when-let [content (check-error api-response)]
+            (update-section-value-on-change section key content))))))))
+
 (defn entry-form-data-update-field-value
   "Update a field found in :data"
   [field-name-kw value]
@@ -1076,17 +1090,23 @@
 
 (reg-event-db
  :section-field-modify-dialog-open
- (fn [db [_event-id {:keys [key section-name protected required popper-anchor-el]}]]
-   (-> db
-       (init-section-field-dialog-data)
-       (to-section-field-data :popper-anchor-el popper-anchor-el
-                              :section-name section-name
-                              :mode :modify
-                              :field-name key
-                              :current-field-name key
-                              :protected protected
-                              :required required
-                              :dialog-show true)
+ (fn [db [_event-id {:keys [key section-name protected required data-type popper-anchor-el]}]]
+   (let [;; Derive the field's actual type from the form data (single source of truth) so the
+         ;; dialog can disable 'protected' for Boolean/Date fields, regardless of the caller.
+         ;; Falls back to the passed data-type, then Text.
+         stored-data-type (->> (get-in-key-db db [entry-form-key :data :section-fields section-name])
+                               (some (fn [m] (when (= (:key m) key) (:data-type m)))))]
+     (-> db
+         (init-section-field-dialog-data)
+         (to-section-field-data :popper-anchor-el popper-anchor-el
+                                :section-name section-name
+                                :mode :modify
+                                :field-name key
+                                :current-field-name key
+                                :protected protected
+                                :required required
+                                :data-type (or stored-data-type data-type const/TEXT_TYPE)
+                                :dialog-show true))
        ;;  (to-section-field-data :popper-anchor-el popper-anchor-el)
        ;;  (to-section-field-data :section-name section-name)
        ;;  (to-section-field-data :mode :modify)
@@ -1099,10 +1119,18 @@
 (reg-event-db
  :section-field-dialog-update
  (fn [db [_event-id field-name-kw value]]
-   (if (and (= field-name-kw :dialog-show) (not value))
+   (cond
+     (and (= field-name-kw :dialog-show) (not value))
      (init-section-field-dialog-data db)
-     (-> db
-         (to-section-field-data field-name-kw value)))))
+
+     ;; Boolean/Date fields are rendered as a switch/date-picker and are never masked,
+     ;; so 'protected' is irrelevant for them. Clear it when such a type is chosen.
+     (and (= field-name-kw :data-type)
+          (contains? #{const/BOOL_TYPE const/DATE_TYPE} value))
+     (to-section-field-data db field-name-kw value :protected false)
+
+     :else
+     (to-section-field-data db field-name-kw value))))
 
 (reg-event-fx
  :section-field-add
@@ -1334,8 +1362,13 @@
 (reg-event-db
  :new-blank-entry-created-ex
  (fn [db [_ form-data group-info]]
-   (let [form-data (assoc form-data :group-uuid (:uuid group-info)) ;; set the group uuid 
-         ]
+   (let [;; When the category view is showing tags and a tag category is selected,
+         ;; pre-tag the new entry with that tag (mirrors pre-filling the group).
+         ;; The user can still remove it in the form.
+         selected-tag (when (= :tag (get-in-key-db db [:entry-category :showing-groups-as]))
+                        (get-in-key-db db [:entry-category :selected-category-info :tag-id]))
+         form-data (cond-> (assoc form-data :group-uuid (:uuid group-info)) ;; set the group uuid
+                     (seq selected-tag) (assoc :tags [selected-tag]))]
      (-> db (assoc-in-key-db [entry-form-key :data] form-data)
          (init-expiry-duration-selection form-data)
          (assoc-in-key-db [entry-form-key :showing] :new)
@@ -1380,22 +1413,23 @@
 
 (reg-fx
  :bg-insert-entry
- (fn [[db-key {:keys [uuid group-uuid entry-type-uuid entry-type-name]
+ (fn [[db-key {:keys [uuid group-uuid entry-type-uuid entry-type-name tags]
                :as new-entry-form-data}]]
    (bg/insert-entry db-key
                     new-entry-form-data
                     (fn [api-response]
                       (when-not (on-error api-response)
-                        (dispatch [:insert-entry-form-data-complete uuid group-uuid entry-type-uuid entry-type-name]))))))
+                        (dispatch [:insert-entry-form-data-complete uuid group-uuid entry-type-uuid entry-type-name tags]))))))
 
 (reg-event-fx
  :insert-entry-form-data-complete
- (fn [{:keys [_db]} [_event-id entry-uuid group-uuid entry-type-uuid entry-type-name]]
+ (fn [{:keys [_db]} [_event-id entry-uuid group-uuid entry-type-uuid entry-type-name tags]]
    ;;(println "insert-entry-form-data-complete called")
    {:fx [[:dispatch [:entry-form-ex/show-welcome]]
-         ;; Furthur refreshing view event are delegated to entry-category/entry-inserted 
+         ;; Furthur refreshing view event are delegated to entry-category/entry-inserted
          ;; which in turn calls entry-list/entry-inserted, group-tree-content/entry-inserted
-         [:dispatch [:entry-category/entry-inserted entry-uuid group-uuid entry-type-uuid entry-type-name]]
+         ;; tags are forwarded so tag-grouping selection can follow the entry's tags
+         [:dispatch [:entry-category/entry-inserted entry-uuid group-uuid entry-type-uuid entry-type-name tags]]
          [:dispatch [:common/message-snackbar-open (lstr-sm 'entryCreated)]]]}))
 
 

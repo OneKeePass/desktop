@@ -17,7 +17,9 @@
    [re-frame.core :refer [dispatch]]
    [onekeepass.frontend.events.tauri-events :as tauri-events]
    [onekeepass.frontend.group-form :as gf]
-   [onekeepass.frontend.mui-components :as m :refer [mui-alert mui-box
+   [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
+                                                     theme-color
+                                                     mui-alert mui-box
                                                      mui-button mui-dialog
                                                      mui-dialog-actions
                                                      mui-dialog-content
@@ -484,6 +486,9 @@
         recycle-bin?          (= uuid (get tree-data "recycle_bin_uuid"))
         group-in-recycle-bin? (contains? (set (get tree-data "deleted_group_uuids")) uuid)
         root-group?           (= uuid (get tree-data "root_uuid"))
+        ;; Direct entry count for this group - shown as a compact pill, mirroring
+        ;; the count badge in the entry-category panel
+        entries-count         (count (get-in tree-data ["groups" uuid "entry_uuids"]))
         parent-group-uuid     @(gt-events/selected-group-parent-uuid uuid)
         current-db-key        @(cmn-events/active-db-key)
         ^js drop-obj          (dnd/use-droppable #js {:id uuid})
@@ -523,6 +528,22 @@
                                   ;; Need to call this event so that group is selected without expanding or collapsing
                                   (gt-events/node-on-select nil uuid)
                                   (.stopPropagation e))} name]
+
+     ;; Entry count pill, right-aligned (the name above has flex-grow + ellipsis
+     ;; so it truncates rather than colliding). Shown only for the selected group
+     ;; (matching the bottom-panel grouped categories); the three-dots menu then
+     ;; renders to its right, same as the entry-category panel.
+     (when (= uuid @g-uuid)
+       [mui-typography {:variant "caption"
+                        :sx {:flex-shrink 0
+                             :ml 0.5
+                             :px 0.75
+                             :min-width "20px"
+                             :color "white"
+                             :background-color (theme-color @custom-theme-atom :category-item)
+                             :border-radius "10px"
+                             :text-align "center"}}
+        entries-count])
 
      ;; Shows three dot vertical icon for the menu popup
      (when (= uuid @g-uuid)
@@ -603,6 +624,14 @@
       [mui-simple-tree-view
        {:slots {:collapseIcon mui-icon-arrow-drop-down-class
                 :expandIcon mui-icon-arrow-right-class}
+        ;; Round the per-item content rows so selection + hover show as rounded
+        ;; rectangles, matching the entry-list and entry-category items. The
+        ;; selected color reuses the shared :selected-item theme tint.
+        :sx {"& .MuiTreeItem-content" {:border-radius 2}
+             "& .MuiTreeItem-content.Mui-selected"
+             {:bgcolor (theme-color @custom-theme-atom :selected-item)}
+             "& .MuiTreeItem-content.Mui-selected:hover"
+             {:bgcolor (theme-color @custom-theme-atom :selected-item)}}
         :onSelectedItemsChange gt-events/node-on-select
         :onExpandedItemsChange gt-events/on-node-toggle
         :expandedItems (if (nil? expanded) [root-id] expanded)
@@ -650,7 +679,10 @@
   ;; prevents the old UUID from being removed before the new one is registered,
   ;; causing "Two items were provided with the same id" if two dbs share UUIDs.
   (let [active-db-key @(cmn-events/active-db-key)]
-    [mui-stack {:sx {:overflow "hidden" :width "100%"}}
+    ;; :px insets the tree from the panel's left/right edges so the rounded
+    ;; selection/hover rects (and the icons) clear the edges, matching the
+    ;; entry-list and entry-category items.
+    [mui-stack {:sx {:overflow "hidden" :width "100%" :px 1}}
      ^{:key active-db-key}
      [group-tree-error-boundary
       [group-tree-view]]]))

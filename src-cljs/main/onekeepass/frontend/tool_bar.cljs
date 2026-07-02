@@ -7,7 +7,9 @@
    [onekeepass.frontend.events.custom-icons :as ci-events]
    [onekeepass.frontend.auto-type :as at-form]
    [onekeepass.frontend.browser-integration :as browser-integration]
-   [onekeepass.frontend.common-components :refer [confirm-text-dialog
+   [onekeepass.frontend.ssh-agent :as ssh-agent]
+   [onekeepass.frontend.common-components :refer [app-bar-themed-props
+                                                  confirm-text-dialog
                                                   error-info-dialog
                                                   message-dialog
                                                   progress-message-dialog]]
@@ -214,7 +216,15 @@
                               (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js [locked? multiple-dbs? remote?]))
 
       [:div {:style {:flex-grow 1}}
-       [mui-app-bar {:position "static" :color "primary" :dir (t/dir)}  ;; 
+       ;; Light theme: override the default bright primary blue with the chosen
+       ;; toolbar-style (see options above). For light bars :fg flips the icons to
+       ;; dark so they stay legible. Dark theme is left as-is (MUI's default dark
+       ;; app-bar surface).
+
+       ;; Previous one used for both light and dark theme cases
+       ;; mui-app-bar {:position "static" :color "primary" :dir (t/dir)}
+
+       [mui-app-bar (app-bar-themed-props)
         [mui-toolbar {:style {:min-height 32}}
          ;; Using box to provide common styles - left margin -  for all its children - buttons 
          ;; Using "&.MuiIconButton-root" etc did not work
@@ -296,6 +306,7 @@
        [check-updates/check-for-updates-dialog-main]
        [browser-integration/browser-extension-connection-permit-dialog]
        [browser-integration/browser-extension-install-grant-dialog]
+       [ssh-agent/ssh-agent-sign-confirm-dialog]
 
        [gen-form/password-generator-dialog @(gen-events/generator-dialog-data)]
 

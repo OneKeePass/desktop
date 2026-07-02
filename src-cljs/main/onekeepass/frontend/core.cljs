@@ -36,7 +36,9 @@
 ;;(set! *warn-on-infer* true)
 
 (defn right-content
-  "Component that has entry list and any selected entry content"
+  "Component that has entry list and any selected entry content.
+  Used only by the commented-out split-pane layout in group-entry-content;
+  the current proportional layout inlines entry-list and entry-form directly."
   []
   [split-pane {:split "vertical"
                :defaultSize 225
@@ -77,20 +79,66 @@
         :onDragCancel       (fn [_]
                               (set-active-uuid nil)
                               (el-events/set-drag-active nil))}
-       [split-pane {:split "vertical"
-                    :defaultSize 250
-                    :minSize 220
-                    :maxSize 350
-                    :primary "first"
-                    :style {:position "relative"}
-                    :pane1Style {:background (theme-color @custom-theme-atom :bg-default)
-                                 :overflow "hidden"}
-                    :resizerClassName (if (= @(cmn-events/app-theme) THEME_LIGHT)
-                                        "Resizer1 vertical" "Resizer2 vertical")}
-        ;; Pane1
-        [ec/entry-category-content]
-        ;; Pane2
-        [right-content]]
+       ;; ===== Fixed proportional layout (current approach) =====
+       ;; entry-category 25% | entry-list 20% | entry-form 55% of the window width.
+       ;; These are percentages, so the panes re-flow proportionally whenever the
+       ;; app window is resized - no resize listener needed.
+       ;; min-width 0 lets the flex children honour the percentages instead of
+       ;; growing to fit their content; overflow hidden clips/scrolls internally.
+       ;; Thin vertical divider lines separate category|list and list|form via a
+       ;; border-right on the first two panes.
+       ;; The previous resizable split-pane version is kept commented just below
+       ;; so the two can be compared.
+       ;; flex 1 + min-height 0 makes this take the height left over after the
+       ;; tab bar and gap divider above it (this is a child of the column
+       ;; mui-stack in main-content). Using height 100% here instead would add
+       ;; full height ON TOP of those siblings and overflow into a whole-app
+       ;; scrollbar. min-height 0 lets the panes scroll internally.
+       [:div {:style {:display "flex"
+                      :flex-direction "row"
+                      :width "100%"
+                      :flex "1 1 0"
+                      :min-height 0
+                      :position "relative"}}
+        ;; entry-category 25%
+        [:div {:style {:flex "0 0 23%"
+                       :min-width 0
+                       :height "100%"
+                       :overflow "hidden"
+                       :border-right "1px solid"
+                       :border-right-color (theme-color @custom-theme-atom :color1)
+                       :background (theme-color @custom-theme-atom :bg-default)}}
+         [ec/entry-category-content]]
+        ;; entry-list 20%
+        [:div {:style {:flex "0 0 22%"
+                       :min-width 0
+                       :height "100%"
+                       :overflow "hidden"
+                       :border-right "1px solid"
+                       :border-right-color (theme-color @custom-theme-atom :color1)}}
+         [el/entry-list-content]]
+        ;; entry-form 55% (flex-grow 1 absorbs any rounding remainder)
+        [:div {:style {:flex "1 1 55%"
+                       :min-width 0
+                       :height "100%"
+                       :overflow "hidden"}}
+         [eform-ex/entry-content-core]]]
+
+       ;; ===== Previous resizable split-pane layout (kept for comparison) =====
+       #_[split-pane {:split "vertical"
+                      :defaultSize 250
+                      :minSize 220
+                      :maxSize 350
+                      :primary "first"
+                      :style {:position "relative"}
+                      :pane1Style {:background (theme-color @custom-theme-atom :bg-default)
+                                   :overflow "hidden"}
+                      :resizerClassName (if (= @(cmn-events/app-theme) THEME_LIGHT)
+                                          "Resizer1 vertical" "Resizer2 vertical")}
+          ;; Pane1
+          [ec/entry-category-content]
+          ;; Pane2
+          [right-content]]
        ;; Ghost shown while dragging — rendered via portal at document body
        [dnd/drag-overlay {}
         (when active-uuid

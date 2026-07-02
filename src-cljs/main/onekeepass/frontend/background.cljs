@@ -200,6 +200,12 @@
         (dispatch-fn {:error (ex-cause err)})
         (js/console.log (ex-cause err))))))
 
+(defn read-text-file
+  "Reads a small UTF-8 text file's contents (e.g. an SSH key file) and passes the
+   string to 'dispatch-fn' as {:result content} or {:error ...}."
+  [file-path dispatch-fn]
+  (invoke-api "read_text_file" {:file-path file-path} dispatch-fn :convert-response false))
+
 (defn open-file
   "Opens a file passed as 'file-name' from the local file system with the system's default app
    The arg 'file-name' expected to be the complete path.
@@ -220,14 +226,60 @@
   [dispatch-fn]
   (invoke-api "check_for_updates" {} dispatch-fn))
 
-(defn write-to-clipboard
-  "Copies given data to the clipboard - equivalent to Cmd + C"
+(defn- webview-native-copy
+  "Copies 'data' to the clipboard using the webview's own synchronous copy
+   (document.execCommand 'copy') via a temporary off-screen textarea.
+
+   This uses the same clipboard path as the webview's built-in Ctrl/Cmd+C,
+   which works across platforms - including Linux/Wayland where the
+   arboard-backed Tauri clipboard plugin fails because it falls back to X11
+   (most Wayland compositors do not implement the wlr-data-control protocol
+   arboard needs). Must be called from a user gesture (e.g. a click handler).
+
+   Returns true when execCommand reports success."
   [data]
-  (go
+  (let [doc js/document
+        body (.-body doc)
+        textarea (.createElement doc "textarea")
+        style (.-style textarea)
+        previously-focused (.-activeElement doc)]
+    (set! (.-value textarea) (str data))
+    ;; Keep the textarea out of view and non-disruptive to layout/scroll
+    (.setAttribute textarea "readonly" "")
+    (set! (.-position style) "fixed")
+    (set! (.-top style) "-9999px")
+    (set! (.-left style) "-9999px")
+    (set! (.-opacity style) "0")
+    (.appendChild body textarea)
     (try
-      (let [_r (<p! (writeText data))]
-        #_(println "Data is copied to clipboard" _r))
-      (catch js/Error err (js/console.log "Error: " (ex-cause err))))))
+      (.focus textarea)
+      (.select textarea)
+      (.execCommand doc "copy")
+      (finally
+        (.removeChild body textarea)
+        ;; Restore focus to whatever the user was on before
+        (when (and previously-focused (fn? (.-focus previously-focused)))
+          (.focus previously-focused))))))
+
+(defn write-to-clipboard
+  "Copies given data to the clipboard - equivalent to Cmd + C.
+   Uses the webview-native copy first (works on Linux/Wayland), and falls
+   back to the arboard-backed Tauri plugin if that reports failure."
+  [data]
+  (try
+    (when-not (webview-native-copy data)
+      (go
+        (try
+          (<p! (writeText data))
+          (catch js/Error err
+            (js/console.error "write-to-clipboard (Tauri plugin fallback) failed: " err)))))
+    (catch js/Error err
+      (js/console.error "write-to-clipboard (webview-native) failed, trying Tauri plugin: " err)
+      (go
+        (try
+          (<p! (writeText data))
+          (catch js/Error err2
+            (js/console.error "write-to-clipboard (Tauri plugin fallback) failed: " err2)))))))
 
 (defn clear-clipboard []
   (write-to-clipboard ""))
@@ -240,9 +292,31 @@
   (go
     (try
       (let [r (<p! (readText))]
-        (callback-fn r)
-        (js/console.log "Data read " r))
-      (catch js/Error err (js/console.log "Error: " (ex-cause err))))))
+        (callback-fn r))
+      (catch js/Error err
+        (js/console.error "read-from-clipboard (Tauri plugin) failed: " err)))))
+
+;; Linux-only clipboard read/clear via the GTK backend commands (see
+;; src-tauri/src/clipboard.rs). The arboard-backed Tauri plugin used by
+;; read-from-clipboard/clear-clipboard fails on Linux/Wayland, so the events
+;; layer routes Linux through these instead (based on os-name).
+
+(defn clear-clipboard-gtk []
+  (invoke-api "clipboard_clear" {}
+              (fn [{:keys [error]}]
+                (when error
+                  (js/console.error "clipboard_clear failed: " error)))))
+
+(defn read-from-clipboard-gtk
+  "Linux GTK-backed clipboard read. 'callback-fn' is called with the clipboard
+   text (or nil). convert-response false keeps the text verbatim."
+  [callback-fn]
+  (invoke-api "clipboard_get_text" {}
+              (fn [{:keys [result error]}]
+                (if error
+                  (js/console.error "clipboard_get_text failed: " error)
+                  (callback-fn result)))
+              :convert-response false))
 
 (defn load-kdbx
   "Calls the API to read and parse the selected db file.
@@ -273,6 +347,11 @@
 
 (defn read-and-verify-db-file [db-key dispatch-fn]
   (invoke-api "read_and_verify_db_file" {:db-key db-key} dispatch-fn))
+
+;; Records the active (focused) db-key on the backend so the browser extension
+;; can pre-select it in the passkey-creation picker. Pass nil to clear.
+(defn set-active-db-key [db-key dispatch-fn]
+  (invoke-api "set_active_db_key" {:db-key db-key} dispatch-fn))
 
 (defn reload-kdbx [db-key dispatch-fn]
   (invoke-api "reload_kdbx" {:db-key db-key} dispatch-fn))
@@ -627,6 +706,30 @@
 
 (defn browser-ext-manifest-statuses [dispatch-fn]
   (invoke-api "browser_ext_manifest_statuses" {} dispatch-fn))
+
+;; ---- SSH agent ----
+
+;; All three return the AgentStatus map {running, socket-path, key-count, error}
+;; (snake_case keys converted to kebab-case by invoke-api).
+
+(defn ssh-agent-status [dispatch-fn]
+  (invoke-api "ssh_agent_status" {} dispatch-fn))
+
+(defn start-ssh-agent
+  "Enables (persists) and starts the SSH agent. Returns the new status."
+  [dispatch-fn]
+  (invoke-api "start_ssh_agent" {} dispatch-fn))
+
+(defn stop-ssh-agent
+  "Disables (persists) and stops the SSH agent. Returns the new status."
+  [dispatch-fn]
+  (invoke-api "stop_ssh_agent" {} dispatch-fn))
+
+(defn ssh-agent-sign-confirm-result
+  "Sends the user's allow/deny answer for a pending SSH agent sign request."
+  [request-id allow dispatch-fn]
+  (invoke-api "ssh_agent_sign_confirm_result"
+              {:request-id request-id :allow allow} dispatch-fn :convert-response false))
 
 (defn clear-recent-files [dispatch-fn]
   (invoke-api "clear_recent_files" {} dispatch-fn))

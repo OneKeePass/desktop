@@ -106,11 +106,39 @@
        {:fx [[:dispatch [:group-form/find-group-by-id group-uuid :edit]]]}
        {}))))
 
-;; Called when nodes are expanded or collapsed in Treeview 
+;; Called when nodes are expanded or collapsed in Treeview
 (reg-event-db
  :mark-expanded-nodes
  (fn [db [_eid node-ids]] ;; node-ids is a js array
    (assoc-in-key-db db [:groups-tree :expanded-nodes] (js->clj node-ids))))
+
+(defn- ancestor-group-uuids
+  "Walks up from group-uuid via parent_group_uuid over the (string-keyed)
+   groups-tree data and returns the ancestor group uuids (parent, grandparent ...
+   up to and including root). Empty when the group is the root or not found."
+  [tree-data group-uuid]
+  (let [groups (get tree-data "groups")]
+    (loop [uuid group-uuid
+           acc []]
+      (let [parent (get (get groups uuid) "parent_group_uuid")]
+        (if (or (nil? parent) (= parent uuid))
+          acc
+          (recur parent (conj acc parent)))))))
+
+;; Expands the ancestors of the given group so a programmatically selected group
+;; (e.g. the first non-empty group picked after a grouping switch) is visible in
+;; the tree instead of hidden under a collapsed parent. Merges with the currently
+;; expanded nodes so the user's existing expansion state is preserved.
+(reg-event-db
+ :group-tree-content/expand-ancestors
+ (fn [db [_event-id group-uuid]]
+   (let [tree-data (get-in-key-db db [:groups-tree :data])
+         root-id (get tree-data "root_uuid")
+         ancestors (ancestor-group-uuids tree-data group-uuid)
+         ;; expanded-nodes defaults to [root-id] in the view when nil
+         current (or (get-in-key-db db [:groups-tree :expanded-nodes]) [root-id])
+         merged (vec (distinct (concat current ancestors)))]
+     (assoc-in-key-db db [:groups-tree :expanded-nodes] merged))))
 
 (defn- group-summary-load-callback [api-response]
   (when-let [result (check-error api-response)]
@@ -127,12 +155,6 @@
        {:fx [[:dispatch [:groups-tree-data-update nil]]
              [:load-bg-groups-summary-data (active-db-key db)]]}
        {}))))
-
-;; TODO: It appears, 'load-groups' is not called for all db changes
-;; For example, when a new entry is created, the tree data is not loaded 
-;; and because of that 'entry_uuids' does not include the newly created 
-;; entry under the parent group
-;; Needs fixing
 
 ;;An event to reload group tree data whenever any group data update or insert is done
 (reg-event-fx
@@ -165,6 +187,12 @@
  :group-tree-content/entry-inserted
  (fn [{:keys [_db]} [_event-id entry-uuid  group-uuid]]
    {:fx [[:dispatch [:group-selected group-uuid]]
+         ;; Mirror manual group selection (node-on-select): clear any general/grouped
+         ;; category highlight so only the destination group in the tree stays selected
+         [:dispatch [:entry-category/clear-selected-category-info]]
+         ;; Reload the group tree summary data so each group's entry_uuids (and the
+         ;; count pills derived from them) include the newly inserted entry
+         [:dispatch [:group-tree-content/load-groups]]
          [:dispatch [:entry-list/entry-inserted entry-uuid {:group group-uuid}]]]}))
 
 (reg-sub

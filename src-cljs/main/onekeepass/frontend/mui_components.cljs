@@ -93,6 +93,12 @@
 
 (def ^:private create-theme mui-mat-styles/createTheme)
 
+(def ^:private alpha mui-mat-styles/alpha)
+
+;; Opacity used for the selected-row highlight (a translucent tint of primary.main).
+;; Single place to make the selection lighter/darker for all lists.
+(def ^:private selected-item-opacity 0.20)
+
 (def color-grey ^js/Mui.Colors (.-grey  mui-colors))
 
 ;; We can change the theme type to 'light' or 'dark' by reseting this atom
@@ -124,6 +130,9 @@
      :background-default bg
      :popper-box-bg (if light? "whitesmoke" bg)
      :section-header pm
+     ;; Translucent primary tint for selected list rows. alpha() composites over the
+     ;; mode-specific background, so this adapts to both light and dark themes.
+     :selected-item (alpha pm selected-item-opacity)
      :text-primary (->  theme .-palette .-text .-primary)}))
 
 (defn theme-color [^js/Mui.Theme theme color-kw]
@@ -136,7 +145,9 @@
     (-> theme .-customColors .-sectionHeader)
 
     (= color-kw :category-item)
-    (->  theme .-palette .-secondary .-dark)
+    ;; secondary.main (was secondary.dark) - a softer pill background; the dark
+    ;; variant read as too strong. White pill text stays legible on .main.
+    (->  theme .-palette .-secondary .-main)
 
     (= color-kw :color1)
     (-> theme .-customColors .-color1)
@@ -167,6 +178,27 @@
 
     (= color-kw :info-main)
     (->  theme .-palette .-info .-main)
+
+    ;; Background of a section card in the read (non-edit) entry form. White in light
+    ;; mode. In dark mode use an elevated surface that is distinctly lighter than the
+    ;; form background (palette paper/default are both ~#121212, so use an explicit value).
+    (= color-kw :entry-section-card-bg)
+    (if (= "light" (-> theme .-palette .-mode))
+      "#ffffff"
+      "#2a2a2a")
+
+    ;; Background behind the read-mode entry form, slightly off-white/grey so the white
+    ;; section cards are visually distinct. Uses the default background in dark mode.
+    (= color-kw :entry-form-bg)
+    (if (= "light" (-> theme .-palette .-mode))
+      (gobj/get color-grey 100)
+      (-> theme .-palette .-background .-default))
+
+    ;; Translucent primary tint for selected list rows, shared by all lists.
+    ;; Defined once in the theme (customColors.selectedItem); adjust via
+    ;; 'selected-item-opacity'. Works for both light and dark themes.
+    (= color-kw :selected-item)
+    (-> theme .-customColors .-selectedItem)
 
     :else
     (->  theme .-palette .-primary .-main)))
@@ -222,6 +254,7 @@
                 popper-box-bg
                 header-footer
                 section-header
+                selected-item
                 text-primary]} (prepare-theme-colors theme1)
 
         ;;IMPORTANT: All theme properties name should be in camelCase
@@ -237,7 +270,8 @@
                                             ;;property name in camelCase is expected
                                             :dbSettingsIcons db-settings-icons
                                             :dividerColor1 divider-color1
-                                            :sectionHeader section-header}
+                                            :sectionHeader section-header
+                                            :selectedItem selected-item}
 
                              :popperBox {:bg popper-box-bg}
 
@@ -499,7 +533,20 @@
   MoreHoriz
   GroupWorkOutlined
   ;;TextSnippetOutlined
-  WifiOutlined] "mui-icon-" "mui-icons/")
+  WifiOutlined
+  ;; Icons for the extended standard entry types
+  BadgeOutlined                  ;; Identity
+  DirectionsCarOutlined          ;; Driver License
+  EmailOutlined                  ;; Email Account
+  TerminalOutlined               ;; SSH Login
+  ApiOutlined                    ;; API Credential
+  StorageOutlined                ;; Database Credential
+  WorkspacePremiumOutlined       ;; Software License
+  CardMembershipOutlined         ;; Membership
+  AccountBalanceWalletOutlined   ;; Crypto Wallet
+  PolicyOutlined                 ;; Insurance Policy
+  LanOutlined                    ;; SFTP Connection
+  CloudOutlined] "mui-icon-" "mui-icons/")
 
 ;;;;;;;;;;;;;;;;
 ;;; Follwings are based on this example

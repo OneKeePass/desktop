@@ -114,9 +114,13 @@ pub(crate) fn build_menus<R: Runtime>(app_handle: &AppHandle<R>) -> Result<(), t
         MAIN_MENU_EDIT,
         system_menu_translation.main_menu(MAIN_MENU_EDIT),
     )
+    .undo()
+    .redo()
+    .separator()
     .cut()
     .copy()
     .paste()
+    .select_all()
     .separator()
     .item(&search_menu_item)
     .build()?;
@@ -435,6 +439,8 @@ pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app_handle:
     match menu_id {
         QUIT => {
             info!("Quit requested from UI {:?}", request);
+            // Stop the SSH agent and wipe all decrypted keys before exit.
+            crate::ssh_agent::clear_all_keys();
             let _r = kp_service::close_all_databases();
             info!("Closed all databases");
 

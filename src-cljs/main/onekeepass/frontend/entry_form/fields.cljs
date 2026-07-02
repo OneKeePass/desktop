@@ -11,6 +11,7 @@
    [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom mui-box
                                                      mui-circular-progress
                                                      mui-date-time-picker
+                                                     mui-desktop-date-picker
                                                      mui-form-control-label
                                                      mui-icon-autorenew
                                                      mui-icon-button
@@ -25,10 +26,10 @@
                                                      mui-text-field
                                                      mui-tooltip
                                                      mui-typography]]
-   [onekeepass.frontend.translation :as t :refer [lstr-l-cv] :refer-macros [tr-h
-                                                                            tr-l
-                                                                            tr-l-cv
-                                                                            tr-entry-field-name-cv]]
+   [onekeepass.frontend.translation :as t :refer [lstr-l lstr-l-cv] :refer-macros [tr-h
+                                                                                   tr-l
+                                                                                   tr-l-cv
+                                                                                   tr-entry-field-name-cv]]
    [reagent.core :as r]))
 
 (defn- to-value
@@ -78,14 +79,14 @@
 
 (defn- end-icons [{:keys [key protected visible edit] :as kv}]
   (let [val (to-value kv)
-        entry-type-name @(form-events/entry-form-data-fields :entry-type-name)
+        entry-type-uuid @(form-events/entry-form-data-fields :entry-type-uuid)
         entry-uuid @(form-events/entry-form-data-fields :uuid)
         ;; Read-mode launch of the remote Storage Browser from a connection
         ;; entry's connection field: Host for SFTP, URL for WebDAV.
         rs-conn-launch? (and (not edit)
-                             (or (and (= entry-type-name const/REMOTE_CONNECTION_SFTP_TYPE_NAME)
+                             (or (and (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_REMOTE_CONNECTION_SFTP)
                                       (= key const/HOST))
-                                 (and (= entry-type-name const/REMOTE_CONNECTION_WEBDAV_TYPE_NAME)
+                                 (and (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_REMOTE_CONNECTION_WEBDAV)
                                       (= key URL))))]
     [:<>
      (when protected
@@ -102,7 +103,7 @@
      (when rs-conn-launch?
        [mui-icon-button {:sx {:margin-right "-8px"}
                          :edge "end"
-                         :on-click #(rs-events/open-entry-remote entry-type-name entry-uuid)}
+                         :on-click #(rs-events/open-entry-remote entry-type-uuid entry-uuid)}
         [m/mui-icon-launch]])
      ;; Open with the url (suppressed for a WebDAV connection entry's URL field,
      ;; which shows the storage-browser launch above instead)
@@ -349,6 +350,52 @@
                                                   :sx {:margin-top cc/entry-cnt-field-margin-top}
                                                   :fullWidth true}}}]])
 
+;; A date-only picker for entry-type fields whose data-type is Date (core FieldDataType::Date).
+;; The stored value is always a 'yyyy-MM-dd' string (locale-independent, sortable). This is used
+;; only in edit mode; in read mode the field falls through to the plain text field, showing the
+;; same 'yyyy-MM-dd' string like any other field.
+(defn date-field
+  [{:keys [key value error-text helper-text on-change-handler]
+    :or {on-change-handler #()}
+    :as kv}]
+  (let [label (translated-label kv)
+        ;; value is a 'yyyy-MM-dd' string; parse to a Date for the picker (nil when blank)
+        date-val (when-not (str/blank? value)
+                   (.parse m/date-fns-utils value "yyyy-MM-dd"))]
+    [mui-localization-provider {:dateAdapter m/adapter-date-fns}
+     [mui-desktop-date-picker
+      {:label label
+       :value (or date-val nil)
+       :format "yyyy-MM-dd"
+       ;; onChange gives a Date (or nil when cleared); store back as a 'yyyy-MM-dd' string
+       :onChange (fn [^js/Date d]
+                   (on-change-handler
+                    (if (and d (not (js/isNaN (.getTime d))))
+                      (.formatByString m/date-fns-utils d "yyyy-MM-dd")
+                      "")))
+       :slotProps {:textField
+                   {:variant "standard"
+                    :error (not (nil? error-text))
+                    :helperText (if (nil? error-text) helper-text error-text)
+                    :fullWidth true
+                    :InputProps {:disableUnderline true}
+                    ;; Give the picker the same bordered look as the surrounding standard text
+                    ;; fields in edit mode. This mirrors the edit branch of
+                    ;; common-components/theme-text-field-sx, applied to the picker's inner Input
+                    ;; root via a descendant selector so the calendar button is left untouched.
+                    ;; MUI-X v8 renders PickersTextField, whose standard picker Input needs
+                    ;; InputProps.disableUnderline to suppress its own underline pseudo-elements.
+                    :sx {:margin-top cc/entry-cnt-field-margin-top
+                         "& .MuiPickersInputBase-root"
+                         {:border "1px solid grey"
+                          :outline "1px solid transparent"}
+
+                         "& .MuiPickersInputBase-root.Mui-focused"
+                         {:border "1px solid"
+                          :border-color "primary.main"
+                          :outline "1px solid"
+                          :outline-color "primary.main"}}}}}]]))
+
 (defn text-area-field [{:keys [key value edit on-change-handler]
                         :or {edit false
                              on-change-handler #()}}]
@@ -486,6 +533,59 @@
                                                   (assoc :WebkitTextSecurity "disc"))}}}])
 
 
+(defn ssh-key-multiline-field
+  "A dedicated multi-row text area for the SSH Key entry type's 'Private Key' and
+   'Public Key' fields. Unlike the generic field, the action icons sit in a row
+   above the text area (instead of overlapping the text as an end adornment), and
+   the field is always a tall, monospaced text area with room for a full key:
+     - load-from-file (folder) — edit mode only, reads a key file into the field
+     - visibility toggle       — protected fields only (Private Key)
+     - copy"
+  [{:keys [key protected visible edit section-name error-text on-change-handler] :as kv}]
+  (let [label (translated-label kv)
+        val (to-value kv)
+        helper-text (helper-or-error-text kv)]
+    [mui-stack {:sx {:margin-top "16px" :width "100%"}}
+     ;; Action row above the text area
+     [mui-stack {:direction "row"
+                 :sx {:width "100%" :align-items "center" :justify-content "space-between"}}
+      [mui-typography {:variant "caption" :sx {:color "text.secondary"}} label]
+      [mui-stack {:direction "row" :sx {:align-items "center"}}
+       ;; Load the field content from a key file (edit mode only)
+       (when edit
+         [mui-tooltip {:title (lstr-l 'loadFromFile) :enterDelay 2500}
+          [mui-icon-button {:edge "end"
+                            :on-click #(form-events/load-section-field-from-file section-name key)}
+           [m/mui-icon-folder-outlined]]])
+       ;; Visibility toggle for the protected Private Key field
+       (when protected
+         [mui-icon-button {:edge "end"
+                           :on-click #(form-events/entry-form-field-visibility-toggle key)}
+          (if visible [mui-icon-visibility] [mui-icon-visibility-off])])
+       ;; Copy
+       [(if protected
+          (cc/copy-icon-factory #(cmn-events/write-sensitive-to-clipboard val))
+          (cc/copy-icon-factory))
+        val]]]
+     [m/text-field {:fullWidth true
+                    :id key
+                    :variant "standard"
+                    :value val
+                    :error (not (nil? error-text))
+                    :helperText helper-text
+                    :onChange on-change-handler
+                    :multiline true
+                    ;; :rows 8
+                    :rows 4
+                    :slotProps {:input {:id key
+                                        :sx (theme-text-field-sx edit @custom-theme-atom)}
+                                :htmlInput {:readOnly (not edit)
+                                            :sx {:ml ".5em" :mr ".5em"}
+                                            :style (cond-> {:resize "vertical"
+                                                            :font-family "monospace"}
+                                                     (and protected (not visible))
+                                                     (assoc :WebkitTextSecurity "disc"))}}}]]))
+
 (defn single-or-multiline-text-field
   "Decides whether to use text-field or text-area-field based on the
    length of the value."
@@ -507,26 +607,51 @@
       [single-line-text-field (assoc kv :label label :val val :helper-text helper-text)]
       [multiline-text-field (assoc kv :label label :val val :helper-text helper-text)])))
 
+(defn- bool-field-border-sx
+  "Border styling for the boolean field's container so it matches the text fields:
+   a rectangular border in edit mode and a single bottom line in read mode (theme-aware).
+   Mirrors common-components/theme-text-field-sx, which can't be reused directly here
+   because it targets the MuiInput-root that the Switch row does not have."
+  [edit theme]
+  (if edit
+    {:border "1px solid grey"
+     :outline "1px solid transparent"
+     "&:focus-within" {:border "1px solid var(--color-primary-main)"
+                       :outline "1px solid var(--color-primary-main)"}}
+    {:border 0
+     :border-bottom (if (m/is-light-theme? theme)
+                      "1px solid #eeeeee"
+                      "1px solid rgba(255, 255, 255, 0.3)")}))
+
 (defn bool-switch-field
+  "Renders a boolean field (core FieldDataType::Bool) as a labeled Switch in both edit and
+   read mode. In read mode the Switch is shown but disabled (not editable). The value is
+   stored as a string ('True'/'False'); the core treats true/yes/1 (case-insensitive) as true."
   [{:keys [value edit on-change-handler] :as kv}]
-  (if-not edit
-    [single-or-multiline-text-field kv]
-    (let [label (translated-label kv)
-          checked? (contains? #{"true" "yes" "1"}
-                              (some-> value str/trim str/lower-case))]
-      [mui-stack {:direction "row" :sx {:width "100%" :align-items "center"}}
-       [mui-form-control-label
-        {:label-placement "start"
-         :sx {:ml 0 :mr 0 :width "100%" :justify-content "space-between"}
-         :control (r/as-element
-                   [mui-switch
-                    {:checked checked?
-                     :on-change (fn [^js/Event e]
-                                  (on-change-handler (.. e -target -checked)))}])
-         :label (r/as-element
-                 [mui-typography {:variant "caption"
-                                  :sx {:color "text.secondary"}}
-                  label])}]])))
+  (let [label (translated-label kv)
+        checked? (contains? #{"true" "yes" "1"}
+                            (some-> value str/trim str/lower-case))]
+    ;; :margin-top matches the text fields (single-line-text-field) so the boolean row
+    ;; has the same vertical spacing as the other fields in the form. The border sx gives
+    ;; it the same rectangular (edit) / underlined (read) look as the text fields.
+    [mui-stack {:direction "row"
+                :sx (merge {:width "100%" :align-items "center" :margin-top "16px"
+                            :px "5px"}
+                           (bool-field-border-sx edit @custom-theme-atom))}
+     [mui-form-control-label
+      {:label-placement "start"
+       :sx {:ml 0 :mr 0 :width "100%" :justify-content "space-between"}
+       :control (r/as-element
+                 [mui-switch
+                  {:checked checked?
+                   :disabled (not edit)
+                   :on-change (fn [^js/Event e]
+                                (when edit
+                                  (on-change-handler (.. e -target -checked))))}])
+       :label (r/as-element
+               [mui-typography {:variant "caption"
+                                :sx {:color "text.secondary"}}
+                label])}]]))
 
 
 

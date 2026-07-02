@@ -91,6 +91,9 @@ pub(crate) fn init_app(app: &App) {
     // Start the browser extennion proxy listener if required
     state.start_ext_proxy_service();
 
+    // Start the SSH agent service if the user enabled it on a prior run
+    state.start_ssh_agent_if_enabled();
+
     info!("{}", "Intit app is done");
 }
 
@@ -168,6 +171,10 @@ pub(crate) struct AppState {
     // value means the remote backend didn't report mtime (treated as
     // "unknown" — no false-positive conflict). See remote_storage/mod.rs.
     remote_mtimes: Mutex<HashMap<String, Option<i64>>>,
+    // The db_key currently active (focused) in the main UI. Reported by the
+    // frontend on db open/switch. Used so the browser extension can pre-select
+    // the active database in the passkey-creation picker.
+    active_db_key: Mutex<Option<String>>,
 }
 
 impl AppState {
@@ -179,7 +186,17 @@ impl AppState {
             db_file_watcher: crate::db_file_watcher::DbFileWatcherState::new(),
             scoped_access: Mutex::new(HashMap::new()),
             remote_mtimes: Mutex::new(HashMap::new()),
+            active_db_key: Mutex::new(None),
         }
+    }
+
+    pub(crate) fn set_active_db_key(&self, db_key: Option<String>) {
+        let mut store = self.active_db_key.lock().unwrap();
+        *store = db_key;
+    }
+
+    pub(crate) fn active_db_key(&self) -> Option<String> {
+        self.active_db_key.lock().unwrap().clone()
     }
 
     pub(crate) fn set_remote_mtime(&self, db_key: &str, mtime: Option<i64>) {
@@ -309,11 +326,41 @@ impl AppState {
 
     pub(crate) fn update_preference(&self, preference_data: PreferenceData) -> Result<()> {
         let prior_dir = self.preference.lock().unwrap().backup.dir.clone();
+        let (prior_ssh_agent_enabled, prior_ssh_agent_mode, prior_ssh_agent_transport) = {
+            let pref = self.preference.lock().unwrap();
+            (
+                pref.is_ssh_agent_enabled(),
+                pref.ssh_agent_mode(),
+                pref.ssh_agent_client_transport(),
+            )
+        };
 
         let result = {
             let mut store_pref = self.preference.lock().unwrap();
             store_pref.update(preference_data)
         };
+
+        // If the SSH agent enable flag flipped, start or stop the listener now.
+        // The flag itself was persisted by store_pref.update above; this only
+        // applies the runtime side effect.
+        let (current_ssh_agent_enabled, current_ssh_agent_mode, current_ssh_agent_transport) = {
+            let pref = self.preference.lock().unwrap();
+            (
+                pref.is_ssh_agent_enabled(),
+                pref.ssh_agent_mode(),
+                pref.ssh_agent_client_transport(),
+            )
+        };
+        // A mode flip or (Windows) a client-transport change targets a different
+        // agent, so the running service must be torn down and rebuilt.
+        let config_changed = prior_ssh_agent_mode != current_ssh_agent_mode
+            || prior_ssh_agent_transport != current_ssh_agent_transport;
+        if prior_ssh_agent_enabled && (!current_ssh_agent_enabled || config_changed) {
+            crate::ssh_agent::stop();
+        }
+        if current_ssh_agent_enabled && (!prior_ssh_agent_enabled || config_changed) {
+            crate::ssh_agent::start();
+        }
 
         // If the backup dir actually changed, rotate the scoped-access handle
         // so the new dir's bookmark backs file writes for the rest of the
@@ -465,6 +512,22 @@ impl AppState {
         store_pref
             .browser_ext_support_preference()
             .start_proxy_handling_service();
+    }
+
+    // Called once at app boot. Binds the SSH agent socket only if the user left
+    // the feature enabled on a prior run; otherwise stays disabled-by-default.
+    fn start_ssh_agent_if_enabled(&self) {
+        let enabled = self.preference.lock().unwrap().is_ssh_agent_enabled();
+        if enabled {
+            crate::ssh_agent::start();
+        }
+    }
+
+    // Persists the SSH agent global enable flag. Called from the start/stop
+    // commands so the setting survives a restart.
+    pub(crate) fn set_ssh_agent_enabled(&self, enabled: bool) {
+        let mut store_pref = self.preference.lock().unwrap();
+        store_pref.set_ssh_agent_enabled(enabled);
     }
 
     pub(crate) fn clear_recent_files(&self) {

@@ -1,3 +1,24 @@
+### 0.23.0
+
+#### Changes
+- New standard entry types added — **SSH Key**, **Identity**, **Passport** and **Driver License**
+- SSH Agent service — store SSH keys as **SSH Key** entries and use them with an SSH agent. Two modes are supported:
+    - **Agent Mode** — OneKeePass runs its own SSH agent and exposes a socket (macOS/Linux) or named pipe
+    - **Client Mode** — OneKeePass adds keys to your existing system SSH agent; on Windows both **OpenSSH** (agent pipe) and **Pageant** transports are supported
+    - Per-key **Require Confirmation** prompts before each signing request, and a configurable agent key lifetime
+    - Keys are removed automatically when databases are locked or the service is stopped
+- SSH key handling — parse keys from attachments, support PuTTY `.ppk` keys, and use a **Private Key Passphrase** label in the SSH key section
+- Custom fields can now be **Text**, **Boolean** or **Date** type instead of plain text only; a desktop date picker is used for date entry and editing
+- User interface refresh — group/entry/form panels now use fixed proportional widths instead of a split pane; rounded selection highlights, themed colors for the toolbar and lists, colored entry list avatars, and entry-count pills for categories and group tree items
+- Additional edit options added to the system menu
+- Custom icons are now shown in the search result entry list avatars
+
+#### Fixed
+- Entry list title sorting is now case-insensitive [#77](https://github.com/OneKeePass/desktop/issues/77)
+- Stale data after registering a Passkey resolved by refreshing the database consistently
+- Entry category highlighting and entry list loading kept consistent when a new entry is added
+- Copying and clearing protected field values on timeout now works on Linux
+
 ### 0.22.0
 
 #### Changes

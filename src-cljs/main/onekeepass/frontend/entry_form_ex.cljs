@@ -11,9 +11,9 @@
                                                     STANDARD_ENTRY_TYPES URL
                                                     USERNAME]]
    [onekeepass.frontend.context-menu :as ctx-menu]
-   [onekeepass.frontend.db-icons :as db-icons :refer [entry-icon
-                                                      entry-type-icon]]
+   [onekeepass.frontend.db-icons :as db-icons :refer [entry-type-icon]]
    [onekeepass.frontend.entry-form.common :as ef-cmn :refer [ENTRY_DATETIME_FORMAT
+                                                             theme-content-read-sx
                                                              theme-content-sx]]
    [onekeepass.frontend.entry-form.dialogs :as dlg :refer [add-modify-section-field-dialog
                                                            add-modify-section-popper
@@ -63,9 +63,9 @@
                                                      theme-color]]
    [onekeepass.frontend.translation :refer [lstr-bl lstr-dlg-title
                                             lstr-field-name lstr-l lstr-ml] :refer-macros [tr-bl tr-l tr-h tr-t
-                                                                                  tr-entry-field-name-cv
-                                                                                  tr-entry-section-name-cv
-                                                                                  tr-entry-type-title-cv]]
+                                                                                           tr-entry-field-name-cv
+                                                                                           tr-entry-section-name-cv
+                                                                                           tr-entry-type-title-cv]]
    [onekeepass.frontend.utils :as u :refer [contains-val? to-file-size-str]]
    [reagent.core :as r]))
 
@@ -79,8 +79,8 @@
       (handler-name field-name-kw (-> e .-target  .-checked)))))
 
 (defn- entry-context-items
-  [entry-uuid group-uuid active-db-key favorites? history-available? os-name multi-db-open? deleted? mas-build? entry-type-name]
-  (let [remote-connection-entry? (const/remote-connection-entry-type? entry-type-name)]
+  [entry-uuid group-uuid active-db-key favorites? history-available? os-name multi-db-open? deleted? mas-build? entry-type-uuid]
+  (let [remote-connection-entry? (const/remote-connection-entry-type? entry-type-uuid)]
     (if deleted?
       [(ctx-menu/action-item
         {:id "entry-form-put-back"
@@ -148,7 +148,7 @@
                    {:id "entry-form-open-remote"
                     :text (lstr-l "openRemote")
                     :action #(rs-events/open-entry-remote
-                              entry-type-name
+                              entry-type-uuid
                               entry-uuid)}))])))))
 
 #_(defn on-check-factory [handler-name field-name-kw]
@@ -171,6 +171,22 @@
 (defn box-caption [text]
   [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :section-header)}}
                    :variant  "button"} text])
+
+(defn read-section-title
+  "Section title shown above a card in read (non-edit) mode. Uses the theme primary
+   (section-header) color in sentence case, rather than the uppercase 'button'
+   caption used inside the edit-mode boxes."
+  [text]
+  [mui-typography {:sx {:color (theme-color @custom-theme-atom :section-header)
+                        :font-weight 600
+                        :font-size "0.8rem"
+                        :letter-spacing "0.05em"
+                        ;; Align with the card's left edge (card has margin-left 16px) and
+                        ;; leave a clear gap before the card below.
+                        :padding-left "16px"
+                        :margin-top "10px"
+                        :margin-bottom "8px"}}
+   text])
 
 (defn expiry-content []
   (let [edit @(form-events/form-edit-mode)
@@ -218,28 +234,32 @@
         parent-group-uuid @(form-events/entry-form-data-fields :group-uuid)
         {:keys [name]} @(dlg-events/selected-group-info parent-group-uuid)]
     (when-not edit
-      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
+      [mui-box {:sx {:margin-bottom "8px"}}
+       [read-section-title (tr-l "info")]
+       [mui-box {:sx (theme-content-read-sx @custom-theme-atom)}
 
-       [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
-        [mui-typography (str (tr-l "uuid") ":")]
-        [mui-typography @(form-events/entry-form-data-fields :uuid)]]
+        ;; Two-column rows: a fixed-width muted label and a left-aligned value, so the
+        ;; values line up in a column instead of hugging the right edge.
+        [mui-stack {:direction "row" :sx {:margin-bottom "10px"}}
+         [mui-typography {:sx {:width "30%" :color "text.secondary" :text-align "right" :padding-right "16px"}} (str (tr-l "uuid") ":")]
+         [mui-typography {:sx {:width "70%"}} @(form-events/entry-form-data-fields :uuid)]]
 
-       [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
-        [mui-typography (str (tr-l "created") ":")]
-        [mui-typography (u/to-local-datetime-str creation-time ENTRY_DATETIME_FORMAT)]]
+        [mui-stack {:direction "row" :sx {:margin-bottom "10px"}}
+         [mui-typography {:sx {:width "30%" :color "text.secondary" :text-align "right" :padding-right "16px"}} (str (tr-l "created") ":")]
+         [mui-typography {:sx {:width "70%"}} (u/to-local-datetime-str creation-time ENTRY_DATETIME_FORMAT)]]
 
-       [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
-        [mui-typography (str (tr-l "lastModified") ":")]
-        [mui-typography (u/to-local-datetime-str last-modification-time ENTRY_DATETIME_FORMAT)]]
+        [mui-stack {:direction "row" :sx {:margin-bottom "10px"}}
+         [mui-typography {:sx {:width "30%" :color "text.secondary" :text-align "right" :padding-right "16px"}} (str (tr-l "lastModified") ":")]
+         [mui-typography {:sx {:width "70%"}} (u/to-local-datetime-str last-modification-time ENTRY_DATETIME_FORMAT)]]
 
-       [mui-stack {:direction "row" :sx {:justify-content "space-between"}}
-        [mui-typography (str (tr-l "group") ":")]
-        [mui-typography name]]
+        [mui-stack {:direction "row"}
+         [mui-typography {:sx {:width "30%" :color "text.secondary" :text-align "right" :padding-right "16px"}} (str (tr-l "group") ":")]
+         [mui-typography {:sx {:width "70%"}} name]]
 
-       (when-not (= expiry-duration-selection "no-expiry")
-         [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-top "10px"}}
-          [mui-typography (str (tr-l "expires") ":")]
-          [mui-typography (u/to-local-datetime-str expiry-dt ENTRY_DATETIME_FORMAT)]])])))
+        (when-not (= expiry-duration-selection "no-expiry")
+          [mui-stack {:direction "row" :sx {:margin-top "10px"}}
+           [mui-typography {:sx {:width "30%" :color "text.secondary" :text-align "right" :padding-right "16px"}} (str (tr-l "expires") ":")]
+           [mui-typography {:sx {:width "70%"}} (u/to-local-datetime-str expiry-dt ENTRY_DATETIME_FORMAT)]])]])))
 
 (defn section-field-add-icon-button [section-name]
   (if (not= section-name ADDITIONAL_ONE_TIME_PASSWORDS)
@@ -252,6 +272,13 @@
      [mui-icon-button {:edge "end" :color "primary"
                        :on-click #(dlg-events/otp-settings-dialog-show section-name false)}
       [mui-icon-add-circle-outline-outlined]]]))
+
+(def ^:private SSH_AGENT_SECTION "SSH Agent")
+(def ^:private SSH_KEY_SECTION "SSH Key")
+(def ^:private REQUIRE_CONFIRMATION "Require Confirmation")
+(def ^:private AGENT_LIFETIME "Agent Lifetime")
+(def ^:private PRIVATE_KEY "Private Key")
+(def ^:private PUBLIC_KEY "Public Key")
 
 (defn section-header [section-name]
   (let [edit @(form-events/form-edit-mode)
@@ -286,99 +313,211 @@
                              :on-click #(form-events/open-section-field-dialog section-name @comp-ref)}
             [mui-icon-add-circle-outline-outlined]]]])]))
 
+;; Preset durations for the SSH Key entry's "Agent Lifetime" field. The stored
+;; field value is a whole number of seconds (or "" for never); the dropdown maps
+;; each to a friendly, translatable label. The desktop SSH agent parses this
+;; value (see ssh_agent/store.rs). A closed set of choices means no free-form
+;; text and therefore no parse/validation errors are possible.
+(def ^:private ssh-agent-lifetime-presets
+  ;; "Never" uses the sentinel "0" (not "") because a MUI Select renders a blank
+  ;; display for an empty-string value. parse_lifetime treats "0" as no-expiry.
+  [["0" "sshAgentLifetimeNever"]
+   ["900" "sshAgentLifetime15Min"]
+   ["1800" "sshAgentLifetime30Min"]
+   ["3600" "sshAgentLifetime1Hour"]
+   ["14400" "sshAgentLifetime4Hours"]
+   ["28800" "sshAgentLifetime8Hours"]
+   ["86400" "sshAgentLifetime1Day"]
+   ["604800" "sshAgentLifetime1Week"]])
+
+(defn- ssh-agent-lifetime-options
+  "Builds the duration dropdown options ({:value seconds :label translated}). If
+  the stored value is not one of the presets (e.g. a value imported from another
+  agent), it is prepended as an '<n> seconds' option so it still displays and is
+  preserved rather than triggering an out-of-range select."
+  [current-value]
+  (let [presets (mapv (fn [[v k]] {:value v :label (lstr-l k)}) ssh-agent-lifetime-presets)
+        known (set (map :value presets))]
+    (if (and (not (str/blank? current-value)) (not (contains? known current-value)))
+      (into [{:value current-value
+              :label (lstr-l "sshAgentLifetimeSeconds" {:count current-value})}]
+            presets)
+      presets)))
+
+(defn- get-ssh-key-section-data [section-name section-data ssh-agent-enabled? ssh-agent-client-mode?]
+  (let [section-data (if (and (= section-name SSH_AGENT_SECTION)
+                              ssh-agent-enabled?
+                              ssh-agent-client-mode?)
+                       (vec (remove #(= (:key %) REQUIRE_CONFIRMATION) section-data))
+                       section-data)]
+    (if (= section-name SSH_KEY_SECTION)
+      (mapv
+       (fn [{:keys [key] :as m}]
+         (if (= key PASSWORD)
+           (assoc m
+                  :field-name (lstr-field-name "privateKeyPassphrase")
+                  :protected true)
+           m))
+       section-data)
+      section-data)))
+
 ;; Note translations for field names (labels) are done in 'text-field' defined in fields.cljs
-(defn section-content
+(defn- section-content
   "This is called for each section of an entry"
-  [{:keys [edit section-name section-data group-uuid entry-uuid]}]
+  [{:keys [edit entry-type-uuid ssh-agent-enabled? ssh-agent-client-mode? section-name section-data group-uuid entry-uuid]}]
   (let [errors @(form-events/entry-form-field :error-fields)]
     ;; Show a section in edit mode irrespective of its contents; In non edit mode a section is shown only 
     ;; if it has some fields with non blank value. 
     (when (or edit (boolean (seq (filter (fn [kv] (not (str/blank? (:value kv)))) section-data))))  ;;(seq section-data)
-      (let [refs (atom {})]
-        [mui-box {:sx (theme-content-sx @custom-theme-atom)
-                  ;;:sx content-sx
-                  ;;:style {:background @m/entry-content-bg-color}
-                  }
-         [section-header section-name]
-         (doall
-          (for [{:keys [key
-                        value
-                        protected
-                        required
-                        data-type
-                        select-field-options
-                        ;; standard-field indicates a predefined field of an entry type or not
-                        standard-field] :as kv} section-data]
-            ;; All fields of this section is shown in edit mode. In case of non edit mode, only the  
-            ;; fields with values are shown 
-            (when (or edit (not (str/blank? value)))
-              ;; Need to use [entry-uuid key] as React key as it is unique within a section for each field 
-              ;; We require entry-uuid as section may remain same from an earlier entry form and in that case the form content 
-              ;; will not re-render properly if only key is used
-              ^{:key [entry-uuid key]}
-              [mui-stack {:direction "row"
-                          ;; We keep a ref to the underlying HtmlElememnt - #object[HTMLDivElement [object HTMLDivElement]] 
-                          ;; The ref is kept for each field's enclosing container 'Stack' component so that we can position the Popper.
-                          ;; Sometimes the value of e is nil as react redraws the node
-                          :ref (fn [e] (swap! refs assoc key e))}
-               [mui-stack {:direction "row" :sx {:width (if edit "92%" "100%")}}
-                (cond
-                  ;; select-field-options is vec of strings and gets data from 
-                  ;; field 'select_field_options' in struct KeyValueData 
-                  (not (nil? select-field-options))
-                  [simple-selection-field (assoc kv
-                                                 :edit edit
-                                                 :error-text (get errors key)
-                                                 :on-change-handler #(form-events/update-section-value-on-change
-                                                                      section-name key (-> % .-target  .-value)))]
+      (let [refs (atom {})
+            standard-sections @(form-events/entry-form-data-fields :standard-section-names)
+            standard-section? (contains-val? standard-sections section-name)
+            section-title (if standard-section? (tr-entry-section-name-cv section-name) section-name)
+            ssh-key-agent-section? (and ssh-agent-enabled?
+                                        (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_SSH_KEY)
+                                        (= section-name SSH_AGENT_SECTION))
+            ssh-key-agent-mode-hint (if ssh-agent-client-mode?
+                                      "sshAgentClientModeActive"
+                                      "sshAgentAgentModeActive")
+            fields-content
+            (doall
+             (for [{:keys [key
+                           value
+                           protected
+                           required
+                           data-type
+                           select-field-options
+                           ;; standard-field indicates a predefined field of an entry type or not
+                           standard-field] :as kv} section-data]
+               ;; All fields of this section is shown in edit mode. In case of non edit mode, only the  
+               ;; fields with values are shown 
+               (when (or edit (not (str/blank? value)))
+                 ;; Need to use [entry-uuid key] as React key as it is unique within a section for each field 
+                 ;; We require entry-uuid as section may remain same from an earlier entry form and in that case the form content 
+                 ;; will not re-render properly if only key is used
+                 ^{:key [entry-uuid key]}
+                 [mui-stack {:direction "row"
+                             ;; We keep a ref to the underlying HtmlElememnt - #object[HTMLDivElement [object HTMLDivElement]] 
+                             ;; The ref is kept for each field's enclosing container 'Stack' component so that we can position the Popper.
+                             ;; Sometimes the value of e is nil as react redraws the node
+                             :ref (fn [e] (swap! refs assoc key e))}
+                  [mui-stack {:direction "row" :sx {:width (if edit "92%" "100%")}}
+                   (cond
+                     ;; select-field-options is vec of strings and gets data from 
+                     ;; field 'select_field_options' in struct KeyValueData 
+                     (not (nil? select-field-options))
+                     [simple-selection-field (assoc kv
+                                                    :edit edit
+                                                    :error-text (get errors key)
+                                                    :on-change-handler #(form-events/update-section-value-on-change
+                                                                         section-name key (-> % .-target  .-value)))]
 
-                  (= data-type ONE_TIME_PASSWORD_TYPE)
-                  [otp-field (assoc kv :edit edit
-                                    :section-name section-name
-                                    :group-uuid group-uuid)]
+                     (= data-type ONE_TIME_PASSWORD_TYPE)
+                     [otp-field (assoc kv :edit edit
+                                       :section-name section-name
+                                       :group-uuid group-uuid)]
 
-                  (= data-type const/BOOL_TYPE)
-                  [fields/bool-switch-field
-                   (assoc kv
-                          :edit edit
-                          :error-text (get errors key)
-                          :on-change-handler #(form-events/update-section-value-on-change
-                                               section-name key (if % "True" "False")))]
+                     (= data-type const/BOOL_TYPE)
+                     [fields/bool-switch-field
+                      (assoc kv
+                             :edit edit
+                             :error-text (get errors key)
+                             :on-change-handler #(form-events/update-section-value-on-change
+                                                  section-name key (if % "True" "False")))]
 
-                  ;; we are now using 'single-or-multiline-text-field' instead of earlier 'text-field'
-                  ;; All text-fields are now either single line or multiline text area fields
-                  :else
-                  [fields/single-or-multiline-text-field
-                   (assoc kv
-                          :edit edit
-                          :error-text (get errors key)
-                          :visible @(form-events/visible? key)
-                          :on-change-handler #(form-events/update-section-value-on-change
-                                               section-name key (-> % .-target  .-value)))])]
+                     ;; Date fields (core FieldDataType::Date) show a date-only picker in edit mode.
+                     ;; In read mode they fall through to the plain text field (showing the stored
+                     ;; 'yyyy-MM-dd' string). The on-change-handler receives the formatted string.
+                     (and edit (= data-type const/DATE_TYPE))
+                     [fields/date-field
+                      (assoc kv
+                             :edit edit
+                             :error-text (get errors key)
+                             :on-change-handler #(form-events/update-section-value-on-change
+                                                  section-name key %))]
 
-               (when (and edit (not standard-field) (not= data-type ONE_TIME_PASSWORD_TYPE))
-                 [mui-stack {:direction "row" :sx {:width "8%" :align-items "flex-end"}}
-                  [mui-tooltip  {:title (lstr-l 'modifyField) :enterDelay 2500}
-                   [mui-icon-button {:edge "end"
-                                     :on-click  #(form-events/open-section-field-modify-dialog
-                                                  {:key key
-                                                   :protected protected
-                                                   :required required
-                                                   :popper-anchor-el (get @refs key)
-                                                   :section-name section-name})}
-                    [mui-icon-edit-outlined]]]
-                  [mui-tooltip  {:title (lstr-l 'deleteField) :enterDelay 2500}
-                   [mui-icon-button {:edge "end"
-                                     :on-click #(form-events/field-delete section-name key)}
-                    [mui-icon-delete-outline]]]])])))
-         #_[custom-field-delete-confirm @(form-events/field-delete-dialog-data)]
-         #_[custom-section-delete-confirm @(form-events/section-delete-dialog-data)]]))))
+                     ;; SSH Key entry type's key material: render the Private/Public Key
+                     ;; fields as dedicated tall multiline text areas with the action
+                     ;; icons above the field (not overlapping the text), plus a
+                     ;; load-from-file affordance in edit mode.
+                     (and (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_SSH_KEY)
+                          (contains? #{PRIVATE_KEY PUBLIC_KEY} key))
+                     [fields/ssh-key-multiline-field
+                      (assoc kv
+                             :edit edit
+                             :section-name section-name
+                             :error-text (get errors key)
+                             :visible @(form-events/visible? key)
+                             :on-change-handler #(form-events/update-section-value-on-change
+                                                  section-name key (-> % .-target  .-value)))]
 
-(defn get-section-data
+                     ;; SSH Key entry type's "Agent Lifetime": a duration dropdown that
+                     ;; stores a whole number of seconds. Constrained choices, so no
+                     ;; free-form input and no parse/validation errors are possible.
+                     (and (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_SSH_KEY)
+                          (= key AGENT_LIFETIME))
+                     [mui-stack {:sx {:width "50%" :margin-top "16px"}}
+                      [cc/simple-selection-field
+                       (assoc kv
+                              :edit edit
+                              :field-name (lstr-field-name key)
+                              ;; Blank/unset value selects the "Never" option (sentinel "0").
+                              :value (if (str/blank? value) "0" value)
+                              :error-text nil
+                              :select-field-options (ssh-agent-lifetime-options value)
+                              :on-change-handler #(form-events/update-section-value-on-change
+                                                   section-name key (-> % .-target  .-value)))]]
+
+
+                     ;; we are now using 'single-or-multiline-text-field' instead of earlier 'text-field'
+                     ;; All text-fields are now either single line or multiline text area fields
+                     :else
+                     [fields/single-or-multiline-text-field
+                      (assoc kv
+                             :edit edit
+                             :error-text (get errors key)
+                             :visible @(form-events/visible? key)
+                             :on-change-handler #(form-events/update-section-value-on-change
+                                                  section-name key (-> % .-target  .-value)))])]
+
+                  (when (and edit (not standard-field) (not= data-type ONE_TIME_PASSWORD_TYPE))
+                    [mui-stack {:direction "row" :sx {:width "8%" :align-items "flex-end"}}
+                     [mui-tooltip  {:title (lstr-l 'modifyField) :enterDelay 2500}
+                      [mui-icon-button {:edge "end"
+                                        :on-click  #(form-events/open-section-field-modify-dialog
+                                                     {:key key
+                                                      :protected protected
+                                                      :required required
+                                                      :data-type data-type
+                                                      :popper-anchor-el (get @refs key)
+                                                      :section-name section-name})}
+                       [mui-icon-edit-outlined]]]
+                     [mui-tooltip  {:title (lstr-l 'deleteField) :enterDelay 2500}
+                      [mui-icon-button {:edge "end"
+                                        :on-click #(form-events/field-delete section-name key)}
+                       [mui-icon-delete-outline]]]])])))]
+        ;; Edit mode keeps the bordered box with the section header (and edit icons) inside.
+        ;; Read mode shows a blue section title above a borderless rounded card.
+        (if edit
+          [mui-box {:sx (theme-content-sx @custom-theme-atom)}
+           [section-header section-name]
+           (when ssh-key-agent-section?
+             [mui-alert {:severity "info" :sx {:mb 1}}
+              (lstr-l ssh-key-agent-mode-hint)])
+           fields-content]
+          [mui-box {:sx {:margin-bottom "8px"}}
+           [read-section-title section-title]
+           [mui-box {:sx (theme-content-read-sx @custom-theme-atom)}
+            (when ssh-key-agent-section?
+              [mui-alert {:severity "info" :sx {:mb 1}}
+               (lstr-l ssh-key-agent-mode-hint)])
+            fields-content]])))))
+
+(defn- get-section-data
   "Called to set up any entry type specific data in kv
    Returns an vec of kvd map for a section
    "
-  [entry-type-uuid section-name section-fields parsed-fields]
+  [entry-type-uuid section-name section-fields parsed-fields ssh-agent-enabled? ssh-agent-client-mode?]
   (let [section-data (get section-fields section-name)
 
         adjusted-section-data (mapv
@@ -386,8 +525,8 @@
                                  (assoc m :read-value (place-holder-resolved-value parsed-fields key)))
                                section-data)
 
-        adjusted-section-data  (if (not= entry-type-uuid const/UUID_OF_ENTRY_TYPE_AUTO_OPEN)
-                                 adjusted-section-data
+        adjusted-section-data  (cond
+                                 (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_AUTO_OPEN)
                                  (mapv
                                   (fn [{:keys [key] :as m}]
                                     ;; Note the use of lstr-field-name vs tr-entry-field-name-cv
@@ -410,7 +549,13 @@
 
                                       :else
                                       m))
-                                  adjusted-section-data))]
+                                 adjusted-section-data)
+
+                                 (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_SSH_KEY)
+                                 (get-ssh-key-section-data section-name adjusted-section-data ssh-agent-enabled? ssh-agent-client-mode?)
+
+                                 :else
+                                 adjusted-section-data)]
     adjusted-section-data))
 
 (defn all-sections-content
@@ -421,7 +566,9 @@
          {:keys [entry-type-uuid section-names section-fields uuid group-uuid]} :data}
         @(form-events/entry-form-all)
         deleted? @(form-events/is-entry-parent-group-deleted group-uuid)
-        parsed-fields @(form-events/entry-form-data-fields :parsed-fields)]
+        parsed-fields @(form-events/entry-form-data-fields :parsed-fields)
+        ssh-agent-enabled? @(ce/ssh-agent-enabled?)
+        ssh-agent-client-mode? @(ce/ssh-agent-client-mode?)]
     (m/react-use-effect
      (fn []
        #_(println "init - uuid showing edit deleted? : \n" uuid showing edit deleted?)
@@ -443,8 +590,10 @@
                                                :entry-uuid uuid
                                                :edit edit
                                                :parsed-fields parsed-fields
+                                               :ssh-agent-enabled? ssh-agent-enabled?
+                                               :ssh-agent-client-mode? ssh-agent-client-mode?
                                                :section-name section-name
-                                               :section-data (get-section-data entry-type-uuid section-name section-fields parsed-fields) #_(get section-fields section-name)
+                                               :section-data (get-section-data entry-type-uuid section-name section-fields parsed-fields ssh-agent-enabled? ssh-agent-client-mode?) #_(get section-fields section-name)
                                                :group-uuid group-uuid}]))]))
 
 (defn title-with-icon-field  []
@@ -454,7 +603,7 @@
         edit @(form-events/form-edit-mode)
         errors @(form-events/entry-form-field :error-fields)]
     (when edit
-      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
+      [mui-box {:sx (theme-content-sx @custom-theme-atom)}
        [mui-stack {:direction "row" :spacing 1}
         [mui-stack {:direction "row" :sx {:width "88%" :justify-content "center"}}
          [text-field {:key (tr-entry-field-name-cv "Title")
@@ -466,13 +615,13 @@
                       :on-change-handler  (on-change-factory form-events/entry-form-data-update-field-value :title)}]]
 
         [mui-stack {:direction "row" :sx {:width "12%" :justify-content "center" :align-items "center"}}
-         [mui-typography {:sx {:padding-left "5px"} :align "center" :paragraph false :variant "subtitle1"}
-          (tr-l "icons")]
-         [mui-icon-button {:edge "end" :color "primary"
-                           :sx {} #_{:margin-top "16px" :margin-right "-8px"}
-                           :on-click #(show-icons-dialog url-value)}
-          [db-icons/render-entry-icon {:icon-id (:icon-id fields)
-                                       :custom-icon-uuid (:custom-icon-uuid fields)}]]]
+         ;; Tooltip indicates the icon is clickable to change it (replaces the "Icons" label).
+         [mui-tooltip {:title (lstr-l 'changeIcon) :enterDelay 800}
+          [mui-icon-button {:edge "end" :color "primary"
+                            :sx {:border "1px dashed" :border-color "divider" :border-radius "8px"}
+                            :on-click #(show-icons-dialog url-value)}
+           [db-icons/render-entry-icon {:icon-id (:icon-id fields)
+                                        :custom-icon-uuid (:custom-icon-uuid fields)}]]]]
         [icons-dialog @icons-dialog-flag]]])))
 
 (defn tags-selection []
@@ -482,92 +631,110 @@
         edit @(form-events/form-edit-mode)]
     ;;(println "tags-selection called tags:" tags " all-tags:" all-tags)
     (when (or edit (boolean (seq tags)))
-      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
-       [mui-stack {:direction "row"}]
-       [tags-field all-tags tags form-events/on-tags-selection edit]
-       (when edit
-         [mui-typography {:variant "caption"} (tr-h "selectTag")])])))
+      (if edit
+        [mui-box {:sx (theme-content-sx @custom-theme-atom)}
+         [mui-stack {:direction "row"}]
+         [tags-field all-tags tags form-events/on-tags-selection edit]
+         [mui-typography {:variant "caption"} (tr-h "selectTag")]]
+        [mui-box {:sx {:margin-bottom "8px"}}
+         [read-section-title (tr-l "tags")]
+         [mui-box {:sx (theme-content-read-sx @custom-theme-atom)}
+          [tags-field all-tags tags form-events/on-tags-selection edit]]]))))
 
 (defn notes-content []
   (let [edit @(form-events/form-edit-mode)
-        notes @(form-events/entry-form-data-fields :notes)]
+        notes @(form-events/entry-form-data-fields :notes)
+        body [mui-stack
+              [text-area-field {:key "Notes"
+                                :value notes
+                                :edit edit
+                                :on-change-handler (on-change-factory form-events/entry-form-data-update-field-value :notes)
+                                #_#(form-events/entry-form-data-update-field-value :notes (-> % .-target  .-value))}]]]
     (when (or edit (not (str/blank? notes)))
-      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
-       [mui-stack {:direction "row"} [box-caption (tr-entry-section-name-cv "Notes")]]
-       [mui-stack
-        [text-area-field {:key "Notes"
-                          :value notes
-                          :edit edit
-                          :on-change-handler (on-change-factory form-events/entry-form-data-update-field-value :notes)
-                          #_#(form-events/entry-form-data-update-field-value :notes (-> % .-target  .-value))}]]])))
+      (if edit
+        [mui-box {:sx (theme-content-sx @custom-theme-atom)}
+         [mui-stack {:direction "row"} [box-caption (tr-entry-section-name-cv "Notes")]]
+         body]
+        [mui-box {:sx {:margin-bottom "8px"}}
+         [read-section-title (tr-entry-section-name-cv "Notes")]
+         [mui-box {:sx (theme-content-read-sx @custom-theme-atom)}
+          body]]))))
 
 (defn attachments-content []
   (let [edit @(form-events/form-edit-mode)
         attachments @(form-events/attachments)]
     (when (or edit (boolean (seq attachments)))
-      [mui-box {:sx (theme-content-sx @m/custom-theme-atom)}
-       [mui-stack {:direction "row"}
-        [mui-stack {:direction "row" :sx {:margin-bottom "10px" :width "90%"}}
-         [box-caption (tr-entry-section-name-cv "Attachments")]]
-        (when edit
-          [mui-stack {:direction "row"
-                      :sx {:width "10%"
-                           :justify-content "flex-end"}}
-           [mui-tooltip {:title (lstr-l 'uploadFile)}
-            [mui-icon-button {:edge "end" :color "primary"
-                              :on-click #(form-events/upload-attachment-start)}
-             [mui-icon-add-circle-outline-outlined]]]])]
+      (let [attachment-list
+            (doall
 
-       (doall
+             (for [{:keys [key value data-size data-hash] :as kv} attachments]
+               ^{:key key} [mui-stack {:direction "row"}
+                            (if-not edit
+                              ;; View
+                              [mui-stack {:direction "row" :sx {:width  "100%"}}
+                               [mui-stack {:direction "row" :sx {:width  "90%"}}
+                                [mui-stack {:direction "row" :sx {:width  "80%"}}
+                                 [mui-link {:sx {:color "primary.dark"}
+                                            :underline "hover"
+                                            :on-click  #(form-events/view-attachment value data-hash)}
+                                  [mui-typography {:variant "h6" :sx {:font-size "1em" :align-self "center"}}
+                                   value]]]
+                                [mui-stack {:direction "row" :sx {:width  "20%"}}
+                                 [mui-typography {:variant "h1" :sx {:font-size ".9em" :align-self "center"}}
+                                  (to-file-size-str data-size)]]]
+                               [mui-stack {:direction "row"
+                                           :sx {:width "10%"
+                                                :align-items "flex-end"
+                                                :justify-content "flex-end"}}
+                                [mui-tooltip  {:title (lstr-l 'view) :enterDelay 2500}
+                                 [mui-icon-button {:sx {:margin-right 0}
+                                                   :edge "end"
+                                                   :on-click #(form-events/view-attachment value data-hash)}
+                                  [mui-icon-article-outlined]]]
+                                [mui-tooltip  {:title (lstr-l 'saveAs) :enterDelay 2500}
+                                 [mui-icon-button {:sx {:margin-right 0}
+                                                   :edge "end"
+                                                   :on-click #(form-events/save-attachment value data-hash)}
+                                  [mui-icon-save-as-outlined]]]]]
 
-        (for [{:keys [key value data-size data-hash] :as kv} attachments]
-          ^{:key key} [mui-stack {:direction "row"}
-                       (if-not edit
-                         ;; View
-                         [mui-stack {:direction "row" :sx {:width  "100%"}}
-                          [mui-stack {:direction "row" :sx {:width  "90%"}}
-                           [mui-stack {:direction "row" :sx {:width  "80%"}}
-                            [mui-link {:sx {:color "primary.dark"}
-                                       :underline "hover"
-                                       :on-click  #(form-events/view-attachment value data-hash)}
-                             [mui-typography {:variant "h6" :sx {:font-size "1em" :align-self "center"}}
-                              value]]]
-                           [mui-stack {:direction "row" :sx {:width  "20%"}}
-                            [mui-typography {:variant "h1" :sx {:font-size ".9em" :align-self "center"}}
-                             (to-file-size-str data-size)]]]
-                          [mui-stack {:direction "row"
-                                      :sx {:width "10%"
-                                           :align-items "flex-end"
-                                           :justify-content "flex-end"}}
-                           [mui-tooltip  {:title (lstr-l 'view) :enterDelay 2500}
-                            [mui-icon-button {:sx {:margin-right 0}
-                                              :edge "end"
-                                              :on-click #(form-events/view-attachment value data-hash)}
-                             [mui-icon-article-outlined]]]
-                           [mui-tooltip  {:title (lstr-l 'saveAs) :enterDelay 2500}
-                            [mui-icon-button {:sx {:margin-right 0}
-                                              :edge "end"
-                                              :on-click #(form-events/save-attachment value data-hash)}
-                             [mui-icon-save-as-outlined]]]]]
-
-                         ;; Edit
-                         [mui-stack {:direction "row" :sx {:width  "100%"}}
-                          [mui-stack {:direction "row" :sx {:width "92%"}}
-                           [text-field (assoc kv
-                                              :no-end-icons true
-                                              :edit true
-                                              :on-change-handler (on-change-factory2 #(form-events/attachment-name-changed data-hash %)))]]
-                          [mui-stack {:direction "row"
-                                      :sx {:width "8%"
-                                           :align-items "flex-end"
-                                           :justify-content "flex-end"}}
-                           [mui-tooltip  {:title (lstr-l 'delete) :enterDelay 2500}
-                            [mui-icon-button {:sx {:margin-right 0}
-                                              :edge "end"
-                                              :on-click #(form-events/attachment-delete-confirm-dialog-open data-hash)}
-                             [mui-icon-delete-outline]]]]])]))
-
-       [attachment-delete-confirm-dialog @(form-events/attachment-delete-dialog-data)]])))
+                              ;; Edit
+                              [mui-stack {:direction "row" :sx {:width  "100%"}}
+                               [mui-stack {:direction "row" :sx {:width "92%"}}
+                                [text-field (assoc kv
+                                                   :no-end-icons true
+                                                   :edit true
+                                                   :on-change-handler (on-change-factory2 #(form-events/attachment-name-changed data-hash %)))]]
+                               [mui-stack {:direction "row"
+                                           :sx {:width "8%"
+                                                :align-items "flex-end"
+                                                :justify-content "flex-end"}}
+                                [mui-tooltip  {:title (lstr-l 'delete) :enterDelay 2500}
+                                 [mui-icon-button {:sx {:margin-right 0}
+                                                   :edge "end"
+                                                   :on-click #(form-events/attachment-delete-confirm-dialog-open data-hash)}
+                                  [mui-icon-delete-outline]]]]])]))
+            delete-dialog [attachment-delete-confirm-dialog @(form-events/attachment-delete-dialog-data)]]
+        ;; Edit: bordered box with the caption + upload icon inside.
+        ;; Read: blue title above a borderless rounded card.
+        (if edit
+          [mui-box {:sx (theme-content-sx @custom-theme-atom)}
+           [mui-stack {:direction "row"}
+            [mui-stack {:direction "row" :sx {:margin-bottom "10px" :width "90%"}}
+             [box-caption (tr-entry-section-name-cv "Attachments")]]
+            [mui-stack {:direction "row"
+                        :sx {:width "10%"
+                             :justify-content "flex-end"}}
+             [mui-tooltip {:title (lstr-l 'uploadFile)}
+              [mui-icon-button {:edge "end" :color "primary"
+                                :on-click #(form-events/upload-attachment-start)}
+               [mui-icon-add-circle-outline-outlined]]]]]
+           attachment-list
+           delete-dialog]
+          [mui-box {:sx {:margin-bottom "8px"}}
+           [read-section-title (tr-entry-section-name-cv "Attachments")]
+           [mui-box {:sx (theme-content-read-sx @custom-theme-atom)}
+            attachment-list
+            delete-dialog]])))))
 
 (defn add-section-content []
   (let [edit @(form-events/form-edit-mode)]
@@ -618,7 +785,7 @@
 
           icon-id @(form-events/entry-form-data-fields :icon-id)
           custom-icon-uuid @(form-events/entry-form-data-fields :custom-icon-uuid)
-          entry-type-name @(form-events/entry-form-data-fields :entry-type-name)
+          entry-type-uuid @(form-events/entry-form-data-fields :entry-type-uuid)
           entry-uuid  @(form-events/entry-form-data-fields :uuid)
           group-uuid @(form-events/entry-form-data-fields :group-uuid)
           active-db-key @(ce/active-db-key)
@@ -631,7 +798,7 @@
           deleted-cat? @(form-events/deleted-category-showing)
           recycle-bin? @(form-events/recycle-group-selected?)
           group-in-recycle-bin? @(form-events/selected-group-in-recycle-bin?)
-          remote-connection-entry? (const/remote-connection-entry-type? entry-type-name)
+          remote-connection-entry? (const/remote-connection-entry-type? entry-type-uuid)
           pd-dlg-data  @(move-events/delete-permanent-group-entry-dialog-data :entry)]
       [:div {:class "gbox"
              :style {:margin 0
@@ -651,26 +818,35 @@
                                     multi-db-open?
                                     (or deleted-cat? recycle-bin? group-in-recycle-bin?)
                                     mas-build?
-                                    entry-type-name))))}
+                                    entry-type-uuid))))}
 
-       [:div {:class "gheader" :style {:background  (theme-color @custom-theme-atom :bg-default)}}
+       ;; Read mode: title sits on a white (card) surface with a bottom divider so it is
+       ;; clearly separated from the grey content below. Edit mode keeps the plain bg.
+       [:div {:class "gheader" :style (if edit
+                                        {:background (theme-color @custom-theme-atom :bg-default)}
+                                        {:background (theme-color @custom-theme-atom :entry-section-card-bg)
+                                         :border-bottom (str "1px solid "
+                                                             (theme-color @custom-theme-atom :divider-color1))})}
         (when-not edit
           [mui-stack {:direction "row"}
            [mui-stack {:direction "row"  :sx {:width "95%" :justify-content "center" :align-items "center"}}
             [db-icons/render-entry-icon {:icon-id icon-id
                                          :custom-icon-uuid custom-icon-uuid}]
             [mui-typography {;; Need to use this margin value so that text aligns properly with icon
-                             :style {:margin-left 4 :margin-top 2}
+                             :style {:margin-left 12 :margin-top 2}
                              ;; If we use :sx, we need to use "2px" instead of 2
                              ;; Otherwise mui will interpret as 16px
-                             ;;:sx {:margin-left "2px" :margin-top "2px"}
+                             :sx {:font-weight 700 :color "text.primary" :font-size "1.05rem"}
                              :align "center" :paragraph false :variant "h6"} title]]
            [mui-stack {:direction "row" :sx {:width "5%"}}
             [:div {:style {:margin-right "8px"}}
              [form-menu entry-uuid]]]])]
 
+       ;; In read mode use a slightly grey form background so the white section cards
+       ;; stand out; edit mode keeps the default background behind its bordered boxes.
        [:div {:class "gcontent" :style {:overflow-y "scroll"
-                                        :background (theme-color @custom-theme-atom :bg-default)}}
+                                        :background (theme-color @custom-theme-atom
+                                                                 (if edit :bg-default :entry-form-bg))}}
         [center-content]
         #_[custom-field-dialogs]]
 
@@ -872,10 +1048,17 @@
                    :background "var(--secondary)"}}
      [:div {:class "gheader"}]
      [:div {:class "gcontent"}
-      [mui-stack {:sx {:height "100%"
+      [mui-stack {:spacing 1.5
+                  :sx {:height "100%"
                        :align-items "center"
-                       :justify-content "center"}}
-       [mui-typography  {:variant "h6"}
+                       :justify-content "center"
+                       :px 3
+                       :color "text.secondary"}}
+       ;; Muted illustrative icon so the empty form reads as an intentional
+       ;; placeholder rather than a blank panel
+       [mui-icon-article-outlined {:sx {:font-size 64 :opacity 0.35}}]
+       [mui-typography  {:variant "h6"
+                         :sx {:text-align "center" :color "text.secondary"}}
         (if (not (nil? text-to-show))
           text-to-show
           (tr-h noEntrySelected))]]]
@@ -917,7 +1100,7 @@
                     protected required] :as kv} section-data]
         ^{:key key} [mui-stack {:direction "row"}
                      [mui-stack {:direction "row" :sx {:width (if edit "92%" "100%")}}
-                     [text-field (assoc kv
+                      [text-field (assoc kv
                                          :edit edit
                                          :error-text (get errors key)
                                          :visible @(form-events/visible? key)
