@@ -24,7 +24,8 @@
    [onekeepass.frontend.translation :refer [lstr-sm]]
    [onekeepass.frontend.utils :as u :refer [contains-val?]]
    [re-frame.core :refer [dispatch reg-event-db reg-event-fx reg-fx reg-sub
-                          subscribe]]))
+                          subscribe]]
+   [re-frame.db :as rf-db]))
 
 (def Favorites "Favorites")
 
@@ -33,6 +34,62 @@
 (def place-holder-resolved-value ef-events-cmn/place-holder-resolved-value)
 
 ;;;;;;;;;;;;;;;;;;;;;;   Support functions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn- selected-entry-form-data
+  "Gets the entry form data only when it is the data of the currently selected
+   entry in the entry list. This ensures that we do not use any stale form data
+   (e.g. welcome content is shown or the selection is cleared)
+   Returns the form data map or nil"
+  []
+  (let [db @rf-db/app-db
+        selected-entry-id (get-in-key-db db [:entry-list :selected-entry-id])
+        {:keys [uuid] :as form-data} (get-form-data db)]
+    (when (and (not (nil? selected-entry-id)) (= selected-entry-id uuid))
+      form-data)))
+
+(defn copy-entry-form-field-to-clipboard
+  "Copies the value of the given standard field (e.g UserName, Password, URL) of
+   the currently selected entry to the clipboard. Called from the keyboard shortcuts
+   key handler (see ns onekeepass.frontend.keyboard-shortcuts) and from entry menus
+   Returns true when a value is copied to the clipboard"
+  [field-name]
+  (let [{:keys [parsed-fields] :as form-data} (selected-entry-form-data)
+        {:keys [value protected]} (form-data-kv-data form-data field-name)
+        ;; Use any placeholder resolved value as shown in the read mode of the entry form
+        value (place-holder-resolved-value parsed-fields field-name value)]
+    (if (str/blank? value)
+      false
+      (do
+        (if protected
+          (cmn-events/write-sensitive-to-clipboard value)
+          (cmn-events/write-to-clipboard value))
+        true))))
+
+(defn copy-entry-form-otp-token-to-clipboard
+  "Copies the current TOTP token of the currently selected entry to the clipboard
+   Returns true when a token is copied"
+  []
+  (let [form-data (selected-entry-form-data)
+        {:keys [current-opt-token]} (form-data-kv-data form-data const/OTP)
+        token (str current-opt-token)]
+    (if (str/blank? token)
+      false
+      (do
+        (cmn-events/write-sensitive-to-clipboard token)
+        true))))
+
+(defn open-selected-entry-url
+  "Opens the URL field value of the currently selected entry with the system
+   default handler. Returns true when a non blank url value is found"
+  []
+  (let [{:keys [parsed-fields] :as form-data} (selected-entry-form-data)
+        {:keys [value]} (form-data-kv-data form-data const/URL)
+        value (place-holder-resolved-value parsed-fields const/URL value)]
+    (if (str/blank? value)
+      false
+      (do
+        (entry-form-open-url value)
+        true))))
 
 (defn- validate-entry-form-data
   "Verifies that the user has entered valid values in some of the required fields of the entry form

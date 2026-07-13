@@ -1,5 +1,6 @@
 (ns onekeepass.frontend.entry-form.menus
   (:require
+   [clojure.string :as str]
    [onekeepass.frontend.common-components :as cc]
    [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.events.clone-entry-to-other-db :as clone-events]
@@ -9,13 +10,15 @@
    [onekeepass.frontend.events.remote-storage :as rs-events]
    [onekeepass.frontend.events.tauri-events :as tauri-events]
    [onekeepass.frontend.group-tree-content :as gt-content]
+   [onekeepass.frontend.keyboard-shortcuts :as kb-shortcuts]
    [onekeepass.frontend.mui-components :as m :refer [mui-icon-add-circle-outline-outlined
                                                      mui-icon-button
                                                      mui-icon-check
                                                      mui-icon-more-vert
                                                      mui-list-item-icon
                                                      mui-list-item-text
-                                                     mui-menu mui-menu-item]]
+                                                     mui-menu mui-menu-item
+                                                     mui-typography]]
    [onekeepass.frontend.translation  :refer [lstr-dlg-title lstr-ml]]
    [reagent.core :as r]))
 
@@ -24,6 +27,50 @@
     (reset! anchor-el nil)
     (apply action action-args)
     (.stopPropagation ^js/Event e)))
+
+(defn- shortcut-hint
+  "The keyboard shortcut hint text shown on the right side of a menu item"
+  [os-name key-label & opts]
+  [mui-typography {:variant "body2"
+                   :sx {:color "text.secondary" :ml "auto" :pl 3}}
+   (apply kb-shortcuts/menu-shortcut-hint os-name key-label opts)])
+
+(defn- entry-field-copy-open-menu-items
+  "Menu items to copy/open field values of the entry shown in the form.
+   These match the keyboard shortcuts - see ns onekeepass.frontend.keyboard-shortcuts"
+  [anchor-el os-name]
+  [:<>
+   [mui-menu-item {:sx {:padding-left "1px"}
+                   :divider false
+                   :on-click (menu-action anchor-el form-events/copy-entry-form-field-to-clipboard const/USERNAME)}
+    [mui-list-item-text {:inset true} (lstr-ml 'copyUsername)]
+    [shortcut-hint os-name "B"]]
+
+   [mui-menu-item {:sx {:padding-left "1px"}
+                   :divider false
+                   :on-click (menu-action anchor-el form-events/copy-entry-form-field-to-clipboard const/PASSWORD)}
+    [mui-list-item-text {:inset true} (lstr-ml 'copyPassword)]
+    [shortcut-hint os-name "C"]]
+
+   [mui-menu-item {:sx {:padding-left "1px"}
+                   :divider false
+                   :on-click (menu-action anchor-el form-events/copy-entry-form-field-to-clipboard const/URL)}
+    [mui-list-item-text {:inset true} (lstr-ml 'copyUrl)]
+    [shortcut-hint os-name "U" :shift? true]]
+
+   [mui-menu-item {:sx {:padding-left "1px"}
+                   :divider false
+                   :on-click (menu-action anchor-el form-events/open-selected-entry-url)}
+    [mui-list-item-text {:inset true} (lstr-ml 'openUrl)]
+    [shortcut-hint os-name "U"]]
+
+   [mui-menu-item {:sx {:padding-left "1px"}
+                   :divider true
+                   ;; Disabled when the entry does not have any otp field set up
+                   :disabled (str/blank? @(form-events/otp-currrent-token const/OTP))
+                   :on-click (menu-action anchor-el form-events/copy-entry-form-otp-token-to-clipboard)}
+    [mui-list-item-text {:inset true} (lstr-ml 'copyTotp)]
+    [shortcut-hint os-name "T"]]])
 
 (defn- auto-type-menu-items [anchor-el entry-uuid]
   [:<>
@@ -42,6 +89,10 @@
     [mui-menu {:anchorEl @anchor-el
                :open (if @anchor-el true false)
                :on-close #(reset! anchor-el nil)}
+     ;; Need to use a reagent component instead of fragments using :<> as MUI complains
+     ;; that Menu item child should not be a fragment (see auto-type-menu-items use below)
+     [entry-field-copy-open-menu-items anchor-el os-name]
+
      [mui-menu-item {:sx {:padding-left "1px"}
                      :divider false
                      :on-click (menu-action anchor-el form-events/edit-mode-menu-clicked)}

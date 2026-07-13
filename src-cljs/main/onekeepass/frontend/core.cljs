@@ -27,11 +27,12 @@
                                                               mui-typography
                                                               split-pane
                                                               theme-color]]
+            [onekeepass.frontend.keyboard-shortcuts :as kb-shortcuts]
             [onekeepass.frontend.start-page :as sp]
             [onekeepass.frontend.tool-bar :as tool-bar]
             [onekeepass.frontend.translation :as t :refer-macros [tr-t tr-bl]]
             [reagent.dom.client :as rdomc]
-            [reagent.dom :as rdom]))
+            #_[reagent.dom :as rdom]))
 
 ;;(set! *warn-on-infer* true)
 
@@ -367,6 +368,8 @@
   (cmn-events/sync-initialize)
   (tauri-events/register-tauri-events)
   (cmn-events/init-session-timeout-tick)
+  ;; Entry field copy shortcuts - Ctrl/Cmd+B (user name), Ctrl/Cmd+C (password)
+  (kb-shortcuts/install-shortcuts!)
   ;; Silent update check on launch — shows the dialog only when a new
   ;; release is available. Delayed so it does not contend with the
   ;; initial database load on slow networks.

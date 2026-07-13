@@ -20,6 +20,7 @@
             [onekeepass.frontend.events.remote-storage :as rs-events]
             [onekeepass.frontend.events.tauri-events :as tauri-events]
             [onekeepass.frontend.group-tree-content :as gt-content]
+            [onekeepass.frontend.keyboard-shortcuts :as kb-shortcuts]
             [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                               mui-avatar
                                                               mui-button
@@ -100,7 +101,36 @@
       :else
       (vec
        (remove nil?
-               [(ctx-menu/action-item
+               [;; Entry field copy/open actions. The actions use the entry form data
+                ;; loaded for this entry on selection and are safe no-op when the
+                ;; entry does not have a value for the field
+                (ctx-menu/action-item
+                 {:id "entry-copy-username"
+                  :text (t/lstr-ml 'copyUsername)
+                  :shortcut (kb-shortcuts/menu-shortcut-hint os-name "B")
+                  :action #(form-events/copy-entry-form-field-to-clipboard const/USERNAME)})
+                (ctx-menu/action-item
+                 {:id "entry-copy-password"
+                  :text (t/lstr-ml 'copyPassword)
+                  :shortcut (kb-shortcuts/menu-shortcut-hint os-name "C")
+                  :action #(form-events/copy-entry-form-field-to-clipboard const/PASSWORD)})
+                (ctx-menu/action-item
+                 {:id "entry-copy-url"
+                  :text (t/lstr-ml 'copyUrl)
+                  :shortcut (kb-shortcuts/menu-shortcut-hint os-name "U" :shift? true)
+                  :action #(form-events/copy-entry-form-field-to-clipboard const/URL)})
+                (ctx-menu/action-item
+                 {:id "entry-open-url"
+                  :text (t/lstr-ml 'openUrl)
+                  :shortcut (kb-shortcuts/menu-shortcut-hint os-name "U")
+                  :action form-events/open-selected-entry-url})
+                (ctx-menu/action-item
+                 {:id "entry-copy-totp"
+                  :text (t/lstr-ml 'copyTotp)
+                  :shortcut (kb-shortcuts/menu-shortcut-hint os-name "T")
+                  :action form-events/copy-entry-form-otp-token-to-clipboard})
+                (ctx-menu/separator-item)
+                (ctx-menu/action-item
                  {:id "entry-edit"
                   :text (t/lstr-ml 'edit)
                   :action form-events/edit-mode-menu-clicked})
