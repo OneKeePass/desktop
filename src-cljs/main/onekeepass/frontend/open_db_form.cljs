@@ -66,6 +66,9 @@
 
           [m/text-field {:label (tr-l password)
                          :value password
+                         ;; The file name field is either prefilled (open mode) or fixed
+                         ;; (unlock mode), so the password field gets the initial focus
+                         :autoFocus true
                          ;;:required true
                          :error (not (nil? passord-error-text))
                          :helperText passord-error-text
