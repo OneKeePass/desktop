@@ -552,65 +552,85 @@
 ;;; Follwings are based on this example
 ;;; https://github.com/reagent-project/reagent/blob/v1.3.0/examples/material-ui/src/example/core.cljs
 
+;; IME-safe native input/textarea props.
+;;
+;; A controlled React input restores its DOM value to the `value` prop after
+;; every input event. On WebKit (macOS WKWebView) that restore, happening in the
+;; middle of an IME composition (Pinyin etc.), aborts the composition — it ends
+;; after each keystroke, so the candidate window never stays open and Space /
+;; number selection is treated as literal input (issue #85). Driving the same
+;; controlled value through re-frame's async round-trip caused the mirror-image
+;; problem on Windows/Chromium: characters were re-inserted, e.g. "cce" (#65).
+;;
+;; The fix is to buffer the value in local component state so the DOM value stays
+;; in sync synchronously on every keystroke. React then restores the *same*
+;; value and never interrupts the composition. The app-level onChange is called
+;; for ordinary edits, and once at compositionend for composed text; nothing is
+;; pushed to app state while composing, so partial composition text never feeds
+;; back and re-triggers a value restore.
+(defn- ime-safe-input-props [clj-props ref]
+  (let [orig-on-change (:onChange clj-props)
+        orig-on-composition-start (:onCompositionStart clj-props)
+        orig-on-composition-end (:onCompositionEnd clj-props)
+        incoming-value (:value clj-props)
+        ^js composing (react-use-ref false)
+        ^js state (react-use-state (or incoming-value ""))
+        local-value (aget state 0)
+        set-local-value (aget state 1)
+        ;; ref holds the latest local value so the effect below can compare
+        ;; without adding local-value to its dependency list
+        ^js local-ref (react-use-ref local-value)]
+    (set! (.-current local-ref) local-value)
+    ;; Pull external value changes (loading an entry, password generator, clear,
+    ;; etc.) into local state. Skip echoes of what we just pushed up and never
+    ;; clobber an in-progress composition.
+    (react-use-effect
+     (fn []
+       (when (and (not (.-current composing))
+                  (not= incoming-value (.-current local-ref)))
+         (set-local-value (or incoming-value "")))
+       js/undefined)
+     #js [incoming-value])
+    (-> clj-props
+        (assoc :ref ref)
+        (assoc :value (or local-value ""))
+        (assoc :onCompositionStart
+               (fn [e]
+                 (set! (.-current composing) true)
+                 (when orig-on-composition-start
+                   (orig-on-composition-start e))))
+        (assoc :onCompositionEnd
+               (fn [e]
+                 (set! (.-current composing) false)
+                 (set-local-value (.. e -target -value))
+                 (when orig-on-composition-end
+                   (orig-on-composition-end e))
+                 ;; Commit the composed text once, here. On WebKit/Firefox the
+                 ;; final change event may fire before compositionend, so we
+                 ;; flush the committed value from this handler instead.
+                 (when orig-on-change
+                   (orig-on-change e))))
+        (assoc :onChange
+               (fn [e]
+                 ;; Keep the DOM value in sync locally on every keystroke so
+                 ;; React never restores a stale value mid-composition. Push up
+                 ;; to app state only when not composing; the composed value is
+                 ;; pushed from onCompositionEnd.
+                 (set-local-value (.. e -target -value))
+                 (when (and orig-on-change (not (.-current composing)))
+                   (orig-on-change e)))))))
+
 (def ^:private input-component
-    (react/forwardRef
-     (fn [props ref]
-       ;; composing tracks whether an IME composition session is active;
-       ;; while true, onChange is suppressed to avoid committing partial keystrokes
-       (let [^js composing (react-use-ref false)
-             clj-props (js->clj props :keywordize-keys true)
-             orig-on-change (:onChange clj-props)
-             orig-on-composition-start (:onCompositionStart clj-props)
-             orig-on-composition-end (:onCompositionEnd clj-props)]
-         (r/as-element
-          [:input
-           (-> clj-props
-               (assoc :ref ref)
-               (assoc :onCompositionStart
-                      (fn [e]
-                        (set! (.-current composing) true)
-                        (when orig-on-composition-start
-                          (orig-on-composition-start e))))
-               (assoc :onCompositionEnd
-                      (fn [e]
-                        (set! (.-current composing) false)
-                        (when orig-on-composition-end
-                          (orig-on-composition-end e))))
-               (assoc :onChange
-                      (fn [e]
-                        (when (and orig-on-change
-                                   (not (.-current composing)))
-                          (orig-on-change e)))))])))))
+  (react/forwardRef
+   (fn [props ref]
+     (r/as-element
+      [:input (ime-safe-input-props (js->clj props :keywordize-keys true) ref)]))))
 
 (def ^:private textarea-component
   (react/forwardRef
    (fn [props ref]
-     ;; composing tracks whether an IME composition session is active;
-     ;; while true, onChange is suppressed to avoid committing partial keystrokes
-     (let [^js composing (react-use-ref false)
-           clj-props (js->clj props :keywordize-keys true)
-           orig-on-change (:onChange clj-props)
-           orig-on-composition-start (:onCompositionStart clj-props)
-           orig-on-composition-end (:onCompositionEnd clj-props)]
-       (r/as-element
-        [:textarea
-         (-> clj-props
-             (assoc :ref ref)
-             (assoc :onCompositionStart
-                    (fn [e]
-                      (set! (.-current composing) true)
-                      (when orig-on-composition-start
-                        (orig-on-composition-start e))))
-             (assoc :onCompositionEnd
-                    (fn [e]
-                      (set! (.-current composing) false)
-                      (when orig-on-composition-end
-                        (orig-on-composition-end e))))
-             (assoc :onChange
-                    (fn [e]
-                      (when (and orig-on-change
-                                 (not (.-current composing)))
-                        (orig-on-change e)))))])))))
+     (r/as-element
+      [:textarea (ime-safe-input-props (js->clj props :keywordize-keys true) ref)]))))
 
 ;; To fix cursor jumping when controlled input value is changed,
 ;; use wrapper input element created by Reagent instead of
