@@ -73,7 +73,11 @@
       (when (and action
                  (not (dialog-shown?))
                  (not (text-editing-target? el))
-                 ;; For the copy key, any selected text is left to the default copy handling
+                 ;; The text selection check applies only to Ctrl/Cmd+C. That key has a
+                 ;; competing native meaning - 'copy the selected text' - so any selection
+                 ;; is left to the default copy handling. The other keys (b,u,t) have no
+                 ;; native meaning in this app and always act on the selected entry
+                 ;; ignoring any selection - matching the KeePass/KeePassXC convention
                  (or (not= k "c") (not (text-selection-found? el))))
         (when (action)
           (.preventDefault e))))))
