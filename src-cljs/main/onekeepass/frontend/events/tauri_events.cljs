@@ -5,6 +5,7 @@
    [camel-snake-kebab.extras :as cske]
    [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.events.common :as cmn-events]
+   [onekeepass.frontend.events.entry-form-ex :as form-events]
    [onekeepass.frontend.constants :as const :refer
     [BROWSER_CONNECTION_REQUEST_EVENT CLOSE_REQUESTED DB_FILE_CHANGED_EVENT FILE_DROP MAIN_WINDOW_EVENT
      MENU_ID_ABOUT OTP_TOKEN_UPDATE_EVENT PASSKEY_DATA_CHANGED_EVENT SSH_AGENT_SIGN_REQUEST_EVENT
@@ -45,6 +46,23 @@
 
       (= menu-id const/MENU_ID_EDIT_ENTRY)
       (dispatch [:entry-form-ex/edit true])
+
+      ;; Entry field copy/open actions of the selected entry. The same fns
+      ;; are used by the keyboard shortcuts and the entry menus in the UI
+      (= menu-id const/MENU_ID_COPY_USERNAME)
+      (form-events/copy-entry-form-field-to-clipboard const/USERNAME)
+
+      (= menu-id const/MENU_ID_COPY_PASSWORD)
+      (form-events/copy-entry-form-field-to-clipboard const/PASSWORD)
+
+      (= menu-id const/MENU_ID_COPY_URL)
+      (form-events/copy-entry-form-field-to-clipboard const/URL)
+
+      (= menu-id const/MENU_ID_OPEN_URL)
+      (form-events/open-selected-entry-url)
+
+      (= menu-id const/MENU_ID_COPY_TOTP)
+      (form-events/copy-entry-form-otp-token-to-clipboard)
 
       (= menu-id const/MENU_ID_NEW_ENTRY)
       (menu-action-call menu-id)

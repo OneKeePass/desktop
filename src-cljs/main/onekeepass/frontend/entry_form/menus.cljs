@@ -67,7 +67,8 @@
    [mui-menu-item {:sx {:padding-left "1px"}
                    :divider true
                    ;; Disabled when the entry does not have any otp field set up
-                   :disabled (str/blank? @(form-events/otp-currrent-token const/OTP))
+                   ;; The sub value is a map of keys - token ttl period
+                   :disabled (str/blank? (:token @(form-events/otp-currrent-token const/OTP)))
                    :on-click (menu-action anchor-el form-events/copy-entry-form-otp-token-to-clipboard)}
     [mui-list-item-text {:inset true} (lstr-ml 'copyTotp)]
     [shortcut-hint os-name "T"]]])
@@ -88,6 +89,13 @@
   (fn [anchor-el entry-uuid favorites? os-name mas-build? remote-connection-entry? entry-type-uuid]
     [mui-menu {:anchorEl @anchor-el
                :open (if @anchor-el true false)
+               ;; disableEnforceFocus: the copy field menu items copy via the webview's
+               ;; native copy (document.execCommand 'copy') which briefly focuses a
+               ;; temporary textarea. The menu is still mounted when the copy action runs
+               ;; and with MUI's default focus trap, the menu synchronously yanks focus
+               ;; back before execCommand runs failing the copy. See the same fix in
+               ;; onekeepass.frontend.context-menu/context-menu-root
+               :disableEnforceFocus true
                :on-close #(reset! anchor-el nil)}
      ;; Need to use a reagent component instead of fragments using :<> as MUI complains
      ;; that Menu item child should not be a fragment (see auto-type-menu-items use below)
@@ -178,20 +186,38 @@
       form-events/entry-delete-info-dialog-close
       @(form-events/entry-delete-dialog-data)]]))
 
+;; System 'Entries' menu items that follow the entry selection. These are enabled
+;; only while an entry is shown (this component is mounted) - see form-menu-internal
+(def ^:private entry-action-app-menu-ids
+  [const/MENU_ID_EDIT_ENTRY
+   const/MENU_ID_COPY_USERNAME
+   const/MENU_ID_COPY_PASSWORD
+   const/MENU_ID_COPY_URL
+   const/MENU_ID_OPEN_URL])
+
 (defn- form-menu-internal
-  "A functional reagent component.This component helps to enable/disable 
-  Edit Entry app menu using react effect"
+  "A functional reagent component.This component helps to enable/disable
+  Edit Entry and entry field copy/open app menus using react effect"
   [entry-uuid]
   (let [deleted-cat? @(form-events/deleted-category-showing)
         recycle-bin? @(form-events/recycle-group-selected?)
         group-in-recycle-bin? @(form-events/selected-group-in-recycle-bin?)
-        edit-menu?  (not (or deleted-cat? recycle-bin? group-in-recycle-bin?))]
+        edit-menu?  (not (or deleted-cat? recycle-bin? group-in-recycle-bin?))
+        ;; The sub value is a map of keys - token ttl period
+        otp-available? (not (str/blank? (:token @(form-events/otp-currrent-token const/OTP))))]
     ;; useEffect is used to enable/disable as when the form-menu is visible or not
+    ;; The effect is rerun when any of the deps 'edit-menu?' 'otp-available?' changes
     (m/react-use-effect (fn []
-                          (tauri-events/enable-app-menu const/MENU_ID_EDIT_ENTRY edit-menu?)
+                          (doseq [menu-id entry-action-app-menu-ids]
+                            (tauri-events/enable-app-menu menu-id edit-menu?))
+                          ;; Copy TOTP is enabled only when the entry has an otp field set up
+                          (tauri-events/enable-app-menu const/MENU_ID_COPY_TOTP (and edit-menu? otp-available?))
                           ;; cleanup fn is returned which is called when this component unmounts
                           (fn []
-                            (tauri-events/enable-app-menu const/MENU_ID_EDIT_ENTRY false))) (clj->js []))
+                            (doseq [menu-id entry-action-app-menu-ids]
+                              (tauri-events/enable-app-menu menu-id false))
+                            (tauri-events/enable-app-menu const/MENU_ID_COPY_TOTP false)))
+                        (clj->js [edit-menu? otp-available?]))
     (when edit-menu?
       [entry-form-top-menu entry-uuid])))
 

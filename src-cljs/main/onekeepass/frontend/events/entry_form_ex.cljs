@@ -69,9 +69,14 @@
   "Copies the current TOTP token of the currently selected entry to the clipboard
    Returns true when a token is copied"
   []
-  (let [form-data (selected-entry-form-data)
-        {:keys [current-opt-token]} (form-data-kv-data form-data const/OTP)
-        token (str current-opt-token)]
+  (let [token (when (selected-entry-form-data)
+                ;; The live token from the periodic otp polling updates is kept in
+                ;; the [entry-form-key :otp-fields] map (see :entry-form/update-otp-tokens).
+                ;; The section field kvd's :current-opt-token has only the token
+                ;; value found at the entry form load time and it will be stale
+                (-> (get-in-key-db @rf-db/app-db [entry-form-key :otp-fields const/OTP])
+                    :token
+                    str))]
     (if (str/blank? token)
       false
       (do

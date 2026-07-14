@@ -43,6 +43,16 @@ pub mod menu_ids {
     pub const SEARCH: &str = "Search";
     pub const NEW_ENTRY: &str = "NewEntry";
     pub const EDIT_ENTRY: &str = "EditEntry";
+
+    // Entry field copy/open actions. See build_entries_menus for how their
+    // accelerators interplay with the document level key handler in the UI
+    // layer (onekeepass.frontend.keyboard-shortcuts)
+    pub const COPY_USERNAME: &str = "CopyUsername";
+    pub const COPY_PASSWORD: &str = "CopyPassword";
+    pub const COPY_URL: &str = "CopyUrl";
+    pub const OPEN_URL: &str = "OpenUrl";
+    pub const COPY_TOTP: &str = "CopyTotp";
+
     pub const PASSWORD_GENERATOR: &str = "PasswordGenerator";
 
     pub const ABOUT: &str = "About";
@@ -315,6 +325,54 @@ fn build_entries_menus<R: Runtime>(
             Some("CmdOrControl+E"),
         )?,
     ])
+    .separator()
+    // All these are enabled only when an entry is selected in the UI
+    // See 'form-menu-internal' in onekeepass.frontend.entry-form.menus
+    //
+    // The accelerators here are also handled with context checks by the document
+    // level key handler (see onekeepass.frontend.keyboard-shortcuts). On macOS the
+    // webview receives the key first and suppresses the menu equivalent with
+    // preventDefault when it acts, so there is no double firing. Copy Password
+    // intentionally has no accelerator - a menu level CmdOrControl+C would be
+    // consumed before the webview and break the normal text copy in the fields;
+    // the key handler alone implements it
+    .items(&[
+        &MenuItem::with_id(
+            app_handle,
+            COPY_USERNAME,
+            system_menu_translation.sub_menu(COPY_USERNAME, "Copy Username"),
+            false,
+            Some("CmdOrControl+B"),
+        )?,
+        &MenuItem::with_id(
+            app_handle,
+            COPY_PASSWORD,
+            system_menu_translation.sub_menu(COPY_PASSWORD, "Copy Password"),
+            false,
+            None::<&str>,
+        )?,
+        &MenuItem::with_id(
+            app_handle,
+            COPY_URL,
+            system_menu_translation.sub_menu(COPY_URL, "Copy URL"),
+            false,
+            Some("Shift+CmdOrControl+U"),
+        )?,
+        &MenuItem::with_id(
+            app_handle,
+            OPEN_URL,
+            system_menu_translation.sub_menu(OPEN_URL, "Open URL"),
+            false,
+            Some("CmdOrControl+U"),
+        )?,
+        &MenuItem::with_id(
+            app_handle,
+            COPY_TOTP,
+            system_menu_translation.sub_menu(COPY_TOTP, "Copy TOTP"),
+            false,
+            Some("CmdOrControl+T"),
+        )?,
+    ])
     .build();
 
     entries_menus
@@ -465,7 +523,8 @@ pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app_handle:
         | CHECK_REMOTE_CHANGES => {
             toggle_enable_disable(app_handle, MAIN_MENU_DATABASE, menu_id, menu_enabled);
         }
-        EDIT_ENTRY | NEW_ENTRY => {
+        EDIT_ENTRY | NEW_ENTRY | COPY_USERNAME | COPY_PASSWORD | COPY_URL | OPEN_URL
+        | COPY_TOTP => {
             toggle_enable_disable(app_handle, MAIN_MENU_ENTRIES, menu_id, menu_enabled);
         }
         EDIT_GROUP | NEW_GROUP => {
