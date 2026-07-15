@@ -333,7 +333,10 @@
     (let [theme (m/create-custom-theme theme-mode)]
       [mui-styled-engine-provider {:injectFirst true}
        [mui-theme-provider {:theme theme}
-        [mui-css-baseline
+        ;; enableColorScheme sets 'color-scheme' on :root from the theme mode so
+        ;; the webview's native overlay scrollbars (macOS/Linux) use a light knob
+        ;; in dark mode instead of an invisible dark-on-dark one
+        [mui-css-baseline {:enableColorScheme true}
          [:f> root-content]]]])))
 
 (defn main-app []
