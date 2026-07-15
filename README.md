@@ -52,6 +52,10 @@ All created database files are encrypted using the best and most secure encrypti
 
 You can start using OneKeePass on your Windows, macOS, or Linux computer using the latest pre-compiled binaries from the **[downloads page](https://github.com/OneKeePass/desktop/releases)**
 
+### Windows Portable version
+
+A portable zip (`OneKeePass_<version>_Windows_x64_Portable.zip`) is available on the downloads page. Unzip it to any writable location - for example a USB drive - and run `OneKeePass.exe`; no installation is needed. All application data (preferences, logs, backups, word lists) is kept in the `onekeepass-data` folder next to the exe, so nothing is left behind on the computer you use it on. It requires the Microsoft Edge WebView2 Evergreen Runtime, which is preinstalled on current Windows 10 and 11 systems. See the `README.txt` inside the zip for details
+
 The macOS app can also be downloaded from the Mac App Store:
 
 <a href="https://apps.apple.com/us/app/onekeepass-password-manager/id6764709055">

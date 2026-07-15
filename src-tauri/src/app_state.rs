@@ -43,6 +43,20 @@ pub(crate) fn init_app(app: &App) {
 
     AppState::set_global_app_handle(app);
 
+    // In portable mode all data lives next to the exe. If that location is not
+    // writable (e.g unzipped into 'C:\Program Files'), inform the user and exit.
+    // Falling back to ~/.onekeepass here would defeat the purpose of the
+    // portable version by leaving traces on the host machine
+    if let Err(msg) = app_paths::verify_portable_writable() {
+        use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+        app.dialog()
+            .message(&msg)
+            .kind(MessageDialogKind::Error)
+            .title("OneKeePass Portable")
+            .blocking_show();
+        std::process::exit(1);
+    }
+
     // Ensure that all app dir paths are created if required and available
     app_paths::init_app_paths();
 
@@ -64,6 +78,19 @@ pub(crate) fn init_app(app: &App) {
 
     init_log(&app_paths::app_logs_dir());
     // Now onwards all loggings calls will be effective
+
+    if app_paths::is_portable() {
+        info!(
+            "Running in portable mode; data dir: {:?}",
+            app_paths::app_home_dir()
+        );
+    }
+
+    // The attachment temp cache is normally cleared on quit (see menu.rs QUIT
+    // handling). A crash or force-kill skips that, so any leftover files from a
+    // prior run are swept here as well
+    let r = onekeepass_core::db_service::remove_app_temp_dir_content();
+    info!("Startup temp cache dir sweep - result {:?}", r);
 
     // Restore scoped access to a user-picked backup directory under macOS
     // sandbox if a bookmark was persisted on a prior run. Held for the entire
@@ -641,6 +668,9 @@ pub(crate) struct SystemInfoWithPreference {
     // either kernel-blocked under App Sandbox (auto-type) or otherwise
     // unavailable in the MAS build, so users don't see non-functional UI.
     mas_build: bool,
+    // True when the app found the '.portable' marker next to the exe and keeps
+    // all its data in 'onekeepass-data' beside the exe (Windows portable zip)
+    portable: bool,
 }
 //app_state: State<'_, app_state::AppState>
 // app: tauri::AppHandle<R>,
@@ -674,6 +704,7 @@ impl SystemInfoWithPreference {
             preference: pref.clone(),
             dev_mode: cfg!(feature = "onekeepass-dev"),
             mas_build: cfg!(feature = "mas-build"),
+            portable: app_paths::is_portable(),
         }
     }
 }
