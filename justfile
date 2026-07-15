@@ -58,9 +58,15 @@ build-mac-aarch64-bundle:build-cljs-bundle
     just mac-aarch64-bundle-build-only 
 
 # This will build linux "release" bundle when called in a Linux terminal
-build-linux-x86_64:
+# Optional 'features' arg is passed to cargo as --features (e.g. 'devtools'
+# for a diagnostic build with the webview inspector enabled)
+build-linux-x86_64 features='':
     #!/usr/bin/env bash
     set -euxo pipefail
     export BOTAN_CONFIGURE_EXTRA_CXXFLAGS='-fPIC'
     just -f ./onekeepass-proxy/justfile build-cp-linux-x86_64 true
-    cargo tauri build
+    if [ -n "{{features}}" ]; then
+        cargo tauri build --features "{{features}}"
+    else
+        cargo tauri build
+    fi

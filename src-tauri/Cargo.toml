@@ -123,5 +123,12 @@ onekeepass-dev = []
 # from the store build script wrapper.
 mas-build = []
 
+# Enables the webview inspector (right-click 'Inspect Element') in a release
+# build, for diagnostic builds only. Never ship distribution or MAS artifacts
+# with this feature - on macOS it uses private WKWebView APIs that App Review
+# rejects. Enabled via `cargo tauri build --features devtools` or the
+# --devtools option of the desktop release scripts.
+devtools = ["tauri/devtools"]
+
 [dev-dependencies]
 env_logger = "0.11.8"
