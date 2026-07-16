@@ -13,6 +13,8 @@
 - Non-English input methods (IME) such as Chinese and Japanese now work in all text fields on all platforms [#85](https://github.com/OneKeePass/desktop/issues/85), [#65](https://github.com/OneKeePass/desktop/issues/65)
 - Session timeout setting is now applied fully [#80](https://github.com/OneKeePass/desktop/issues/80)
 - Cursor focus is placed in the Password field when the Unlock Database dialog opens [#81](https://github.com/OneKeePass/desktop/issues/81)
+- Linux AppImage no longer shows a blank window on distros with a newer graphics stack than the build host (Fedora, Arch, ...) — the bundled Wayland libraries that conflicted with the host's Mesa/EGL are no longer included [#58](https://github.com/OneKeePass/desktop/issues/58)
+- Blank app window on Linux systems where WebKitGTK's DMA-BUF renderer fails (NVIDIA proprietary drivers, virtual machines) is fixed — the renderer is now disabled at startup
 
 ### 0.23.0
 
