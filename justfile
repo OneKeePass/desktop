@@ -66,7 +66,7 @@ build-linux-x86_64 features='':
     export BOTAN_CONFIGURE_EXTRA_CXXFLAGS='-fPIC'
     just -f ./onekeepass-proxy/justfile build-cp-linux-x86_64 true
     if [ -n "{{features}}" ]; then
-        cargo tauri build --features "{{features}}"
+        cargo tauri build --features "{{features}}" -- --locked
     else
-        cargo tauri build
+        cargo tauri build -- --locked
     fi
