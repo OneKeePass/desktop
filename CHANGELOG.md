@@ -1,3 +1,21 @@
+### 0.24.0
+
+#### Changes
+- Windows Portable version — a standalone zip that runs without installation and keeps all application data (preferences, logs, backups, word lists) in an `onekeepass-data` folder next to the exe; suitable for USB drives [#51](https://github.com/OneKeePass/desktop/issues/51)
+    - Requires the Microsoft Edge WebView2 Evergreen Runtime (preinstalled on current Windows 10/11)
+    - The browser extension helper's log also stays inside the portable folder
+- Keyboard shortcuts added for **Copy Username** and **Copy Password** [#79](https://github.com/OneKeePass/desktop/issues/79)
+- All standard field copy actions are now also available in the system menus
+- The entry form now shows the entry type as a title text; **SSH Key** entries include a **UserName** field
+- Leftover temporary attachment files from a crashed session are now cleaned up at app startup in addition to app quit
+
+#### Fixed
+- Non-English input methods (IME) such as Chinese and Japanese now work in all text fields on all platforms [#85](https://github.com/OneKeePass/desktop/issues/85), [#65](https://github.com/OneKeePass/desktop/issues/65)
+- Session timeout setting is now applied fully [#80](https://github.com/OneKeePass/desktop/issues/80)
+- Cursor focus is placed in the Password field when the Unlock Database dialog opens [#81](https://github.com/OneKeePass/desktop/issues/81)
+- Linux AppImage no longer shows a blank window on distros with a newer graphics stack than the build host (Fedora, Arch, ...) — the bundled Wayland libraries that conflicted with the host's Mesa/EGL are no longer included [#58](https://github.com/OneKeePass/desktop/issues/58)
+- Blank app window on Linux systems where WebKitGTK's DMA-BUF renderer fails (NVIDIA proprietary drivers, virtual machines) is fixed — the renderer is now disabled at startup
+
 ### 0.23.0
 
 #### Changes

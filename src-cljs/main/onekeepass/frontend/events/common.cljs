@@ -195,6 +195,14 @@
  (fn []
    (bg/init-timers #(on-error %))))
 
+(defn- add-windows-platform-class
+  "Adds a marker class on body so that css rules can target Windows alone.
+   Used for the scrollbar styling in custom.css; styling ::-webkit-scrollbar
+   on macOS/Linux would disable their native auto-hiding overlay scrollbars"
+  [os-name]
+  (when (= os-name const/WINDOWS)
+    (-> js/document .-body .-classList (.add "platform-windows"))))
+
 (reg-event-fx
  :load-system-info-with-preference-complete
  (fn [{:keys [db]} [_event-id {:keys [standard-dirs
@@ -208,6 +216,7 @@
                                       preference]}]]
    (set-session-timeout (:session-timeout preference))
    (set-clipboard-timeout (:clipboard-timeout preference))
+   (add-windows-platform-class os-name)
    ;;(println "os-name os-version arch path-sep preference -- " os-name os-version arch path-sep preference)
    {:db (-> db
             (assoc :app-preference preference)

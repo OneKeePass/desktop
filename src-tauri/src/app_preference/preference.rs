@@ -123,8 +123,9 @@ pub(crate) struct SshAgentSupport {
 pub(crate) struct Preference {
     version: String,
 
-    // In minutes
-    session_timeout: u8,
+    // In minutes. The settings UI accepts 1-1440, so u16 (u8 rejected
+    // values above 255 - see issue #80)
+    session_timeout: u16,
 
     // In seconds
     clipboard_timeout: u16,
@@ -169,7 +170,7 @@ impl Default for Preference {
             // this will be reset to the latest version from tauri.conf.json
             // after parsing the toml pref file in read_toml and pref file is updated accordingly
             version: "0.21.0".into(),
-            session_timeout: (15 as u8),
+            session_timeout: (15 as u16),
             clipboard_timeout: (30 as u16),
             theme: LIGHT.into(),
             language: translation::current_locale_language(),
@@ -278,7 +279,7 @@ impl Preference {
 
             let mut p = Preference::default();
             p.version = p2.version;
-            p.session_timeout = p2.session_timeout;
+            p.session_timeout = p2.session_timeout.into();
             p.clipboard_timeout = p2.clipboard_timeout;
             p.theme = p2.theme;
             p.language = p2.language;
@@ -297,7 +298,7 @@ impl Preference {
             println!("Found Preference1 (v0.17.x) and migrating");
 
             let mut p = Preference::default();
-            p.session_timeout = p1.session_timeout;
+            p.session_timeout = p1.session_timeout.into();
             p.backup = p1.backup;
             p.recent_files = p1.recent_files.into_iter().map(RecentFile::new).collect();
             p.default_entry_category_groupings = p1.default_entry_category_groupings;

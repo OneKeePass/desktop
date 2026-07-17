@@ -57,6 +57,13 @@ impl WindowEventPayload {
 }
 
 fn main() {
+    // WebKitGTK's DMA-BUF renderer fails on some Linux graphics stacks (NVIDIA
+    // proprietary drivers, VMs with limited 3D acceleration), leaving the webview
+    // blank while the rest of the app works. Must be set before the webview is
+    // created. See https://github.com/tauri-apps/tauri/issues/9394
+    #[cfg(target_os = "linux")]
+    std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+
     // Need to create 'context' here before building the app so that we can load language translation files
     // for the current prefered language from the resource dir in order to prepare Menus
     let context = tauri::generate_context!();

@@ -587,7 +587,11 @@
   "Returns a on-click function which calls the passed function 'to-call' when the Enter key is pressed"
   [to-call]
   (fn [^js/Event e]
-    (when (= (.-key e) "Enter")
+    ;; Ignore Enter while an IME composition is active. During composition
+    ;; (e.g. Pinyin) Enter/Space/number keys are used to select candidates and
+    ;; must be left for the IME; acting on them here would swallow the keystroke.
+    (when (and (not (.-isComposing e))
+               (= (.-key e) "Enter"))
       (to-call))))
 
 ;; Another way of calling focus of an element

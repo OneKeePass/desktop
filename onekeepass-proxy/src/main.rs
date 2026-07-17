@@ -41,13 +41,18 @@ fn init_log() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Log directory:
+    //   - Windows portable zip: the main app's logs dir 'onekeepass-data/logs'
+    //     next to the exe, so nothing is left in the host machine's temp dir.
     //   - Sandboxed (Mac App Store): App Group container's Logs/ subdir, so the
     //     parent app and developer can locate logs at a known shared path.
     //     Requires the application-groups entitlement.
     //   - Non-sandboxed (DMG / Linux / Windows): system temp dir, current behavior.
-    let log_dir: PathBuf = match sandbox::group_container_path() {
-        Some(group) => group.join("Logs"),
-        None => std::env::temp_dir().join("okp"),
+    let log_dir: PathBuf = match writable_portable_log_dir() {
+        Some(portable_logs) => portable_logs,
+        None => match sandbox::group_container_path() {
+            Some(group) => group.join("Logs"),
+            None => std::env::temp_dir().join("okp"),
+        },
     };
 
     // Ensure the log directory exists
@@ -115,6 +120,37 @@ fn init_log() -> Result<(), Box<dyn std::error::Error>> {
     log4rs::init_config(config)?;
 
     Ok(())
+}
+
+// Windows portable zip detection. The zip ships a '.portable' marker next to
+// OneKeePass.exe and this proxy exe (same dir names as in the main app's
+// app_paths.rs). The browser spawns the proxy with an arbitrary working
+// directory, so detection is based on current_exe. Any failure (marker absent,
+// dir not creatable/writable e.g read-only USB) returns None and the caller
+// falls back to the temp dir - the proxy must keep serving the extension
+#[cfg(target_os = "windows")]
+fn writable_portable_log_dir() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let exe_dir = exe.parent()?;
+    if !exe_dir.join(".portable").exists() {
+        return None;
+    }
+
+    let log_dir = exe_dir.join("onekeepass-data").join("logs");
+    fs::create_dir_all(&log_dir).ok()?;
+
+    // Dir creation may appear to succeed in a read-only location; a probe file
+    // write confirms the log appender will be able to write here
+    let probe_file = log_dir.join(".write-test");
+    fs::write(&probe_file, b"").ok()?;
+    let _ = fs::remove_file(&probe_file);
+
+    Some(log_dir)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn writable_portable_log_dir() -> Option<PathBuf> {
+    None
 }
 
 // IMPORTANT: Same path should be used in the app side proxy handler of the main app

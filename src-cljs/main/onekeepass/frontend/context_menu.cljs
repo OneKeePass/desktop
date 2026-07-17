@@ -1,7 +1,8 @@
 (ns onekeepass.frontend.context-menu
   (:require
    [onekeepass.frontend.events.common :as cmn-events]
-   [onekeepass.frontend.mui-components :refer [mui-divider mui-menu mui-menu-item]]
+   [onekeepass.frontend.mui-components :refer [mui-divider mui-menu mui-menu-item
+                                               mui-typography]]
    [onekeepass.frontend.translation :refer [lstr-ml]]
    [reagent.core :as r]))
 
@@ -37,9 +38,11 @@
    (assoc extra :item item-type)))
 
 (defn action-item
-  [{:keys [id text enabled? action]}]
+  [{:keys [id text enabled? action shortcut]}]
   {:id id
    :text text
+   ;; Optional shortcut hint text (e.g '⌘B') shown on the right side of the menu item
+   :shortcut shortcut
    :enabled (if (nil? enabled?) true enabled?)
    :action action})
 
@@ -272,7 +275,7 @@
                :anchorPosition position}
      (doall
       (map-indexed
-       (fn [idx {:keys [id kind text enabled action]}]
+       (fn [idx {:keys [id kind text enabled action shortcut]}]
          (if (= kind :separator)
            ^{:key (str "separator-" idx)} [mui-divider]
            ^{:key (or id (str "item-" idx))}
@@ -282,5 +285,9 @@
                                        (when action
                                          (action))
                                        (.stopPropagation evt))}
-            text]))
+            text
+            (when shortcut
+              [mui-typography {:variant "body2"
+                               :sx {:color "text.secondary" :ml "auto" :pl 3}}
+               shortcut])]))
        items))]))

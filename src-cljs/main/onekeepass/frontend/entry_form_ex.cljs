@@ -225,6 +225,11 @@
            [mui-stack {:direction "row" :sx {}}
             [mui-typography (str "Expires: " (u/to-local-datetime-str expiry-dt "dd MMM yyyy HH:mm:ss p"))]]]))))
 
+(defn translated-entry-type-name [name]
+  (if (contains-val?  STANDARD_ENTRY_TYPES name)
+    (tr-entry-type-title-cv name)
+    name))
+
 (defn uuid-times-content []
   (let [edit @(form-events/form-edit-mode)
         expiry-duration-selection @(form-events/entry-form-field :expiry-duration-selection)
@@ -240,6 +245,10 @@
 
         ;; Two-column rows: a fixed-width muted label and a left-aligned value, so the
         ;; values line up in a column instead of hugging the right edge.
+        [mui-stack {:direction "row" :sx {:margin-bottom "10px"}}
+         [mui-typography {:sx {:width "30%" :color "text.secondary" :text-align "right" :padding-right "16px"}} (str (tr-l "entryType") ":")]
+         [mui-typography {:sx {:width "70%"}} (translated-entry-type-name @(form-events/entry-form-data-fields :entry-type-name))]]
+
         [mui-stack {:direction "row" :sx {:margin-bottom "10px"}}
          [mui-typography {:sx {:width "30%" :color "text.secondary" :text-align "right" :padding-right "16px"}} (str (tr-l "uuid") ":")]
          [mui-typography {:sx {:width "70%"}} @(form-events/entry-form-data-fields :uuid)]]
@@ -599,11 +608,20 @@
 (defn title-with-icon-field  []
   ;;(println "title-with-icon-field called ")
   (let [fields @(form-events/entry-form-data-fields [:title :icon-id :custom-icon-uuid])
+        entry-type-name @(form-events/entry-form-data-fields :entry-type-name)
         url-value @(form-events/entry-form-url-value)
         edit @(form-events/form-edit-mode)
         errors @(form-events/entry-form-field :error-fields)]
     (when edit
       [mui-box {:sx (theme-content-sx @custom-theme-atom)}
+       ;; The entry type of an existing entry cannot be changed and it is shown
+       ;; here as a read only info
+       #_[mui-typography {:variant "caption" :sx {:color "text.secondary"}}
+        (str (tr-l "entryType") ": " (translated-entry-type-name entry-type-name))]
+       [mui-stack {:direction "row" :spacing 1 :sx {:align-items "center"}}
+        [mui-typography {:variant "caption" :sx {:color "text.secondary"}}
+         (str (tr-l "entryType") ": ")]
+        [mui-typography (translated-entry-type-name entry-type-name)]]
        [mui-stack {:direction "row" :spacing 1}
         [mui-stack {:direction "row" :sx {:width "88%" :justify-content "center"}}
          [text-field {:key (tr-entry-field-name-cv "Title")
@@ -950,11 +968,6 @@
 
        ;; Used to move the entry to recycle bin
        [delete-permanent-dialog pd-dlg-data entry-uuid]])))
-
-(defn translated-entry-type-name [name]
-  (if (contains-val?  STANDARD_ENTRY_TYPES name)
-    (tr-entry-type-title-cv name)
-    name))
 
 (defn entry-type-group-selection
   "Used in entry new form. Prvides from-1 type component for

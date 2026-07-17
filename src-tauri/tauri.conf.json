@@ -48,7 +48,7 @@
   },
   "productName": "OneKeePass",
   "mainBinaryName": "OneKeePass",
-  "version": "0.23.0",
+  "version": "0.24.0",
   "identifier": "com.onekeepass",
   "plugins": {
     "shell": {

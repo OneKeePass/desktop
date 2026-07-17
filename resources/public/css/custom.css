@@ -62,6 +62,41 @@ body {
   flex: 0 1 40px;
 }
 
+/* Windows (WebView2) only scrollbar styling. WebView2 shows classic wide,
+   always-visible Chromium scrollbars; these rules slim them down closer to
+   the overlay style seen on macOS/Linux. The platform-windows class is added
+   to body at app startup (events/common.cljs) only when running on Windows,
+   because any ::-webkit-scrollbar rule matching on macOS (WKWebView) would
+   disable its native auto-hiding overlay scrollbars.
+   The neutral semi-transparent grey thumb stays visible on both the light
+   and dark Mui themes. */
+body.platform-windows ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+body.platform-windows ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* The transparent border + background-clip shrinks the painted thumb to a
+   ~4px pill inside the 10px scrollbar, mimicking the macOS overlay look
+   while keeping the full 10px strip as the mouse target */
+body.platform-windows ::-webkit-scrollbar-thumb {
+  background-color: rgba(128, 128, 128, 0.5);
+  border: 3px solid transparent;
+  border-radius: 8px;
+  background-clip: padding-box;
+}
+
+body.platform-windows ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(128, 128, 128, 0.7);
+}
+
+body.platform-windows ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /** All Mui component cutomizations **/
 
 /* .app-bar-icon-root {
