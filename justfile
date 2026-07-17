@@ -29,7 +29,7 @@ mac-aarch64-bundle-build-only:
     just -f ./onekeepass-proxy/justfile build-cp-mac-aarch64 true
 
     # This will build "release"
-    cargo tauri build --target aarch64-apple-darwin
+    cargo tauri build --target aarch64-apple-darwin -- --locked
 
 mac-x86_64-bundle-build-only:
     #!/usr/bin/env bash
@@ -44,7 +44,7 @@ mac-x86_64-bundle-build-only:
     just -f ./onekeepass-proxy/justfile build-cp-mac-x86_64 true
     
     # This will build "release"
-    cargo tauri build --target x86_64-apple-darwin
+    cargo tauri build --target x86_64-apple-darwin -- --locked
 
     ## This is for debug build and it happens only during 'dev' time
     ## This requires cljs repl running. Last time the loading resource file did not work
