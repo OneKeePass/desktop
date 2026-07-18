@@ -309,6 +309,32 @@ A **WebDAV Connection** entry holds the server URL, username, and password for a
 
 Once these entries exist in your database, OneKeePass uses them automatically when you open or save a remote database on that server. You can create them through the remote connection dialog or by adding a new entry and selecting the appropriate entry type.
 
+## Is there a portable version for Windows?
+
+Yes. From release 0.24.0 onwards, a portable version is available as a zip file (e.g. `OneKeePass_x.y.z_Windows_x64_Portable.zip`) on the [releases](https://github.com/OneKeePass/desktop/releases) page. Extract the zip file to any folder — including a USB stick — and run `OneKeePass.exe` directly. No installation or admin rights are required, and the application stores its settings within its own folder
+
+**Note:** The portable version requires the **Microsoft Edge WebView2 Runtime** to be present on the machine. Windows 11 and most up-to-date Windows 10 systems already have it. On a machine without it, the portable version will not start — see the next question for how to make the portable version fully self-contained
+
+## How can I make the Windows portable version fully self-contained (no WebView2 installed)?
+
+If you want the portable version to run on machines that may not have the WebView2 Runtime installed, you can carry a **Fixed Version** WebView2 runtime alongside OneKeePass:
+
+1. Download the **Fixed Version** WebView2 runtime from [Microsoft's WebView2 distribution page](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution#details-about-the-fixed-version-runtime-distribution-mode) and extract it to a folder next to OneKeePass (for example `Webview2`)
+
+2. Create a batch file (for example `OneKeePass-Portable.bat`) next to `OneKeePass.exe` that points OneKeePass to that runtime folder and starts the application:
+
+```
+@ECHO OFF
+SET "WEBVIEW2_BROWSER_EXECUTABLE_FOLDER=%~dp0Webview2"
+RUNAS /TRUSTLEVEL:0x20000 "%~dp0OneKeePass.exe"
+```
+
+3. Use the batch file to launch OneKeePass. The `WEBVIEW2_BROWSER_EXECUTABLE_FOLDER` environment variable makes OneKeePass use the bundled runtime instead of looking for a system-installed one, and the `RUNAS /TRUSTLEVEL` line ensures the application runs non-elevated as recommended by Microsoft for the fixed-version runtime
+
+With this setup, everything OneKeePass needs travels with the folder and nothing is installed on the host system
+
+**Note:** A fixed-version runtime does not update itself. You should replace the `Webview2` folder with a newer version periodically to receive WebView2 security updates
+
 ## How do I check for new versions of OneKeePass?
 
 OneKeePass automatically checks for new releases at startup. If a new version is available, a notification appears. You can also check manually at any time using **Help -> Check for Updates**.
