@@ -1177,12 +1177,13 @@
                   :sx {:width "10%"
                        :justify-content "center"
                        :align-items "center"}}
-       [mui-typography {:align "center"
-                        :paragraph false
-                        :variant "subtitle1"} (tr-l "icons")]
-       [mui-icon-button {:edge "end" :color "primary" :sx {}
-                         :on-click  show-icons-dialog}
-        [entry-type-icon entry-type-name entry-type-icon-name]]]
+       ;; Tooltip indicates the icon is clickable to change it as done in
+       ;; title-with-icon-field and in group form's group-content
+       [mui-tooltip {:title (lstr-l 'changeIcon) :enterDelay 800}
+        [mui-icon-button {:edge "end" :color "primary"
+                          :sx {:border "1px dashed" :border-color "divider" :border-radius "8px"}
+                          :on-click  show-icons-dialog}
+         [entry-type-icon entry-type-name entry-type-icon-name]]]]
       [icons-dialog @icons-dialog-flag (fn [idx]
                                          (form-events/entry-form-data-update-field-value
                                           :entry-type-icon-name (str idx)))]]]))

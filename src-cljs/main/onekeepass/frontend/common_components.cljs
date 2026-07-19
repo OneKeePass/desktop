@@ -196,6 +196,11 @@
                     ;; to Cljs maps, which breaks them
                     (set! (.-variant params) "standard")
                     (set! (.-label params) "Tags")
+                    ;; Turn off the OS/webview auto capitalization,correction and spell check
+                    (let [^js input-props (.-inputProps params)]
+                      (set! (.-autoCapitalize input-props) "off")
+                      (set! (.-autoCorrect input-props) "off")
+                      (set! (.-spellCheck input-props) false))
                     ;;(println "InputProps is " (.-label params)) results in stackoverflow
                     (r/create-element mui-text-field-type params)) ;;mui/TextField
     }])
@@ -265,6 +270,11 @@
                     (set! (.-error params) error)
                     (set! (.-helperText params) (if error error-text helper-text))
                     (set! (.-required params) required)
+                    ;; Turn off the OS/webview auto capitalization,correction and spell check
+                    (let [^js input-props (.-inputProps params)]
+                      (set! (.-autoCapitalize input-props) "off")
+                      (set! (.-autoCorrect input-props) "off")
+                      (set! (.-spellCheck input-props) false))
                     (r/create-element mui-text-field-type params)) ;;mui/TextField
     }])
 

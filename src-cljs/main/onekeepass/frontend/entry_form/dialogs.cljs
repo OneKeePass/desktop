@@ -468,6 +468,7 @@
           :sx  {}
           :error  (not (nil? title-error-text))
           :helperText (if-not (nil? title-error-text) title-error-text nil)
+          :slotProps {:htmlInput m/auto-capitalize-off-props}
           :on-change (on-change-factory dlg-events/clone-entry-options-dialog-update :new-title)
           :variant "standard"
           :fullWidth true}]]

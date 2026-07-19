@@ -632,6 +632,13 @@
      (r/as-element
       [:textarea (ime-safe-input-props (js->clj props :keywordize-keys true) ref)]))))
 
+;; The OS/webview (WKWebView on macOS in particular) applies automatic
+;; capitalization, correction and spell checking to text inputs unless these
+;; attributes turn them off. A password manager should never have the typed
+;; usernames/passwords altered or sent to a spell checker
+(def auto-capitalize-off-props
+  {:autoCapitalize "off" :autoCorrect "off" :spellCheck false})
+
 ;; To fix cursor jumping when controlled input value is changed,
 ;; use wrapper input element created by Reagent instead of
 ;; letting Material-UI to create input element directly using React.
@@ -657,6 +664,7 @@
                        input-component)
 
           props (-> props
+                    (update-in [:slotProps :htmlInput] #(merge auto-capitalize-off-props %))
                     (cond-> slot-input (assoc-in [:slotProps :input :inputComponent] slot-input))
                     rtpl/convert-prop-value)]
       (apply r/create-element mui/TextField props (map r/as-element children))))

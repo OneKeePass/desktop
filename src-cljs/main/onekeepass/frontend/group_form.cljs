@@ -22,6 +22,7 @@
                                                      mui-tab
                                                      mui-tabs
                                                      mui-text-field
+                                                     mui-tooltip
                                                      mui-typography]]
    [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-bl tr-dlg-title]]
    [onekeepass.frontend.utils :as u :refer [vec->tags]]
@@ -69,6 +70,7 @@
                   [mui-text-field {:size "small" :label (t/lstr-l 'addFromUrl)
                                    :value @url-input
                                    :sx {:flex-grow 1}
+                                   :slotProps {:htmlInput m/auto-capitalize-off-props}
                                    :on-change #(reset! url-input (-> % .-target .-value))}]
                   [mui-button {:variant "contained" :color "primary"
                                :disabled (str/blank? @url-input)
@@ -111,12 +113,16 @@
                   :edit true
                   :no-end-icons true
                   :on-change-handler (gf-events/form-on-change-factory :name)}]]
-    [mui-stack {:direction "row" :sx {:width "12%" :justify-content "center" :align-items "center"}}
-     [mui-typography {:sx {:padding-left "5px"} :align "center" :variant "subtitle1"} (tr-l "icons")]
-     [mui-icon-button {:edge "end" :color "primary" :on-click show-icons-dialog}
-      [render-group-icon {:db-key @(cmn-events/active-db-key)
-                          :icon-id icon-id
-                          :custom-icon-uuid custom-icon-uuid}]]]]
+    [mui-stack {:direction "row" :sx {:width "12%" :justify-content "center" :align-items "flex-end"}}
+     ;; Tooltip indicates the icon is clickable to change it as done in
+     ;; title-with-icon-field of entry_form_ex.cljs
+     [mui-tooltip {:title (t/lstr-l 'changeIcon) :enterDelay 800}
+      [mui-icon-button {:edge "end" :color "primary"
+                        :sx {:border "1px dashed" :border-color "divider" :border-radius "8px"}
+                        :on-click show-icons-dialog}
+       [render-group-icon {:db-key @(cmn-events/active-db-key)
+                           :icon-id icon-id
+                           :custom-icon-uuid custom-icon-uuid}]]]]]
 
    ;; Tags — mirrors tags-selection in entry_form_ex.cljs
    [tags-field @(cmn-events/all-tags) tags gf-events/on-tags-selection true]

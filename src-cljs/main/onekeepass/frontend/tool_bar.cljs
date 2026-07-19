@@ -256,7 +256,7 @@
             [mui-icon-cancel-presentation]]]
 
           (if locked?
-            [mui-tooltip {:title "Quick Unlock Database" :enterDelay 2000}
+            [mui-tooltip {:title "Unlock Database" :enterDelay 2000}
              [mui-icon-button
               {:edge "start" :color "inherit"
                :on-click #(tb-events/unlock-current-db biometric-type)}

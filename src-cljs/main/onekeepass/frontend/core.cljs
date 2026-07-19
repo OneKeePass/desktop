@@ -177,7 +177,7 @@
        [mui-button {:variant "outlined"
                     :color "inherit"
                     :on-click #(cmn-events/unlock-current-db biometric-type)}
-        (tr-bl quickUnlock)]]]]))
+        (tr-bl "unlockDatabase")]]]]))
 
 (defn- draggable-tab
   "Form-1 React function component (used with :f>) for a single draggable + droppable tab.

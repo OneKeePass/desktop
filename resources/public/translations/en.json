@@ -515,7 +515,6 @@
         "openCsvFile": "Open csv file",
         "openRemote": "Open Remote",
         "overwrite": "Overwrite",
-        "quickUnlock": "Quick unlock",
         "quit": "Quit",
         "reject": "Reject",
         "reload": "Reload",
@@ -525,6 +524,7 @@
         "save": "Save",
         "saveAs": "Save As",
         "uncheck": "Uncheck",
+        "unlockDatabase": "Unlock Database",
         "useThisFolder": "Use This Folder",
         "yes": "Yes",
         "yesOverwrite": "Yes,Overwrite"
