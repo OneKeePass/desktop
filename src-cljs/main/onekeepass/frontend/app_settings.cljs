@@ -441,11 +441,9 @@
      [mui-dialog-content {:dividers true :style {:min-height "120px"}}
       [browser-manifest-reconnect-dialog-content dialog-data]]
      [mui-dialog-actions
-      [mui-button {:color "secondary"
-                   :on-click app-settings-events/browser-reconnect-confirm-dialog-close}
+      [mui-button {:on-click app-settings-events/browser-reconnect-confirm-dialog-close}
        "Cancel"]
-      [mui-button {:color "secondary"
-                   :on-click app-settings-events/browser-reconnect-confirmed}
+      [mui-button {:on-click app-settings-events/browser-reconnect-confirmed}
        "Reconnect"]]]))
 
 (defn- manifest-status-text [{:keys [owner installed-proxy-path]}]
@@ -604,11 +602,9 @@
         [:div])]]]
 
    [mui-dialog-actions
-    [mui-button {:variant "contained" :color "secondary"
-                 ;;:disabled in-progress?
+    [mui-button {;;:disabled in-progress?
                  :on-click app-settings-events/app-settings-dialog-close} (t/lstr-bl 'cancel)]
-    [mui-button {:variant "contained" :color "secondary"
-                 :disabled (or (not @(app-settings-events/app-settings-modified)) (-> error-fields seq boolean))
+    [mui-button {:disabled (or (not @(app-settings-events/app-settings-modified)) (-> error-fields seq boolean))
                  ;;:disabled (or (not modified) in-progress? (-> error-fields seq boolean))
                  :on-click app-settings-events/app-settings-save} (t/lstr-bl 'ok)]]])
 

@@ -370,8 +370,7 @@
       [mui-dialog-content-text body-text]]
      [mui-dialog-actions
       (for [{:keys [label on-click]}  actions]
-        ^{:key label} [mui-button {:color "secondary"
-                                   :disabled (= status :in-progress)
+        ^{:key label} [mui-button {:disabled (= status :in-progress)
                                    :on-click on-click} label])]]))
 
 (defn dialog-factory
@@ -402,8 +401,7 @@
       ;; TODO: We can pass  on-click or on-click-factory and assign to :on-click prop accordingly
       ;; For example :on-click (if (nil? on-click) (on-click-factory all-data) on-click)
       (for [{:keys [label on-click-factory]} actions]
-        ^{:key label} [mui-button {:color "secondary"
-                                   :disabled (= status :in-progress)
+        ^{:key label} [mui-button {:disabled (= status :in-progress)
                                    :on-click (on-click-factory all-data)} label])]]))
 
 ;; TODO: 
@@ -443,8 +441,7 @@
         [mui-linear-progress {:sx {:mt 2}}]])]]
    [mui-dialog-actions
     (for [{:keys [label on-click]}  actions]
-      ^{:key label} [mui-button {:color "secondary"
-                                 :disabled (= status :in-progress)
+      ^{:key label} [mui-button {:disabled (= status :in-progress)
                                  ;; The fn 'on-click' may accept a map as an optional arg or nil
                                  :on-click (fn []
                                              (on-click dialog-data))} label])]])
@@ -468,8 +465,7 @@
      (when (and (nil? api-error-text) (= status :in-progress))
        [mui-linear-progress {:sx {:mt 2}}])]]
    [mui-dialog-actions
-    [mui-button {:color "secondary"
-                 :disabled (= status :in-progress)
+    [mui-button {:disabled (= status :in-progress)
                  :on-click close-fn} (tr-bl close)]]])
 
 (defn error-info-dialog
@@ -483,8 +479,7 @@
       (when error-text
         [mui-alert {:severity "error" :sx {:mt 1}} error-text])]]
     [mui-dialog-actions
-     [mui-button {:color "secondary"
-                  :on-click cmn-events/close-error-info-dialog} (tr-bl close)]]])
+     [mui-button {:on-click cmn-events/close-error-info-dialog} (tr-bl close)]]])
   ([]
    (error-info-dialog @(cmn-events/error-info-dialog-data))))
 
@@ -496,8 +491,7 @@
     [mui-dialog-content {:dividers true :style {:min-height "100px"}}
      [mui-dialog-content-text message]]
     [mui-dialog-actions
-     [mui-button {:color "secondary"
-                  :on-click cmn-events/close-message-dialog} (t/lstr-bl 'ok)]]])
+     [mui-button {:on-click cmn-events/close-message-dialog} (t/lstr-bl 'ok)]]])
   ([]
    [message-dialog @(cmn-events/message-dialog-data)]))
 

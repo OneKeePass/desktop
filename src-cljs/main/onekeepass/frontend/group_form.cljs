@@ -72,7 +72,7 @@
                                    :sx {:flex-grow 1}
                                    :slotProps {:htmlInput m/auto-capitalize-off-props}
                                    :on-change #(reset! url-input (-> % .-target .-value))}]
-                  [mui-button {:variant "contained" :color "primary"
+                  [mui-button {:color "primary"
                                :disabled (str/blank? @url-input)
                                :on-click #(do (ci-events/add-icon-from-url
                                                @url-input
@@ -99,8 +99,7 @@
                    [mui-typography {:variant "body2" :color "text.secondary"}
                     (t/lstr-l 'noCustomIcons)])])]
              [mui-dialog-actions
-              [mui-button {:variant "contained" :color "secondary"
-                           :on-click close-icons-dialog} (tr-bl "close")]]]])))
+              [mui-button {:on-click close-icons-dialog} (tr-bl "close")]]]])))
 
 (defn- group-content [{:keys [name icon-id custom-icon-uuid tags notes times]}]
   [mui-box {:sx (theme-content-sx @custom-theme-atom)}
@@ -200,20 +199,16 @@
     (if (= mode :edit)
       (let [modified @(gf-events/form-modified)]
         [mui-dialog-actions
-         [mui-button {:variant "contained" :color "secondary"
-                      :on-click gd-events/group-form-dialog-close}
+         [mui-button {:on-click gd-events/group-form-dialog-close}
           (t/lstr-bl 'cancel)]
-         [mui-button {:variant "contained" :color "secondary"
-                      :on-click (if new-group gf-events/ok-new-group-on-click gf-events/ok-edit-on-click)
+         [mui-button {:on-click (if new-group gf-events/ok-new-group-on-click gf-events/ok-edit-on-click)
                       :disabled (not modified)}
           (t/lstr-bl 'ok)]])
       [mui-dialog-actions
-       [mui-button {:variant "contained" :color "secondary"
-                    :on-click
+       [mui-button {:on-click
                     gd-events/group-form-dialog-close}
         (t/lstr-bl 'cancel)]
-       [mui-button {:variant "contained" :color "secondary"
-                    :on-click #(gf-events/edit-form)}
+       [mui-button {:on-click #(gf-events/edit-form)}
         (tr-bl "edit")]])]])
 
 (defn group-content-dialog-main []

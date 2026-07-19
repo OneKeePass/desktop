@@ -301,7 +301,7 @@
                               :MuiButton
                               {:defaultProps
                                {:variant "contained"
-                                :color "secondary"
+                                :color "primary"
                                 :disableElevation true
                                 :disableRipple false
                                 :size "small"}}

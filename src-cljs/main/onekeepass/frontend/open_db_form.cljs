@@ -135,12 +135,10 @@
        ]]
 
      [mui-dialog-actions
-      [mui-button {:color "secondary"
-                   :disabled in-progress?
+      [mui-button {:disabled in-progress?
                    :on-click od-events/cancel-on-click}
        (t/lstr-bl 'cancel)]
-      [mui-button {:color "secondary"
-                   :disabled in-progress?
+      [mui-button {:disabled in-progress?
                    :on-click
                    ok-action}
        (t/lstr-bl 'ok)]]]))

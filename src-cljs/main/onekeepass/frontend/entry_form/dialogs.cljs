@@ -368,7 +368,6 @@
                                   :on-change #(reset! icon-url-input (-> % .-target .-value))}]
                    [mui-stack {:direction "row"  }
                     [mui-button { :sx {:mt 2}
-                                 :variant "contained" 
                                  :color "primary"
                                  :disabled (str/blank? @icon-url-input)
                                  :on-click #(do (ci-events/add-icon-from-url
@@ -401,8 +400,7 @@
                     [mui-typography {:variant "body2" :color "text.secondary"}
                      (t/lstr-l 'noCustomIcons)])])]
               [mui-dialog-actions
-               [mui-button {:variant "contained" :color "secondary"
-                            :on-click close-icons-dialog}
+               [mui-button {:on-click close-icons-dialog}
                 (t/lstr-bl 'cancel)]]]])))
   ([dialog-open?]
    [icons-dialog dialog-open? (fn [idx] (form-events/entry-form-data-update-field-value :icon-id idx))]))

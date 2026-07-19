@@ -241,7 +241,7 @@
     (when-not edit
       [mui-box {:sx {:margin-bottom "8px"}}
        [read-section-title (tr-l "info")]
-       [mui-box {:sx (theme-content-read-sx @custom-theme-atom)}
+       [mui-box {:sx (theme-content-read-sx @custom-theme-atom) :style {:padding-top "10px"}}
 
         ;; Two-column rows: a fixed-width muted label and a left-aligned value, so the
         ;; values line up in a column instead of hugging the right edge.
@@ -881,64 +881,38 @@
           (cond
             (or deleted-cat? recycle-bin? group-in-recycle-bin?)
             [:<>
-             [mui-button {:variant "contained"
-                          :color "secondary"
-                          :on-click #(move-events/move-group-entry-dialog-show :entry true)}
+             [mui-button {:on-click #(move-events/move-group-entry-dialog-show :entry true)}
               (lstr-ml 'putBack)]
-             [mui-button {:variant "contained"
-                          :color "secondary"
-                          :on-click #(move-events/delete-permanent-group-entry-dialog-show :entry true)}
+             [mui-button {:on-click #(move-events/delete-permanent-group-entry-dialog-show :entry true)}
               (lstr-ml 'deletePermanent)]
-             [mui-button {:variant "contained"
-                          :color "secondary"
-                          :on-click form-events/close-on-click}
+             [mui-button {:on-click form-events/close-on-click}
               (tr-bl close)]]
 
             edit
             [:<>
-             [mui-button {:variant "contained"
-                          :color "secondary"
-                          :on-click form-events/entry-update-cancel-on-click} (lstr-bl 'cancel)]
-             [mui-button {:variant "contained"
-                          :color "secondary"
-                          :disabled  (not @(form-events/modified))
+             [mui-button {:on-click form-events/entry-update-cancel-on-click} (lstr-bl 'cancel)]
+             [mui-button {:disabled  (not @(form-events/modified))
                           :on-click form-events/ok-edit-on-click} (tr-bl apply)]]
 
             :else
             [:<>
-             [mui-button {:variant "contained"
-                          :color "secondary"
-                          :on-click form-events/close-on-click} (tr-bl close)]
-             [mui-button {:variant "contained"
-                          :color "secondary"
-                          :on-click form-events/edit-mode-menu-clicked} (tr-bl "edit")]])
+             [mui-button {:on-click form-events/close-on-click} (tr-bl close)]
+             [mui-button {:on-click form-events/edit-mode-menu-clicked} (tr-bl "edit")]])
 
           #_(when (or deleted-cat? recycle-bin? group-in-recycle-bin?)
               [:<>
-               [mui-button {:variant "contained"
-                            :color "secondary"
-                            :on-click #(move-events/move-group-entry-dialog-show :entry true)}
+               [mui-button {:on-click #(move-events/move-group-entry-dialog-show :entry true)}
                 (lstr-ml 'putBack)]
-               [mui-button {:variant "contained"
-                            :color "secondary"
-                            :on-click #(move-events/delete-permanent-group-entry-dialog-show :entry true)}
+               [mui-button {:on-click #(move-events/delete-permanent-group-entry-dialog-show :entry true)}
                 (lstr-ml 'deletePermanent)]])
           #_(if edit
               [:<>
-               [mui-button {:variant "contained"
-                            :color "secondary"
-                            :on-click form-events/entry-update-cancel-on-click} (lstr-bl 'cancel)]
-               [mui-button {:variant "contained"
-                            :color "secondary"
-                            :disabled  (not @(form-events/modified))
+               [mui-button {:on-click form-events/entry-update-cancel-on-click} (lstr-bl 'cancel)]
+               [mui-button {:disabled  (not @(form-events/modified))
                             :on-click form-events/ok-edit-on-click} "Apply"]]
               [:<>
-               [mui-button {:variant "contained"
-                            :color "secondary"
-                            :on-click form-events/close-on-click} "Close"]
-               [mui-button {:variant "contained"
-                            :color "secondary"
-                            :on-click form-events/edit-mode-menu-clicked} "Edit"]])]]]
+               [mui-button {:on-click form-events/close-on-click} "Close"]
+               [mui-button {:on-click form-events/edit-mode-menu-clicked} "Edit"]])]]]
 
 
        [add-modify-section-popper @(form-events/section-name-dialog-data)]
@@ -1043,10 +1017,8 @@
 
       [mui-stack {:sx {:align-items "flex-end"}}
        [:div.buttons1
-        [mui-button {:variant "contained" :color "secondary"
-                     :on-click form-events/new-entry-cancel-on-click} (lstr-bl 'cancel)]
-        [mui-button {:variant "contained" :color "secondary"
-                     :on-click form-events/ok-new-entry-add} (lstr-bl 'ok)]]]]
+        [mui-button {:on-click form-events/new-entry-cancel-on-click} (lstr-bl 'cancel)]
+        [mui-button {:on-click form-events/ok-new-entry-add} (lstr-bl 'ok)]]]]
 
      [add-modify-section-popper @(form-events/section-name-dialog-data)]
      [add-modify-section-field-dialog @(form-events/section-field-dialog-data)]
@@ -1215,10 +1187,8 @@
 
     [mui-stack {:sx {:align-items "flex-end"}}
      [:div.buttons1
-      [mui-button {:variant "contained" :color "secondary"
-                   :on-click form-events/cancel-new-custom-entry-type} (lstr-bl 'cancel)]
-      [mui-button {:variant "contained" :color "secondary"
-                   :on-click form-events/create-custom-entry-type} (tr-bl create)]]]]
+      [mui-button {:on-click form-events/cancel-new-custom-entry-type} (lstr-bl 'cancel)]
+      [mui-button {:on-click form-events/create-custom-entry-type} (tr-bl create)]]]]
 
    #_[cc/message-sanckbar]
    #_[cc/message-sanckbar-alert (merge @(ce/message-snackbar-data) {:severity "info"})]])
@@ -1258,11 +1228,9 @@
 
         [mui-stack {:sx {:align-items "flex-end"}}
          [:div.buttons1
-          [mui-button {:variant "contained" :color "secondary"
-                       :on-click form-events/show-delete-confirm-dialog}
+          [mui-button {:on-click form-events/show-delete-confirm-dialog}
            (tr-bl delete)]
-          [mui-button {:variant "contained" :color "secondary"
-                       :on-click form-events/show-restore-confirm-dialog}
+          [mui-button {:on-click form-events/show-restore-confirm-dialog}
            (tr-bl restore)]]]]])))
 
 (defn history-entry-row-item
@@ -1322,8 +1290,8 @@
                       :align-items "center"
                       :background (theme-color @custom-theme-atom :header-footer) #_m/color-grey-200}}
       [:div {:style {:margin-top 10 :margin-bottom 10 :margin-right 5 :margin-left 5}}
-       [mui-button {:variant "outlined"
-                    :color "inherit"
+       [mui-button {;; :variant "outlined"
+                    ;; :color "inherit"
                     :on-click form-events/show-delete-all-confirm-dialog}
         (tr-bl deleteAll)]]]]))
 
@@ -1460,13 +1428,10 @@
                        [mui-alert {:severity "success" :sx {"&.MuiAlert-root" {:width "100%"}}} ;; need to override the paper width 60%
                         [mui-alert-title "Success"] "Custom field added. You can add more field or cancel to close"]])]]
      [mui-dialog-actions
-      [mui-button {:variant "contained" :color "secondary"
-                   :on-click form-events/close-custom-field-dialog} (lstr-bl 'cancel)]
+      [mui-button {:on-click form-events/close-custom-field-dialog} (lstr-bl 'cancel)]
       (if (= mode :add)
-        [mui-button {:variant "contained" :color "secondary"
-                     :on-click #(form-events/custom-field-add (select-keys m [:field-name :field-value :protected :data-type]))} "Add"]
-        [mui-button {:variant "contained" :color "secondary"
-                     :on-click #(form-events/custom-field-modify (select-keys m [:field-name :current-field-name :protected]))} "Modify"])]])
+        [mui-button {:on-click #(form-events/custom-field-add (select-keys m [:field-name :field-value :protected :data-type]))} "Add"]
+        [mui-button {:on-click #(form-events/custom-field-modify (select-keys m [:field-name :current-field-name :protected]))} "Modify"])]])
 
 #_(defn custom-field-dialogs []
     [:<>

@@ -317,7 +317,6 @@
            [mui-stack {:justify-content "center"}
             [mui-button {:variant "text"
                          :disabled (or modified in-progress? (-> error-fields seq boolean))
-                         :color "secondary"
                          :on-click settings-events/app-settings-dialog-read-start}
              (tr-l "appSettings")]]]]]
 
@@ -353,11 +352,9 @@
          [mui-linear-progress {:sx {:mt 2}}])]]
 
      [mui-dialog-actions
-      [mui-button {:variant "contained" :color "secondary"
-                   :disabled in-progress?
+      [mui-button {:disabled in-progress?
                    :on-click settings-events/cancel-on-click} (t/lstr-bl 'cancel)]
-      [mui-button {:variant "contained" :color "secondary"
-                   :disabled (or (not modified) in-progress? (-> error-fields seq boolean))
+      [mui-button {:disabled (or (not modified) in-progress? (-> error-fields seq boolean))
                    :on-click settings-events/ok-on-click} (t/lstr-bl 'ok)]]]))
 
 (defn settings-dialog-main []

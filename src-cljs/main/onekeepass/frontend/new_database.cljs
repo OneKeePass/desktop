@@ -296,11 +296,9 @@
      [mui-dialog-content {:sx {:pt 2}}
       [mui-typography {:variant "body1"} (lstr-dlg-text 'noRemoteConnections)]]
      [mui-dialog-actions
-      [mui-button {:color "secondary"
-                   :on-click nd-events/no-remote-warning-uncheck}
+      [mui-button {:on-click nd-events/no-remote-warning-uncheck}
        (lstr-bl "uncheck")]
-      [mui-button {:variant "contained"
-                   :on-click nd-events/no-remote-warning-continue}
+      [mui-button {:on-click nd-events/no-remote-warning-continue}
        (lstr-bl "continue")]]]))
 
 (defn new-database-dialog-main []

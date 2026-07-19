@@ -416,13 +416,14 @@
      [:div {:class "gcontent" :style {:margin-bottom 2 :height "200px"}}
       [entry-items]]
      [:div {:class "gfooter" :style {:margin-top 5
-                                     :background (theme-color @custom-theme-atom :header-footer)}}
+                                     :background (theme-color @custom-theme-atom :header-footer)
+                                     } }
       [mui-stack {:style {:alignItems "center"
                           ;; need this to align this footer with entry form footer
                           :max-height "46px"}}
        [:div {:style {:margin-top 10 :margin-bottom 10 :margin-right 5 :margin-left 5}}
-        [mui-button {:variant "outlined"
-                     :color "inherit"
+        [mui-button {;; :variant "outlined"
+                     ;; :color "inherit"
                      :disabled disable-action
                      ;; We need to use derefenced group-info in event call. If we use @group-info directly in on-click,
                      ;; there will be a re-frame warning indicating reg-sub is called out of context

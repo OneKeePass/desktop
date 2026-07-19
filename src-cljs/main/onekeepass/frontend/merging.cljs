@@ -147,8 +147,7 @@
           (tr-dlg-text "externalDbChangedTxt2")])]
       [mui-dialog-actions
        [mui-stack {:direction "row" :spacing 2}
-        [mui-button {:variant "contained"
-                     :on-click #(external-db-change-events/external-change-merge-start db-key)}
+        [mui-button {:on-click #(external-db-change-events/external-change-merge-start db-key)}
          (tr-bl merge)]
         ;; Reload is local-only: it discards the in-memory db and re-reads
         ;; the file from disk. For remote dbs we don't yet have a

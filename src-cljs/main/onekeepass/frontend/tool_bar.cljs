@@ -126,8 +126,7 @@
 
       [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]
       [mui-stack {:style {:align-items "center"}}
-       [mui-button {:color "secondary"
-                    :variant "text"
+       [mui-button {:variant "text"
                     :on-click tb-events/conflict-action-save-as} (tr-bl saveAs)]]
       [mui-stack
        [mui-typography {:sx {"&.MuiTypography-root" {:color (theme-color @custom-theme-atom :primary-main)}}}
@@ -153,8 +152,7 @@
       [mui-divider {:style {:margin-bottom 5 :margin-top 5}}]]
 
      [mui-dialog-actions
-      [mui-button {:color "secondary"
-                   :on-click tb-events/save-current-db-msg-dialog-hide} (t/lstr-bl 'cancel)]]]))
+      [mui-button {:on-click tb-events/save-current-db-msg-dialog-hide} (t/lstr-bl 'cancel)]]]))
 
 (defn save-info-dialog [{:keys [status api-error-text]}]
   (if (= api-error-text DB_CHANGED)
@@ -171,8 +169,7 @@
        (when (and (nil? api-error-text) (= status :in-progress))
          [mui-linear-progress {:sx {:mt 2}}])]]
      [mui-dialog-actions
-      [mui-button {:color "secondary"
-                   :disabled (= status :in-progress)
+      [mui-button {:disabled (= status :in-progress)
                    :on-click tb-events/save-current-db-msg-dialog-hide} "Close"]]]))
 
 (defn top-bar
