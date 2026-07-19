@@ -416,6 +416,9 @@
      [:div {:class "gcontent" :style {:margin-bottom 2 :height "200px"}}
       [entry-items]]
      [:div {:class "gfooter" :style {:margin-top 5
+                                     :border-top (str "1px solid " (theme-color @custom-theme-atom :divider-color1))
+                                     :border-left (str "1px solid " (theme-color @custom-theme-atom :divider-color1))
+                                     :border-right (str "1px solid " (theme-color @custom-theme-atom :divider-color1))
                                      :background (theme-color @custom-theme-atom :header-footer)
                                      } }
       [mui-stack {:style {:alignItems "center"

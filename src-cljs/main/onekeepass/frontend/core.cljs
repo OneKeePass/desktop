@@ -174,8 +174,8 @@
 
          :else nil)
 
-       [mui-button {:variant "outlined"
-                    :color "inherit"
+       [mui-button {;; :variant "outlined"
+                    ;; :color "inherit"
                     :on-click #(cmn-events/unlock-current-db biometric-type)}
         (tr-bl "unlockDatabase")]]]]))
 
