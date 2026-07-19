@@ -302,7 +302,10 @@
                        :or {item-size 60
                             scroll-to-item-index 0
                             div-style {}
-                            list-style {:max-width 275}}}]
+                            ;; No default max-width; the list fills the width given by auto-sizer.
+                            ;; The earlier {:max-width 275} default was needed only for the old
+                            ;; resizable split-pane layout to keep its left side from expanding
+                            list-style {}}}]
   ;; This component makes use of 'fixed-size-list' and 'auto-sizer' (Function-as-child Components)
   ;; which expect a function as their only child. 
   ;; See 
@@ -313,8 +316,8 @@
   (fn
     []
     ;;(println "opts in row-item-fn is" options)
-    ;; Need to set this so that splitpane's left side has some min width when content is small 
-    [:div {:style (merge {:min-width 200 :height "100%" :width "275"} div-style)}
+    ;; min-width keeps the pane usable when content is small
+    [:div {:style (merge {:min-width 200 :height "100%"} div-style)}
      ;;AutoSizer needs to be a child of div for its to work within a flex container  
      (let [list-items (if (instance? reagent.ratom/Reaction items) @items items)]
        (when  (not-empty list-items) #_(not-empty @items)
@@ -325,8 +328,7 @@
                    ;; (println "dims are " dims)
                    (r/as-element
                     [:div {:style {:min-width 200 :height (:height dims)}}
-                     ;; :> m/MyFixedSizeList 
-                     [fixed-size-list {:style list-style ;;{:max-width 275} ;; Need to set this so that splitpane's left side  does not expand
+                     [fixed-size-list {:style list-style
                                        :height (:height dims)
                                        :width (:width dims)
                                        ;; this is the size of the row component returned by render-row fn
