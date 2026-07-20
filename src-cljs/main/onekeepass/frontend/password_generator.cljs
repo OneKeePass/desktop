@@ -182,7 +182,7 @@
        :helper-text (-> score :name lstr-l-cv)
        :type (if password-visible "text" "password")
        :slotProps {:input {:endAdornment (r/as-element
-                                         [mui-input-adornment {:position "end"}
+                                         [mui-input-adornment {:position "end" :sx {:margin-right "12px"}}
                                           [end-icons password-visible]])}
                    :htmlInput {:readOnly true}}
        :variant "standard"
@@ -271,7 +271,7 @@
        :helper-text (-> score :name lstr-l-cv)
        :type (if password-visible "text" "password")
        :slotProps {:input {:endAdornment (r/as-element
-                                         [mui-input-adornment {:position "end"}
+                                         [mui-input-adornment {:position "end" :sx {:margin-right "12px"}}
                                           [end-icons password-visible]])}
                    :htmlInput {:readOnly true}}
        :variant "standard"
