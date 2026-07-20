@@ -95,7 +95,7 @@
                     :variant "standard" :fullWidth true
                     :type (if password-visible "text" "password")
                     :slotProps {:input {:endAdornment (r/as-element
-                                                       [mui-input-adornment {:position "end"}
+                                                       [mui-input-adornment {:position "end" :sx {:mr "6px"}}
                                                         (if password-visible
                                                           [mui-icon-button {:edge "end" :sx {:mr "-8px"}
                                                                             :on-click #(nd-events/database-field-update :password-visible false)}

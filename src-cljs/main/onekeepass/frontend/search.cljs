@@ -110,7 +110,7 @@
                       :variant "standard"
                       :fullWidth true
                       :slotProps {:input {:endAdornment (r/as-element
-                                                         [mui-input-adornment {:position "end"}
+                                                         [mui-input-adornment {:position "end" }
                                                           [mui-icon-button
                                                            {:edge false
                                                             :on-click (fn []

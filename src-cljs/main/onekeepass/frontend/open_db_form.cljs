@@ -56,7 +56,7 @@
                                              :endAdornment
                                              (when (and (not unlock-request) (not remote?))
                                                (r/as-element
-                                                [mui-input-adornment {:position "end"}
+                                                [mui-input-adornment {:position "end" :sx {:mr "6px"} }
                                                  [mui-icon-button
                                                   {:edge "end" :sx {:mr "-8px"}
                                                    :onClick #(od-events/open-file-explorer-on-click-1 dbs-merge-request)}
@@ -78,7 +78,7 @@
 
                          :variant "standard" :fullWidth true
                          :slotProps {:input {:endAdornment (r/as-element
-                                                            [mui-input-adornment {:position "end"}
+                                                            [mui-input-adornment {:position "end" :sx {:mr "6px"}}
                                                              (if password-visibility-on
                                                                [mui-icon-button {:edge "end" :sx {:mr "-8px"}
                                                                                  :on-click #(od-events/password-visible-change false)}
@@ -94,7 +94,7 @@
                          ;;:placeholder "Optional"
                          ;; :helperText "Please enter a valid password or a key file or both"
                          ;;:helperText "This is required if you had used any random file as key in addition to password"
-                         :slotProps {:input {:endAdornment (r/as-element [mui-input-adornment {:position "end"}
+                         :slotProps {:input {:endAdornment (r/as-element [mui-input-adornment {:position "end" :sx {:mr "6px"}}
                                                                           (if key-file-visibility-on
                                                                             [mui-icon-button {:edge "end" :sx {:mr "-8px"}
                                                                                               :on-click #(od-events/key-file-visible-change false)}

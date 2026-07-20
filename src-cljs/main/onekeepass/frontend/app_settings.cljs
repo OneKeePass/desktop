@@ -209,7 +209,7 @@
                       :on-change (app-settings-events/field-update-factory [:preference-data :backup :dir])
                       :variant "standard" :fullWidth true
                       :slotProps {:input {:endAdornment (r/as-element
-                                                         [mui-input-adornment {:position "end"}
+                                                         [mui-input-adornment {:position "end" :sx {:mr "6px"}}
                                                           [mui-icon-button {:edge "end"
                                                                             :disabled (not enabled)
                                                                             :sx {:mr "-8px"}
