@@ -1365,14 +1365,25 @@
 (defn notify-copied-to-clipboard []
   (dispatch [:common/message-snackbar-open (lstr-sm 'copiedToClipboard)]))
 
-(defn write-to-clipboard [data]
-  (bg/write-to-clipboard data)
-  (notify-copied-to-clipboard))
-
 (defn- on-linux? []
   ;; Read os-name from app-db directly (not via subscribe) since this runs in
   ;; event/callback context, not a reactive one.
   (= (:os-name @rf-db/app-db) const/LINUX))
+
+;; Clipboard writes are routed by OS, mirroring read/clear below:
+;; - Linux: the GTK backend command (bg/write-to-clipboard-gtk). The arboard
+;;   plugin falls back to X11 and times out on Wayland, and the webview's
+;;   execCommand('copy') does not reliably place programmatically-copied text on
+;;   the GTK clipboard (it copied nothing from the Password Generator dialog).
+;; - Mac/Windows: the arboard plugin directly (bg/write-to-clipboard-plugin).
+;;   The webview-native copy relies on DOM focus/selection and is silently
+;;   defeated by a focus-trapping MUI dialog; the plugin writes through the
+;;   native OS clipboard API and is unaffected.
+(defn write-to-clipboard [data]
+  (if (on-linux?)
+    (bg/write-to-clipboard-gtk data)
+    (bg/write-to-clipboard-plugin data))
+  (notify-copied-to-clipboard))
 
 ;; On Linux the arboard-backed clipboard plugin fails (it falls back to X11 and
 ;; times out on Wayland), so clipboard read/clear go through the GTK backend

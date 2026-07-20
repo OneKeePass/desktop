@@ -246,6 +246,15 @@ pub(crate) async fn clipboard_get_text<R: Runtime>(
 
 #[cfg(target_os = "linux")]
 #[tauri::command]
+pub(crate) async fn clipboard_set_text<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    text: String,
+) -> Result<()> {
+    crate::clipboard::set_text(&app, text)
+}
+
+#[cfg(target_os = "linux")]
+#[tauri::command]
 pub(crate) async fn clipboard_clear<R: Runtime>(app: tauri::AppHandle<R>) -> Result<()> {
     crate::clipboard::clear(&app)
 }

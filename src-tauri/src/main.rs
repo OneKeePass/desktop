@@ -116,6 +116,8 @@ fn main() {
             commands::clipboard_clear,
             #[cfg(target_os = "linux")]
             commands::clipboard_get_text,
+            #[cfg(target_os = "linux")]
+            commands::clipboard_set_text,
             commands::clone_entry,
             commands::close_kdbx,
             commands::collect_entry_group_tags,

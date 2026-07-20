@@ -261,6 +261,20 @@
         (when (and previously-focused (fn? (.-focus previously-focused)))
           (.focus previously-focused))))))
 
+(defn write-to-clipboard-plugin
+  "Copies given data to the clipboard using only the arboard-backed Tauri
+   clipboard plugin. This is the Mac/Windows path: the plugin writes through
+   the native OS clipboard API and does not depend on webview DOM focus, so it
+   works even when the copy is triggered from inside a focus-trapping MUI
+   dialog (e.g. the Password Generator). See write-to-clipboard for the
+   Linux/Wayland webview-native path."
+  [data]
+  (go
+    (try
+      (<p! (writeText data))
+      (catch js/Error err
+        (js/console.error "write-to-clipboard-plugin failed: " err)))))
+
 (defn write-to-clipboard
   "Copies given data to the clipboard - equivalent to Cmd + C.
    Uses the webview-native copy first (works on Linux/Wayland), and falls
@@ -300,6 +314,16 @@
 ;; src-tauri/src/clipboard.rs). The arboard-backed Tauri plugin used by
 ;; read-from-clipboard/clear-clipboard fails on Linux/Wayland, so the events
 ;; layer routes Linux through these instead (based on os-name).
+
+(defn write-to-clipboard-gtk
+  "Linux GTK-backed clipboard write. Used instead of the webview's
+   execCommand('copy'), which does not reliably place programmatically-copied
+   text on the GTK clipboard (e.g. from the Password Generator dialog)."
+  [data]
+  (invoke-api "clipboard_set_text" {:text data}
+              (fn [{:keys [error]}]
+                (when error
+                  (js/console.error "clipboard_set_text failed: " error)))))
 
 (defn clear-clipboard-gtk []
   (invoke-api "clipboard_clear" {}

@@ -51,6 +51,15 @@ pub(crate) fn get_text<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<Option<S
     })
 }
 
+// Writes 'text' to the clipboard. Used on Linux instead of the webview's
+// execCommand('copy'), which does not reliably place text on the GTK clipboard
+// when triggered programmatically (e.g. from the Password Generator dialog).
+pub(crate) fn set_text<R: Runtime>(app: &tauri::AppHandle<R>, text: String) -> Result<()> {
+    with_clipboard(app, move |clipboard| {
+        clipboard.set_text(&text);
+    })
+}
+
 // Clears the clipboard by overwriting it with empty text. Used by the
 // sensitive-data auto-clear to remove a copied password from the clipboard.
 pub(crate) fn clear<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<()> {
