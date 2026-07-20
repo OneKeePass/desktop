@@ -125,6 +125,22 @@
       val
       {:sx {:mr "-1px"}}]]))
 
+(defn- single-line-end-adornment
+  "InputAdornment that wraps the trailing action icons for single-line fields
+   (text-field, single-line-text-field, otp-read-field).
+
+   A standard MUI Input has no right padding, so its content box ends right at
+   the field border. The last icon uses edge=\"end\", which pushes its rounded
+   hover/press highlight onto - and past - that border. The right margin here
+   pushes the whole icon cluster inward so the highlight stays inside the field
+   in edit mode. This is most visible when the field shows multiple icons.
+
+   The multiline fields don't need this: they position their adornment
+   absolute at right:5px, which already gives the same clearance."
+  [icons-kv]
+  [mui-input-adornment {:position "end" :sx {:mr "2px"}}
+   [end-icons icons-kv]])
+
 (defn simple-selection-field [{:keys [key
                                       value
                                       edit
@@ -195,8 +211,7 @@
                                       :sx (theme-text-field-sx edit @custom-theme-atom)
                                       :endAdornment (if no-end-icons nil
                                                         (r/as-element
-                                                         [mui-input-adornment {:position "end"}
-                                                          [end-icons kv]]))
+                                                         [single-line-end-adornment kv]))
                                       :type (if (or (not protected) visible) "text" "password")}
                               :htmlInput (html-input-props kv)}}]))
 
@@ -272,11 +287,10 @@
                                            :sx (theme-text-field-sx edit @custom-theme-atom)
                                            :endAdornment (if (or (not valid-token-found) no-end-icons) nil
                                                              (r/as-element
-                                                              [mui-input-adornment {:position "end"}
-                                                               [end-icons (assoc kv
-                                                                                 :value token
-                                                                                 :read-value nil
-                                                                                 :protected false)]]))
+                                                              [single-line-end-adornment (assoc kv
+                                                                                                :value token
+                                                                                                :read-value nil
+                                                                                                :protected false)]))
                                            :type "text"}
                                    :htmlInput {:readOnly true}}}]
 
@@ -475,8 +489,7 @@
                                     :sx (theme-text-field-sx edit @custom-theme-atom)
                                     :endAdornment (if no-end-icons nil
                                                       (r/as-element
-                                                       [mui-input-adornment {:position "end"}
-                                                        [end-icons kv]]))
+                                                       [single-line-end-adornment kv]))
                                     :type (if (or (not protected) visible) "text" "password")}
                              :htmlInput (html-input-props kv)}}])
 

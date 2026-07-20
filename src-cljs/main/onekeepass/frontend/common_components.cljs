@@ -616,8 +616,13 @@
   "Returns a form-2 reagent component that on click copies the 'value' 
   field to clipboard"
   ([on-click-fn]
-   (fn []
+   ;; Same [value & props] call convention as the 0-arg arity below so callers
+   ;; can pass :sx (e.g. the end-icon right margin) and the icon aligns the same
+   ;; whether or not the field is protected. 'value' is unused here because the
+   ;; sensitive on-click-fn already closes over it.
+   (fn [_value & {:as props}]
      [mui-icon-button {:edge "end"
+                       :sx (:sx props)
                        :on-click #(on-click-fn)}
       [mui-icon-file-copy-outlined]]))
   ([]
