@@ -158,6 +158,10 @@
 (def IFDEVICE "IfDevice")
 (def ADDITIONAL_URLS "Additional URLs")
 
+;; Passkey entry protected field keys (match onekeepass-core constants of the same name)
+(def KPEX_PASSKEY_USER_HANDLE "KPEX_PASSKEY_USER_HANDLE")
+(def KPEX_PASSKEY_CREDENTIAL_ID "KPEX_PASSKEY_CREDENTIAL_ID")
+
 (def ONE_TIME_PASSWORD_TYPE "Field type" "OneTimePassword")
 
 (def TEXT_TYPE "Field type matching Rust enum FieldDataType::Text" "Text")

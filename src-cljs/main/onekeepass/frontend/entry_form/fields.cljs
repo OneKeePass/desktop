@@ -77,6 +77,16 @@
   (cond-> {:readOnly (not edit)}
     protected (assoc :data-okp-sensitive-copy "true")))
 
+;; Read-mode monospace + per-character coloring (see 'colored-read-field') is
+;; applied only to protected fields whose key is in this set. Passwords and the
+;; passkey secret fields read as random strings and benefit; other protected
+;; fields (e.g. a free-text security answer) are left as plain text. Add a field
+;; key here to opt it in.
+(def ^:private colorable-protected-field-names
+  #{PASSWORD
+    const/KPEX_PASSKEY_USER_HANDLE
+    const/KPEX_PASSKEY_CREDENTIAL_ID})
+
 (defn- end-icons [{:keys [key protected visible edit] :as kv}]
   (let [val (to-value kv)
         entry-type-uuid @(form-events/entry-form-data-fields :entry-type-uuid)
@@ -471,9 +481,10 @@
 
 (defn- single-line-text-field
   "A single line text field.
-   In read mode a visible protected (password) field is shown via
-   'colored-read-field' (monospace + per-character coloring); all other cases
-   use the standard MUI text field."
+   In read mode a visible protected field whose key is in
+   'colorable-protected-field-names' is shown via 'colored-read-field'
+   (monospace + per-character coloring); all other cases use the standard MUI
+   text field."
   [{:keys [key
            label
            val
@@ -494,7 +505,8 @@
          disabled false
          on-change-handler #(println "No on change handler yet registered for the key")}
     :as kv}]
-  (if (and (not edit) protected visible)
+  (if (and (not edit) protected visible
+           (contains? colorable-protected-field-names key))
     [colored-read-field kv]
     [m/text-field {:sx   (merge {:margin-top "16px"} (cc/password-helper-text-sx (:name password-score)))
                  :fullWidth true
