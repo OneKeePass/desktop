@@ -3,11 +3,12 @@
    [onekeepass.frontend.common-components :as cc]
    [onekeepass.frontend.events.password-generator :as gen-events]
    [onekeepass.frontend.mui-components :as m
-    :refer [mui-alert mui-alert-title mui-button mui-checkbox
+    :refer [mui-alert mui-alert-title mui-box mui-button mui-checkbox
             mui-dialog mui-dialog-actions mui-dialog-content
-            mui-dialog-title mui-form-control-label mui-icon-button
+            mui-dialog-title mui-form-control mui-form-control-label
+            mui-form-helper-text mui-icon-button mui-input-label
             mui-icon-refresh mui-icon-visibility mui-icon-visibility-off mui-input
-            mui-input-adornment mui-slider mui-stack mui-tab mui-tabs
+            mui-slider mui-stack mui-tab mui-tabs
             mui-text-field mui-tooltip mui-typography]]
    [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-h tr-bl] :refer [lstr-l lstr-l-cv]]
    [reagent.core :as r]))
@@ -36,6 +37,54 @@
        (gen-events/generator-password-copied)
        ;; This call will provide an alert to the user
        #_(gen-events/generator-dialog-data-update :text-copied true)))]])
+
+(defn- colored-password
+  "Renders the value string as per-character spans.
+   When colorize? is true, digits and symbols get accent colors while letters
+   inherit the theme text color, making random passwords easier to scan.
+   When visible? is false, mask dots are shown instead of the characters."
+  [value visible? colorize?]
+  (let [s (str value)]
+    (if-not visible?
+      [:span (apply str (repeat (count s) "•"))]
+      (into [:span]
+            (map-indexed
+             (fn [i ch]
+               (let [c (str ch)
+                     color (when colorize?
+                             (cond
+                               (re-matches #"[0-9]" c) "#2979ff"   ;; digits
+                               (re-matches #"[a-zA-Z]" c) nil        ;; letters - inherit
+                               :else "#e53935"))]                    ;; symbols
+                 ^{:key i} [:span (when color {:style {:color color}}) c]))
+             s)))))
+
+;; Read-only field-like display of the generated value, shared by both panels.
+;; Keeps the label, strength helper text and the show/hide + regenerate + copy
+;; icons. colorize? enables per-character coloring (used for passwords, not for
+;; pass phrases which are read as words).
+(defn- password-display [{:keys [value visible? score colorize?]}]
+  [mui-form-control {:variant "standard"
+                     :fullWidth true
+                     :sx (cc/password-helper-text-sx (:name score))}
+   [mui-input-label {:shrink true} (tr-l password)]
+   [mui-box {:sx {:display "flex"
+                  :align-items "center"
+                  :min-height "32px"
+                  :margin-top "16px"
+                  :border-bottom "1px solid"
+                  :border-color "divider"}}
+    [mui-box {:sx {:flex-grow 1
+                   :font-family "monospace"
+                   :font-size "1.15rem"
+                   :letter-spacing "0.5px"
+                   :overflow-x "auto"
+                   :white-space "nowrap"
+                   :padding-bottom "2px"}}
+     [colored-password value visible? colorize?]]
+    [mui-box {:sx {:display "flex" :align-items "center" :flex-shrink 0 :margin-right "12px"}}
+     [end-icons visible?]]]
+   [mui-form-helper-text (-> score :name lstr-l-cv)]])
 
 
 (defn- tab-panel-selection [panel-shown]
@@ -131,7 +180,7 @@
                           {:keys [password
                                   score]} :password-result}]
   [mui-stack {:sx {:align-items "center"}}
-   [mui-stack {:sx {:width "80%"}}
+   [mui-stack {:sx {:width "90%"}}
     [mui-stack {:direction "row"}
      [simple-selection-field {:field-name (lstr-l 'wordList)
                               :value (:type-name word-list-source)
@@ -180,19 +229,11 @@
                                :on-change-handler (cc/on-change-factory gen-events/pass-phrase-options-select-field-update :capitalize-first)
                                :select-field-options (capitalize-first-choices)}]]]
 
-    [mui-stack {:direction "row" :sx {:width "100%" :margin-top "10px"}}
-     [mui-text-field
-      {:label (tr-l password)
-       :value password
-       :sx   (merge {} (cc/password-helper-text-sx (:name score)))
-       :helper-text (-> score :name lstr-l-cv)
-       :type (if password-visible "text" "password")
-       :slotProps {:input {:endAdornment (r/as-element
-                                         [mui-input-adornment {:position "end" :sx {:margin-right "12px"}}
-                                          [end-icons password-visible]])}
-                   :htmlInput {:readOnly true}}
-       :variant "standard"
-       :fullWidth true}]]
+    [mui-stack {:direction "row" :sx {:width "100%" :margin-top "30px" :margin-bottom "20px"}}
+     [password-display {:value password
+                        :visible? password-visible
+                        :score score
+                        :colorize? false}]]
 
     (when text-copied [mui-stack {:sx {:margin-top "5px"}}
                        [mui-alert {:severity "success"
@@ -205,11 +246,12 @@
                                lowercase-letters
                                uppercase-letters
                                numbers
-                               symbols]} :password-options
+                               symbols
+                               exclude-similar-characters]} :password-options
                        {:keys [analyzed-password
                                score]} :password-result}]
   [mui-stack {:sx {:align-items "center"}}
-   [mui-stack {:sx {:width "80%"}}
+   [mui-stack {:sx {:width "90%"}}
     [mui-stack {:direction "row" :spacing 2 :sx {:margin-top "10px"}}
      [mui-stack {:sx {:width "25%"}}
       [mui-typography (tr-l length)]]
@@ -232,6 +274,9 @@
                                (> length 100)
                                (gen-events/password-options-update :length 100)))
                   :slotProps {:htmlInput {:min 8 :max 100 :type "number"}}}]]]
+
+    [mui-stack {:direction "row" :sx {:margin-top "3px"}}
+     [mui-typography {:variant "caption" :color "text.secondary"} (lstr-l 'lengthHint)]]
 
     [mui-stack {:direction "row"}
      [mui-stack {:sx {:width "50%"}}
@@ -269,19 +314,21 @@
                                 gen-events/password-options-update :symbols)}])
         :label (tr-l symbols)}]]]
 
-    [mui-stack {:direction "row" :sx {:width "100%"}}
-     [mui-text-field
-      {:label (tr-l password)
-       :value analyzed-password
-       :sx   (merge {} (cc/password-helper-text-sx (:name score)))
-       :helper-text (-> score :name lstr-l-cv)
-       :type (if password-visible "text" "password")
-       :slotProps {:input {:endAdornment (r/as-element
-                                         [mui-input-adornment {:position "end" :sx {:margin-right "12px"}}
-                                          [end-icons password-visible]])}
-                   :htmlInput {:readOnly true}}
-       :variant "standard"
-       :fullWidth true}]]
+    [mui-stack {:direction "row"}
+     [mui-stack {:sx {:width "100%"}}
+      [mui-form-control-label
+       {:control (r/as-element
+                  [mui-checkbox
+                   {:checked exclude-similar-characters
+                    :on-change (cc/on-check-factory
+                                gen-events/password-options-update :exclude-similar-characters)}])
+        :label (lstr-l 'excludeSimilarCharacters)}]]]
+
+    [mui-stack {:direction "row" :sx {:width "100%" :margin-top "20px" :margin-bottom "20px"}}
+     [password-display {:value analyzed-password
+                        :visible? password-visible
+                        :score score
+                        :colorize? true}]]
 
     (when text-copied [mui-stack {:sx {:margin-top "5px"}}
                        [mui-alert {:severity "success"

@@ -54,7 +54,7 @@
    ;; :password or :pass-phrase
    :panel-shown :password
    ;; All fields from struct PasswordGenerationOptions
-   :password-options {:length 8
+   :password-options {:length 16
                       :numbers true
                       :lowercase-letters true
                       :uppercase-letters true
