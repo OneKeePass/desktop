@@ -75,9 +75,15 @@
                              :score-text nil}}})
 
 (defn- init-dialog-data [app-db]
-  (let [phrase-generator-options (cmn-events/app-preference-phrase-generator-options app-db)]
-    (-> app-db (assoc-in [:generator :dialog-data] generator-dialog-init-data)
-        (assoc-in [:generator :dialog-data :phrase-generator-options] phrase-generator-options))))
+  (let [phrase-generator-options (cmn-events/app-preference-phrase-generator-options app-db)
+        password-options (cmn-events/app-preference-password-generation-options app-db)
+        db (-> app-db (assoc-in [:generator :dialog-data] generator-dialog-init-data)
+               (assoc-in [:generator :dialog-data :phrase-generator-options] phrase-generator-options))]
+    ;; Load saved password options from preference; fall back to the built-in
+    ;; defaults in generator-dialog-init-data when none are stored yet.
+    (if password-options
+      (assoc-in db [:generator :dialog-data :password-options] password-options)
+      db)))
 
 ;; Updates all top level fields of dialog-data
 (defn- to-generator-dialog-data [db & {:as kws}]
@@ -141,13 +147,24 @@
                            (when-let [result (check-error api-response handle-error)]
                              (dispatch [:password-generation-complete result]))))))
 
-(reg-event-db
+(reg-event-fx
  :password-generation-complete
- (fn [db [_event-id password-result]]
+ (fn [{:keys [db]} [_event-id password-result]]
    ;;(println ":password-generation-complete called "password-result)
-   (-> db
-       (assoc-in  [:generator :dialog-data :password-result] password-result)
-       (assoc-in  [:generator :dialog-data :dialog-show] true))))
+   (let [;; This handler is shared by both panels. Only persist when the password
+         ;; panel is active and the options differ from what is already stored,
+         ;; mirroring the pass phrase option persistence in
+         ;; :pass-phrase-generation-complete.
+         panel-shown (get-in db [:generator :dialog-data :panel-shown])
+         pref-po (cmn-events/app-preference-password-generation-options db)
+         po (get-in db [:generator :dialog-data :password-options])
+         modified (and (= panel-shown :password) (not= pref-po po))
+         db (-> db
+                (assoc-in [:generator :dialog-data :password-result] password-result)
+                (assoc-in [:generator :dialog-data :dialog-show] true))]
+     {:db db
+      :fx [(when modified
+             [:bg-update-pass-gen-preference {:password-options po}])]})))
 
 (reg-event-fx
  :generator-password-copied

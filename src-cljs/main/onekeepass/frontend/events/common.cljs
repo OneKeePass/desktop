@@ -175,6 +175,9 @@
 (defn app-preference-phrase-generator-options [app-db]
   (-> app-db :app-preference :password-gen-preference :phrase-generator-options))
 
+(defn app-preference-password-generation-options [app-db]
+  (-> app-db :app-preference :password-gen-preference :password-generation-options))
+
 (reg-event-fx
  :init-process
  (fn [{:keys [_db]} [_event-id]]

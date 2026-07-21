@@ -407,6 +407,11 @@ impl Preference {
             updated = true;
         }
 
+        if let Some(v) = preference_data.password_options {
+            self.password_gen_preference.update_password_options(v);
+            updated = true;
+        }
+
         if let Some(v) = preference_data.browser_ext_support {
             self.browser_ext_support.update(v)?;
             updated = true;

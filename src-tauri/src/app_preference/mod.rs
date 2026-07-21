@@ -47,6 +47,7 @@ pub(crate) struct PreferenceData {
     language: Option<String>,
     backup: Option<BackupPreference>,
     pass_phrase_options: Option<kp_service::PassphraseGenerationOptions>,
+    password_options: Option<kp_service::PasswordGenerationOptions>,
     browser_ext_support: Option<BrowserExtSupportData>,
     // Global SSH agent enable flag. Like browser_ext_support, the frontend sends
     // it on every save; Preference::update merges it and AppState::update_preference
