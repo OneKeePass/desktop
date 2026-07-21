@@ -718,8 +718,30 @@
     :else
     {}))
 
+(defn colored-password
+  "Renders the value string as per-character spans.
+   When colorize? is true, digits and symbols get accent colors while letters
+   inherit the theme text color, making random passwords easier to scan.
+   When visible? is false, mask dots are shown instead of the characters.
+   Shared by the password generator dialog and the entry form password field."
+  [value visible? colorize?]
+  (let [s (str value)]
+    (if-not visible?
+      [:span (apply str (repeat (count s) "•"))]
+      (into [:span]
+            (map-indexed
+             (fn [i ch]
+               (let [c (str ch)
+                     color (when colorize?
+                             (cond
+                               (re-matches #"[0-9]" c) "#2979ff"   ;; digits
+                               (re-matches #"[a-zA-Z]" c) nil        ;; letters - inherit
+                               :else "#e53935"))]                    ;; symbols
+                 ^{:key i} [:span (when color {:style {:color color}}) c]))
+             s)))))
+
 (defn menu-action
-  " The arg 'action' is a fn 
+  " The arg 'action' is a fn
     The arg 'action-args' is one or more arguments that are passed to the action fn
     Returns a fn that is used as on-click handler of a menu item
   "

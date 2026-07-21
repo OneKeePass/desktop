@@ -38,27 +38,6 @@
        ;; This call will provide an alert to the user
        #_(gen-events/generator-dialog-data-update :text-copied true)))]])
 
-(defn- colored-password
-  "Renders the value string as per-character spans.
-   When colorize? is true, digits and symbols get accent colors while letters
-   inherit the theme text color, making random passwords easier to scan.
-   When visible? is false, mask dots are shown instead of the characters."
-  [value visible? colorize?]
-  (let [s (str value)]
-    (if-not visible?
-      [:span (apply str (repeat (count s) "•"))]
-      (into [:span]
-            (map-indexed
-             (fn [i ch]
-               (let [c (str ch)
-                     color (when colorize?
-                             (cond
-                               (re-matches #"[0-9]" c) "#2979ff"   ;; digits
-                               (re-matches #"[a-zA-Z]" c) nil        ;; letters - inherit
-                               :else "#e53935"))]                    ;; symbols
-                 ^{:key i} [:span (when color {:style {:color color}}) c]))
-             s)))))
-
 ;; Read-only field-like display of the generated value, shared by both panels.
 ;; Keeps the label, strength helper text and the show/hide + regenerate + copy
 ;; icons. colorize? enables per-character coloring (used for passwords, not for
@@ -81,7 +60,7 @@
                    :overflow-x "auto"
                    :white-space "nowrap"
                    :padding-bottom "2px"}}
-     [colored-password value visible? colorize?]]
+     [cc/colored-password value visible? colorize?]]
     [mui-box {:sx {:display "flex" :align-items "center" :flex-shrink 0 :margin-right "12px"}}
      [end-icons visible?]]]
    [mui-form-helper-text (-> score :name lstr-l-cv)]])
