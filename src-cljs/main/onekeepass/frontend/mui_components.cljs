@@ -531,6 +531,8 @@
   ExpandMore
   ChevronRight
   MoreHoriz
+  Refresh
+  CasinoOutlined
   GroupWorkOutlined
   ;;TextSnippetOutlined
   WifiOutlined

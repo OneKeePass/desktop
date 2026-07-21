@@ -13,8 +13,8 @@
                                                      mui-date-time-picker
                                                      mui-desktop-date-picker
                                                      mui-form-control-label
-                                                     mui-icon-autorenew
                                                      mui-icon-button
+                                                     mui-icon-casino-outlined
                                                      mui-icon-delete-outline
                                                      mui-icon-visibility
                                                      mui-icon-visibility-off
@@ -112,12 +112,13 @@
                          :edge "end"
                          :on-click #(form-events/entry-form-open-url val)}
         [m/mui-icon-launch]])
-     ;; Password generator 
+     ;; Password generator
      (when (and edit protected (= key PASSWORD))
-       [mui-icon-button {:sx {:margin-right "-8px"}
-                         :edge "end"
-                         :on-click form-events/password-generator-show}
-        [mui-icon-autorenew]])
+       [mui-tooltip {:title (lstr-l 'passwordGenerator)}
+        [mui-icon-button {:sx {:margin-right "-8px"}
+                          :edge "end"
+                          :on-click form-events/password-generator-show}
+         [mui-icon-casino-outlined]]])
      ;; Copy 
      [(if protected
         (cc/copy-icon-factory #(cmn-events/write-sensitive-to-clipboard val))

@@ -6,9 +6,9 @@
     :refer [mui-alert mui-alert-title mui-button mui-checkbox
             mui-dialog mui-dialog-actions mui-dialog-content
             mui-dialog-title mui-form-control-label mui-icon-button
-            mui-icon-visibility mui-icon-visibility-off mui-input
+            mui-icon-refresh mui-icon-visibility mui-icon-visibility-off mui-input
             mui-input-adornment mui-slider mui-stack mui-tab mui-tabs
-            mui-text-field mui-typography]]
+            mui-text-field mui-tooltip mui-typography]]
    [onekeepass.frontend.translation :as t :refer-macros [tr-l tr-h tr-bl] :refer [lstr-l lstr-l-cv]]
    [reagent.core :as r]))
 
@@ -25,6 +25,12 @@
        :edge "end"
        :on-click #(gen-events/generator-dialog-data-update :password-visible (not visibile?))}
       [mui-icon-visibility-off]])
+   [mui-tooltip {:title (lstr-l 'regenerate)}
+    [mui-icon-button
+     {:sx {:mr "-5px"}
+      :edge "end"
+      :on-click #(gen-events/generator-regenerate-password)}
+     [mui-icon-refresh]]]
    [(cc/copy-icon-factory
      (fn []
        (gen-events/generator-password-copied)

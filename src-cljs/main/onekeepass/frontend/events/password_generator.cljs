@@ -21,6 +21,11 @@
   []
   (dispatch [:generator-password-copied]))
 
+(defn generator-regenerate-password
+  "Regenerates the password/pass phrase using the currently selected options"
+  []
+  (dispatch [:generator-regenerate-password]))
+
 (defn set-active-password-generator-panel [kw-panel-id]
   (dispatch [:set-active-password-generator-panel kw-panel-id]))
 
@@ -159,6 +164,20 @@
          (callback-on-copy-fn password score) ;; side effect!
          {:fx [[:dispatch [:generator-dialog-data-update :dialog-show false]]]})))))
 
+
+;; Regenerates using the current options for whichever panel is active,
+;; mirroring :set-active-password-generator-panel. Clears any stale
+;; "copied" alert since the previously copied value is no longer shown.
+(reg-event-fx
+ :generator-regenerate-password
+ (fn [{:keys [db]} [_event-id]]
+   (let [panel-shown (get-in db [:generator :dialog-data :panel-shown])
+         po (get-in db [:generator :dialog-data :password-options])
+         ppo (get-in db [:generator :dialog-data :phrase-generator-options])]
+     {:db (to-generator-dialog-data db :text-copied false)
+      :fx [(if (= panel-shown :password)
+             [:bg-analyzed-password po]
+             [:bg-generate-password-phrase ppo])]})))
 
 (reg-sub
  :generator-dialog-data

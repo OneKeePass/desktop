@@ -137,6 +137,8 @@
                                 PolicyOutlined
                                 LanOutlined
                                 CloudOutlined
+                                Refresh
+                                CasinoOutlined
                                 SimpleTreeView
 
                                 ;; Dialogs related
