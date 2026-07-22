@@ -5,6 +5,7 @@
                                                              active-db-key
                                                              current-opened-db
                                                              active-db-file-name]]
+   [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.background :as bg]))
 
 
@@ -175,6 +176,7 @@
    (init-open-db-vals db)))
 
 (declare unlock-response-handler)
+(declare biometric-unlock-response-handler)
 
 ;; Marker error returned by the Rust load_kdbx command when a recent entry
 ;; cannot be opened under macOS App Sandbox because the stored security-scoped
@@ -291,6 +293,18 @@
                           #(dispatch [:open-db-error %]))]
     (dispatch [:unlock-db-file-loading-done kdbx-loaded])))
 
+;; Handler for the fused biometric unlock. Success is the same as
+;; unlock-response-handler; on error we distinguish a cancelled/failed biometric
+;; (fall back to the password dialog) from a real unlock error.
+(defn- biometric-unlock-response-handler [api-response]
+  (when-let [kdbx-loaded (check-error
+                          api-response
+                          (fn [error]
+                            (if (= error const/BIOMETRIC_AUTH_FAILED)
+                              (dispatch [:open-db-biometric-login-fail])
+                              (dispatch [:open-db-error error]))))]
+    (dispatch [:unlock-db-file-loading-done kdbx-loaded])))
+
 (reg-fx
  :bg-unlock-kdbx-file
  (fn [[db-key pwd key-file-name dispatch-fn]]
@@ -299,42 +313,17 @@
 (reg-event-fx
  :open-db-form/authenticate-with-biometric
  (fn [{:keys [db]} [_event-id]]
-   {:fx [[:bg-authenticate-with-biometric [(active-db-key db)]]]}))
+   {:fx [[:bg-unlock-kdbx-with-biometric [(active-db-key db)]]]}))
 
+;; A single fused command performs the biometric verification AND the reveal
+;; in Rust, so the success boolean never round-trips through JS (removes the
+;; trivial renderer bypass). Replaces the earlier two-step flow
+;; (authenticate-with-biometric -> unlock-kdbx-on-biometric-authentication); those
+;; bg fns and their Tauri commands are retained but no longer used here.
 (reg-fx
- :bg-authenticate-with-biometric
+ :bg-unlock-kdbx-with-biometric
  (fn [[db-key]]
-   (bg/authenticate-with-biometric db-key
-                                   (fn [api-response]
-                                     ;; IMPORTANT we can not use when-let as we get {:result true} or {:result false}
-                                     ;; When we use when-let and the api-reponse is {:result false}, the whole clause 
-                                     ;; will be skipped as the when-let evaluates to false 
-                                     (let [autheticated? (check-error
-                                                          api-response
-                                                          (fn [error]
-                                                            ;;(println "error is " error)
-                                                            (dispatch [:open-db-biometric-login-fail])))]
-                                       (when-not (nil? autheticated?)
-                                         (if autheticated?
-                                           (dispatch [:open-db-biometric-login-success])
-                                           (dispatch [:open-db-biometric-login-fail]))))))))
-
-(reg-event-fx
- :open-db-biometric-login-success
- (fn [{:keys [db]} [_event-id]]
-   ;;(println ":open-db-biometric-login-success called")
-   {:fx [[:bg-unlock-kdbx-on-biometric-authentication [(active-db-key db)]]]}))
-
-(reg-fx
- :bg-unlock-kdbx-on-biometric-authentication
- (fn [[db-key]]
-   (bg/unlock-kdbx-on-biometric-authentication db-key unlock-response-handler
-                                               #_(fn [api-response]
-                                                   (when-let [kdbx-loaded (check-error
-                                                                           api-response
-                                                                           #(dispatch [:open-db-error %]))]
-                                                     (dispatch [:unlock-db-file-loading-done kdbx-loaded]))))))
-
+   (bg/unlock-kdbx-with-biometric db-key biometric-unlock-response-handler)))
 
 (reg-event-fx
  :open-db-biometric-login-fail

@@ -985,6 +985,30 @@ pub(crate) async fn unlock_kdbx_on_biometric_authentication(
 }
 
 #[command]
+pub(crate) async fn unlock_kdbx_with_biometric(db_key: &str) -> Result<kp_service::KdbxLoaded> {
+    // Combine the biometric verification and the unlock in a single Rust command
+    // so the success boolean never round-trips through JS. This removes the
+    // trivial bypass where the renderer could call the unlock command
+    // (unlock_kdbx_on_biometric_authentication) directly without a successful
+    // biometric. Works on macOS (Touch ID/Face ID) and Windows (Hello); it is
+    // never invoked on Linux, which has no biometric and uses credential re-entry
+    // (unlock_kdbx) - that path is untouched.
+    //
+    // The older two-step commands (authenticate_with_biometric +
+    // unlock_kdbx_on_biometric_authentication) are retained for compatibility.
+    if !biometric::authenticate_with_biometric(db_key) {
+        // Marker string the frontend recognizes, so it falls back to the password
+        // dialog instead of showing a hard error (see BIOMETRIC_AUTH_FAILED in
+        // constants.cljs).
+        return Err("BiometricAuthenticationFailed".to_string());
+    }
+    let r = kp_service::unlock_kdbx_on_biometric_authentication(db_key)?;
+    // Re-add this db's SSH keys now that it is unlocked.
+    ssh_agent::reload_keys_for_db(db_key);
+    Ok(r)
+}
+
+#[command]
 pub(crate) async fn unlock_kdbx(
     db_key: &str,
     password: Option<&str>,

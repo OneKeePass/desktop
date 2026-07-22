@@ -369,6 +369,12 @@
 (defn authenticate-with-biometric [db-key dispatch-fn]
   (invoke-api "authenticate_with_biometric" {:db-key db-key} dispatch-fn))
 
+;; Combined command that does the biometric verification AND the reveal in Rust
+;; (see unlock_kdbx_with_biometric). Replaces the two calls above in the unlock
+;; flow; the two above are kept for compatibility.
+(defn unlock-kdbx-with-biometric [db-key dispatch-fn]
+  (invoke-api "unlock_kdbx_with_biometric" {:db-key db-key} dispatch-fn))
+
 (defn read-and-verify-db-file [db-key dispatch-fn]
   (invoke-api "read_and_verify_db_file" {:db-key db-key} dispatch-fn))
 
