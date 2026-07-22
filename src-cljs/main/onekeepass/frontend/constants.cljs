@@ -137,6 +137,8 @@
 
 (def TOUCH_ID "TouchID")
 (def FACE_ID "FaceID")
+;; Windows Hello (PIN or biometric) re-unlock; matches biometric.rs on Windows.
+(def WINDOWS_HELLO "WindowsHello")
 (def NO_BIOMETRIC "None")
 
 (def MACOS "macos")

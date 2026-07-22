@@ -85,6 +85,20 @@ tauri-plugin-global-shortcut = "2"
 [target."cfg(target_os = \"windows\")".dependencies]
 winreg = "0.55.0"
 
+## Windows Hello re-unlock (biometric.rs) via UserConsentVerifier, and the
+## Credential Manager backed enc-key store (key_secure/windows.rs). The
+## higher-level `windows` crate is used (not windows-sys) because the Hello APIs
+## are WinRT (Security_Credentials_UI + Foundation for IAsyncOperation::get);
+## the Credential Manager Win32 calls use Win32_Security_Credentials +
+## Win32_Foundation. This coexists with the windows-sys 0.52 dep above (separate
+## crates).
+windows = { version = "0.58", features = [
+    "Foundation",
+    "Security_Credentials_UI",
+    "Win32_Foundation",
+    "Win32_Security_Credentials",
+] }
+
 ## SSH agent Windows transports. The OpenSSH named pipe reuses
 ## ssh-agent-lib's NamedPipeListener; the Pageant adapter is hand-written over
 ## raw Win32 (message-only window + WM_COPYDATA + file-mapping + owner-SID check),
