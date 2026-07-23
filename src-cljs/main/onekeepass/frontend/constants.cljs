@@ -192,3 +192,5 @@
 (def WINDOW_FOCUS_CHANGED "WindowFocusChanged")
 (def CLOSE_REQUESTED  "CloseRequested")
 (def FILE_DROP "FileDrop")
+;; Backend has locked all open databases in response to an OS suspend/sleep
+(def DATABASES_LOCKED "DatabasesLocked")

@@ -4263,6 +4263,7 @@ dependencies = [
  "urlencoding",
  "uuid",
  "webpki-roots",
+ "zeroize",
 ]
 
 [[package]]
@@ -4315,6 +4316,7 @@ dependencies = [
  "windows 0.58.0",
  "windows-sys 0.52.0",
  "winreg",
+ "zbus",
  "zbus-secret-service-keyring-store",
 ]
 

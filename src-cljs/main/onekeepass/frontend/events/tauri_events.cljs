@@ -7,9 +7,9 @@
    [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.events.entry-form-ex :as form-events]
    [onekeepass.frontend.constants :as const :refer
-    [BROWSER_CONNECTION_REQUEST_EVENT CLOSE_REQUESTED DB_FILE_CHANGED_EVENT FILE_DROP MAIN_WINDOW_EVENT
-     MENU_ID_ABOUT OTP_TOKEN_UPDATE_EVENT PASSKEY_DATA_CHANGED_EVENT SSH_AGENT_SIGN_REQUEST_EVENT
-     TAURI_MENU_EVENT WINDOW_FOCUS_CHANGED]]
+    [BROWSER_CONNECTION_REQUEST_EVENT CLOSE_REQUESTED DATABASES_LOCKED DB_FILE_CHANGED_EVENT FILE_DROP
+     MAIN_WINDOW_EVENT MENU_ID_ABOUT OTP_TOKEN_UPDATE_EVENT PASSKEY_DATA_CHANGED_EVENT
+     SSH_AGENT_SIGN_REQUEST_EVENT TAURI_MENU_EVENT WINDOW_FOCUS_CHANGED]]
    [re-frame.core :refer [dispatch]]))
 
 (defn- to-cljs [js-event-repsonse]
@@ -152,6 +152,12 @@
       (= action FILE_DROP)
       (when-let [file-path (-> cljs-response :payload :file-path)]
         (dispatch [:open-db-dialog-show-on-file-selection file-path]))
+
+      ;; The backend locked all open databases before the system slept. Reflect
+      ;; that in the UI (show the lock screen for every open db). The content is
+      ;; already encrypted in the backend, so no bg lock call is made here.
+      (= action DATABASES_LOCKED)
+      (cmn-events/databases-locked-on-suspend)
 
       :else
       (println "No handler for Main Window event response: " js-event-repsonse))))

@@ -12,6 +12,10 @@ pub mod event_action_names {
     pub const WINDOW_FOCUS_CHANGED: &str = "WindowFocusChanged";
     pub const CLOSE_REQUESTED: &str = "CloseRequested";
     pub const FILE_DROP: &str = "FileDrop";
+    // Emitted after the backend has locked all open databases in response to an
+    // OS suspend/sleep signal (see power_monitor). The UI reacts by showing the
+    // lock screen for every open database on resume.
+    pub const DATABASES_LOCKED: &str = "DatabasesLocked";
 }
 
 #[allow(dead_code)]

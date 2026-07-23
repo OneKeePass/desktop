@@ -1494,6 +1494,23 @@
       ;; and session timeout happens during that time
       :fx [[:dispatch [:db-settings/notify-screen-locked]]]})))
 
+;; Called (from tauri-events) after the backend has locked every open database
+;; in response to an OS suspend/sleep signal. The backend already encrypted the
+;; content in RAM, so this only reflects the locked state in the UI: mark every
+;; open db locked and switch it to the lock screen.
+(defn databases-locked-on-suspend []
+  (dispatch [:common/lock-all-opened-dbs-on-suspend]))
+
+(reg-event-fx
+ :common/lock-all-opened-dbs-on-suspend
+ (fn [{:keys [db]} [_event-id]]
+   (let [db (reduce (fn [db {:keys [db-key]}]
+                      (-> db (assoc-in [db-key :locked] true)
+                          (assoc-in [db-key :show-content] :locked-content)))
+                    db (:opened-db-list db))]
+     {:db db
+      :fx [[:dispatch [:db-settings/notify-screen-locked]]]})))
+
 ;;;;;;;;;;  Tauri shell open common calls ;;;;;;;;;;;
 
 (reg-fx

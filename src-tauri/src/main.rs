@@ -21,6 +21,7 @@ mod key_secure;
 mod mas;
 mod menu;
 mod pass_phrase;
+mod power_monitor;
 mod remote_storage;
 mod sandbox;
 mod ssh_agent;
@@ -81,6 +82,9 @@ fn main() {
         .manage(app_state::AppState::new())
         .setup(|app| {
             app_state::init_app(app);
+            // Lock (encrypt in RAM) all open databases when the OS is about to
+            // sleep, before the memory image can hit a hibernation file.
+            power_monitor::start(app.app_handle());
             Ok(menu::build_menus(app.app_handle())?)
         })
         // .on_window_event(|event| match event.event() {

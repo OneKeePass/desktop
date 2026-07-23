@@ -1,9 +1,26 @@
 import SwiftRs
 
+import AppKit
 import LocalAuthentication
 
 
 let logger = OkpLogger(tag: "FFI Call")
+
+// Registers an NSWorkspace observer that invokes the given C callback just
+// before the system sleeps/suspends. Used by the Rust power_monitor to lock
+// (encrypt in RAM) all open databases before the memory image can be written to
+// a hibernation/sleep file. The notification is delivered on the main run loop.
+@_cdecl("register_system_sleep_observer")
+func registerSystemSleepObserver(callback: @convention(c) @escaping () -> Void) {
+    NSWorkspace.shared.notificationCenter.addObserver(
+        forName: NSWorkspace.willSleepNotification,
+        object: nil,
+        queue: nil
+    ) { _ in
+        logger.info("System is about to sleep; locking open databases")
+        callback()
+    }
+}
 
 @_cdecl("available_biometric_type")
 func availableBiometricType() -> Int {

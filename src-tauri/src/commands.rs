@@ -966,11 +966,12 @@ pub(crate) async fn lock_kdbx(_db_key: &str) -> Result<()> {
     // Need to remove the session encryption key from memory in 'key_secure' module
     // This key need to be retreived during 'unlock_kdbx' call
 
-    // Mark the database locked in the core. This is the single lock choke point
-    // (manual, menu, and session-timeout locks all route here), so it gates
-    // browser-extension access to unlocked databases only (see browser_service).
-    // The matching unlock commands clear the flag.
-    kp_service::set_db_locked(_db_key, true)?;
+    // Lock the database in the core: encrypt the decrypted content in
+    // place so only ciphertext stays in RAM, and mark it locked. This is the single
+    // lock choke point (manual, menu, and session-timeout locks all route here), so
+    // it also gates browser-extension access to unlocked databases only (see
+    // browser_service). The matching unlock commands restore the content.
+    kp_service::lock_kdbx(_db_key)?;
 
     // Drop this db's decrypted SSH keys from the agent on lock. This is correct
     // regardless of the lock_kdbx stub above: a locked database must not keep
