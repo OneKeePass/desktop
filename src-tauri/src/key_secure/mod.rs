@@ -4,14 +4,13 @@
 mod imp;
 
 // Windows uses the Credential Manager backed store (parallel of the macOS
-// Keychain); Linux keeps the in-memory store in other.rs.
+// Keychain).
 #[cfg(target_os = "windows")]
 #[path = "windows.rs"]
 mod imp;
 
 #[cfg(target_os = "linux")]
-//#[cfg(any(target_os = "linux", feature = "onekeepass-dev"))]
-#[path = "other.rs"]
+#[path = "linux.rs"]
 mod imp;
 
 use self::imp::KeyStoreServiceImpl;

@@ -123,6 +123,11 @@ windows-sys = { version = "0.52", features = [
 # same gtk version webkit2gtk/Tauri use so we share the one GdkDisplay/main loop.
 [target."cfg(target_os = \"linux\")".dependencies]
 gtk = "0.18"
+keyring-core = "1.0.0"
+# KeyStoreService is synchronous and is called from Tauri's Tokio workers. The
+# keyring backend's blocking API must therefore use async-io: selecting its
+# Tokio feature would nest Runtime::block_on and panic at runtime.
+zbus-secret-service-keyring-store = { version = "1.0.0", features = ["rt-async-io-crypto-rust"] }
 
 [features]
 default = ["custom-protocol"]
