@@ -56,10 +56,10 @@ signature = "2"
 tauri = { version = "2", features = [] }
 
 ## using from the local crate during development
-# onekeepass-core = {path = "../../onekeepass-core", version = "0.23.2", features = ["favicon", "desktop-ssh-agent"] }
+onekeepass-core = {path = "../../onekeepass-core", version = "0.23.3", features = ["favicon", "desktop-ssh-agent"] }
 
 ## Need to use the git ref for release
-onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.23.2", features = ["favicon", "desktop-ssh-agent"] }
+# onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.23.2", features = ["favicon", "desktop-ssh-agent"] }
 
 tauri-plugin-shell = "2"
 tauri-plugin-process = "2"
