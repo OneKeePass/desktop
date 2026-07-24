@@ -67,23 +67,73 @@
    [{:label (t/lstr-bl 'ok) :on-click #(tb-events/on-lock-ask-save-dialog-hide)}]
    dialog-data])
 
+(defn- locked-db-name-list
+  "Renders the locked db names one per line so the dialog stays readable."
+  [names]
+  (into [mui-stack {:sx {:pl 2 :mt 1}}]
+        (for [nm names]
+          ^{:key nm} [mui-typography {:variant "body2"} (str "• " nm)])))
+
+(defn- ask-save-dialog-content
+  "Multi-line quit message. Three cases: no locked dirty dbs (plain save/quit),
+   some locked (save covers the rest, locked ones listed), and all dirty dbs
+   locked (nothing can be saved - only unlock or discard)."
+  [_dialog-data]
+  (let [locked-dbs @(tb-events/quit-locked-dirty-dbs)
+        all-locked? @(tb-events/quit-all-dirty-locked?)]
+    [mui-stack {:spacing 1}
+     (cond
+       (empty? locked-dbs)
+       [mui-typography (t/lstr-dlg-text "unsavedChangesTxt2")]
+
+       all-locked?
+       [:<>
+        [mui-typography (t/lstr-dlg-text "quitAllLockedTxt")]
+        [locked-db-name-list locked-dbs]]
+
+       :else
+       [mui-stack
+        [mui-typography (t/lstr-dlg-text "unsavedChangesTxt2")]
+        [mui-typography {:sx {:mt 2}} (t/lstr-dlg-text "quitSomeLockedTxt1")]
+        [locked-db-name-list locked-dbs]
+        [mui-typography {:sx {:mt 2}} (t/lstr-dlg-text "quitSomeLockedTxt2")]
+        ])]))
+
 (defn ask-save-dialog [dialog-data]
-  [confirm-text-dialog
-   (tr-dlg-title unsavedChanges)
-   (tr-dlg-text "unsavedChangesTxt2")
-   [{:label (tr-bl save) :on-click #(tb-events/on-save-click)}
-    {:label (tr-bl quit) :on-click #(tb-events/on-do-not-save-click)}
-    {:label (t/lstr-bl 'cancel) :on-click #(tb-events/ask-save-dialog-show false)}]
-   dialog-data])
+  ;; On quit, any locked db among the modified ones cannot be saved (its content
+  ;; is encrypted in memory). When every dirty db is locked, "Save" would be a
+  ;; no-op, so it is dropped and only Unlock-by-quitting/discard is offered.
+  (let [locked-dbs @(tb-events/quit-locked-dirty-dbs)
+        all-locked? @(tb-events/quit-all-dirty-locked?)]
+    [confirm-text-dialog
+     (t/lstr-dlg-title 'unsavedChanges)
+     ask-save-dialog-content
+     (if (and (seq locked-dbs) all-locked?)
+       [{:label (t/lstr-bl 'quit) :on-click #(tb-events/on-do-not-save-click)}
+        {:label (t/lstr-bl 'cancel) :on-click #(tb-events/ask-save-dialog-show false)}]
+       [{:label (t/lstr-bl 'save) :on-click #(tb-events/on-save-click)}
+        {:label (t/lstr-bl 'quit) :on-click #(tb-events/on-do-not-save-click)}
+        {:label (t/lstr-bl 'cancel) :on-click #(tb-events/ask-save-dialog-show false)}])
+     dialog-data]))
 
 (defn close-current-db-save-dialog [dialog-data]
-  [confirm-text-dialog
-   (tr-dlg-title unsavedChanges)
-   (tr-dlg-text "unsavedChangesTxt3")
-   [{:label (tr-bl save) :on-click tb-events/close-current-db-on-save-click}
-    {:label (tr-bl doNotSave)  :on-click tb-events/close-current-db-no-save}
-    {:label (t/lstr-bl 'cancel) :on-click tb-events/close-current-db-on-cancel-click}]
-   dialog-data])
+  ;; A locked db cannot be saved (its content is encrypted in memory). Instead of
+  ;; a broken "Save", offer "Unlock" - which cancels the close and starts the
+  ;; unlock flow so the user can save then close - plus "Close Anyway" (discard)
+  ;; and "Cancel". An unlocked db keeps the usual Save / Do Not Save / Cancel.
+  (let [locked? @(cmn-events/locked?)
+        biometric-type @(cmn-events/biometric-type-available)]
+    [confirm-text-dialog
+     (if locked? (t/lstr-dlg-title 'databaseLocked) (t/lstr-dlg-title 'unsavedChanges))
+     (if locked? (t/lstr-dlg-text "closeLockedDbTxt") (t/lstr-dlg-text "unsavedChangesTxt3"))
+     (if locked?
+       [{:label (t/lstr-bl 'unlockDatabase) :on-click #(tb-events/close-current-db-unlock biometric-type)}
+        {:label (t/lstr-bl 'closeAnyway) :on-click tb-events/close-current-db-no-save}
+        {:label (t/lstr-bl 'cancel) :on-click tb-events/close-current-db-on-cancel-click}]
+       [{:label (t/lstr-bl 'save) :on-click tb-events/close-current-db-on-save-click}
+        {:label (t/lstr-bl 'doNotSave) :on-click tb-events/close-current-db-no-save}
+        {:label (t/lstr-bl 'cancel) :on-click tb-events/close-current-db-on-cancel-click}])
+     dialog-data]))
 
 (defn conflict-action-confirm-dialog [{:keys [dialog-show confirm]}]
   (if (= confirm :overwrite)
@@ -181,7 +231,10 @@
           locked? @(cmn-events/locked?)
           biometric-type @(cmn-events/biometric-type-available)
           save-disabled? (or locked? (not @(cmn-events/db-save-pending?)))
-          multiple-dbs? (>= (count @(merging-events/multiple-unlocked-dbs?)) 2)
+          unlocked-count (count @(merging-events/multiple-unlocked-dbs?))
+          multiple-dbs? (>= unlocked-count 2)
+          ;; "Lock All Databases" is meaningful whenever at least one open db is unlocked
+          any-unlocked? (pos? unlocked-count)
           ;; "Check Remote Changes" is only meaningful for an unlocked remote db
           remote? (cmn-events/remote-db-key? @(cmn-events/active-db-key))]
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE (not save-disabled?))
@@ -191,7 +244,10 @@
       (m/react-use-effect (fn []
                             #_(tauri-events/enable-app-menu const/MENU_ID_PASSWORD_GENERATOR true)
                             (tauri-events/enable-app-menu const/MENU_ID_CLOSE_DATABASE true)
-                            (tauri-events/enable-app-menu const/MENU_ID_LOCK_DATABASE true)
+                            ;; "Lock Database" only applies to the current db when it is unlocked
+                            (tauri-events/enable-app-menu const/MENU_ID_LOCK_DATABASE (not locked?))
+                            ;; "Lock All Databases" applies when any open db is still unlocked
+                            (tauri-events/enable-app-menu const/MENU_ID_LOCK_ALL_DATABASES any-unlocked?)
                             (tauri-events/enable-app-menu const/MENU_ID_SEARCH true)
                             (tauri-events/enable-app-menu const/MENU_ID_MERGE_DATABASE (not locked?))
                             (tauri-events/enable-app-menu const/MENU_ID_MERGE_OPENED_DATABASES multiple-dbs?)
@@ -205,12 +261,13 @@
                               #_(tauri-events/enable-app-menu const/MENU_ID_PASSWORD_GENERATOR false)
                               (tauri-events/enable-app-menu const/MENU_ID_CLOSE_DATABASE false)
                               (tauri-events/enable-app-menu const/MENU_ID_LOCK_DATABASE false)
+                              (tauri-events/enable-app-menu const/MENU_ID_LOCK_ALL_DATABASES false)
                               (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_AS false)
                               (tauri-events/enable-app-menu const/MENU_ID_MERGE_DATABASE false)
                               (tauri-events/enable-app-menu const/MENU_ID_MERGE_OPENED_DATABASES false)
                               (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_BACKUP false)
                               (tauri-events/enable-app-menu const/MENU_ID_CHECK_REMOTE_CHANGES false)
-                              (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js [locked? multiple-dbs? remote?]))
+                              (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js [locked? multiple-dbs? any-unlocked? remote?]))
 
       [:div {:style {:flex-grow 1}}
        ;; Light theme: override the default bright primary blue with the chosen

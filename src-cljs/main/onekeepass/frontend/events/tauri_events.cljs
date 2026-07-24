@@ -76,6 +76,9 @@
       (= menu-id const/MENU_ID_LOCK_DATABASE)
       (dispatch [:tool-bar/lock-current-db])
 
+      (= menu-id const/MENU_ID_LOCK_ALL_DATABASES)
+      (dispatch [:common/lock-all-dbs])
+
       (= menu-id const/MENU_ID_CLOSE_DATABASE)
       (dispatch [:tool-bar/close-current-db-start])
 

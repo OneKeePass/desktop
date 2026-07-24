@@ -649,6 +649,7 @@
   (invoke-api "save_kdbx" {:db-key db-key :overwrite overwrite} dispatch-fn))
 
 (defn save-all-modified-dbs
+  "Called when user quits the applications when one or more databases have pending save state"
   [db-keys dispatch-fn]
   (invoke-api "save_all_modified_dbs" {:db-keys db-keys} dispatch-fn))
 

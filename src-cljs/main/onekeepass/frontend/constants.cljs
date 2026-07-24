@@ -109,6 +109,7 @@
 (def MENU_ID_OPEN_REMOTE "OpenRemote")
 (def MENU_ID_OPEN_RECENT "OpenRecent")
 (def MENU_ID_LOCK_DATABASE "LockDatabase")
+(def MENU_ID_LOCK_ALL_DATABASES "LockAllDatabases")
 (def MENU_ID_CLOSE_DATABASE "CloseDatabase")
 (def MENU_ID_MERGE_DATABASE "MergeDatabase")
 (def MENU_ID_MERGE_OPENED_DATABASES "MergeOpenedDatabases")

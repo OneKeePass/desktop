@@ -745,6 +745,24 @@
                             ;;(println "Database is locked")
                             #())))))
 
+;; Locks every open database that is currently unlocked (the "Lock All Databases"
+;; menu). Encrypts each in the backend via bg lock-kdbx and switches its UI to the
+;; lock screen. Unsaved edits are preserved by the in-place lock and restored on
+;; unlock, so no save prompt is shown for this bulk action.
+(reg-event-fx
+ :common/lock-all-dbs
+ (fn [{:keys [db]} [_event-id]]
+   (let [unlocked-keys (->> (:opened-db-list db)
+                            (map :db-key)
+                            (remove (fn [db-key] (get-in db [db-key :locked]))))
+         db (reduce (fn [db db-key]
+                      (-> db (assoc-in [db-key :locked] true)
+                          (assoc-in [db-key :show-content] :locked-content)))
+                    db unlocked-keys)]
+     {:db db
+      :fx (into [[:dispatch [:db-settings/notify-screen-locked]]]
+                (mapv (fn [db-key] [:bg-lock-kdbx [db-key]]) unlocked-keys))})))
+
 ;; Dispatched from a open-db-form event
 (reg-event-fx
  :common/kdbx-database-unlocked
@@ -992,7 +1010,7 @@
 (reg-event-db
  :load-entry-type-headers-completed
  (fn [db [_event-id et-headers-m]]
-   (println "load-entry-type-headers-completed et-headers-m" et-headers-m)
+   #_(println "load-entry-type-headers-completed et-headers-m" et-headers-m)
    (assoc-in-key-db db [:entry-type-headers] et-headers-m)))
 
 ;; Gets a map formed by struct EntryTypeHeaders

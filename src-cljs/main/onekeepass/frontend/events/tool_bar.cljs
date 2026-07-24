@@ -184,13 +184,27 @@
     (dispatch [:open-db-form/dialog-show-on-current-db-unlock-request])
     (dispatch [:open-db-form/authenticate-with-biometric])))
 
+;; From the "close a locked db" dialog: dismiss the close prompt and start the
+;; unlock flow so the user can unlock, save, then close normally. A locked db's
+;; content is encrypted in memory and cannot be saved until it is unlocked.
+(defn close-current-db-unlock [biometric-type]
+  (dispatch [:close-current-db-confirmed false])
+  (unlock-current-db biometric-type))
+
 (reg-event-fx
  :tool-bar/lock-current-db
  (fn [{:keys [db]} [_query-id]]
-   (let [save-pending (db-save-pending? db)]
-     (if save-pending
-       {:fx [[:dispatch [:on-lock-ask-save-dialog-show true]]]}
-       {:fx [[:dispatch [:common/lock-current-db]]]}))))
+   ;; Unsaved changes are preserved in memory across lock/unlock (Phase 2
+   ;; encrypt-in-place restores them on unlock), so locking no longer blocks to
+   ;; ask the user to save first. The save-before-lock guard below is kept,
+   ;; commented out, so it can be re-enabled later if needed. The dialog/events
+   ;; it uses (ask-save-on-lock, :on-lock-ask-save-dialog-show/-data) are also
+   ;; left in place for the same reason.
+   #_(let [save-pending (db-save-pending? db)]
+       (if save-pending
+         {:fx [[:dispatch [:on-lock-ask-save-dialog-show true]]]}
+         {:fx [[:dispatch [:common/lock-current-db]]]}))
+   {:fx [[:dispatch [:common/lock-current-db]]]}))
 
 (reg-event-fx
  :on-lock-ask-save-dialog-show
@@ -271,10 +285,27 @@
  (fn [{:keys [db]} [_event-id]]
    (let [pending-dbs (filterv
                       (fn [k] (-> db (get k) :db-modification :save-pending))
-                      (opened-db-keys db))]
+                      (opened-db-keys db))
+         ;; Names of the pending dbs that are locked - these cannot be saved by
+         ;; the quit "Save" (their content is encrypted in memory). The ask-save
+         ;; dialog lists them so the user is not surprised by silently lost edits.
+         locked-dirty-names (->> (:opened-db-list db)
+                                 (filter (fn [{:keys [db-key]}]
+                                           (and (some #{db-key} pending-dbs)
+                                                (get-in db [db-key :locked]))))
+                                 (mapv (fn [{:keys [database-name file-name]}]
+                                         (or database-name file-name)))
+                                 (into []))
+         ;; True when every dirty db is locked - then nothing can be saved and
+         ;; the quit dialog drops the misleading "Save" button.
+         all-locked? (and (seq locked-dirty-names)
+                          (= (count locked-dirty-names) (count pending-dbs)))]
      (if (empty? pending-dbs)
        {:fx [[:bg-quit-app-menu-action-requested]]} ;; quit application
-       {:fx [[:dispatch [:ask-save-dialog-show true]]]} ;; show ask save or not dialog
+       {:db (-> db
+                (assoc-in [:ask-save :locked-dbs] locked-dirty-names)
+                (assoc-in [:ask-save :all-locked?] all-locked?))
+        :fx [[:dispatch [:ask-save-dialog-show true]]]} ;; show ask save or not dialog
        ))))
 
 (reg-event-db
@@ -359,6 +390,25 @@
  :ask-save
  (fn [db _query-vec]
    (get-in db [:ask-save])))
+
+;; Names of the locked pending dbs shown in the quit ask-save dialog (see
+;; :tool-bar/app-quit-called). Empty/nil when none are locked.
+(defn quit-locked-dirty-dbs []
+  (subscribe [:tool-bar/quit-locked-dirty-dbs]))
+
+(reg-sub
+ :tool-bar/quit-locked-dirty-dbs
+ (fn [db _query-vec]
+   (get-in db [:ask-save :locked-dbs])))
+
+;; True when every modified db on quit is locked (so nothing can be saved).
+(defn quit-all-dirty-locked? []
+  (subscribe [:tool-bar/quit-all-dirty-locked?]))
+
+(reg-sub
+ :tool-bar/quit-all-dirty-locked?
+ (fn [db _query-vec]
+   (get-in db [:ask-save :all-locked?])))
 
 (comment 
   (-> @re-frame.db/app-db keys)
