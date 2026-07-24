@@ -279,10 +279,16 @@
        ;; mui-app-bar {:position "static" :color "primary" :dir (t/dir)}
 
        [mui-app-bar (app-bar-themed-props)
-        [mui-toolbar {:style {:min-height 32}}
-         ;; Using box to provide common styles - left margin -  for all its children - buttons 
-         ;; Using "&.MuiIconButton-root" etc did not work
-         [mui-box {:sx {"& .MuiButtonBase-root" {:ml "-8px"}}}
+        ;; :min-height gives the compact bar a bit more room for the larger icons.
+        ;; :font-size below enlarges every toolbar icon glyph (theme default is
+        ;; 'small' ~20px); bump/reduce the rem value to taste.
+        [mui-toolbar {:style {:min-height 36}
+                      :sx {"& .MuiSvgIcon-root" {:font-size "1.4rem"}}}
+         ;; Using box to provide common styles - horizontal spacing -  for all its children - buttons
+         ;; Using "&.MuiIconButton-root" etc did not work.
+         ;; :mx spaces the left-group buttons apart (was a tightening -8px);
+         ;; increase for more gap between Open/Save/Save-As/Close/Lock.
+         [mui-box {:sx {"& .MuiButtonBase-root" {:mx "0.5px"}}}
           [mui-tooltip {:title "Open" :enterDelay 2000}
            [mui-icon-button
             {:edge "start" :color "inherit"
@@ -322,29 +328,32 @@
               [mui-icon-lock-open-outlined]]])]
          [:span  {:style {:flex-grow "1"}}]
 
-         [mui-tooltip {:title "Manage Custom Icons" :enterDelay 2000}
-          [mui-icon-button {:edge "end"
-                            :disabled locked?
-                            :color "inherit"
-                            :on-click #(do (ci-events/refresh-icons-for-db)
-                                           (ci-events/show-manage-dialog))}
-           ;;"🖼"
-           [mui-icon-image]]]
+         ;; Right-side group. Same :mx spacing as the left box so both groups
+         ;; are loosened by the same amount.
+         [mui-box {:sx {"& .MuiButtonBase-root" {:mx "0.5px"}}}
+          [mui-tooltip {:title "Manage Custom Icons" :enterDelay 2000}
+           [mui-icon-button {:edge "end"
+                             :disabled locked?
+                             :color "inherit"
+                             :on-click #(do (ci-events/refresh-icons-for-db)
+                                            (ci-events/show-manage-dialog))}
+            ;;"🖼"
+            [mui-icon-image]]]
 
-         [mui-tooltip {:title "Settings" :enterDelay 2000}
-          [mui-icon-button {:edge "end"
-                            :disabled locked?
-                            :color "inherit"
-                            :on-click  settings-events/read-db-settings #_dl-events/open-settings-dialog}
+          [mui-tooltip {:title "Settings" :enterDelay 2000}
+           [mui-icon-button {:edge "end"
+                             :disabled locked?
+                             :color "inherit"
+                             :on-click  settings-events/read-db-settings #_dl-events/open-settings-dialog}
 
-           [mui-icon-settings-outlined]]]
+            [mui-icon-settings-outlined]]]
 
-         [mui-tooltip {:title "Search" :enterDelay 2000}
-          [mui-icon-button {:edge "end"
-                            :color "inherit"
-                            :disabled locked?
-                            :on-click srch-event/search-dialog-show}
-           [mui-icon-search]]]]]
+          [mui-tooltip {:title "Search" :enterDelay 2000}
+           [mui-icon-button {:edge "end"
+                             :color "inherit"
+                             :disabled locked?
+                             :on-click srch-event/search-dialog-show}
+            [mui-icon-search]]]]]]
 
        ;; Include all dialogs that we need to use when the toll bar is visibible
        ;; Also see start_page.cljs for other dialogs  
