@@ -19,6 +19,7 @@
    [onekeepass.frontend.events.auto-type :as at-events]
    [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.events.db-settings :as settings-events]
+   [onekeepass.frontend.events.group-tree-content :as gt-events]
    [onekeepass.frontend.events.open-db-form :as od-events]
    [onekeepass.frontend.events.password-generator :as gen-events]
    [onekeepass.frontend.events.search :as srch-event]
@@ -236,10 +237,25 @@
           ;; "Lock All Databases" is meaningful whenever at least one open db is unlocked
           any-unlocked? (pos? unlocked-count)
           ;; "Check Remote Changes" is only meaningful for an unlocked remote db
-          remote? (cmn-events/remote-db-key? @(cmn-events/active-db-key))]
+          remote? (cmn-events/remote-db-key? @(cmn-events/active-db-key))
+          ;; New Group / Edit Group (native "Groups" menu) act on the selected
+          ;; group. They stay active whenever an unlocked db has a normal (non
+          ;; recycle-bin) group selected - the default state right after a db is
+          ;; opened (root selected). Previously these were toggled from the group
+          ;; tree-item three-dot menu's mount/unmount, which left them disabled.
+          selected-group-uuid @(gt-events/selected-group-uuid)
+          recycle-bin-selected? @(gt-events/recycle-group-selected?)
+          group-menus-enabled? (and (not locked?)
+                                    (some? selected-group-uuid)
+                                    (not recycle-bin-selected?))]
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE (not save-disabled?))
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_AS (not locked?))
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_BACKUP (not locked?))
+      ;; Reactive: re-evaluated on every render (i.e. when db lock state or group
+      ;; selection changes), so the native New/Edit Group menu tracks the current
+      ;; selection instead of a tree-item component's lifecycle.
+      (tauri-events/enable-app-menu const/MENU_ID_NEW_GROUP group-menus-enabled?)
+      (tauri-events/enable-app-menu const/MENU_ID_EDIT_GROUP group-menus-enabled?)
       ;; React useEffect
       (m/react-use-effect (fn []
                             #_(tauri-events/enable-app-menu const/MENU_ID_PASSWORD_GENERATOR true)
@@ -266,6 +282,8 @@
                               (tauri-events/enable-app-menu const/MENU_ID_MERGE_DATABASE false)
                               (tauri-events/enable-app-menu const/MENU_ID_MERGE_OPENED_DATABASES false)
                               (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_BACKUP false)
+                              (tauri-events/enable-app-menu const/MENU_ID_NEW_GROUP false)
+                              (tauri-events/enable-app-menu const/MENU_ID_EDIT_GROUP false)
                               (tauri-events/enable-app-menu const/MENU_ID_CHECK_REMOTE_CHANGES false)
                               (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js [locked? multiple-dbs? any-unlocked? remote?]))
 
