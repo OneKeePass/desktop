@@ -448,7 +448,7 @@
          (when (or general-category? row-selected?)
            [mui-typography  {:variant "caption"
                              :sx {:padding-right "0px"
-                                  :color "white"
+                                  :color (theme-color @custom-theme-atom :category-item-text)
                                   :background-color (theme-color @custom-theme-atom :category-item)
                                   :border-radius "10px"
                                   :text-align "center"

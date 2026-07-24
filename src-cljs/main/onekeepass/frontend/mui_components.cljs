@@ -145,9 +145,18 @@
     (-> theme .-customColors .-sectionHeader)
 
     (= color-kw :category-item)
-    ;; secondary.main (was secondary.dark) - a softer pill background; the dark
-    ;; variant read as too strong. White pill text stays legible on .main.
-    (->  theme .-palette .-secondary .-main)
+    ;; primary.main - the entry-count pill background. Matches the app button
+    ;; color (MuiButton defaultProps :color "primary") so the count circles and
+    ;; the ADD ENTRY button read as the same accent. White pill text stays
+    ;; legible on .main. (Was secondary.main/purple.)
+    (->  theme .-palette .-primary .-main)
+
+    (= color-kw :category-item-text)
+    ;; Legible pill text on the :category-item background. MUI computes
+    ;; contrastText for primary.main automatically - white on the light-mode
+    ;; blue (#1976d2), dark on the dark-mode light-blue (#90caf9). Using a fixed
+    ;; white read poorly on the dark-mode pill.
+    (->  theme .-palette .-primary .-contrastText)
 
     (= color-kw :color1)
     (-> theme .-customColors .-color1)

@@ -539,7 +539,7 @@
                              :ml 0.5
                              :px 0.75
                              :min-width "20px"
-                             :color "white"
+                             :color (theme-color @custom-theme-atom :category-item-text)
                              :background-color (theme-color @custom-theme-atom :category-item)
                              :border-radius "10px"
                              :text-align "center"}}
