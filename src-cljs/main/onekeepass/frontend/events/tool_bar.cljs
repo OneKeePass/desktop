@@ -318,8 +318,15 @@
 (reg-event-fx
  :ask-save-dialog-save
  (fn [{:keys [db]} [_query-id]]
-   {:db (-> db (assoc-in [:ask-save :status] :in-progress))
-    :fx [[:bg-save-all-modified-dbs (opened-db-keys db)]]}))
+   ;; Save only the unlocked dbs. A locked db (its content is encrypted in
+   ;; memory) cannot be saved, and passing a locked remote db to the backend
+   ;; save would still touch the remote file's mtime for no benefit. Locked
+   ;; dirty dbs were already listed to the user in the ask-save dialog.
+   (let [unlocked-keys (into []
+                             (remove (fn [db-key] (get-in db [db-key :locked]))
+                                     (opened-db-keys db)))]
+     {:db (-> db (assoc-in [:ask-save :status] :in-progress))
+      :fx [[:bg-save-all-modified-dbs unlocked-keys]]})))
 
 (defn check-failures
   "We receive a vec of maps indicating the status of each database 

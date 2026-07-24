@@ -857,6 +857,23 @@ pub(crate) async fn save_all_modified_dbs(
 
     let mut results = kp_service::save_all_modified_dbs_with_backups(dbs_with_backups)?;
 
+    // Defense in depth: never run the remote save (a network round-trip that
+    // would touch the remote file's mtime) for a locked db. Its content is
+    // encrypted in memory and cannot be written. The UI already filters locked
+    // dbs out, so this normally skips nothing; it just guards other callers.
+    let (locked_remote_keys, remote_keys): (Vec<String>, Vec<String>) = remote_keys
+        .into_iter()
+        .partition(|k| kp_service::is_db_locked(k).unwrap_or(false));
+
+    for db_key in locked_remote_keys {
+        results.push(kp_service::SaveAllResponse {
+            db_key,
+            save_status: kp_service::SaveStatus::Message(
+                "The database is locked. Unlock it to save the changes.".into(),
+            ),
+        });
+    }
+
     for db_key in remote_keys {
         let recorded_mtime = app_state.remote_mtime(&db_key);
         let backup_file_name = app_state.get_backup_file(&db_key);
