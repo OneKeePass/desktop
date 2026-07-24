@@ -782,6 +782,15 @@
   (let [api-args (clj->js {:request {:menu_id menu-id :menu_action action}})]
     (invoke-api "menu_action_requested" api-args dispatch-fn :convert-request false)))
 
+(defn activate-menu-shortcut
+  "Forwards a Windows webview shortcut to an enabled native menu item."
+  [submenu-id menu-id]
+  (invoke-api "activate_menu_shortcut"
+              {:submenu-id submenu-id :menu-id menu-id}
+              (fn [{:keys [error]}]
+                (when error
+                  (js/console.error "Failed to activate menu shortcut" error)))))
+
 ;;menu_titles_change_requested
 (defn menu-titles-change-requested [menu-titles dispatch-fn]
   (let [api-args (clj->js {:request {:menu_titles menu-titles}})]

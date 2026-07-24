@@ -102,6 +102,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             // Sorted alphabetically
             commands::acknowledge_db_file_change,
+            #[cfg(target_os = "windows")]
+            commands::activate_menu_shortcut,
             #[cfg(not(feature = "mas-build"))]
             commands::active_window_to_auto_type,
             commands::add_custom_icon_from_file,

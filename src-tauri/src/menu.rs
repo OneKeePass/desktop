@@ -454,12 +454,49 @@ pub fn handle_menu_events<R: Runtime>(
     app_handle: &AppHandle<R>,
     menu_event: &MenuEvent,
 ) -> Result<(), tauri::Error> {
+    emit_menu_event(app_handle, &menu_event.id().0)
+}
+
+fn emit_menu_event<R: Runtime>(
+    app_handle: &AppHandle<R>,
+    menu_id: &str,
+) -> Result<(), tauri::Error> {
     app_handle.emit(
         TAURI_MENU_EVENT,
         MenuPayload {
-            menu_id: menu_event.id().0.clone(),
+            menu_id: menu_id.to_string(),
         },
     )
+}
+
+// Activates a menu item on behalf of the Windows webview keyboard handler.
+//
+// Native menu accelerators currently do not reach OneKeePass through Tauri's
+// Windows event loop. Keep the workaround behind the UI's Windows check, and
+// verify the native item's enabled state here so a shortcut has exactly the
+// same availability as selecting the item from the menu bar.
+#[cfg(target_os = "windows")]
+pub fn activate_menu_shortcut<R: Runtime>(
+    app_handle: &AppHandle<R>,
+    submenu_id: &str,
+    menu_id: &str,
+) -> Result<bool, tauri::Error> {
+    let Some(item) = app_handle
+        .menu()
+        .and_then(|menu| menu.get(submenu_id))
+        .and_then(|submenu| submenu.as_submenu().cloned())
+        .and_then(|submenu| submenu.get(menu_id))
+        .and_then(|item| item.as_menuitem().cloned())
+    else {
+        return Ok(false);
+    };
+
+    if item.is_enabled()? {
+        emit_menu_event(app_handle, menu_id)?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
 
 fn toggle_enable_disable<R: Runtime>(

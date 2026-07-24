@@ -214,6 +214,17 @@ pub(crate) async fn menu_action_requested<R: Runtime>(
     Ok(())
 }
 
+#[cfg(target_os = "windows")]
+#[tauri::command]
+pub(crate) async fn activate_menu_shortcut<R: Runtime>(
+    app_handle: tauri::AppHandle<R>,
+    submenu_id: String,
+    menu_id: String,
+) -> Result<bool> {
+    menu::activate_menu_shortcut(&app_handle, &submenu_id, &menu_id)
+        .map_err(|error| error.to_string())
+}
+
 #[command]
 pub(crate) async fn is_path_exists(in_path: String) -> bool {
     Path::new(&in_path).exists()
