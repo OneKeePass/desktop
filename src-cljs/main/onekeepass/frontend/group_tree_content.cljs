@@ -14,7 +14,6 @@
    [onekeepass.frontend.events.move-group-entry :as move-events]
    [onekeepass.frontend.events.clone-entry-to-other-db :as clone-events]
    [re-frame.core :refer [dispatch]]
-   [onekeepass.frontend.group-form :as gf]
    [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                      theme-color
                                                      mui-alert mui-box
@@ -548,11 +547,13 @@
 ;; Need to use :strs to retrive values from map argument 
 ;; as "uuid name icon_id" are the string keys in the map
 (defn- make-tree-item [{:strs [uuid name icon_id custom_icon_uuid]}]
+  ;; The group form dialog is not mounted here. It is a singleton driven by shared
+  ;; re-frame state and is mounted once in entry-category-content. Mounting it per
+  ;; tree item made every group render its own Dialog, stacking one backdrop per
+  ;; group and darkening the app behind the dialog
   [mui-tree-item {:itemId uuid
                   ;; :f> ensures tree-label is treated as a pure React FC so hooks work correctly
-                  :label (r/as-element [:f> tree-label uuid name icon_id custom_icon_uuid])}
-   ;; We reuse the group form dialog from group-form ns
-   [gf/group-content-dialog-main]])
+                  :label (r/as-element [:f> tree-label uuid name icon_id custom_icon_uuid])}])
 
 (defn- group-visitor-action*
   ;; Internal impl that threads a seen-set atom to guard against duplicate UUIDs.

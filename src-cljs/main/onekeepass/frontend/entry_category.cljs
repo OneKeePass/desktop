@@ -104,8 +104,7 @@
        [mui-icon-button {:edge "start"
                          :on-click (fn [^js/Event e] (reset! anchor-el (-> e .-currentTarget)))
                          :style {}} [mui-icon-more-vert]]
-       [category-title-menu-items anchor-el showing-groups-as]
-       [gf/group-content-dialog-main]])))
+       [category-title-menu-items anchor-el showing-groups-as]])))
 
 (defn group-category-item-menu-items
   "Shows the menu items for the group category is selected"
@@ -137,8 +136,7 @@
                          :style {:color "#000000"
                                  :padding 0
                                  :margin-left 15}} [mui-icon-more-vert]]
-       [group-category-item-menu-items anchor-el g-uuid]
-       [gf/group-content-dialog-main]])))
+       [group-category-item-menu-items anchor-el g-uuid]])))
 
 (defn type-category-item-menu-items
   "Type category specific menu items when it is selected"
@@ -522,4 +520,10 @@
               ^{:key tag-id} [category-item tag-cat-detail :tag-categories])))]
 
         (= showing-groups-as :group)
-        [gt/group-tree-panel])]]))
+        [gt/group-tree-panel])
+
+      ;; Mounted once for the whole left panel. It is shared by the group tree items
+      ;; and by the group category menus, both of which trigger it through the
+      ;; generic dialog state. Mounting it in more than one place renders a Dialog
+      ;; per mount and stacks their backdrops
+      [gf/group-content-dialog-main]]]))
