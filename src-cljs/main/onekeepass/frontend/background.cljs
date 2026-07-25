@@ -567,6 +567,16 @@
   [db-key group-uuid new-parent-id dispatch-fn]
   (invoke-api "move_group" {:db-key db-key :group-uuid group-uuid :new-parent-id new-parent-id} dispatch-fn))
 
+(defn clone-group
+  "Clones a group with all its entries and nested sub groups under the same parent.
+   'new-name' is the name for the cloned top group (nil keeps the source name)."
+  [db-key group-uuid new-name dispatch-fn]
+  ;; clone_group returns the cloned group's uuid string; skip the usual response
+  ;; conversion so the raw uuid string is passed through (as done for clone_entry)
+  (invoke-api "clone_group" {:db-key db-key :group-uuid group-uuid :new-name new-name}
+              dispatch-fn
+              :convert-response false))
+
 (defn move-entry-to-other-db
   [source-db-key entry-uuid target-db-key target-parent-group-uuid dispatch-fn]
   (invoke-api "move_entry_to_other_db"

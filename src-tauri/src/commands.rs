@@ -376,6 +376,15 @@ pub(crate) async fn move_group(db_key: &str, group_uuid: Uuid, new_parent_id: Uu
 }
 
 #[command]
+pub(crate) async fn clone_group(
+    db_key: &str,
+    group_uuid: Uuid,
+    new_name: Option<String>,
+) -> Result<Uuid> {
+    Ok(kp_service::clone_group(db_key, &group_uuid, new_name)?)
+}
+
+#[command]
 pub(crate) async fn move_entry_to_recycle_bin(db_key: &str, entry_uuid: Uuid) -> Result<()> {
     kp_service::move_entry_to_recycle_bin(db_key, entry_uuid)?;
     // A recycled SSH Key must stop being served.

@@ -174,6 +174,7 @@ fn main() {
             commands::move_group,
             commands::move_group_to_other_db,
             commands::move_group_to_recycle_bin,
+            commands::clone_group,
             commands::new_blank_group,
             commands::new_entry_form_data,
             commands::open_all_auto_open_dbs,

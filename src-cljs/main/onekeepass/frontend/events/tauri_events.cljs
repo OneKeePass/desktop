@@ -73,6 +73,12 @@
       (= menu-id const/MENU_ID_EDIT_GROUP)
       (dispatch [:group-tree-content/edit-group])
 
+      (= menu-id const/MENU_ID_CLONE_GROUP)
+      (dispatch [:group-tree-content/clone-group])
+
+      (= menu-id const/MENU_ID_DELETE_GROUP)
+      (dispatch [:group-tree-content/delete-group])
+
       (= menu-id const/MENU_ID_LOCK_DATABASE)
       (dispatch [:tool-bar/lock-current-db])
 

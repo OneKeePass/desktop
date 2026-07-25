@@ -39,6 +39,8 @@ pub mod menu_ids {
 
     pub const NEW_GROUP: &str = "NewGroup";
     pub const EDIT_GROUP: &str = "EditGroup";
+    pub const CLONE_GROUP: &str = "CloneGroup";
+    pub const DELETE_GROUP: &str = "DeleteGroup";
 
     pub const SEARCH: &str = "Search";
     pub const NEW_ENTRY: &str = "NewEntry";
@@ -402,6 +404,21 @@ fn build_groups_menus<R: Runtime>(
         false,
         None::<&str>,
     )?)
+    .item(&MenuItem::with_id(
+        app_handle,
+        CLONE_GROUP,
+        system_menu_translation.sub_menu(CLONE_GROUP, "Clone Group"),
+        false,
+        None::<&str>,
+    )?)
+    .separator()
+    .item(&MenuItem::with_id(
+        app_handle,
+        DELETE_GROUP,
+        system_menu_translation.sub_menu(DELETE_GROUP, "Delete Group"),
+        false,
+        None::<&str>,
+    )?)
     .build();
 
     groups_menus
@@ -564,7 +581,7 @@ pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app_handle:
         | COPY_TOTP => {
             toggle_enable_disable(app_handle, MAIN_MENU_ENTRIES, menu_id, menu_enabled);
         }
-        EDIT_GROUP | NEW_GROUP => {
+        EDIT_GROUP | NEW_GROUP | CLONE_GROUP | DELETE_GROUP => {
             toggle_enable_disable(app_handle, MAIN_MENU_GROUPS, menu_id, menu_enabled);
         }
         // PASSWORD_GENERATOR => {

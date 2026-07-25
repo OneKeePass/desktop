@@ -79,6 +79,12 @@
     (dispatch [:group-tree-content/load-groups])
     (dispatch [:entry-category/reload-category-data])))
 
+;; Used only for a newly inserted group so the new group becomes the selected/
+;; highlighted one (reload + category refresh happen inside :group-inserted).
+(defn- new-group-inserted-callback [group-uuid api-response]
+  (when-not (on-error api-response)
+    (dispatch [:group-tree-content/group-inserted group-uuid])))
+
 (defn- new-blank-group-callback [parent-group-uuid api-response]
   (when-let [group (check-error api-response)]
     (let [g (-> group
@@ -159,7 +165,7 @@
                        :tags (vec->tags tags)
                        :notes notes
                        :marked-category marked-category}
-                      update-group-callback)
+                      (partial new-group-inserted-callback uuid))
      {:fx [[:dispatch [:generic-dialog-close :group-form-dialog]]]})))
 
 (reg-event-fx

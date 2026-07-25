@@ -1281,6 +1281,7 @@
 
    "update_group"
    "insert_group"
+   "clone_group"
    "sort_sub_groups"
    "move_group"
    "mark_group_as_category"

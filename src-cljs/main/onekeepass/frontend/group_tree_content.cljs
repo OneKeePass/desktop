@@ -457,6 +457,12 @@
                           current-db-key)}))
             (when-not (or recycle-bin? group-in-recycle-bin?)
               (ctx-menu/action-item
+               {:id "group-clone"
+                :text (t/lstr-ml 'clone)
+                :enabled? (not root-group?)
+                :action #(gt-events/group-clone-start uuid)}))
+            (when-not (or recycle-bin? group-in-recycle-bin?)
+              (ctx-menu/action-item
                {:id "group-delete"
                 :text (t/lstr-ml 'delete)
                 :enabled? (not root-group?)

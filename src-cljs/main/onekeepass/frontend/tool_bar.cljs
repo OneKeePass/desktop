@@ -245,9 +245,14 @@
           ;; tree-item three-dot menu's mount/unmount, which left them disabled.
           selected-group-uuid @(gt-events/selected-group-uuid)
           recycle-bin-selected? @(gt-events/recycle-group-selected?)
+          root-group-selected? @(gt-events/root-group-selected?)
           group-menus-enabled? (and (not locked?)
                                     (some? selected-group-uuid)
-                                    (not recycle-bin-selected?))]
+                                    (not recycle-bin-selected?))
+          ;; Clone Group / Delete Group additionally cannot act on the root group
+          ;; (there is no parent to clone under, and root cannot be deleted).
+          clone-delete-menus-enabled? (and group-menus-enabled?
+                                           (not root-group-selected?))]
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE (not save-disabled?))
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_AS (not locked?))
       (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_BACKUP (not locked?))
@@ -256,6 +261,8 @@
       ;; selection instead of a tree-item component's lifecycle.
       (tauri-events/enable-app-menu const/MENU_ID_NEW_GROUP group-menus-enabled?)
       (tauri-events/enable-app-menu const/MENU_ID_EDIT_GROUP group-menus-enabled?)
+      (tauri-events/enable-app-menu const/MENU_ID_CLONE_GROUP clone-delete-menus-enabled?)
+      (tauri-events/enable-app-menu const/MENU_ID_DELETE_GROUP clone-delete-menus-enabled?)
       ;; React useEffect
       (m/react-use-effect (fn []
                             #_(tauri-events/enable-app-menu const/MENU_ID_PASSWORD_GENERATOR true)
@@ -284,6 +291,8 @@
                               (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_BACKUP false)
                               (tauri-events/enable-app-menu const/MENU_ID_NEW_GROUP false)
                               (tauri-events/enable-app-menu const/MENU_ID_EDIT_GROUP false)
+                              (tauri-events/enable-app-menu const/MENU_ID_CLONE_GROUP false)
+                              (tauri-events/enable-app-menu const/MENU_ID_DELETE_GROUP false)
                               (tauri-events/enable-app-menu const/MENU_ID_CHECK_REMOTE_CHANGES false)
                               (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js [locked? multiple-dbs? any-unlocked? remote?]))
 
