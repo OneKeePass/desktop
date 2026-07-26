@@ -323,7 +323,13 @@
                                 :color "primary"
                                 :disableElevation true
                                 :disableRipple true
-                                :size "small"}}
+                                :size "small"}
+                               ;; Button labels keep their natural (stored) casing
+                               ;; instead of MUI's default uppercase, matching the
+                               ;; MuiTab setting. Per-button :sx {:text-transform ...}
+                               ;; still overrides this.
+                               :styleOverrides
+                               {:root {:text-transform "none"}}}
                               ;; Removes the animated slide of the tab underline
                               ;; indicator - it now jumps instantly to the selected
                               ;; tab instead of sliding across. Drop this override
