@@ -324,6 +324,22 @@
                                 :disableElevation true
                                 :disableRipple true
                                 :size "small"}}
+                              ;; Removes the animated slide of the tab underline
+                              ;; indicator - it now jumps instantly to the selected
+                              ;; tab instead of sliding across. Drop this override
+                              ;; to restore the sliding animation.
+                              :MuiTabs
+                              {:styleOverrides
+                               {:indicator {:transition "none"}}}
+
+                              ;; Tab labels keep their natural casing. MUI's default
+                              ;; is text-transform: uppercase; this turns it off
+                              ;; app-wide. A per-tab :sx {:text-transform ...} still
+                              ;; overrides this for an individual Tab if needed.
+                              :MuiTab
+                              {:styleOverrides
+                               {:root {:text-transform "none"}}}
+
                               :MuiLink {:defaultProps {:color "inherit" :underline "hover" :href "#"}} ;;
                               :MuiSvgIcon
                               {:styleOverrides
