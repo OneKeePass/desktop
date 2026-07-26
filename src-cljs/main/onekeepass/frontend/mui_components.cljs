@@ -307,12 +307,22 @@
                               {:styleOverrides
                                {:root {:color text-primary}}}
 
+                              ;; Ripple (the ink-splash click animation) is turned
+                              ;; off app-wide here. MuiButtonBase is the base for
+                              ;; all button-like components (Button, IconButton,
+                              ;; Tab, MenuItem, ListItemButton ...), so one setting
+                              ;; covers them all. Flip these back to false to
+                              ;; restore the ripple.
+                              :MuiButtonBase
+                              {:defaultProps
+                               {:disableRipple true}}
+
                               :MuiButton
                               {:defaultProps
                                {:variant "contained"
                                 :color "primary"
                                 :disableElevation true
-                                :disableRipple false
+                                :disableRipple true
                                 :size "small"}}
                               :MuiLink {:defaultProps {:color "inherit" :underline "hover" :href "#"}} ;;
                               :MuiSvgIcon
