@@ -120,6 +120,8 @@
 (def MENU_ID_PASSWORD_GENERATOR "PasswordGenerator")
 (def MENU_ID_NEW_ENTRY "NewEntry")
 (def MENU_ID_EDIT_ENTRY "EditEntry")
+(def MENU_ID_CLONE_ENTRY "CloneEntry")
+(def MENU_ID_DELETE_ENTRY "DeleteEntry")
 (def MENU_ID_COPY_USERNAME "CopyUsername")
 (def MENU_ID_COPY_PASSWORD "CopyPassword")
 (def MENU_ID_COPY_URL "CopyUrl")

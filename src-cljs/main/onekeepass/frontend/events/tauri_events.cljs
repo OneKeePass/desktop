@@ -67,6 +67,12 @@
       (= menu-id const/MENU_ID_NEW_ENTRY)
       (menu-action-call menu-id)
 
+      (= menu-id const/MENU_ID_CLONE_ENTRY)
+      (menu-action-call menu-id)
+
+      (= menu-id const/MENU_ID_DELETE_ENTRY)
+      (menu-action-call menu-id)
+
       (= menu-id const/MENU_ID_NEW_GROUP)
       (dispatch [:group-tree-content/new-group])
 

@@ -45,6 +45,8 @@ pub mod menu_ids {
     pub const SEARCH: &str = "Search";
     pub const NEW_ENTRY: &str = "NewEntry";
     pub const EDIT_ENTRY: &str = "EditEntry";
+    pub const CLONE_ENTRY: &str = "CloneEntry";
+    pub const DELETE_ENTRY: &str = "DeleteEntry";
 
     // Entry field copy/open actions. See build_entries_menus for how their
     // accelerators interplay with the document level key handler in the UI
@@ -306,6 +308,11 @@ fn build_entries_menus<R: Runtime>(
     app_handle: &AppHandle<R>,
     system_menu_translation: &SystemMenuTranslation,
 ) -> Result<Submenu<R>, tauri::Error> {
+    #[cfg(target_os = "macos")]
+    let delete_entry_accelerator = "Backspace";
+    #[cfg(not(target_os = "macos"))]
+    let delete_entry_accelerator = "Delete";
+
     let entries_menus = SubmenuBuilder::new(
         app_handle,
         system_menu_translation.main_menu(MAIN_MENU_ENTRIES),
@@ -325,6 +332,23 @@ fn build_entries_menus<R: Runtime>(
             system_menu_translation.sub_menu(EDIT_ENTRY, "Edit Entry"),
             false,
             Some("CmdOrControl+E"),
+        )?,
+    ])
+    .separator()
+    .items(&[
+        &MenuItem::with_id(
+            app_handle,
+            CLONE_ENTRY,
+            system_menu_translation.sub_menu(CLONE_ENTRY, "Clone Entry"),
+            false,
+            Some("CmdOrControl+K"),
+        )?,
+        &MenuItem::with_id(
+            app_handle,
+            DELETE_ENTRY,
+            system_menu_translation.sub_menu(DELETE_ENTRY, "Delete Entry"),
+            false,
+            Some(delete_entry_accelerator),
         )?,
     ])
     .separator()
@@ -577,8 +601,8 @@ pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app_handle:
         | CHECK_REMOTE_CHANGES => {
             toggle_enable_disable(app_handle, MAIN_MENU_DATABASE, menu_id, menu_enabled);
         }
-        EDIT_ENTRY | NEW_ENTRY | COPY_USERNAME | COPY_PASSWORD | COPY_URL | OPEN_URL
-        | COPY_TOTP => {
+        EDIT_ENTRY | NEW_ENTRY | CLONE_ENTRY | DELETE_ENTRY | COPY_USERNAME | COPY_PASSWORD
+        | COPY_URL | OPEN_URL | COPY_TOTP => {
             toggle_enable_disable(app_handle, MAIN_MENU_ENTRIES, menu_id, menu_enabled);
         }
         EDIT_GROUP | NEW_GROUP | CLONE_GROUP | DELETE_GROUP => {
