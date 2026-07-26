@@ -415,16 +415,18 @@
      ;; Need to check in Windows,Linux 
      [:div {:class "gcontent" :style {:margin-bottom 2 :height "200px"}}
       [entry-items]]
-     [:div {:class "gfooter" :style {:margin-top 5
+     [:div {:class "gfooter" :style {:justify-content "center"
                                      :border-top (str "1px solid " (theme-color @custom-theme-atom :divider-color1))
                                      :border-left (str "1px solid " (theme-color @custom-theme-atom :divider-color1))
                                      :border-right (str "1px solid " (theme-color @custom-theme-atom :divider-color1))
                                      :background (theme-color @custom-theme-atom :header-footer)
                                      } }
+      ;; Footer height + vertical centering come from the shared .gfooter style
+      ;; (custom.css); :justify-content center above centers the button
+      ;; horizontally.
       [mui-stack {:style {:alignItems "center"
-                          ;; need this to align this footer with entry form footer
-                          :max-height "46px"}}
-       [:div {:style {:margin-top 10 :margin-bottom 10 :margin-right 5 :margin-left 5}}
+                          :width "100%"}}
+       [:div {:style {:margin-right 5 :margin-left 5}}
         [mui-button {;; :variant "outlined"
                      ;; :color "inherit"
                      :disabled disable-action

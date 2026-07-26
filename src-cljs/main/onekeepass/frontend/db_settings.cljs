@@ -314,7 +314,7 @@
           [:div {:class "gcontent" :style {}}
            [list-items dialog-data]]
           [:div {:class "gfooter"}
-           [mui-stack {:justify-content "center"}
+           [mui-stack {:sx {:width "100%"} :justify-content "center"}
             [mui-button {:variant "text"
                          :disabled (or modified in-progress? (-> error-fields seq boolean))
                          :on-click settings-events/app-settings-dialog-read-start}

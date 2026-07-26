@@ -987,7 +987,7 @@
                                        ;;:background "var(--mui-color-grey-200)"
                                        }}
 
-        [mui-stack {:sx {:align-items "flex-end"}}
+        [mui-stack {:sx {:width "100%" :align-items "flex-end"}}
          [:div.buttons1
 
           (cond
@@ -1127,7 +1127,7 @@
                                      :min-height "46px" ;; needed to align this footer with entry list 
                                      :background (theme-color @custom-theme-atom :header-footer)}}
 
-      [mui-stack {:sx {:align-items "flex-end"}}
+      [mui-stack {:sx {:width "100%" :align-items "flex-end"}}
        [:div.buttons1
         [mui-button {:on-click form-events/new-entry-cancel-on-click} (lstr-bl 'cancel)]
         [mui-button {:on-click form-events/ok-new-entry-add} (lstr-bl 'ok)]]]]
@@ -1297,7 +1297,7 @@
                                    :min-height "46px" ;; needed to align this footer with entry list 
                                    :background (theme-color @custom-theme-atom :header-footer)}}
 
-    [mui-stack {:sx {:align-items "flex-end"}}
+    [mui-stack {:sx {:width "100%" :align-items "flex-end"}}
      [:div.buttons1
       [mui-button {:on-click form-events/cancel-new-custom-entry-type} (lstr-bl 'cancel)]
       [mui-button {:on-click form-events/create-custom-entry-type} (tr-bl create)]]]]
@@ -1338,7 +1338,7 @@
                                        :min-height "46px" ;; needed to align this footer with entry list 
                                        :background (theme-color @custom-theme-atom :header-footer)}}
 
-        [mui-stack {:sx {:align-items "flex-end"}}
+        [mui-stack {:sx {:width "100%" :align-items "flex-end"}}
          [:div.buttons1
           [mui-button {:on-click form-events/show-delete-confirm-dialog}
            (tr-bl delete)]
