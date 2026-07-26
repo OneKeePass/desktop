@@ -79,7 +79,9 @@
                            REMOTE_CONNECTION_SFTP_TYPE_NAME
                            REMOTE_CONNECTION_WEBDAV_TYPE_NAME])
 
+;; Standard section names (match onekeepass-core constants in 'standard_in_section_names')
 (def ADDITIONAL_ONE_TIME_PASSWORDS "Additional One-Time Passwords")
+(def PASSKEY_DETAILS "Passkey Details")
 ;;
 (def CATEGORY_ALL_ENTRIES "AllEntries")
 (def CATEGORY_FAV_ENTRIES "Favorites")

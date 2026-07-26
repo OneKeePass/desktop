@@ -7,6 +7,7 @@
    [onekeepass.frontend.constants :as const :refer [ADDITIONAL_ONE_TIME_PASSWORDS
                                                     IFDEVICE
                                                     ONE_TIME_PASSWORD_TYPE
+                                                    PASSKEY_DETAILS
                                                     PASSWORD
                                                     STANDARD_ENTRY_TYPES URL
                                                     USERNAME]]
@@ -370,14 +371,52 @@
        section-data)
       section-data)))
 
+;; These standard sections are not shown in the edit mode when they do not have any value.
+;; Instead the user shows such a section on demand - see 'on-demand-sections-content'.
+;; The values of these sections are set through a dialog (one time passwords) or by the browser
+;; extension (passkey) and are not entered field by field in the form
+(def ^:private ON_DEMAND_SECTIONS #{ADDITIONAL_ONE_TIME_PASSWORDS PASSKEY_DETAILS})
+
+(defn- section-has-values?
+  "Returns true if any field of this section has a non blank value"
+  [section-data]
+  (boolean (seq (filter (fn [kv] (not (str/blank? (:value kv)))) section-data))))
+
+(defn- section-hidden-on-demand?
+  "Returns true if this section is to be hidden in the edit mode till the user asks for it.
+   A section that has any value or has any field in error is always shown"
+  [section-name section-data revealed-sections errors]
+  (and (contains? ON_DEMAND_SECTIONS section-name)
+       (not (contains-val? revealed-sections section-name))
+       (not (section-has-values? section-data))
+       (not (some (fn [{:keys [key]}] (contains? errors key)) section-data))))
+
+(defn- otp-field-not-set-up? [{:keys [data-type value]}]
+  (and (= data-type ONE_TIME_PASSWORD_TYPE) (str/blank? value)))
+
+(defn- move-not-set-up-otp-fields-to-end
+  "In the edit mode an otp field that is not yet set up is shown as a 'Set up One-Time Password'
+   link and such a field is moved after all the other fields of this section. Once the otp is
+   set up, the field is shown in its usual place. Only the display order is changed here and
+   the order of the fields in the form data itself remains the same"
+  [edit section-data]
+  (if-not edit
+    section-data
+    (into (filterv (complement otp-field-not-set-up?) section-data)
+          (filterv otp-field-not-set-up? section-data))))
+
 ;; Note translations for field names (labels) are done in 'text-field' defined in fields.cljs
 (defn- section-content
   "This is called for each section of an entry"
   [{:keys [edit entry-type-uuid ssh-agent-enabled? ssh-agent-client-mode? section-name section-data group-uuid entry-uuid]}]
-  (let [errors @(form-events/entry-form-field :error-fields)]
-    ;; Show a section in edit mode irrespective of its contents; In non edit mode a section is shown only 
-    ;; if it has some fields with non blank value. 
-    (when (or edit (boolean (seq (filter (fn [kv] (not (str/blank? (:value kv)))) section-data))))  ;;(seq section-data)
+  (let [errors @(form-events/entry-form-field :error-fields)
+        revealed-sections @(form-events/revealed-sections)]
+    ;; Show a section in edit mode irrespective of its contents except for the 'on demand' sections
+    ;; that are shown only when the user asks for them; In non edit mode a section is shown only
+    ;; if it has some fields with non blank value.
+    (when (if edit
+            (not (section-hidden-on-demand? section-name section-data revealed-sections errors))
+            (section-has-values? section-data))
       (let [refs (atom {})
             standard-sections @(form-events/entry-form-data-fields :standard-section-names)
             standard-section? (contains-val? standard-sections section-name)
@@ -388,6 +427,7 @@
             ssh-key-agent-mode-hint (if ssh-agent-client-mode?
                                       "sshAgentClientModeActive"
                                       "sshAgentAgentModeActive")
+            section-data (move-not-set-up-otp-fields-to-end edit section-data)
             fields-content
             (doall
              (for [{:keys [key
@@ -558,7 +598,7 @@
 
                                       :else
                                       m))
-                                 adjusted-section-data)
+                                  adjusted-section-data)
 
                                  (= entry-type-uuid const/UUID_OF_ENTRY_TYPE_SSH_KEY)
                                  (get-ssh-key-section-data section-name adjusted-section-data ssh-agent-enabled? ssh-agent-client-mode?)
@@ -611,17 +651,18 @@
         entry-type-name @(form-events/entry-form-data-fields :entry-type-name)
         url-value @(form-events/entry-form-url-value)
         edit @(form-events/form-edit-mode)
+        new-form? @(form-events/is-new-entry?)
         errors @(form-events/entry-form-field :error-fields)]
     (when edit
       [mui-box {:sx (theme-content-sx @custom-theme-atom)}
        ;; The entry type of an existing entry cannot be changed and it is shown
        ;; here as a read only info
-       #_[mui-typography {:variant "caption" :sx {:color "text.secondary"}}
-        (str (tr-l "entryType") ": " (translated-entry-type-name entry-type-name))]
-       [mui-stack {:direction "row" :spacing 1 :sx {:align-items "center"}}
-        [mui-typography {:variant "caption" :sx {:color "text.secondary"}}
-         (str (tr-l "entryType") ": ")]
-        [mui-typography (translated-entry-type-name entry-type-name)]]
+       (when-not new-form?
+         [mui-stack {:direction "row" :spacing 1 :sx {:align-items "center" :justify-content "center"}}
+          [mui-typography {:variant "caption" :sx {:color "text.secondary"}}
+           (str (tr-l "entryType") ": ")]
+          [mui-typography (translated-entry-type-name entry-type-name)]])
+
        [mui-stack {:direction "row" :spacing 1}
         [mui-stack {:direction "row" :sx {:width "88%" :justify-content "center"}}
          [text-field {:key (tr-entry-field-name-cv "Title")
@@ -754,44 +795,115 @@
             attachment-list
             delete-dialog]])))))
 
+(defn- standard-otp-field-set?
+  "Returns true if the standard otp field of this entry has a value. Adding an
+   'Additional One-Time Passwords' section makes sense only after that"
+  [section-fields]
+  (boolean (some (fn [{:keys [key value]}]
+                   (and (= key const/OTP) (not (str/blank? value))))
+                 (-> section-fields vals flatten))))
+
+(defn- on-demand-section-link-shown?
+  "Returns true if a link is to be shown for this hidden 'on demand' section"
+  [section-name section-fields revealed-sections errors]
+  (and (section-hidden-on-demand? section-name (get section-fields section-name) revealed-sections errors)
+       (or (not= section-name ADDITIONAL_ONE_TIME_PASSWORDS)
+           (standard-otp-field-set? section-fields))))
+
+(defn- footer-links-stack
+  "Lays out the footer links as a block that is centered in the form. The links themselves are
+   left aligned within that block so that all their icons line up one below the other"
+  [& links]
+  [mui-stack {:sx {:align-items "center"}}
+   (into [mui-stack {:sx {:align-items "flex-start"}}] links)])
+
+;; A footer link is a low emphasis text button - it stays in the secondary text color and
+;; turns to the link color on hover so that these optional actions do not compete with the
+;; fields of the form
+(def ^:private footer-link-button-sx
+  {:text-transform "none"
+   :font-size ".9em"
+   :font-weight "normal"
+   :justify-content "flex-start"
+   :color "text.secondary"
+   "&:hover" {:color "primary.dark" :background-color "transparent"}})
+
+(defn- footer-link-button
+  "A single footer link - an icon followed by the 'label' text"
+  [{:keys [tooltip-title label on-click]}]
+  [mui-tooltip {:title tooltip-title :enterDelay 2500}
+   [mui-button {:variant "text"
+                :size "small"
+                :disable-ripple true
+                :start-icon (r/as-element [mui-icon-add-circle-outline-outlined])
+                :sx footer-link-button-sx
+                :on-click on-click}
+    label]])
+
+(defn- on-demand-section-links
+  "A link for each 'on demand' section of this entry that is hidden in the edit mode.
+   Clicking a link shows that section so that the user can add values to it"
+  []
+  (let [{:keys [edit] {:keys [section-names section-fields]} :data} @(form-events/entry-form-all)
+        errors @(form-events/entry-form-field :error-fields)
+        revealed-sections @(form-events/revealed-sections)
+        hidden-sections (when edit
+                          (filterv
+                           #(on-demand-section-link-shown? % section-fields revealed-sections errors)
+                           section-names))]
+    (when (seq hidden-sections)
+      (into [:<>]
+            (for [section-name hidden-sections]
+              ^{:key section-name}
+              [footer-link-button {:tooltip-title (lstr-l 'showSectionToAddDetails)
+                                   :label (tr-entry-section-name-cv section-name)
+                                   :on-click #(form-events/section-reveal section-name)}])))))
+
+(defn- add-section-link
+  "The 'Add Section' link along with the popper that is shown to enter a new section name"
+  []
+  (let [;;anchor-el (r/atom nil)
+        comp-ref (atom nil)]
+    [:<>
+     [mui-box {;; This box's ref is used as achoring element for the Popper
+               :ref (fn [e]
+                      ;;(println "ref is called " e)
+                      (reset! comp-ref e))}
+      [footer-link-button {:tooltip-title (lstr-l 'addSectionAndFields)
+                           :label (tr-l "addSection")
+                           :on-click #(form-events/open-section-name-dialog @comp-ref)}]]
+     [add-modify-section-popper @(form-events/section-name-dialog-data)]
+     #_[add-section-popper anchor-el]]))
+
+;; Used in the custom entry type form where the 'on demand' section links are not applicable
 (defn add-section-content []
   (let [edit @(form-events/form-edit-mode)]
     (when edit
-      (let [;;anchor-el (r/atom nil)
-            comp-ref (atom nil)]
-        [mui-box {;; This box's ref is used as achoring element for the Popper
-                  :ref (fn [e]
-                         ;;(println "ref is called " e)
-                         (reset! comp-ref e))}
-         [mui-stack {:direction "row" :sx {:justify-content "center"}}
-          [mui-stack {:direction "row"}
-           [mui-tooltip  {:title (lstr-l 'addSectionAndFields) :enterDelay 2500}
-            [mui-icon-button {:edge "end"
-                              :on-click #(form-events/open-section-name-dialog @comp-ref)
-                              #_(fn [^js/Event _e]
-                                  (reset! anchor-el @comp-ref #_(-> e .-currentTarget)))}
-             [mui-icon-add-circle-outline-outlined]]]]
-          [mui-stack {:direction "row" :sx {:align-items "center" :margin-left "10px"}}
-           [mui-tooltip  {:title (lstr-l 'addSectionAndFields) :enterDelay 2500}
-            [mui-link {:sx {:color "primary.dark"}
-                       :underline "hover"
-                       :on-click  #(form-events/open-section-name-dialog @comp-ref)
-                       #_(fn [^js/Event _e]
-                           (reset! anchor-el @comp-ref))}
-             [mui-typography {:variant "h6" :sx {:font-size "1.1em"}}
-              (tr-l "addSection")]]]]]
-         [add-modify-section-popper @(form-events/section-name-dialog-data)]
-         #_[add-section-popper anchor-el]]))))
+      [footer-links-stack [add-section-link]])))
 
-(defn center-content []
+(defn- form-footer-content
+  "The footer of the entry form in the edit mode. The links to show an 'on demand' section and
+   to add a new section are kept in a box similar to the other content boxes of the form.
+   All these links are in a single stack so that they line up one below the other"
+  []
+  (let [edit @(form-events/form-edit-mode)]
+    (when edit
+      [mui-box {:sx (theme-content-sx @custom-theme-atom)}
+       [footer-links-stack
+        [on-demand-section-links]
+        [add-section-link]]])))
+
+(defn- center-content []
   (fn []
     [mui-box
      [title-with-icon-field]
      [:f>  all-sections-content]
-     [add-section-content]
      [notes-content]
      [tags-selection]
      [attachments-content]
+     ;; The footer links to add a section or to show an 'on demand' section are kept at the end.
+     ;; A section shown from these links continues to appear in its own place in 'all-sections-content'
+     [form-footer-content]
      [uuid-times-content]
      [expiry-content]]))
 
@@ -990,7 +1102,7 @@
                                :error (not (nil? field-error-text))
                                :error-text field-error-text}]]]))
 
-(defn entry-content-new []
+(defn- entry-content-new []
   ;; (println "entry-content-new called")
   (let [title @(form-events/entry-form-data-fields :title)
         form-title-tr (tr-t "newEntry")

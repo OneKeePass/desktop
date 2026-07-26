@@ -192,6 +192,7 @@
         "separator": "Separator",
         "sessionTimeout": "Session Timeout(in min)",
         "setUpOneTimePassword": "Set up One-Time Password",
+        "showSectionToAddDetails": "Show this section to add details",
         "sometimes": "Sometimes",
         "sourceDatabase": "Source Database",
         "sshAgent": "SSH Agent",
