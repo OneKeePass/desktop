@@ -324,7 +324,11 @@
                :sx {"& .MuiPaper-root" {:width "80%"}}}
 
    [mui-dialog-title  [tab-panel-selection panel-shown]]
-   [mui-dialog-content {:dividers true}
+   ;; Fixed min-height so the dialog does not jump in size when switching
+   ;; between the 'Password' and 'Password Phrase' tabs (the two panels have
+   ;; different amounts of content). The shorter panel simply fills to this
+   ;; height; tune the value if either panel grows.
+   [mui-dialog-content {:dividers true :sx {:min-height "380px"}}
     (if (= panel-shown :password)
       [password-panel pass-options]
       [pass-phrase-panel pass-options])]
