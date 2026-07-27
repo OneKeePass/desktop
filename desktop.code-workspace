@@ -8,6 +8,9 @@
 
 		"rust-analyzer.diagnostics.disabled":["unresolved-proc-macro"],
 
+		// See comments in /Users/jeyasankar/Development/repositories/github/OneKeePass-Organization/mobile/db-service-ffi.code-workspace
+		"rust-analyzer.server.path": "/Users/jeyasankar/.cargo/bin/rust-analyzer",
+
 		"editor.semanticTokenColorCustomizations": {
 	        "enabled": true,
 	        	"rules": {

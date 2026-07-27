@@ -1,6 +1,8 @@
 (ns onekeepass.frontend.db-settings
   (:require [onekeepass.frontend.events.db-settings :as settings-events]
-            [onekeepass.frontend.common-components :refer [cipher-algorithms kdf-algorithms]]
+            [onekeepass.frontend.common-components :refer [cipher-algorithms
+                                                           field-help-icon
+                                                           kdf-algorithms]]
             [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                               mui-alert
                                                               mui-box
@@ -12,7 +14,7 @@
                                                               mui-icon-button
                                                               mui-icon-feed-outlined
                                                               mui-icon-folder-outlined
-                                                              mui-icon-security-outlined
+                                                              mui-icon-lock-outlined
                                                               mui-icon-settings-outlined
                                                               mui-icon-visibility
                                                               mui-icon-visibility-off
@@ -57,8 +59,8 @@
 
     [mui-list-item-button {:on-click #(settings-events/db-settings-panel-select :security-info)
                            :selected (= :security-info panel)}
-     [mui-list-item-icon [mui-icon-security-outlined]]
-     [mui-list-item-text text-style-m (tr-l security)]]]])
+     [mui-list-item-icon [mui-icon-lock-outlined]]
+     [mui-list-item-text text-style-m (t/lstr-l "encryption")]]]])
 
 (defn- basic-info
   "Incoming settings map has nested maps and are destructred"
@@ -230,10 +232,10 @@
                        {:keys [cipher-id]
                         {:keys [iterations memory parallelism algorithm]} :kdf} :data}] 
   [mui-stack {:spacing 2}
-   [mui-typography {:text-align "center"} (tr-t security)]
+   [mui-typography {:text-align "center"} (t/lstr-t "encryption")]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}} ;;:alignItems "center"
     [mui-stack {:direction "row" :sx {:width "100%"}}
-     [mui-stack {:sx {:width "50%" :ml 3}}
+     [mui-stack {:direction "row" :sx {:width "50%" :ml 3 :align-items "flex-end"}}
       [m/text-field {:label (tr-l encriptionAlgorithm)
                      :value cipher-id
                      :required true
@@ -243,10 +245,11 @@
                      :variant "standard" :fullWidth true}
        (doall
         (for [{:keys [name value]} cipher-algorithms]
-          ^{:key value} [mui-menu-item {:value value} name]))]]]
+          ^{:key value} [mui-menu-item {:value value} name]))]
+      [field-help-icon (t/lstr-h "encryptionAlgorithm")]]]
 
     [mui-stack {:direction "row" :sx {:width "100%"}}
-     [mui-stack {:sx {:width "50%" :ml 3}}
+     [mui-stack {:direction "row" :sx {:width "50%" :ml 3 :align-items "flex-end"}}
       [m/text-field {:label (tr-l kdf)
                      :value algorithm
                      :required true
@@ -257,27 +260,31 @@
                      :variant "standard" :fullWidth true}
        (doall
         (for [{:keys [name value]} kdf-algorithms]
-          ^{:key value} [mui-menu-item {:value value} name]))]]]
+          ^{:key value} [mui-menu-item {:value value} name]))]
+      [field-help-icon (t/lstr-h "kdf")]]]
 
     [mui-stack {:direction "row" :sx {:width "100%"}}
-     [mui-stack {:sx {:width "33.33%" :ml 3}}
+     [mui-stack {:direction "row" :sx {:width "33.33%" :ml 3 :align-items "flex-end"}}
       [m/text-field {:label (tr-l transformRounds)
                      :value iterations ;;(:iterations kdf)
                      :type "number"
                      :error (contains? error-fields :iterations)
                      :helperText (get error-fields :iterations)
                      :on-change (settings-events/field-update-factory [:data :kdf :iterations])
-                     :variant "standard" :fullWidth true}]]
+                     :variant "standard" :fullWidth true}]
+      [field-help-icon (t/lstr-h "transformRounds")]]
 
-     [mui-stack {:sx {:width "33.33%" :ml 3}}
+     [mui-stack {:direction "row" :sx {:width "33.33%" :ml 3 :align-items "flex-end"}}
       [m/text-field {:label (tr-l memoryUsage)
                      :value memory ;;(:memory kdf)
                      :type "number"
                      :error (contains? error-fields :memory)
                      :helperText (get error-fields :memory)
                      :on-change (settings-events/field-update-factory [:data :kdf :memory])
-                     :variant "standard" :fullWidth true}]]
-     [mui-stack {:sx {:width "33.33%" :ml 3}}
+                     :variant "standard" :fullWidth true}]
+      [field-help-icon (t/lstr-h "memoryUsage")]]
+
+     [mui-stack {:direction "row" :sx {:width "33.33%" :ml 3 :align-items "flex-end"}}
       [m/text-field {:label (tr-l parallelism)
                      :value parallelism ;;(:parallelism kdf)
                      :type "number"
@@ -285,9 +292,10 @@
                      :helperText (get error-fields :parallelism)
                      ;; Using min for "number" type is not working
                      ;;:InputProps {:min "2"}
-                     ;;:min 2 
+                     ;;:min 2
                      :on-change (settings-events/field-update-factory [:data :kdf :parallelism])
-                     :variant "standard" :fullWidth true}]]]]])
+                     :variant "standard" :fullWidth true}]
+      [field-help-icon (t/lstr-h "parallelism")]]]]])
 
 (defn settings-dialog [{:keys [dialog-show
                                status

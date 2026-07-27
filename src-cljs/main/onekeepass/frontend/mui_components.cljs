@@ -551,6 +551,7 @@
   FavoriteBorder
   FeedOutlined
   FlightTakeoffOutlined
+  HelpOutline
   Image
   Launch
   LoginOutlined

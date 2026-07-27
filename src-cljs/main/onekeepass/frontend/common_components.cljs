@@ -756,6 +756,21 @@
 
 (def kdf-algorithms [{:name "Argon 2d (KDBX 4)" :value "Argon2d"} {:name "Argon 2id (KDBX 4)" :value "Argon2id"}])
 
+(defn field-help-icon
+  "A '?' icon that shows the passed help text as a tooltip on hover
+
+   Meant to be placed next to a text field - in a row stack - so that the field keeps
+   its own helper text slot free for validation errors and the row does not grow taller.
+   The arg 'help-text' is the already translated text
+  "
+  [help-text]
+  [mui-tooltip {:title help-text :placement "top" :enterDelay 400}
+   [m/mui-icon-help-outline {:font-size "small"
+                             :sx {:cursor "help"
+                                  :ml "6px"
+                                  :mb "6px"
+                                  :color "text.secondary"}}]])
+
 
 
 #_(fn [e] (println "ref is called ..." (when-not (nil? e)
