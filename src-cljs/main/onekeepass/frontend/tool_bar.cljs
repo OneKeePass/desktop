@@ -76,44 +76,46 @@
           ^{:key nm} [mui-typography {:variant "body2"} (str "• " nm)])))
 
 (defn- ask-save-dialog-content
-  "Multi-line quit message. Three cases: no locked dirty dbs (plain save/quit),
-   some locked (save covers the rest, locked ones listed), and all dirty dbs
-   locked (nothing can be saved - only unlock or discard)."
+  "Quit-time unsaved-changes message. Three cases:
+     - no locked dirty dbs -> all changes can be saved (plain save/quit)
+     - all dirty dbs locked -> nothing can be saved (locked ones listed;
+       one/many wording), so only quit-without-saving/cancel is offered
+     - mixed -> Save covers only the unlocked dbs; the locked ones are listed."
   [_dialog-data]
   (let [locked-dbs @(tb-events/quit-locked-dirty-dbs)
         all-locked? @(tb-events/quit-all-dirty-locked?)]
     [mui-stack {:spacing 1}
      (cond
        (empty? locked-dbs)
-       [mui-typography (t/lstr-dlg-text "unsavedChangesTxt2")]
+       [mui-typography (t/lstr-dlg-text "quitUnsavedTxt")]
 
        all-locked?
        [:<>
-        [mui-typography (t/lstr-dlg-text "quitAllLockedTxt")]
+        [mui-typography (t/lstr-dlg-text (if (= 1 (count locked-dbs))
+                                           "quitLockedOneTxt"
+                                           "quitLockedManyTxt"))]
         [locked-db-name-list locked-dbs]]
 
        :else
        [mui-stack
-        [mui-typography (t/lstr-dlg-text "unsavedChangesTxt2")]
-        [mui-typography {:sx {:mt 2}} (t/lstr-dlg-text "quitSomeLockedTxt1")]
-        [locked-db-name-list locked-dbs]
-        [mui-typography {:sx {:mt 2}} (t/lstr-dlg-text "quitSomeLockedTxt2")]
-        ])]))
+        [mui-typography (t/lstr-dlg-text "quitMixedSaveTxt")]
+        [mui-typography {:sx {:mt 2}} (t/lstr-dlg-text "quitMixedLockedTxt")]
+        [locked-db-name-list locked-dbs]])]))
 
 (defn ask-save-dialog [dialog-data]
   ;; On quit, any locked db among the modified ones cannot be saved (its content
   ;; is encrypted in memory). When every dirty db is locked, "Save" would be a
-  ;; no-op, so it is dropped and only Unlock-by-quitting/discard is offered.
+  ;; no-op, so it is dropped and only quit-without-saving/cancel is offered.
   (let [locked-dbs @(tb-events/quit-locked-dirty-dbs)
         all-locked? @(tb-events/quit-all-dirty-locked?)]
     [confirm-text-dialog
      (t/lstr-dlg-title 'unsavedChanges)
      ask-save-dialog-content
      (if (and (seq locked-dbs) all-locked?)
-       [{:label (t/lstr-bl 'quit) :on-click #(tb-events/on-do-not-save-click)}
+       [{:label (t/lstr-bl 'quitWithoutSaving) :on-click #(tb-events/on-do-not-save-click)}
         {:label (t/lstr-bl 'cancel) :on-click #(tb-events/ask-save-dialog-show false)}]
        [{:label (t/lstr-bl 'save) :on-click #(tb-events/on-save-click)}
-        {:label (t/lstr-bl 'quit) :on-click #(tb-events/on-do-not-save-click)}
+        {:label (t/lstr-bl 'quitWithoutSaving) :on-click #(tb-events/on-do-not-save-click)}
         {:label (t/lstr-bl 'cancel) :on-click #(tb-events/ask-save-dialog-show false)}])
      dialog-data]))
 
