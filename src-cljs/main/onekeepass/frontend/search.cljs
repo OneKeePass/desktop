@@ -78,17 +78,12 @@
   (let [result-items (list-items-factory matched-entries #_(sch-event/search-result-entry-items) row-item :list-style {})]
     [result-items]))
 
-(defn- focus [^js/InputRef comp-ref]
-  ;; calling  (.getElementById js/document "search_fld") will also work. But 'id' of input element 
-  ;; should be unique
-  #_(.focus (.getElementById js/document "search_fld"))
-  (if-let [comp-id (some-> comp-ref .-props .-id)]
-    (.focus  (.getElementById js/document comp-id))
-    (println "inputRef called back with invalid ref or nil ref")))
+(defn- focus-search-field []
+  (when-let [input (.getElementById js/document "search_fld")]
+    (.focus input)))
 
 (defn search-dialog [{:keys [dialog-show term not-matched error-text result]} _db-key]
-  (let [input-comp-ref (atom nil)
-        matched-entries (:entry-items result)
+  (let [matched-entries (:entry-items result)
         matched-count (count matched-entries)]
     [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
                  :dir (t/dir)
@@ -99,12 +94,10 @@
       [mui-stack
        [m/text-field {:label (tr-l "searchTerm")
                       :value term
-                      :id "search_fld" ;; needs to be a unique id to use .getElementById and to call focus
-                      ;; Using :ref callback fn returns #object[HTMLDivElement [object HTMLDivElement]]
-                      ;; whereas :inputRef returns #object[reagent2] for the 'input' text box and we can use to check properties
-                      :inputRef (fn [e]
-                                  (reset! input-comp-ref e))
-                      :autoFocus (when (str/blank? term) true)
+                      :id "search_fld"
+                      ;; Focus the search field whenever the dialog opens, including when a
+                      ;; previous search term is restored after viewing an entry.
+                      :autoFocus true
                       ;;:on-key-press (enter-key-pressed-factory #(sch-event/search-on-click db-key term))
                       :on-change sch-event/search-term-update ;; a fn that needs to accept an event object
                       :variant "standard"
@@ -113,9 +106,15 @@
                                                          [mui-input-adornment {:position "end" }
                                                           [mui-icon-button
                                                            {:edge false
+                                                            ;; Keep a pointer click from moving focus from the input
+                                                            ;; to the clear button before its click handler runs.
+                                                            :on-mouse-down #(.preventDefault %)
                                                             :on-click (fn []
-                                                                        (focus @input-comp-ref)
-                                                                        (sch-event/search-term-clear))}
+                                                                        (sch-event/search-term-clear)
+                                                                        ;; Reassert focus after React commits the cleared value.
+                                                                        (js/requestAnimationFrame
+                                                                         (fn [_]
+                                                                           (focus-search-field))))}
                                                            [mui-icon-clear-outlined]]])}}}]
        (when (seq matched-entries)
          [mui-stack {:sx {:mt 2 :height "250px"
