@@ -2,7 +2,8 @@
   (:require [onekeepass.frontend.events.db-settings :as settings-events]
             [onekeepass.frontend.common-components :refer [cipher-algorithms
                                                            field-help-icon
-                                                           kdf-algorithms]]
+                                                           kdf-algorithms
+                                                           settings-panel-title]]
             [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                               mui-alert
                                                               mui-box
@@ -69,7 +70,7 @@
      {:keys [database-name database-description]} :meta} :data
     :as _settings}]  ;;error-fields is a map
   [mui-stack
-   [mui-typography {:text-align "center"} (tr-t basicDatabaseInformation)]
+   [settings-panel-title (tr-t basicDatabaseInformation)]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
     [mui-box {:sx {:width "80%"}}
      [m/text-field {:label (tr-l name)
@@ -217,7 +218,7 @@
 (defn- credentials-info [{:keys [error-fields]  :as credentials-m}]
 
   [mui-stack {:spacing 2}
-   [mui-typography {:text-align "center"} (tr-t databaseCredentials)]
+   [settings-panel-title (tr-t databaseCredentials)]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
 
     [password-credential credentials-m]
@@ -232,7 +233,7 @@
                        {:keys [cipher-id]
                         {:keys [iterations memory parallelism algorithm]} :kdf} :data}] 
   [mui-stack {:spacing 2}
-   [mui-typography {:text-align "center"} (t/lstr-t "encryption")]
+   [settings-panel-title (t/lstr-t "encryption")]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}} ;;:alignItems "center"
     [mui-stack {:direction "row" :sx {:width "100%"}}
      [mui-stack {:direction "row" :sx {:width "50%" :ml 3 :align-items "flex-end"}}

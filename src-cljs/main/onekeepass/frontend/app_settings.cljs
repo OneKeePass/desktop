@@ -2,6 +2,7 @@
   (:require
    [clojure.string :as str]
    [onekeepass.frontend.background :as bg]
+   [onekeepass.frontend.common-components :refer [settings-panel-title]]
    [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.events.app-settings :as app-settings-events]
    [onekeepass.frontend.events.ssh-agent :as ssh-agent-events]
@@ -93,9 +94,7 @@
   [{:keys [_error-fields]
     {:keys  [theme language]} :preference-data}]
   [mui-stack
-   [mui-stack {:sx {:pt 1 :pb 1}}  ;;:bgcolor "rgba(25, 118, 210, 0.20)"
-    [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
-     (tr-t "userInterface")]]
+   [settings-panel-title (tr-t "userInterface")]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
     [mui-box {:sx {:width "80%"}}
      [m/text-field {:label (tr-l "theme")
@@ -128,10 +127,7 @@
 (defn entry-management [{:keys [_error-fields]
                          {:keys  [default-entry-category-groupings]} :preference-data}]
   [mui-stack
-   [mui-stack {:sx {:pt 1 :pb 1}}  ;;:bgcolor "rgba(25, 118, 210, 0.20)"
-
-    [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
-     (tr-t "entryManagement")]]
+   [settings-panel-title (tr-t "entryManagement")]
 
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
     [mui-box {:sx {:width "80%"}}
@@ -156,9 +152,7 @@
 (defn security-info [{:keys [error-fields]
                       {:keys  [clipboard-timeout session-timeout]} :preference-data}]
   [mui-stack
-   [mui-stack {:sx {:pt 1 :pb 1}}
-    [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
-     (tr-t "timeouts")]]
+   [settings-panel-title (tr-t "timeouts")]
 
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
     [mui-box {:sx {:width "80%"}}
@@ -184,9 +178,7 @@
                         {:keys [backup]} :preference-data}]
   (let [{:keys [enabled dir]} backup]
     [mui-stack
-     [mui-stack {:sx {:pt 1 :pb 1}}
-      [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
-       (tr-t "backups")]]
+     [settings-panel-title (tr-t "backups")]
 
      [mui-stack {:spacing 2 :sx {:alignItems "center"}}
       [mui-box {:sx {:width "80%"}}
@@ -222,9 +214,7 @@
                             {:keys  [browser-ext-support]} :preference-data}]
   ;; (println "browser-ext-support: " browser-ext-support)
   [mui-stack
-   [mui-stack {:sx {:pt 1 :pb 1}}
-    [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
-     (tr-t "extensions")]]
+   [settings-panel-title (tr-t "extensions")]
 
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
     [mui-box {:sx {:width "80%"}}
@@ -265,9 +255,7 @@
                                               (str/starts-with? (or transport "") "OpenSSH pipe")))
           active-selected-config? (and active-selected-mode? active-selected-transport?)]
       [mui-stack
-       [mui-stack {:sx {:pt 1 :pb 1}}
-        [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
-         (t/lstr-l "sshAgentService")]]
+       [settings-panel-title (t/lstr-l "sshAgentService")]
 
        [mui-stack {:spacing 2 :sx {:alignItems "center"}}
         [mui-box {:sx {:width "80%"}}
@@ -533,9 +521,7 @@
                                                         (toggle-browser-group-enabled checked? browser-names allowed-browsers)))))}])
                                      :label label}]))]
     [mui-stack
-     [mui-stack {:sx {:pt 1 :pb 1}}
-      [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
-       (tr-t "supportedBrowsers")]]
+     [settings-panel-title (tr-t "supportedBrowsers")]
 
      [mui-stack {:spacing 2 :sx {:alignItems "center"}}
       [mui-box {:sx {:width "80%"}}

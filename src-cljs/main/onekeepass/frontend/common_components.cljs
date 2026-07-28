@@ -22,6 +22,8 @@
                                                      mui-text-field
                                                      mui-tooltip
                                                      mui-typography
+                                                     custom-theme-atom
+                                                     theme-color
                                                      react-use-state]]
    [onekeepass.frontend.translation :as t :refer-macros [tr-bl] :refer [lstr-sm]]
    [onekeepass.frontend.utils :refer [contains-val? str->int]]
@@ -755,6 +757,19 @@
 (def cipher-algorithms [{:name "AES 256" :value "Aes256"} {:name "ChaCha20 256" :value "ChaCha20"}])
 
 (def kdf-algorithms [{:name "Argon 2d (KDBX 4)" :value "Argon2d"} {:name "Argon 2id (KDBX 4)" :value "Argon2id"}])
+
+(defn settings-panel-title
+  "The heading shown at the top of a settings dialog panel
+
+   Centered and in the theme's info color - the app settings and the database settings
+   dialogs share this so that their panels keep looking the same
+   The arg 'title' is the already translated text
+  "
+  [title]
+  [mui-stack {:sx {:pt 1 :pb 1}}
+   [mui-typography {:text-align "center"
+                    :sx {:color (theme-color @custom-theme-atom :info-main)}}
+    title]])
 
 (defn field-help-icon
   "A '?' icon that shows the passed help text as a tooltip on hover
