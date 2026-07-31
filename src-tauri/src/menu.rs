@@ -270,7 +270,10 @@ fn build_database_menus<R: Runtime>(
             app_handle,
             MERGE_DATABASE,
             system_menu_translation.sub_menu(MERGE_DATABASE, "Merge Database..."),
-            false,
+            // Always enabled, like IMPORT below. The UI never toggles this one -
+            // ':merging/open-dbs-start' explains why it cannot proceed when there is
+            // no open db or the active db is locked
+            true,
             None::<&str>,
         )?,
         &MenuItem::with_id(

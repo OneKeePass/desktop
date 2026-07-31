@@ -662,8 +662,10 @@
         "remoteUpToDate": "Remote database is up to date"
     },
     "snackbarErrorMessages": {
+        "databaseIsLocked": "The current database is locked. Unlock it first",
         "entryUuidExistsInTarget": "An entry with the same uuid already exists in the target database. Merge databases",
-        "groupUuidExistsInTarget": "A group with the same uuid already exists in the target database. Merge databases"
+        "groupUuidExistsInTarget": "A group with the same uuid already exists in the target database. Merge databases",
+        "noDatabaseOpened": "No database is opened"
     },
     "systemMenus": {
         "main": {

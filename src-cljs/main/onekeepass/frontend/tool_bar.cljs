@@ -280,8 +280,20 @@
                             ;; "Lock All Databases" applies when any open db is still unlocked
                             (tauri-events/enable-app-menu const/MENU_ID_LOCK_ALL_DATABASES any-unlocked?)
                             (tauri-events/enable-app-menu const/MENU_ID_SEARCH true)
-                            (tauri-events/enable-app-menu const/MENU_ID_MERGE_DATABASE (not locked?))
-                            (tauri-events/enable-app-menu const/MENU_ID_MERGE_OPENED_DATABASES multiple-dbs?)
+                            ;; "Merge Database..." is not toggled here at all - it is created
+                            ;; enabled in menu.rs and stays that way, including on the start
+                            ;; page, so it is reachable the same way "Import" is.
+                            ;;
+                            ;; "Merge Opened Databases" is deliberately NOT disabled in this
+                            ;; effect's cleanup below. Turning the same menu id off there and
+                            ;; on again here is a race - each call is a separate async tauri
+                            ;; command, so the enable can land before the disable and leave
+                            ;; the menu dead. This effect runs on every deps change and sets
+                            ;; the correct value on its own, so the cleanup is not needed.
+                            ;; A merge writes into the active db, so it needs that db unlocked
+                            ;; - not just two or more unlocked dbs somewhere.
+                            (tauri-events/enable-app-menu const/MENU_ID_MERGE_OPENED_DATABASES
+                                                          (and (not locked?) multiple-dbs?))
                             ;; Active for an unlocked remote db. Kept inside the effect (not the
                             ;; render body) so it isn't clobbered by this effect's own cleanup,
                             ;; which runs on every deps change - remote? is in the deps below.
@@ -294,8 +306,6 @@
                               (tauri-events/enable-app-menu const/MENU_ID_LOCK_DATABASE false)
                               (tauri-events/enable-app-menu const/MENU_ID_LOCK_ALL_DATABASES false)
                               (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_AS false)
-                              (tauri-events/enable-app-menu const/MENU_ID_MERGE_DATABASE false)
-                              (tauri-events/enable-app-menu const/MENU_ID_MERGE_OPENED_DATABASES false)
                               (tauri-events/enable-app-menu const/MENU_ID_SAVE_DATABASE_BACKUP false)
                               (tauri-events/enable-app-menu const/MENU_ID_NEW_GROUP false)
                               (tauri-events/enable-app-menu const/MENU_ID_EDIT_GROUP false)
