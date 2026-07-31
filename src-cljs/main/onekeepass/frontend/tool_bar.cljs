@@ -280,18 +280,16 @@
                             ;; "Lock All Databases" applies when any open db is still unlocked
                             (tauri-events/enable-app-menu const/MENU_ID_LOCK_ALL_DATABASES any-unlocked?)
                             (tauri-events/enable-app-menu const/MENU_ID_SEARCH true)
-                            ;; "Merge Database..." is not toggled here at all - it is created
-                            ;; enabled in menu.rs and stays that way, including on the start
-                            ;; page, so it is reachable the same way "Import" is.
-                            ;;
-                            ;; "Merge Opened Databases" is deliberately NOT disabled in this
-                            ;; effect's cleanup below. Turning the same menu id off there and
-                            ;; on again here is a race - each call is a separate async tauri
-                            ;; command, so the enable can land before the disable and leave
-                            ;; the menu dead. This effect runs on every deps change and sets
-                            ;; the correct value on its own, so the cleanup is not needed.
+                            ;; Neither merge menu is disabled in this effect's cleanup below.
+                            ;; Turning the same menu id off there and on again here is a race -
+                            ;; each call is a separate async tauri command, so the enable can
+                            ;; land before the disable and leave the menu dead. This effect
+                            ;; runs on every deps change and sets the correct value on its own.
+                            ;; Switching them off on the start page is handled by the
+                            ;; mount-only effect that follows.
+                            (tauri-events/enable-app-menu const/MENU_ID_MERGE_DATABASE (not locked?))
                             ;; A merge writes into the active db, so it needs that db unlocked
-                            ;; - not just two or more unlocked dbs somewhere.
+                            ;; - not just two or more unlocked dbs somewhere
                             (tauri-events/enable-app-menu const/MENU_ID_MERGE_OPENED_DATABASES
                                                           (and (not locked?) multiple-dbs?))
                             ;; Active for an unlocked remote db. Kept inside the effect (not the
@@ -313,6 +311,16 @@
                               (tauri-events/enable-app-menu const/MENU_ID_DELETE_GROUP false)
                               (tauri-events/enable-app-menu const/MENU_ID_CHECK_REMOTE_CHANGES false)
                               (tauri-events/enable-app-menu const/MENU_ID_SEARCH true))) (clj->js [locked? multiple-dbs? any-unlocked? remote?]))
+
+      ;; Mount only - the empty deps mean this cleanup runs just once, when the tool
+      ;; bar unmounts because the last db was closed and the start page is shown. Both
+      ;; merge menus have to go off then, but they cannot be part of the deps driven
+      ;; cleanup above, which would race with that effect's own enable calls.
+      (m/react-use-effect (fn []
+                            (fn []
+                              (tauri-events/enable-app-menu const/MENU_ID_MERGE_DATABASE false)
+                              (tauri-events/enable-app-menu const/MENU_ID_MERGE_OPENED_DATABASES false)))
+                          (clj->js []))
 
       [:div {:style {:flex-grow 1}}
        ;; Light theme: override the default bright primary blue with the chosen
