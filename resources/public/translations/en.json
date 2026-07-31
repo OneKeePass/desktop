@@ -1,6 +1,6 @@
 {
     "helperTexts": {
-        "autoSaveHelp": "Saves the database automatically after you save an entry or group, clone, import, or change database settings. Deletions and moves are not auto saved.",
+        "autoSaveHelp": "Saves the database automatically once an edit is complete. Imports, merges, deletions and moves are not auto saved — those wait for you to review and save.",
         "backupMaxCopiesHelp": "How many backup copies to keep for each database. The oldest are removed once this many exist.",
         "cardVerificationValue/Number": "Card Verification Value/Number",
         "copiedToClipboard": "Copied to clipboard",

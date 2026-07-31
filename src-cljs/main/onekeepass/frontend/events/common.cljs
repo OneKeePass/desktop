@@ -1313,9 +1313,14 @@
 ;;   - every deletion (move_*_to_recycle_bin, remove_*_permanently, empty_trash) -
 ;;     closing a db without saving is currently the only undo for an accidental
 ;;     delete, and recycle-bin moves are already recoverable in-app
+;;   - CSV import (update_db_with_imported_csv) - a bulk change the user reviews
+;;     before committing, and a wrong column mapping is easy to produce. Same
+;;     safety-net argument as the deletions above
 ;;
 ;; The cross-db (clone/move to another db) and merge paths do not come through
-;; here at all; they opt in via :common/db-save-pending-set instead.
+;; here at all. They could opt in via the trailing flag on
+;; :common/db-save-pending-set, but deliberately do not - they are bulk changes,
+;; and they dirty a db the user is usually not even looking at.
 ;;
 ;; See Plans-Created/Desktop/Auto-Save-After-Edit-Issue-90-Plan.md
 (def ^:private auto-save-api-calls
@@ -1331,8 +1336,7 @@
    "clone_group"
 
    "insert_or_update_custom_entry_type"
-   "set_db_settings"
-   "update_db_with_imported_csv"])
+   "set_db_settings"])
 
 (defn db-save-pending?
   "Checks whether there is any unsaved changes for the current db

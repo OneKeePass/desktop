@@ -56,8 +56,10 @@
           ;; Only mark the target db as having unsaved changes when the merge
           ;; actually modified something. Otherwise the save icon would light
           ;; up even though all merge-result counts are zero.
+          ;; No auto-save opt-in here. A merge is a bulk change the user is expected
+          ;; to review in the merge-result dialog and save only if satisfied
           (:merge-done merge-result)
-          (conj [:dispatch [:common/db-save-pending-set true (active-db-key db) true]]))}))
+          (conj [:dispatch [:common/db-save-pending-set true (active-db-key db)]]))}))
 
 
 ;;;; "Merge Opened Databases" flow (both databases already open) ;;;;
@@ -139,8 +141,9 @@
           ;; Only mark the target db as having unsaved changes when the merge
           ;; actually modified something. Avoids a misleading save icon when
           ;; merge_done is false (all counts zero).
+          ;; No auto-save opt-in - see the comment in ':merge-databases-completed'
           (:merge-done merge-result)
-          (conj [:dispatch [:common/db-save-pending-set true target-db-key true]]))}))
+          (conj [:dispatch [:common/db-save-pending-set true target-db-key]]))}))
 
 
 (comment
