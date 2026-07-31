@@ -27,7 +27,8 @@
              parent-changed-groups
              meta-data-changed
              permanently-deleted-entries
-             permanently-deleted-groups]
+             permanently-deleted-groups
+             merge-done]
       :as _data} :data}]
    [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
                 :dir (t/dir)
@@ -86,8 +87,19 @@
       [mui-divider]
       [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
        [mui-typography (tr-dlg-text "mergeResultMetaDataChanged")]
-       [mui-typography (if meta-data-changed (tr-bl yes) (tr-bl no))]]]]
+       [mui-typography (if meta-data-changed (tr-bl yes) (tr-bl no))]]
 
+      [mui-divider]
+      ;; A merge is never saved automatically. 'merge-done' is set by the core when any
+      ;; of the counts above is non zero, and it is the same flag the event handler uses
+      ;; to mark the db as modified - so this message always agrees with the save icon
+      [mui-typography {:variant "body2"
+                       :color (if merge-done "warning.main" "text.secondary")
+                       :sx {:mt "16px"}}
+       (if merge-done
+         (tr-dlg-text "mergeResultReviewTxt")
+         (tr-dlg-text "mergeResultNoChangesTxt"))]]]
+    [mui-divider]
     [mui-dialog-actions
      [mui-stack  {:sx {}}
       [mui-button {:on-click  gd-events/merge-result-dialog-close} (tr-bl "close")]]]])

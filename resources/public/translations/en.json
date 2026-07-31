@@ -354,6 +354,8 @@
             "mergeResultGroupsMoved": "Groups moved",
             "mergeResultGroupsUpdated": "Groups updated",
             "mergeResultMetaDataChanged": "Meta data changed",
+        "mergeResultNoChangesTxt": "Nothing was changed in this database, so there is nothing to save.",
+        "mergeResultReviewTxt": "Review these changes and save the database if you are satisfied. The merge is not saved automatically.",
             "mergingExternalChangesTxt": "Merging disk version into current database...",
             "moveCompletedPendingSave": "The move has completed successfully, but the changes have not been saved yet. Both the source and target databases are marked as modified — you can save them later using the Save button on the toolbar or from the File menu.",
             "moveNotPossibleCopies": "These databases are copies of each other. Use 'Merge Opened Databases' from the Database menu instead.",
