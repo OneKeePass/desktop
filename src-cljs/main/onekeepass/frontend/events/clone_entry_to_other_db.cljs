@@ -122,7 +122,8 @@
    ;; Only target is modified — source entry is unchanged
    (let [group-name (:target-parent-group-name summary)]
      {:db (assoc-in db [target-db-key :db-modification :save-pending] true)
-      :fx [[:dispatch [:generic-dialog-close :clone-entry-to-other-db-dialog]]
+      :fx [[:dispatch [:tool-bar/auto-save-requested target-db-key]]
+           [:dispatch [:generic-dialog-close :clone-entry-to-other-db-dialog]]
            [:dispatch [:common/message-snackbar-open
                        (lstr-sm 'entryClonedToGroup {:group-name group-name})]]
            ;; Switch to the target DB so the user sees the cloned entry immediately

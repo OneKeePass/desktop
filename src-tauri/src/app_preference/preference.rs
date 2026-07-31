@@ -119,6 +119,15 @@ pub(crate) struct SshAgentSupport {
     pub(crate) client_transport: SshAgentClientTransport,
 }
 
+// Saves the database automatically after the user completes an edit action -
+// see the auto-save-api-calls list in events/common.cljs for which actions
+// qualify. Disabled by default; this changes when the app writes to disk.
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
+pub(crate) struct AutoSavePreference {
+    #[serde(default)]
+    pub(crate) enabled: bool,
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub(crate) struct Preference {
     version: String,
@@ -155,6 +164,10 @@ pub(crate) struct Preference {
     // Global enable flag for the desktop SSH agent service. Disabled by default.
     #[serde(default)]
     ssh_agent_support: SshAgentSupport,
+
+    // Auto-save after an edit action. Introduced in 0.25.0 (issue #90)
+    #[serde(default)]
+    auto_save: AutoSavePreference,
     // For now this feature is not used in the UI
     // This will be used in future to allow user to select which database to use with browser extension
     // Typically user will enable browser ext support for one or more databases in the database settings
@@ -181,6 +194,7 @@ impl Default for Preference {
 
             browser_ext_support: BrowserExtSupport::default(),
             ssh_agent_support: SshAgentSupport::default(),
+            auto_save: AutoSavePreference::default(),
             // browser_ext_supported_databases: vec![],
         }
     }
@@ -391,6 +405,12 @@ impl Preference {
         }
 
         if let Some(mut v) = preference_data.backup {
+            // Guard against a hand-edited preference.toml or an out-of-range
+            // value slipping past the settings dialog's own validation
+            v.max_copies = v.max_copies.clamp(
+                crate::file_util::MIN_MAX_BACKUP_COPIES,
+                crate::file_util::MAX_MAX_BACKUP_COPIES,
+            );
             if v.enabled {
                 if let Some(dir) = v.dir.as_deref().filter(|dir| !dir.trim().is_empty()) {
                     crate::mas::create_backup_dir_bookmark(dir);
@@ -422,6 +442,11 @@ impl Preference {
         // call (the side effect needs the agent runtime, not just the pref).
         if let Some(v) = preference_data.ssh_agent_support {
             self.ssh_agent_support = v;
+            updated = true;
+        }
+
+        if let Some(v) = preference_data.auto_save {
+            self.auto_save = v;
             updated = true;
         }
 

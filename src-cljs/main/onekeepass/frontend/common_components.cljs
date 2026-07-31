@@ -771,20 +771,31 @@
                     :sx {:color (theme-color @custom-theme-atom :info-main)}}
     title]])
 
+(def ^:private field-help-icon-default-sx
+  {:cursor "help"
+   :ml "6px"
+   ;; Lifts the icon clear of a text field's helper-text slot so it lines up with
+   ;; the input itself. Panels that place it next to something other than a text
+   ;; field - a checkbox row, say - should pass {:mb 0} to cancel this
+   :mb "6px"
+   :color "text.secondary"})
+
 (defn field-help-icon
   "A '?' icon that shows the passed help text as a tooltip on hover
 
    Meant to be placed next to a text field - in a row stack - so that the field keeps
    its own helper text slot free for validation errors and the row does not grow taller.
    The arg 'help-text' is the already translated text
+
+   The optional 'sx' map is merged over the defaults, so a caller overrides only the
+   keys it cares about - typically spacing/alignment - and keeps the rest
   "
-  [help-text]
-  [mui-tooltip {:title help-text :placement "top" :enterDelay 400}
-   [m/mui-icon-help-outline {:font-size "small"
-                             :sx {:cursor "help"
-                                  :ml "6px"
-                                  :mb "6px"
-                                  :color "text.secondary"}}]])
+  ([help-text]
+   (field-help-icon help-text nil))
+  ([help-text sx]
+   [mui-tooltip {:title help-text :placement "top" :enterDelay 400}
+    [m/mui-icon-help-outline {:font-size "small"
+                              :sx (merge field-help-icon-default-sx sx)}]]))
 
 
 

@@ -1301,6 +1301,39 @@
    "update_db_with_imported_csv"
    "remove_custom_icon"])
 
+;; Subset of 'all-modiying-api-calls' that also triggers an auto-save when the
+;; auto-save preference is enabled (issue #90). These are the actions where the
+;; user finishes a form or dialog and moves on, believing the change is already
+;; committed.
+;;
+;; Deliberately excluded:
+;;   - reorganisation (move_entry, move_group, sort_sub_groups,
+;;     mark_group_as_category) - cheap to redo and arrives in drag-and-drop bursts
+;;   - history housekeeping (delete_history_entry*, remove_custom_icon)
+;;   - every deletion (move_*_to_recycle_bin, remove_*_permanently, empty_trash) -
+;;     closing a db without saving is currently the only undo for an accidental
+;;     delete, and recycle-bin moves are already recoverable in-app
+;;
+;; The cross-db (clone/move to another db) and merge paths do not come through
+;; here at all; they opt in via :common/db-save-pending-set instead.
+;;
+;; See Plans-Created/Desktop/Auto-Save-After-Edit-Issue-90-Plan.md
+(def ^:private auto-save-api-calls
+  ["update_entry"
+   "insert_entry"
+   "update_entry_from_form_data"
+   "insert_entry_from_form_data"
+   "clone_entry"
+   "upload_entry_attachment"
+
+   "insert_group"
+   "update_group"
+   "clone_group"
+
+   "insert_or_update_custom_entry_type"
+   "set_db_settings"
+   "update_db_with_imported_csv"])
+
 (defn db-save-pending?
   "Checks whether there is any unsaved changes for the current db
   If the app-db is passed, then checking is done and returns boolean
@@ -1312,31 +1345,43 @@
   ([]
    (subscribe [:db-save-pending])))
 
-;; An event that is called from other ns to enable or disable save pending 
+;; An event that is called from other ns to enable or disable save pending
+;; 'auto-save?' is opted into by the callers whose change qualifies for auto-save
+;; but does not go through :common/db-api-call-completed - the cross-db entry
+;; clone/move and the merge handlers. Those dirty a db the user may not be
+;; looking at, so its pending-save indicator is easy to miss entirely.
 (reg-event-fx
  :common/db-save-pending-set
- (fn [{:keys [db]} [_event-id flag target-db-key]]
+ (fn [{:keys [db]} [_event-id flag target-db-key auto-save?]]
    (let [db-key (if (nil? target-db-key) (active-db-key db) target-db-key)]
-     {:db (assoc-in db [db-key :db-modification :save-pending] flag)})))
+     (cond-> {:db (assoc-in db [db-key :db-modification :save-pending] flag)}
+       (and flag auto-save?)
+       (assoc :fx [[:dispatch [:tool-bar/auto-save-requested db-key]]])))))
 
 (reg-event-fx
  :common/db-api-call-completed
  (fn [{:keys [db]} [_event-id api-name]]
    ;; (println "api-name is " api-name (contains-val? all-modiying-api-calls api-name))
    (if (contains-val? all-modiying-api-calls api-name)
-     {:db (assoc-in-key-db db [:db-modification :save-pending] true)}
+     (cond-> {:db (assoc-in-key-db db [:db-modification :save-pending] true)}
+       (contains-val? auto-save-api-calls api-name)
+       (assoc :fx [[:dispatch [:tool-bar/auto-save-requested (active-db-key db)]]]))
      {})))
 
 ;; Receives the struct KdbxSaved
 (reg-event-db
  :common/db-modification-saved
- (fn [db [_event-id {:keys [db-key database-name]}]] ;; event arg is kdbx-saved   
+ (fn [db [_event-id {:keys [db-key database-name]}]] ;; event arg is kdbx-saved
    (let [dbs (mapv (fn [m]
                      (if (= db-key (:db-key m))
                        (assoc m :database-name database-name)
-                       m)) (:opened-db-list db))]
+                       m)) (:opened-db-list db))
+         ;; Clear the pending flag on the db that was actually saved. Auto-save
+         ;; can save a non-active db (cross-db clone/move), so keying this off
+         ;; the active db would clear the wrong tab's indicator
+         saved-key (or db-key (active-db-key db))]
      (-> db (assoc-in [:opened-db-list] dbs)
-         (assoc-in-key-db [:db-modification :save-pending] false)))))
+         (assoc-in [saved-key :db-modification :save-pending] false)))))
 
 (reg-sub
  :db-modification

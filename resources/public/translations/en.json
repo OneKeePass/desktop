@@ -1,5 +1,7 @@
 {
     "helperTexts": {
+        "autoSaveHelp": "Saves the database automatically after you save an entry or group, clone, import, or change database settings. Deletions and moves are not auto saved.",
+        "backupMaxCopiesHelp": "How many backup copies to keep for each database. The oldest are removed once this many exist.",
         "cardVerificationValue/Number": "Card Verification Value/Number",
         "copiedToClipboard": "Copied to clipboard",
         "customFieldAdded": "Custom field added. You can add more field or cancel to close",
@@ -46,6 +48,7 @@
         "newEntryType": "New Custom Entry Type",
         "openDatabase": "Open Database",
         "recent": "Recent",
+        "saving": "Saving",
         "selectAGroup": "Select a group",
         "start": "Start",
         "supportedBrowsers": "Supported Browsers",
@@ -72,6 +75,7 @@
         "appSettings": "App Settings",
         "backToEntry": "Back to Entry",
         "backupDir": "Backup dir",
+        "backupMaxCopies": "Backup copies to keep",
         "browse": "Browse",
         "browseRemote": "Browse Remote...",
         "browserIntegration": "Browser Integration",
@@ -104,6 +108,7 @@
         "destinationDatabase": "Destination database",
         "done": "Done",
         "edit": "Edit",
+        "enableAutoSave": "Auto save after an edit",
         "enableBackup": "Enable backup",
         "enableBrowserIntegration": "Enable browser Integration",
         "enableSshAgent": "Enable SSH agent",
@@ -589,6 +594,7 @@
     },
     "messages": {
         "appSettings": {
+            "backupCopiesValidVal": "Valid values should be in the range 1 - 100",
             "clipboardValidVal": "Valid values should be in the range 10 sec  - 300 sec",
             "sessionValidVal": "Valid values should be in the range 1 minute  - 1440 minutes"
         },

@@ -17,7 +17,7 @@
   (dispatch [:save-current-db false]))
 
 (defn overwrite-external-changes []
-  (dispatch [:save-current-db true]))
+  (dispatch [:save-current-db-overwrite]))
 
 (defn save-current-db-msg-dialog-hide []
   ;; Calling save-current-db-completed resets the status to :completed
@@ -47,16 +47,37 @@
 (defn conflict-action-confirm-dialog-data []
   (subscribe [:conflict-action-confirm-dialog-data]))
 
-;; TODO: 
+;; TODO:
 ;; combine save-current-db and :save-and-close-current-db; also bg-save-kdbx and bg-save-kdbx-before-close
+
+;; 'target-db-key' defaults to the active db. It is passed explicitly by auto-save,
+;; which may save a db the user is not looking at (a cross-db entry clone/move
+;; dirties the target db's tab).
+;;
+;; 'quiet?' suppresses only the "Saving database is in progress" modal. The error
+;; path is untouched on purpose: an auto-save can hit DbFileContentChangeDetected
+;; just like a manual one, and the user must still get the conflict dialog.
 (reg-event-fx
  :save-current-db
- (fn [{:keys [db]} [_event-id overwrite?]]
-   {:db (-> db
-            (assoc-in [:save-current-db :status] :in-progress)
-            (assoc-in [:save-current-db :api-error-text] nil)
-            (assoc-in [:save-current-db :confirm-dialog-data] {}))
-    :fx [[:bg-save-kdbx [(active-db-key db) (if (nil? overwrite?) false overwrite?)]]]}))
+ (fn [{:keys [db]} [_event-id overwrite? target-db-key quiet?]]
+   (let [db-key (if (nil? target-db-key) (active-db-key db) target-db-key)]
+     {:db (-> db
+              (assoc-in [:save-current-db :status] :in-progress)
+              (assoc-in [:save-current-db :api-error-text] nil)
+              ;; Remembered so the conflict actions and the overwrite retry act on
+              ;; the db that was actually being saved, not on whatever is active now
+              (assoc-in [:save-current-db :db-key] db-key)
+              (assoc-in [:save-current-db :quiet?] (boolean quiet?))
+              (assoc-in [:save-current-db :confirm-dialog-data] {}))
+      :fx [[:bg-save-kdbx [db-key (if (nil? overwrite?) false overwrite?)]]]})))
+
+;; Retry of the save that just reported a conflict, this time overwriting the
+;; external changes. Reuses the db-key recorded by :save-current-db.
+(reg-event-fx
+ :save-current-db-overwrite
+ (fn [{:keys [db]} [_event-id]]
+   (let [{:keys [db-key quiet?]} (:save-current-db db)]
+     {:fx [[:dispatch [:save-current-db true (or db-key (active-db-key db)) quiet?]]]})))
 
 (reg-fx
  :bg-save-kdbx
@@ -98,7 +119,8 @@
  :save-current-db-completed
  (fn [db [_event-id _result]]
    (-> db (assoc-in [:save-current-db :status] :completed)
-       (assoc-in [:save-current-db :api-error-text] nil))))
+       (assoc-in [:save-current-db :api-error-text] nil)
+       (assoc-in [:save-current-db :quiet?] false))))
 
 ;; If the error is due external database changes detection, then
 ;; :api-error-text will be "DbFileContentChangeDetected" and this is used 
@@ -109,6 +131,9 @@
  (fn [db [_event-id error]]
    (-> db
        (assoc-in  [:save-current-db :api-error-text] error)
+       ;; A failed auto-save stops being quiet - the user has to resolve it, and
+       ;; any retry from the conflict dialog should show its progress normally
+       (assoc-in [:save-current-db :quiet?] false)
        (assoc-in [:save-current-db :status] :error))))
 
 (reg-event-db
@@ -152,19 +177,107 @@
 (reg-event-fx
  :conflict-action-discard
  (fn [{:keys [db]} [_event-id]]
-   {:fx [[:dispatch [:save-current-db-completed nil]]
-         [:dispatch [:conflict-action-confirm-dialog-hide]]
-         [:dispatch [:common/close-kdbx-db (active-db-key db)]]]}))
+   ;; Discards the db that hit the conflict, which is not necessarily the active
+   ;; one when the save came from auto-save
+   (let [db-key (or (get-in db [:save-current-db :db-key]) (active-db-key db))]
+     {:fx [[:dispatch [:save-current-db-completed nil]]
+           [:dispatch [:conflict-action-confirm-dialog-hide]]
+           [:dispatch [:common/close-kdbx-db db-key]]]})))
 
 (reg-sub
  :conflict-action-confirm-dialog-data
  (fn [db _query-vec]
    (-> db (get-in [:save-current-db :confirm-dialog-data]))))
 
+;; The db-key the in-flight/failed save belongs to. The conflict dialog uses it
+;; instead of the active db-key so a conflict raised by an auto-save of a
+;; background db is resolved against that db.
+(defn saving-db-key []
+  (subscribe [:tool-bar/saving-db-key]))
+
+(reg-sub
+ :tool-bar/saving-db-key
+ (fn [db _query-vec]
+   (get-in db [:save-current-db :db-key])))
+
 (reg-sub
  :save-current-db-data
  (fn [db _query-vec]
    (:save-current-db db)))
+
+;;;;;;;;;;;;;;;;;;;;;; Auto save after an edit action ;;;;;;;;;
+;; Issue #90. Saves the db automatically after the user completes an edit action
+;; and moves on. The qualifying actions are listed in 'auto-save-api-calls' in
+;; events/common.cljs; it is a deliberate subset - deletions, moves and history
+;; housekeeping are excluded so that closing a db without saving stays the undo
+;; for an accidental delete.
+;;
+;; Off by default; enabled in App Settings -> File Management.
+
+(def ^:private auto-save-debounce-ms 1000)
+
+;; A remote save is a full-file upload, so requests are coalesced over a longer
+;; window than for a local file
+(def ^:private auto-save-remote-debounce-ms 5000)
+
+;; db-key -> pending js timer id
+(defonce ^:private auto-save-timers (atom {}))
+
+(reg-fx
+ :tool-bar-auto-save-schedule
+ (fn [db-key]
+   ;; Restarting the timer coalesces a burst of qualifying calls (a CSV import or
+   ;; several attachment uploads) into a single save
+   (when-let [existing (get @auto-save-timers db-key)]
+     (js/clearTimeout existing))
+   (let [delay-ms (if (cmn-events/remote-db-key? db-key)
+                    auto-save-remote-debounce-ms
+                    auto-save-debounce-ms)
+         timer-id (js/setTimeout
+                   (fn []
+                     (swap! auto-save-timers dissoc db-key)
+                     (dispatch [:tool-bar/auto-save-fire db-key]))
+                   delay-ms)]
+     (swap! auto-save-timers assoc db-key timer-id))))
+
+;; Called from events/common.cljs whenever a qualifying edit action completes
+(reg-event-fx
+ :tool-bar/auto-save-requested
+ (fn [{:keys [db]} [_event-id db-key]]
+   (if (and (some? db-key)
+            (get-in db [:app-preference :auto-save :enabled]))
+     {:fx [[:tool-bar-auto-save-schedule db-key]]}
+     {})))
+
+;; All guards are re-checked here rather than when the save was requested - the
+;; debounce window is long enough for the db to have been closed or locked in
+;; the meantime
+(reg-event-fx
+ :tool-bar/auto-save-fire
+ (fn [{:keys [db]} [_event-id db-key]]
+   (let [open? (boolean (some #{db-key} (opened-db-keys db)))
+         pending? (boolean (get-in db [db-key :db-modification :save-pending]))
+         ;; A locked db's content is encrypted in memory and cannot be written
+         locked? (boolean (get-in db [db-key :locked]))
+         save-status (get-in db [:save-current-db :status])]
+     (cond
+       (or (not open?) (not pending?) locked?)
+       {}
+
+       ;; A previous save failed and its dialog (a save error, or the
+       ;; conflict-on-save choices) is still on screen waiting for the user.
+       ;; Starting another save here would reset the status and pull that dialog
+       ;; out from under them. Dropping is safe - save-pending stays set, and the
+       ;; user's chosen resolution ends in a save anyway.
+       (= :error save-status)
+       {}
+
+       ;; Never stack a second write on top of a running one; wait it out instead
+       (= :in-progress save-status)
+       {:fx [[:tool-bar-auto-save-schedule db-key]]}
+
+       :else
+       {:fx [[:dispatch [:save-current-db false db-key true]]]}))))
 
 ;;;;;;;;;;;;;;;;;;;;;; Lock/Unlock db ;;;;;;;;;;;;;;;;;;;;;;;;;
 

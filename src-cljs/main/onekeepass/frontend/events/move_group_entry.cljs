@@ -315,8 +315,11 @@
 (defn- call-on-cross-db-move-complete [kind-kw source-db-key target-db-key api-response]
   (when-let [summary (check-error api-response)]
     (dispatch [:generic-dialog-close :move-group-or-entry-dialog])
-    (dispatch [:common/db-save-pending-set true source-db-key])
-    (dispatch [:common/db-save-pending-set true target-db-key])
+    ;; Both dbs opt into auto-save (trailing true). The target especially - it is
+    ;; usually not the tab the user is looking at, so its pending-save indicator
+    ;; is easy to miss
+    (dispatch [:common/db-save-pending-set true source-db-key true])
+    (dispatch [:common/db-save-pending-set true target-db-key true])
     (dispatch [:common/refresh-forms])
     (dispatch [:cross-db-move/move-completed-dialog-show
                kind-kw source-db-key target-db-key summary])))

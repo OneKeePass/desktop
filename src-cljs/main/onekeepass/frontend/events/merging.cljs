@@ -46,7 +46,7 @@
           ;; actually modified something. Otherwise the save icon would light
           ;; up even though all merge-result counts are zero.
           (:merge-done merge-result)
-          (conj [:dispatch [:common/db-save-pending-set true (active-db-key db)]]))}))
+          (conj [:dispatch [:common/db-save-pending-set true (active-db-key db) true]]))}))
 
 
 ;;;; "Merge Opened Databases" flow (both databases already open) ;;;;
@@ -128,7 +128,7 @@
           ;; actually modified something. Avoids a misleading save icon when
           ;; merge_done is false (all counts zero).
           (:merge-done merge-result)
-          (conj [:dispatch [:common/db-save-pending-set true target-db-key]]))}))
+          (conj [:dispatch [:common/db-save-pending-set true target-db-key true]]))}))
 
 
 (comment

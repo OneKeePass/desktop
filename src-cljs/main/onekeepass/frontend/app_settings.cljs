@@ -2,7 +2,8 @@
   (:require
    [clojure.string :as str]
    [onekeepass.frontend.background :as bg]
-   [onekeepass.frontend.common-components :refer [settings-panel-title]]
+   [onekeepass.frontend.common-components :refer [field-help-icon
+                                                  settings-panel-title]]
    [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.events.app-settings :as app-settings-events]
    [onekeepass.frontend.events.ssh-agent :as ssh-agent-events]
@@ -175,9 +176,30 @@
                      :variant "standard" :fullWidth true}]]]]])
 
 (defn file-management [{:keys [error-fields]
-                        {:keys [backup]} :preference-data}]
-  (let [{:keys [enabled dir]} backup]
+                        {:keys [backup auto-save]} :preference-data}]
+  (let [{:keys [enabled dir max-copies]} backup
+        auto-save-enabled? (boolean (:enabled auto-save))]
     [mui-stack
+     [settings-panel-title (t/lstr-t "saving")]
+
+     [mui-stack {:spacing 2 :sx {:alignItems "center"}}
+      [mui-box {:sx {:width "80%"}}
+       [mui-stack {:direction "row" :sx {:align-items "center"}}
+        [mui-form-control-label
+         {:control (r/as-element
+                    [mui-checkbox
+                     {:checked auto-save-enabled?
+                      :on-change (fn [^js/CheckedEvent e]
+                                   (app-settings-events/field-update
+                                    [:preference-data :auto-save :enabled]
+                                    (-> e .-target .-checked)))}])
+          :label (t/lstr-l "enableAutoSave")}]
+        ;; Next to a checkbox, not a text field - drop the helper-text offset so
+        ;; the icon sits on the label's centre line
+        [field-help-icon (t/lstr-h "autoSaveHelp") {:mb 0}]]]]
+     
+     [m/mui-divider {:sx {:mt 1 :mb 1}}]
+     
      [settings-panel-title (tr-t "backups")]
 
      [mui-stack {:spacing 2 :sx {:alignItems "center"}}
@@ -206,7 +228,23 @@
                                                                             :disabled (not enabled)
                                                                             :sx {:mr "-8px"}
                                                                             :on-click app-settings-events/open-backup-dir-dialog}
-                                                           [mui-icon-folder-outlined]]])}}}]]]]))
+                                                           [mui-icon-folder-outlined]]])}}}]]
+
+      ;; Only the custom backup dir keeps a new timestamped file per save. The
+      ;; default app-home backup is a single file that is overwritten, so this
+      ;; has no meaning while backup is off
+      [mui-box {:sx {:width "80%"}}
+       [mui-stack {:direction "row" :sx {:align-items "flex-end"}}
+        [m/text-field {:label (t/lstr-l "backupMaxCopies")
+                       :value (if (nil? max-copies) "" max-copies)
+                       :type "number"
+                       :disabled (not enabled)
+                       :error (contains? error-fields :backup-max-copies)
+                       :helperText (get error-fields :backup-max-copies)
+                       :on-change (app-settings-events/field-update-factory
+                                   [:preference-data :backup :max-copies])
+                       :variant "standard" :fullWidth true}]
+        [field-help-icon (t/lstr-h "backupMaxCopiesHelp")]]]]]))
 
 (declare browser-manifest-statuses)
 

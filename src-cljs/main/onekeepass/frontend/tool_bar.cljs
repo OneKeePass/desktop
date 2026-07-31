@@ -158,7 +158,9 @@
 ;; TODO: Need to move these save related fns to a separate ns
 
 (defn- content-change-action-dialog [open?]
-  (let [active-key @(cmn-events/active-db-key)]
+  ;; The conflict is resolved against the db whose save failed. That is normally
+  ;; the active one, but an auto-save may have been saving a background db
+  (let [active-key (or @(tb-events/saving-db-key) @(cmn-events/active-db-key))]
     [mui-dialog {:open open? :on-click #(.stopPropagation ^js/Event %)}
      [mui-dialog-title (tr-dlg-title conflictOnSave)]
      [mui-dialog-content
@@ -207,10 +209,14 @@
      [mui-dialog-actions
       [mui-button {:on-click tb-events/save-current-db-msg-dialog-hide} (t/lstr-bl 'cancel)]]]))
 
-(defn save-info-dialog [{:keys [status api-error-text]}]
+(defn save-info-dialog [{:keys [status api-error-text quiet?]}]
   (if (= api-error-text DB_CHANGED)
     [content-change-action-dialog true]
-    [mui-dialog {:open (or (= status :in-progress) (= status :error)) :on-click #(.stopPropagation ^js/Event %)}
+    ;; An auto-save runs quietly - no progress modal. Errors are never quiet:
+    ;; the user has to act on them, so :error still opens the dialog
+    [mui-dialog {:open (or (and (= status :in-progress) (not quiet?))
+                           (= status :error))
+                 :on-click #(.stopPropagation ^js/Event %)}
      [mui-dialog-title "Save Database"]
      [mui-dialog-content
       [mui-stack
