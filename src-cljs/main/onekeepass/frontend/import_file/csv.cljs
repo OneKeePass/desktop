@@ -22,6 +22,7 @@
     :refer-macros [tr-bl]
     :refer [lstr-l-cv
             lstr-bl
+            lstr-dlg-text
             lstr-dlg-title
             lstr-field-name
             lstr-l]]
@@ -32,9 +33,9 @@
 
 (defn csv-imoprt-start-dialog-content []
   [mui-stack {:sx {}}
-   [mui-typography {:sx {:mb 1}} "Importing only a generic comma separated values(csv) file is supported at this time."]
-   [mui-typography {:sx {:mb 1}} "The first row of this csv file should be a header row."]
-   [mui-typography {:sx {:mb 1}} "After loading the csv file, you need to map the header fields to keepass entry fields."]])
+   [mui-typography {:sx {:mb 1}} (lstr-dlg-text "csvImportStartTxt1")]
+   [mui-typography {:sx {:mb 1}} (lstr-dlg-text "csvImportStartTxt2")]
+   [mui-typography {:sx {:mb 1}} (lstr-dlg-text "csvImportStartTxt3")]])
 
 (defn csv-imoprt-start-dialog []
   [confirm-text-dialog
@@ -136,6 +137,28 @@
                                                                        (->  e ^js/EventT (.-target) .-value)))
                                 :select-field-options select-field-options}]]])
 
+;; Lets the user confirm or correct the exporter recognised from the header row. The
+;; detected profile only pre-fills the mapping below - nothing is imported until the
+;; user presses OK, so an incorrect guess costs a dropdown change, not a bad import
+(defn profile-selection [profile-id profile-display-name]
+  (let [profiles @(csv-events/import-csv-profiles)
+        options (into [{:value csv-events/GENERIC_PROFILE_ID :label (lstr-l 'genericCsv)}]
+                      (mapv (fn [{:keys [id display-name]}]
+                              {:value id :label display-name})
+                            profiles))]
+    [mui-stack {:sx {:mb 2}}
+     [cc/simple-selection-field
+      {:field-name (lstr-l 'exportedFrom)
+       :value (if (nil? profile-id) csv-events/GENERIC_PROFILE_ID profile-id)
+       :edit true
+       :helper-text (if (nil? profile-display-name)
+                      (lstr-dlg-text "csvProfileGenericTxt")
+                      (lstr-dlg-text "csvProfileDetectedTxt" {:product profile-display-name}))
+       :on-change-handler (fn [^js/Event e]
+                            (csv-events/import-csv-profile-changed
+                             (-> e ^js/EventT (.-target) .-value)))
+       :select-field-options options}]]))
+
 ;; Forms as two columns with mapping options
 (defn fields-mapping-form [csv-headers mapped]
   ;; mapped is a vec of maps 
@@ -167,7 +190,7 @@
 
 (defn csv-columns-mapping-dialog
   ([{:keys [dialog-show api-error-text]
-     {:keys [csv-headers mapping-options]} :data}]
+     {:keys [csv-headers mapping-options profile-id profile-display-name]} :data}]
    [:<>
     [mui-dialog {:open dialog-show
                  :dir (t/dir)
@@ -181,6 +204,8 @@
      [mui-dialog-title (lstr-dlg-title 'csvMapping)]
      [mui-dialog-content {:dividers true}
       [mui-box {:sx {}}
+       [profile-selection profile-id profile-display-name]
+       [mui-divider {:sx {:mb 2}}]
        [fields-mapping-form csv-headers mapping-options]
        (when api-error-text
          [mui-alert {:severity "error" :sx {:mt 1}} api-error-text])]]

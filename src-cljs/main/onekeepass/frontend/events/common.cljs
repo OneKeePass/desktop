@@ -1321,8 +1321,6 @@
 ;; here at all. They could opt in via the trailing flag on
 ;; :common/db-save-pending-set, but deliberately do not - they are bulk changes,
 ;; and they dirty a db the user is usually not even looking at.
-;;
-;; See Plans-Created/Desktop/Auto-Save-After-Edit-Issue-90-Plan.md
 (def ^:private auto-save-api-calls
   ["update_entry"
    "insert_entry"

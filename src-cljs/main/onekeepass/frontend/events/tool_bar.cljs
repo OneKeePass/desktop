@@ -307,9 +307,9 @@
 (reg-event-fx
  :tool-bar/lock-current-db
  (fn [{:keys [db]} [_query-id]]
-   ;; Unsaved changes are preserved in memory across lock/unlock (Phase 2
-   ;; encrypt-in-place restores them on unlock), so locking no longer blocks to
-   ;; ask the user to save first. The save-before-lock guard below is kept,
+   ;; Unsaved changes are preserved in memory across lock/unlock (the
+   ;; encrypt-in-place lock restores them on unlock), so locking no longer blocks
+   ;; to ask the user to save first. The save-before-lock guard below is kept,
    ;; commented out, so it can be re-enabled later if needed. The dialog/events
    ;; it uses (ask-save-on-lock, :on-lock-ask-save-dialog-show/-data) are also
    ;; left in place for the same reason.

@@ -80,15 +80,103 @@
                                       #_{:field-name const/MODIFIED_TIME :mapped-name NOT_PRESENT}
                                       #_{:field-name const/CREATED_TIME :mapped-name NOT_PRESENT}])
 
+;; Chosen in the "exported from" dropdown to ignore any detected profile and map the
+;; columns by hand. Not a real profile id - the backend never sees it
+(def GENERIC_PROFILE_ID "generic")
+
+(defn- with-suggested-mapping
+  "Returns the standard mapping options with any column the profile suggested filled in.
+   Fields the profile does not cover stay NOT_PRESENT, so the user can still see at a
+   glance what is unmapped and correct anything the profile got wrong."
+  [suggested]
+  (let [by-field (into {} (map (juxt :field-name :mapped-name) suggested))]
+    (mapv (fn [{:keys [field-name] :as m}]
+            (assoc m :mapped-name (get by-field field-name NOT_PRESENT)))
+          okp-filed-to-csv-header-mapping)))
+
 (reg-event-fx
  :import-csv-loaded
- (fn [{:keys [db]} [_event-id {:keys [headers]}]]
-   {:db (-> db (assoc-in [:import-csv :headers] headers))
-    :fx [;; Show the dialog csv-columns-mapping-dialog 
-         [:dispatch [:generic-dialog-show-with-state :csv-columns-mapping-dialog
-                     ;; Add NOT_PRESENT as first element to vec headers
-                     {:data {:csv-headers (-> NOT_PRESENT (cons headers) vec)
-                             :mapping-options okp-filed-to-csv-header-mapping}}]]]}))
+ (fn [{:keys [db]} [_event-id {:keys [headers detected-profile]}]]
+   (let [{:keys [id display-name mapping consumed-columns]} detected-profile]
+     {:db (-> db
+              (assoc-in [:import-csv :headers] headers)
+              (assoc-in [:import-csv :profile-id] id)
+              (assoc-in [:import-csv :consumed-columns] consumed-columns))
+      :fx [;; Populates the "exported from" dropdown
+           [:bg-csv-import-profiles]
+           ;; Show the dialog csv-columns-mapping-dialog 
+           [:dispatch [:generic-dialog-show-with-state :csv-columns-mapping-dialog
+                       ;; Add NOT_PRESENT as first element to vec headers
+                       {:data {:csv-headers (-> NOT_PRESENT (cons headers) vec)
+                               :profile-id (if (nil? id) GENERIC_PROFILE_ID id)
+                               :profile-display-name display-name
+                               :mapping-options (with-suggested-mapping mapping)}}]]]})))
+
+;; Public API fns for the mapping dialog
+
+(defn import-csv-profiles []
+  (subscribe [:import-csv-profiles]))
+
+(defn import-csv-profile-changed [profile-id]
+  (dispatch [:import-csv-profile-changed profile-id]))
+
+(reg-sub
+ :import-csv-profiles
+ (fn [db _query-vec]
+   (get-in db [:import-csv :profiles])))
+
+(reg-fx
+ :bg-csv-import-profiles
+ (fn [_none]
+   (bg-csv/csv-import-profiles
+    (fn [api-response]
+      (when-let [profiles (check-error api-response)]
+        (dispatch [:import-csv-profiles-loaded profiles]))))))
+
+(reg-event-db
+ :import-csv-profiles-loaded
+ (fn [db [_event-id profiles]]
+   (assoc-in db [:import-csv :profiles] profiles)))
+
+;; The user picked a different product, or picked the generic option to start over
+(reg-event-fx
+ :import-csv-profile-changed
+ (fn [{:keys [db]} [_event-id profile-id]]
+   (if (= profile-id GENERIC_PROFILE_ID)
+     {:db (-> db
+              (assoc-in [:import-csv :profile-id] nil)
+              (assoc-in [:import-csv :consumed-columns] nil))
+      :fx [[:dispatch [:import-csv-mapping-suggested GENERIC_PROFILE_ID nil]]]}
+     {:db (assoc-in db [:import-csv :profile-id] profile-id)
+      :fx [[:bg-csv-import-profile-mapping [profile-id (get-in db [:import-csv :headers])]]]})))
+
+(reg-fx
+ :bg-csv-import-profile-mapping
+ (fn [[profile-id headers]]
+   (bg-csv/csv-import-profile-mapping
+    profile-id headers
+    (fn [api-response]
+      (when-let [detected-profile (check-error api-response)]
+        (dispatch [:import-csv-mapping-suggested profile-id detected-profile]))))))
+
+(reg-event-fx
+ :import-csv-mapping-suggested
+ (fn [{:keys [db]} [_event-id profile-id {:keys [mapping consumed-columns]}]]
+   (let [display-name (->> (get-in db [:import-csv :profiles])
+                           (filter (fn [{:keys [id]}] (= id profile-id)))
+                           first
+                           :display-name)]
+     ;; assoc-in rather than a deep merge - the mapping options are a vector and have to
+     ;; be replaced wholesale, not merged element by element
+     {:db (assoc-in db [:import-csv :consumed-columns] consumed-columns)
+      :fx [[:dispatch [:generic-dialog-update :csv-columns-mapping-dialog
+                       [[:data :mapping-options] (with-suggested-mapping mapping)]]]
+           [:dispatch [:generic-dialog-update :csv-columns-mapping-dialog
+                       [[:data :profile-id] profile-id]]]
+           [:dispatch [:generic-dialog-update :csv-columns-mapping-dialog
+                       [[:data :profile-display-name] display-name]]]
+           [:dispatch [:generic-dialog-update :csv-columns-mapping-dialog
+                       [[:api-error-text] nil]]]]})))
 
 (reg-event-fx
  :import-csv-mapped
@@ -102,8 +190,14 @@
          ;; Unique headers considered for mapping
          mapped-headers (->> mapped-fields (map (fn [m] (:mapped-name m))) set)
 
+         ;; Columns the detected profile reads itself. They never appear in the mapping
+         ;; grid, so without this they would look unmapped and could be imported as a
+         ;; custom field on every entry - the item type column in particular, which has
+         ;; already been used to choose the entry type
+         consumed-columns (set (get-in db [:import-csv :consumed-columns]))
+
          ;; Unique headers not yet considered for mapping
-         not-mapped-headers (cset/difference (set headers) mapped-headers)
+         not-mapped-headers (cset/difference (set headers) mapped-headers consumed-columns)
 
          ;; Title should be mapped
          title-matched (filter (fn [{:keys [field-name mapped-name] :as m}] (when (and (= field-name const/TITLE) (not= mapped-name NOT_PRESENT)) m)) mapping-options)
@@ -156,8 +250,11 @@
 
 (defn- to-mapping [db]
   (let [headers (get-in db [:import-csv :headers])
+        ;; nil for a generic csv. It tells the backend the group path separator and the
+        ;; item type column to use, neither of which the column mapping can express
+        profile-id (get-in db [:import-csv :profile-id])
         {:keys [mapped-fields not-mapped-headers unmapped-custom-field]} (get-in db [:import-csv :mapping-result])]
-    (as-map [headers mapped-fields not-mapped-headers unmapped-custom-field])))
+    (as-map [headers mapped-fields not-mapped-headers unmapped-custom-field profile-id])))
 
 ;; Called after user enter details for new databse creation in the "New Database" dialog and clicks done button
 (reg-event-fx

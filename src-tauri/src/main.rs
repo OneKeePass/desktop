@@ -117,6 +117,8 @@ fn main() {
             #[cfg(not(feature = "mas-build"))]
             commands::check_for_updates,
             commands::clear_csv_data_cache,
+            commands::csv_import_profiles,
+            commands::csv_import_profile_mapping,
             commands::clear_recent_files,
             #[cfg(target_os = "linux")]
             commands::clipboard_clear,

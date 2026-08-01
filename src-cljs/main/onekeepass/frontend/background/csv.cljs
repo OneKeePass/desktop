@@ -10,6 +10,16 @@
 (defn clear-csv-data-cache [dispatch-fn]
   (invoke-api "clear_csv_data_cache" {} dispatch-fn))
 
+(defn csv-import-profiles
+  "Products offered in the 'exported from' dropdown of the mapping dialog"
+  [dispatch-fn]
+  (invoke-api "csv_import_profiles" {} dispatch-fn))
+
+(defn csv-import-profile-mapping
+  "Column mapping a chosen profile suggests for the loaded header row"
+  [profile-id headers dispatch-fn]
+  (invoke-api "csv_import_profile_mapping" {:profile-id profile-id :headers headers} dispatch-fn))
+
 (defn create-new-db-with-imported-csv [new-db mapping dispatch-fn]
   ;; mapping is map from struct CsvImportMapping
   (invoke-api "create_new_db_with_imported_csv" {:new-db new-db :mapping mapping} dispatch-fn))

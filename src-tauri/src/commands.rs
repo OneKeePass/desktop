@@ -1107,6 +1107,23 @@ pub(crate) async fn clear_csv_data_cache() -> Result<()> {
     Ok(kp_service::CsvImport::clear_stored_records())
 }
 
+// Products the csv mapping dialog offers in its "exported from" dropdown, so the user
+// can correct or override what was detected from the header row
+#[command]
+pub(crate) async fn csv_import_profiles() -> Result<Vec<kp_service::ProfileInfo>> {
+    Ok(kp_service::all_profiles())
+}
+
+// Column mapping a chosen profile suggests for the header row already loaded. Returns
+// an empty list for an unknown id, which the UI treats as "map it by hand"
+#[command]
+pub(crate) async fn csv_import_profile_mapping(
+    profile_id: String,
+    headers: Vec<String>,
+) -> Result<Option<kp_service::DetectedProfile>> {
+    Ok(kp_service::profile_mapping(&profile_id, &headers))
+}
+
 #[command]
 pub(crate) async fn create_new_db_with_imported_csv(
     new_db: kp_service::NewDatabase,

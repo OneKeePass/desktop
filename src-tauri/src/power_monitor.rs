@@ -1,7 +1,7 @@
 // Lock-on-suspend: when the OS is about to sleep/suspend, encrypt every open
 // database's decrypted content in RAM BEFORE the memory image can be written to
-// a hibernation/sleep file (the primary payoff of the Phase 2 memory-security
-// lock). The actual locking happens synchronously in the platform suspend
+// a hibernation/sleep file (the primary payoff of the memory-security lock).
+// The actual locking happens synchronously in the platform suspend
 // callback so it completes before the machine sleeps; the UI is notified so the
 // lock screen shows on resume.
 //
