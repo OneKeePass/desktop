@@ -25,8 +25,7 @@
                  :dir (t/dir)
                  :maxWidth "sm"
                  :fullWidth true}
-     [mui-dialog-title {}
-      [mui-typography {:variant "h6"} (t/lstr-dlg-title "permitBrowserConnection")]]
+     [mui-dialog-title {} (t/lstr-dlg-title "permitBrowserConnection")]
      [mui-divider {:sx {:border-color (get-theme-color :divider-color1)}}]
      [mui-dialog-content {:dividers true
                           :sx {:p 2}}
@@ -63,8 +62,7 @@
                    :dir (t/dir)
                    :maxWidth "sm"
                    :fullWidth true}
-       [mui-dialog-title {}
-        [mui-typography {:variant "h6"} (t/lstr-dlg-title "allowFolderAccess")]]
+       [mui-dialog-title {} (t/lstr-dlg-title "allowFolderAccess")]
        [mui-divider {:sx {:border-color (get-theme-color :divider-color1)}}]
        [mui-dialog-content {:dividers true
                             :sx {:p 2}}
