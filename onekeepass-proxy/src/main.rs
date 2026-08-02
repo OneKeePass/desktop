@@ -214,14 +214,33 @@ async fn main() {
 
     log::debug!("Going to call stdin_to_main_app");
     // Reads the messages from stdin and writes to the main app
-    stdin_to_main_app(app_connection_writer);
+    let mut stdin_task = stdin_to_main_app(app_connection_writer);
 
     log::debug!("Going to call main_app_to_stdout");
     // Receive the response from okp main app and write to stdout continuously in a spawned task loop
-    main_app_to_stdout(app_connection_reader);
+    let mut app_task = main_app_to_stdout(app_connection_reader);
 
     log::debug!("++ Both spawn calls are done++");
 
-    // Keep the main thread alive
-    loop {}
+    // The native host should live for as long as both ends of the bridge are
+    // connected. Waiting on the tasks parks the runtime instead of busy-spinning.
+    // When either the browser closes stdin or the app closes its IPC connection,
+    // terminate the process so the remaining blocking worker cannot keep it alive.
+    let completed_side = tokio::select! {
+        result = &mut stdin_task => {
+            if let Err(e) = result {
+                log::error!("Extension-to-app forwarding task failed: {}", e);
+            }
+            "browser"
+        }
+        result = &mut app_task => {
+            if let Err(e) = result {
+                log::error!("App-to-extension forwarding task failed: {}", e);
+            }
+            "main app"
+        }
+    };
+
+    log::info!("{} side disconnected; exiting proxy", completed_side);
+    std::process::exit(0);
 }

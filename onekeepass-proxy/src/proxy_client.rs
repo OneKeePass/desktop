@@ -41,10 +41,7 @@ async fn read_framed_message(reader: &mut ReadHalf<Connection>) -> std::io::Resu
     Ok(message_bytes)
 }
 
-async fn write_framed_to_app(
-    writer: &mut WriteHalf<Connection>,
-    body: &[u8],
-) -> std::io::Result<()> {
+async fn write_framed_to_app(writer: &mut WriteHalf<Connection>, body: &[u8]) -> std::io::Result<()> {
     let len = body.len() as u32;
     writer.write_all(&len.to_ne_bytes()).await?;
     writer.write_all(body).await?;
@@ -52,7 +49,7 @@ async fn write_framed_to_app(
 }
 
 // Receive the response from okp main app and write to stdout continuously in a spawned task loop
-pub(crate) fn main_app_to_stdout(mut app_connection_reader: ReadHalf<Connection>) {
+pub(crate) fn main_app_to_stdout(mut app_connection_reader: ReadHalf<Connection>) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         // 'main_app_to_stdout_outer: loop and then use break 'main_app_to_stdout_outer;
         'main_app_to_stdout_outer: loop {
@@ -99,12 +96,11 @@ pub(crate) fn main_app_to_stdout(mut app_connection_reader: ReadHalf<Connection>
         }
 
         log::info!("Exiting the main_app_to_stdout loop");
-        std::process::exit(0);
-    });
+    })
 }
 
 // Reads the messages from stdin and writes to the main app
-pub(crate) fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
+pub(crate) fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) -> tokio::task::JoinHandle<()> {
     let shared_writer = Arc::new(tokio::sync::Mutex::new(app_connection_writer));
 
     // 'std::io::stdin().read_exact' blocks other tasks of tokio runtime
@@ -189,8 +185,7 @@ pub(crate) fn stdin_to_main_app(app_connection_writer: WriteHalf<Connection>) {
             log::debug!("STD-IN-TO-APP: Will go back to the top of the loop");
         }
         log::info!("Exiting the stdin_to_main_app loop");
-        std::process::exit(0);
-    });
+    })
 }
 
 // Send the proxy error message to the extension and this is not async fn so it completes before returning
