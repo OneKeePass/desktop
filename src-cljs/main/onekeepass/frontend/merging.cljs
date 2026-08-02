@@ -157,7 +157,11 @@
                                {:file-name (-> db-key (str/split #"/") last)})]
        (when save-pending
          [mui-typography {:color "warning.main"}
-          (tr-dlg-text "externalDbChangedTxt2")])]
+          ;; Remote dbs get a variant text that does not mention Reload,
+          ;; as that button is not shown for them
+          (lstr-dlg-text (if remote?
+                           "externalDbChangedTxt2Remote"
+                           "externalDbChangedTxt2"))])]
       [mui-dialog-actions
        [mui-stack {:direction "row" :spacing 2}
         [mui-button {:on-click #(external-db-change-events/external-change-merge-start db-key)}

@@ -1557,9 +1557,17 @@ pub async fn rs_create_kdbx(
 }
 
 // Refreshes the cached remote mtime to the current server value
-// without touching the in-memory db. Called when the user chooses
-// "Ignore" on the conflict dialog for a remote db, so the next
-// focus-poll doesn't re-prompt for the same diverged state.
+// without touching the in-memory db.
+//
+// Currently has no caller. It was written for the "Not Now" (formerly
+// "Ignore") action on the external-change dialog, but that action
+// deliberately does not acknowledge a remote change: leaving the recorded
+// mtime at its diverged value is what makes the next focus poll re-detect
+// and re-prompt, and keeps the save-time conflict guard accurate so a
+// pending local edit can never silently overwrite the newer remote file.
+// Kept as the building block for a future explicit "keep the remote
+// version / stop asking" action, which is the only case where dropping
+// the divergence is the right outcome.
 #[tauri::command]
 pub async fn rs_acknowledge_remote_change(
     db_key: String,

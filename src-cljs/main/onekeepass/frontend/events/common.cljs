@@ -1067,8 +1067,17 @@
  (fn [{:keys [db]} [_event-id db-key]]
    {:db (assoc db :current-db-file-name db-key)
     :fx [[:bg-set-active-db-key db-key]
-         (when (get-in db [db-key :external-change-pending])
-           [:dispatch [:external-db-change/check-external-change-pending db-key]])
+         ;; Same routing as after an unlock: a flagged change is shown straight
+         ;; away, otherwise a remote db gets a fresh mtime check. No watcher
+         ;; covers a remote file, and the window-focus poll does not fire while
+         ;; the user stays inside the app, so this is the only check a tab
+         ;; switch would otherwise get.
+         (cond
+           (get-in db [db-key :external-change-pending])
+           [:dispatch [:external-db-change/check-external-change-pending db-key]]
+
+           (and (remote-db-key? db-key) (not (locked? db db-key)))
+           [:dispatch [:external-db-change/check-remote-db db-key]])
          ;; A passkey was added to this db (via the browser extension) while it
          ;; was not active; refresh its panels now that it is the active db.
          (when (get-in db [db-key :passkey-refresh-pending])

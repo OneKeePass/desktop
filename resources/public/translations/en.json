@@ -347,6 +347,7 @@
             "entryDeletePermanent": "Are you sure you want to delete this entry permanently?",
             "externalDbChangedTxt1": "{{- fileName}} was modified by another application.",
             "externalDbChangedTxt2": "You have unsaved changes. Merge combines both sets of changes; Reload discards your local changes.",
+            "externalDbChangedTxt2Remote": "You have unsaved changes. Merge combines your changes with the remote version.",
             "groupDeletePermanent": "Are you sure you want to delete this group and children permanently?",
             "installGrantTxt1": "macOS requires OneKeePass to have explicit permission to write the browser-extension manifest file. In the next dialog, navigate to:",
             "installGrantTxt2": "Click “Allow” to grant access. This is a one-time prompt per browser.",
