@@ -27,7 +27,7 @@ All created database files are encrypted using the best and most secure encrypti
 - Custom fields can be organized as sections
 - Upload attachments to an entry
 - Basic Auto-Type feature that sends simulated keypresses to other applications in macOS
-- Quick database unlock feature using TouchID for macOS
+- Quick database unlock feature using TouchID for macOS and Windows Hello for Windows
 - Any number of databases can be created and used
 - Optional additional security by using a key file with or without a master password
 - Time based One-Time Passwords (TOTP) can added and used
@@ -37,7 +37,7 @@ All created database files are encrypted using the best and most secure encrypti
 - Cloning/Copying entries
 - Diceware Passphrase generator
 - Merging of databases
-- CSV file import
+- CSV file import — exports from Bitwarden, 1Password, LastPass, NordPass, Proton Pass, Dashlane, Safari/iCloud Passwords, Firefox and Chrome/Edge are recognised automatically, and any other CSV file can be mapped by hand
 - Fully offline 
 - Browser extension and integration (alpha version) - [Firefox](https://addons.mozilla.org/en-US/firefox/addon/onekeepass-browser/), [Chrome](https://chromewebstore.google.com/detail/onekeepass-browser/cmdmojmbfcpkloflnjkkdjcflaidangh) and Brave
 - Supports password autofill, passkey registration and passkey authentication - OneKeePass-Browser extension is required

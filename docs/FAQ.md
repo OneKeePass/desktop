@@ -23,6 +23,34 @@ The database file is encrypted using a master key. This master key is derived us
 
 Accordingly you can use only a master password or only a key file or both to secure your database
 
+## What happens when a database is locked?
+
+Locking is not only about hiding the screen. From release 0.25.0 onwards, locking a database also protects what is held in memory:
+
+- The decrypted contents of the database are removed from memory and kept only as encrypted data until you unlock it again
+- Entry attachment contents are protected the same way, and the plain content is overwritten before it is released
+- A locked database is not reachable by the browser extension — password autofill, passkey registration and passkey authentication only see databases that are unlocked
+- A locked database cannot be saved. If it has unsaved changes, OneKeePass tells you so and asks you to unlock it first, or to close/quit without saving those changes
+
+You can lock a database from the toolbar, from the **Database -> Lock Database** menu, or automatically through the session timeout in **Application Settings -> Security**.
+
+## Does OneKeePass lock my databases when the computer goes to sleep?
+
+Yes. From release 0.25.0 onwards, all open databases are locked when the machine is about to suspend or sleep, on macOS, Windows and Linux.
+
+This matters because a suspended machine may write its whole memory image to a hibernation or sleep file on disk. The locking is done before the system sleeps, so what lands in that file is encrypted data rather than your decrypted passwords. When you come back, the databases are showing the lock screen and you unlock them as usual.
+
+## Can I unlock quickly with Windows Hello or TouchID?
+
+Yes. When your computer supports it, OneKeePass can re-unlock an already open database with the system's own authentication instead of retyping the master password:
+
+- **macOS** — TouchID / FaceID
+- **Windows** — Windows Hello (PIN or biometric), from release 0.25.0 onwards
+
+The key needed while a database is open is held by the platform's own secure store — the Keychain on macOS, Credential Manager on Windows, and the freedesktop Secret Service (GNOME Keyring, KWallet and similar) on Linux. It is never written to the database file or to the application preferences.
+
+This only applies to a database that is already open in OneKeePass. Opening a database from disk always requires the master key.
+
 ## How are entries organized ?
 Entries are organized so that you can view them as  Entry types or Categories or Group tree or Tagged entries. 
 
@@ -167,31 +195,42 @@ Then choose any of a valid keepass database file to merge with the currently ope
 
 ## Can I import passwords from other password managers?
 
-Yes. OneKeePass supports a basic importing passwords from CSV (Comma Separated Values) files. This is useful when migrating from another password manager or importing passwords you have exported.
+Yes. OneKeePass imports passwords from CSV (Comma Separated Values) files, which is what nearly every password manager and browser can export. This is useful when migrating from another password manager or when importing passwords you have exported earlier.
 
 **How to import a CSV file:**
 
 1. Open or create a database where you want to import the passwords
-2. Use the menu option **Database -> Import from CSV**
+2. Use the menu option **Database -> Import**
 3. Select the CSV file you want to import
-4. OneKeePass will process the CSV file and create entries in your database
+4. Check the column mapping shown for the file and correct anything that is wrong
+5. OneKeePass creates the entries in your database. The import is not saved automatically — review the result and save the database
 
-**CSV file format:**
+**Exports that are recognised automatically:**
 
-Your CSV file should contain password data with appropriate columns. The first row should contain column headers. Common column names include:
-- `Title` or `Name` - entry title
-- `UserName` or `Username` - username/login
-- `Password` - password
-- `URL` or `Url` - website URL
-- `Notes` - additional notes or comments
+From release 0.25.0 onwards, OneKeePass looks at the header row of the file and recognises the export format of these products:
 
-**Supported features:**
+- Bitwarden
+- 1Password
+- LastPass
+- NordPass
+- Proton Pass
+- Dashlane
+- Safari / iCloud Passwords
+- Firefox
+- Chrome / Edge
 
-- Multiple entries can be imported in a single CSV file
-- Standard password fields (title, username, password, URL, notes) are recognized
-- Additional custom fields can be included and will be created as part of the entry
+When the file is recognised, the **Exported from** field shows the detected product and the column mapping is filled in for you. You can still change any column before importing.
 
-**Note:** OneKeePass currently imports generic CSV formats. If you're exporting from another password manager, you may need to format the export to match the expected CSV structure, or the exported file may already be in a compatible format. 
+**Any other CSV file:**
+
+If the export is not recognised, choose **Generic CSV** in the **Exported from** field and map each column yourself. The only requirement is that the first row of the file is a header row naming the columns.
+
+**What gets imported:**
+
+- Standard fields — title, username, password, URL and notes
+- The group/folder structure of the export, where the file carries one
+- Card and identity details, from the exports that carry them, into the matching OneKeePass entry types rather than being flattened into notes
+- Any remaining columns you map, which are created as custom fields on the entry
 
 
 ## Does OneKeePass provide any Browser Extension?
@@ -258,8 +297,24 @@ OneKeePass automatically detects when a database file is modified by another app
 You can configure backup settings using the **File Management** panel accessible from the application menu. Here you can:
 - Enable or disable automatic backup file creation
 - Specify the directory where backup files should be stored
+- Set **Backup copies to keep** — how many backup copies are retained for each database. Once that many exist, the oldest is removed as a new one is written
 
 Backups are created whenever you save changes to your database.
+
+## Can OneKeePass save automatically after I make a change?
+
+Yes. **Auto save after an edit** is available from release 0.25.0 onwards in the **File Management** panel of Application Settings. It is off by default.
+
+When it is enabled, the database is saved as soon as you finish an edit — adding or changing an entry or a group, cloning an entry or group, uploading an attachment, changing a custom entry type, or changing the database settings.
+
+Some changes are deliberately left out of auto save, so that closing a database without saving remains a way to undo them:
+
+- CSV imports and database merges — bulk changes you are expected to review before committing
+- Deletions, including moves to the recycle bin and emptying it
+- Moving or reorganising groups and entries
+- Cloning or moving an entry into another database
+
+For those, the save indicator turns on as usual and you save when you are satisfied with the result.
 
 ## How do I merge two open databases?
 
