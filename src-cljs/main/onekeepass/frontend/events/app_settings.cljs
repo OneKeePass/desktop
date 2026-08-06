@@ -71,7 +71,8 @@
   "
   [ks value]
   (cond (or (= ks [:app-settings :preference-data :clipboard-timeout])
-            (= ks [:app-settings :preference-data :session-timeout]))
+            (= ks [:app-settings :preference-data :session-timeout])
+            (= ks [:app-settings :preference-data :backup :max-copies]))
         (str->int value)
 
         :else
@@ -93,10 +94,16 @@
 (defn- validate-file-management-fields
   [app-db]
   (let [{:keys [backup]} (get-in app-db [:app-settings :preference-data])
-        {:keys [enabled dir]} backup]
+        {:keys [enabled dir max-copies]} backup]
     (cond-> {}
       (and enabled (str/blank? dir))
-      (assoc :backup-dir "Backup directory is required when backup is enabled"))))
+      (assoc :backup-dir "Backup directory is required when backup is enabled")
+
+      ;; Only validated while backup is enabled - the field is disabled otherwise
+      ;; and a stale value should not block saving the rest of the settings
+      (and enabled
+           (or (nil? max-copies) (< max-copies 1) (> max-copies 100)))
+      (assoc :backup-max-copies (tr-m appSettings "backupCopiesValidVal")))))
 
 
 (defn- validate-required-fields
@@ -156,6 +163,7 @@
                                          :backup
                                          :browser-ext-support
                                          :ssh-agent-support
+                                         :auto-save
                                          :default-entry-category-groupings]))
               (assoc-in  [:app-settings :preference-data] pd))
         :fx [[:load-browser-manifest-statuses nil]]})))
@@ -248,6 +256,7 @@
                    backup
                    browser-ext-support
                    ssh-agent-support
+                   auto-save
                    default-entry-category-groupings]} (-> db :app-settings :preference-data)]
        ;; ssh-agent-support rides the normal update-preference path like
        ;; browser-ext-support; the backend persists the flag and starts/stops the
@@ -259,6 +268,7 @@
                                              backup
                                              browser-ext-support
                                              ssh-agent-support
+                                             auto-save
                                              default-entry-category-groupings])]]}))))
 
 (reg-event-fx

@@ -21,6 +21,7 @@ mod key_secure;
 mod mas;
 mod menu;
 mod pass_phrase;
+mod power_monitor;
 mod remote_storage;
 mod sandbox;
 mod ssh_agent;
@@ -81,6 +82,9 @@ fn main() {
         .manage(app_state::AppState::new())
         .setup(|app| {
             app_state::init_app(app);
+            // Lock (encrypt in RAM) all open databases when the OS is about to
+            // sleep, before the memory image can hit a hibernation file.
+            power_monitor::start(app.app_handle());
             Ok(menu::build_menus(app.app_handle())?)
         })
         // .on_window_event(|event| match event.event() {
@@ -98,6 +102,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             // Sorted alphabetically
             commands::acknowledge_db_file_change,
+            #[cfg(target_os = "windows")]
+            commands::activate_menu_shortcut,
             #[cfg(not(feature = "mas-build"))]
             commands::active_window_to_auto_type,
             commands::add_custom_icon_from_file,
@@ -111,11 +117,15 @@ fn main() {
             #[cfg(not(feature = "mas-build"))]
             commands::check_for_updates,
             commands::clear_csv_data_cache,
+            commands::csv_import_profiles,
+            commands::csv_import_profile_mapping,
             commands::clear_recent_files,
             #[cfg(target_os = "linux")]
             commands::clipboard_clear,
             #[cfg(target_os = "linux")]
             commands::clipboard_get_text,
+            #[cfg(target_os = "linux")]
+            commands::clipboard_set_text,
             commands::clone_entry,
             commands::close_kdbx,
             commands::collect_entry_group_tags,
@@ -166,6 +176,7 @@ fn main() {
             commands::move_group,
             commands::move_group_to_other_db,
             commands::move_group_to_recycle_bin,
+            commands::clone_group,
             commands::new_blank_group,
             commands::new_entry_form_data,
             commands::open_all_auto_open_dbs,
@@ -226,6 +237,7 @@ fn main() {
             // commands::tokio_runtime_start,
             commands::unlock_kdbx,
             commands::unlock_kdbx_on_biometric_authentication,
+            commands::unlock_kdbx_with_biometric,
             commands::update_browser_ext_support_preference,
             commands::update_db_with_imported_csv,
             commands::update_entry_from_form_data,

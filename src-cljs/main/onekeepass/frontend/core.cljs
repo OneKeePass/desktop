@@ -166,7 +166,8 @@
 
       [mui-stack {:sx {:mt 3 :align-items "center"}}
        (cond
-         (or (= biometric-type const/TOUCH_ID) (= biometric-type const/FACE_ID))
+         (or (= biometric-type const/TOUCH_ID) (= biometric-type const/FACE_ID)
+             (= biometric-type const/WINDOWS_HELLO))
          [mui-icon-button {:aria-label "fingerprint"
                            :color "secondary"
                            :on-click #(cmn-events/unlock-current-db biometric-type)}
@@ -174,10 +175,10 @@
 
          :else nil)
 
-       [mui-button {:variant "outlined"
-                    :color "inherit"
+       [mui-button {;; :variant "outlined"
+                    ;; :color "inherit"
                     :on-click #(cmn-events/unlock-current-db biometric-type)}
-        (tr-bl quickUnlock)]]]]))
+        (tr-bl "unlockDatabase")]]]]))
 
 (defn- draggable-tab
   "Form-1 React function component (used with :f>) for a single draggable + droppable tab.

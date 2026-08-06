@@ -27,7 +27,8 @@
              parent-changed-groups
              meta-data-changed
              permanently-deleted-entries
-             permanently-deleted-groups]
+             permanently-deleted-groups
+             merge-done]
       :as _data} :data}]
    [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
                 :dir (t/dir)
@@ -86,8 +87,19 @@
       [mui-divider]
       [mui-stack {:direction "row" :sx {:justify-content "space-between" :margin-bottom "10px"}}
        [mui-typography (tr-dlg-text "mergeResultMetaDataChanged")]
-       [mui-typography (if meta-data-changed (tr-bl yes) (tr-bl no))]]]]
+       [mui-typography (if meta-data-changed (tr-bl yes) (tr-bl no))]]
 
+      [mui-divider]
+      ;; A merge is never saved automatically. 'merge-done' is set by the core when any
+      ;; of the counts above is non zero, and it is the same flag the event handler uses
+      ;; to mark the db as modified - so this message always agrees with the save icon
+      [mui-typography {:variant "body2"
+                       :color (if merge-done "warning.main" "text.secondary")
+                       :sx {:mt "16px"}}
+       (if merge-done
+         (tr-dlg-text "mergeResultReviewTxt")
+         (tr-dlg-text "mergeResultNoChangesTxt"))]]]
+    [mui-divider]
     [mui-dialog-actions
      [mui-stack  {:sx {}}
       [mui-button {:on-click  gd-events/merge-result-dialog-close} (tr-bl "close")]]]])
@@ -126,7 +138,8 @@
             :required true}]]]
         [mui-dialog-actions
          [mui-button {:on-click gd-events/merge-opened-dbs-dialog-close} (t/lstr-bl 'cancel)]
-         [mui-button {:disabled (or (nil? target-db-key)
+         [mui-button {:disabled (or (nil? source-db-key)
+                                    (nil? target-db-key)
                                     (= source-db-key target-db-key))
                       :on-click merging-events/merge-opened-dbs-confirm}
           (tr-bl merge)]]])))
@@ -144,11 +157,14 @@
                                {:file-name (-> db-key (str/split #"/") last)})]
        (when save-pending
          [mui-typography {:color "warning.main"}
-          (tr-dlg-text "externalDbChangedTxt2")])]
+          ;; Remote dbs get a variant text that does not mention Reload,
+          ;; as that button is not shown for them
+          (lstr-dlg-text (if remote?
+                           "externalDbChangedTxt2Remote"
+                           "externalDbChangedTxt2"))])]
       [mui-dialog-actions
        [mui-stack {:direction "row" :spacing 2}
-        [mui-button {:variant "contained"
-                     :on-click #(external-db-change-events/external-change-merge-start db-key)}
+        [mui-button {:on-click #(external-db-change-events/external-change-merge-start db-key)}
          (tr-bl merge)]
         ;; Reload is local-only: it discards the in-memory db and re-reads
         ;; the file from disk. For remote dbs we don't yet have a

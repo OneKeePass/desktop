@@ -79,7 +79,9 @@
                            REMOTE_CONNECTION_SFTP_TYPE_NAME
                            REMOTE_CONNECTION_WEBDAV_TYPE_NAME])
 
+;; Standard section names (match onekeepass-core constants in 'standard_in_section_names')
 (def ADDITIONAL_ONE_TIME_PASSWORDS "Additional One-Time Passwords")
+(def PASSKEY_DETAILS "Passkey Details")
 ;;
 (def CATEGORY_ALL_ENTRIES "AllEntries")
 (def CATEGORY_FAV_ENTRIES "Favorites")
@@ -109,6 +111,7 @@
 (def MENU_ID_OPEN_REMOTE "OpenRemote")
 (def MENU_ID_OPEN_RECENT "OpenRecent")
 (def MENU_ID_LOCK_DATABASE "LockDatabase")
+(def MENU_ID_LOCK_ALL_DATABASES "LockAllDatabases")
 (def MENU_ID_CLOSE_DATABASE "CloseDatabase")
 (def MENU_ID_MERGE_DATABASE "MergeDatabase")
 (def MENU_ID_MERGE_OPENED_DATABASES "MergeOpenedDatabases")
@@ -117,6 +120,8 @@
 (def MENU_ID_PASSWORD_GENERATOR "PasswordGenerator")
 (def MENU_ID_NEW_ENTRY "NewEntry")
 (def MENU_ID_EDIT_ENTRY "EditEntry")
+(def MENU_ID_CLONE_ENTRY "CloneEntry")
+(def MENU_ID_DELETE_ENTRY "DeleteEntry")
 (def MENU_ID_COPY_USERNAME "CopyUsername")
 (def MENU_ID_COPY_PASSWORD "CopyPassword")
 (def MENU_ID_COPY_URL "CopyUrl")
@@ -124,6 +129,8 @@
 (def MENU_ID_COPY_TOTP "CopyTotp")
 (def MENU_ID_NEW_GROUP "NewGroup")
 (def MENU_ID_EDIT_GROUP "EditGroup")
+(def MENU_ID_CLONE_GROUP "CloneGroup")
+(def MENU_ID_DELETE_GROUP "DeleteGroup")
 (def MENU_ID_ABOUT "About")
 (def MENU_ID_CHECK_FOR_UPDATES "CheckForUpdates")
 
@@ -134,9 +141,15 @@
 
 (def DB_CHANGED "DbFileContentChangeDetected")
 (def MERGE_FAILED_CREDENTIALS_CHANGED "MergeFailedCredentialsChanged")
+;; Marker error returned by unlock_kdbx_with_biometric when the biometric
+;; verification (Touch ID / Face ID / Windows Hello) is cancelled or fails, so
+;; the unlock flow falls back to the password dialog instead of a hard error.
+(def BIOMETRIC_AUTH_FAILED "BiometricAuthenticationFailed")
 
 (def TOUCH_ID "TouchID")
 (def FACE_ID "FaceID")
+;; Windows Hello (PIN or biometric) re-unlock; matches biometric.rs on Windows.
+(def WINDOWS_HELLO "WindowsHello")
 (def NO_BIOMETRIC "None")
 
 (def MACOS "macos")
@@ -157,6 +170,10 @@
 (def TAGS "Tags")
 (def IFDEVICE "IfDevice")
 (def ADDITIONAL_URLS "Additional URLs")
+
+;; Passkey entry protected field keys (match onekeepass-core constants of the same name)
+(def KPEX_PASSKEY_USER_HANDLE "KPEX_PASSKEY_USER_HANDLE")
+(def KPEX_PASSKEY_CREDENTIAL_ID "KPEX_PASSKEY_CREDENTIAL_ID")
 
 (def ONE_TIME_PASSWORD_TYPE "Field type" "OneTimePassword")
 
@@ -182,3 +199,5 @@
 (def WINDOW_FOCUS_CHANGED "WindowFocusChanged")
 (def CLOSE_REQUESTED  "CloseRequested")
 (def FILE_DROP "FileDrop")
+;; Backend has locked all open databases in response to an OS suspend/sleep
+(def DATABASES_LOCKED "DatabasesLocked")

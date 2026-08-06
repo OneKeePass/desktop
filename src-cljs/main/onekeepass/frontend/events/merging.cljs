@@ -4,24 +4,35 @@
    [onekeepass.frontend.events.common :as cmn-events :refer [check-error
                                                              active-db-key]]
    [onekeepass.frontend.events.move-group-entry :as move-events]
+   [onekeepass.frontend.translation :refer [lstr-error-sm]]
    [onekeepass.frontend.background.merging :as bg-merging]))
+
+(defn- merge-not-possible-fx
+  "Returns the snackbar effect explaining why a merge cannot start, or nil when the
+   active db is open and unlocked. 'Merge Database...' stays enabled at all times, so
+   this is where the no-db and locked cases are reported to the user."
+  [db]
+  (let [current-db-key (active-db-key db)]
+    (cond
+      (nil? current-db-key)
+      {:fx [[:dispatch [:common/message-snackbar-error-open (lstr-error-sm 'noDatabaseOpened)]]]}
+
+      (cmn-events/locked? db current-db-key)
+      {:fx [[:dispatch [:common/message-snackbar-error-open (lstr-error-sm 'databaseIsLocked)]]]})))
 
 ;;;; Existing "Merge Database..." flow (opens a file from disk) ;;;;
 
 (reg-event-fx
  :merging/open-dbs-start
  (fn [{:keys [db]}  [_event-id]]
-   (if (nil? (active-db-key db))
-     {:fx [[:dispatch [:common/message-snackbar-error-open "No database is opened"]]]}
-     {:fx [[:dispatch [:open-db-form/open-db true]]]})))
+   (or (merge-not-possible-fx db)
+       {:fx [[:dispatch [:open-db-form/open-db true]]]})))
 
 (reg-event-fx
  :merging/credentials-entered
  (fn [{:keys [db]} [_event-id source-db-fkey pwd key-file-name]]
-   (let [target-db-key (active-db-key db)]
-     (if-not (nil? target-db-key)
-       {:fx [[:bg-merge-databases [(active-db-key db) source-db-fkey  pwd key-file-name]]]}
-       {:fx [[:dispatch [:common/message-snackbar-error-open "No database is opened"]]]}))))
+   (or (merge-not-possible-fx db)
+       {:fx [[:bg-merge-databases [(active-db-key db) source-db-fkey  pwd key-file-name]]]})))
 
 (reg-fx
  :bg-merge-databases
@@ -45,6 +56,8 @@
           ;; Only mark the target db as having unsaved changes when the merge
           ;; actually modified something. Otherwise the save icon would light
           ;; up even though all merge-result counts are zero.
+          ;; No auto-save opt-in here. A merge is a bulk change the user is expected
+          ;; to review in the merge-result dialog and save only if satisfied
           (:merge-done merge-result)
           (conj [:dispatch [:common/db-save-pending-set true (active-db-key db)]]))}))
 
@@ -75,12 +88,13 @@
 (reg-event-fx
  :merging/merge-opened-dbs-start
  (fn [{:keys [db]} [_event-id]]
-   (let [source-db-key (active-db-key db)]
-     (if (nil? source-db-key)
-       {:fx [[:dispatch [:common/message-snackbar-error-open "No database is opened"]]]}
+   ;; Only unlocked dbs are offered as source/target in the dialog, so the guard also
+   ;; keeps a locked active db from being seeded as the source - that would show an
+   ;; empty source field while the dialog state still held the locked db-key
+   (or (merge-not-possible-fx db)
        {:fx [[:dispatch [:generic-dialog-show-with-state :merge-opened-dbs-dialog
-                         {:source-db-key source-db-key
-                          :target-db-key nil}]]]}))))
+                         {:source-db-key (active-db-key db)
+                          :target-db-key nil}]]]})))
 
 (reg-event-db
  :merging-merge-opened-dbs-source-changed
@@ -127,6 +141,7 @@
           ;; Only mark the target db as having unsaved changes when the merge
           ;; actually modified something. Avoids a misleading save icon when
           ;; merge_done is false (all counts zero).
+          ;; No auto-save opt-in - see the comment in ':merge-databases-completed'
           (:merge-done merge-result)
           (conj [:dispatch [:common/db-save-pending-set true target-db-key]]))}))
 

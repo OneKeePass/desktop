@@ -261,6 +261,20 @@
         (when (and previously-focused (fn? (.-focus previously-focused)))
           (.focus previously-focused))))))
 
+(defn write-to-clipboard-plugin
+  "Copies given data to the clipboard using only the arboard-backed Tauri
+   clipboard plugin. This is the Mac/Windows path: the plugin writes through
+   the native OS clipboard API and does not depend on webview DOM focus, so it
+   works even when the copy is triggered from inside a focus-trapping MUI
+   dialog (e.g. the Password Generator). See write-to-clipboard for the
+   Linux/Wayland webview-native path."
+  [data]
+  (go
+    (try
+      (<p! (writeText data))
+      (catch js/Error err
+        (js/console.error "write-to-clipboard-plugin failed: " err)))))
+
 (defn write-to-clipboard
   "Copies given data to the clipboard - equivalent to Cmd + C.
    Uses the webview-native copy first (works on Linux/Wayland), and falls
@@ -300,6 +314,16 @@
 ;; src-tauri/src/clipboard.rs). The arboard-backed Tauri plugin used by
 ;; read-from-clipboard/clear-clipboard fails on Linux/Wayland, so the events
 ;; layer routes Linux through these instead (based on os-name).
+
+(defn write-to-clipboard-gtk
+  "Linux GTK-backed clipboard write. Used instead of the webview's
+   execCommand('copy'), which does not reliably place programmatically-copied
+   text on the GTK clipboard (e.g. from the Password Generator dialog)."
+  [data]
+  (invoke-api "clipboard_set_text" {:text data}
+              (fn [{:keys [error]}]
+                (when error
+                  (js/console.error "clipboard_set_text failed: " error)))))
 
 (defn clear-clipboard-gtk []
   (invoke-api "clipboard_clear" {}
@@ -344,6 +368,12 @@
 
 (defn authenticate-with-biometric [db-key dispatch-fn]
   (invoke-api "authenticate_with_biometric" {:db-key db-key} dispatch-fn))
+
+;; Combined command that does the biometric verification AND the reveal in Rust
+;; (see unlock_kdbx_with_biometric). Replaces the two calls above in the unlock
+;; flow; the two above are kept for compatibility.
+(defn unlock-kdbx-with-biometric [db-key dispatch-fn]
+  (invoke-api "unlock_kdbx_with_biometric" {:db-key db-key} dispatch-fn))
 
 (defn read-and-verify-db-file [db-key dispatch-fn]
   (invoke-api "read_and_verify_db_file" {:db-key db-key} dispatch-fn))
@@ -537,6 +567,16 @@
   [db-key group-uuid new-parent-id dispatch-fn]
   (invoke-api "move_group" {:db-key db-key :group-uuid group-uuid :new-parent-id new-parent-id} dispatch-fn))
 
+(defn clone-group
+  "Clones a group with all its entries and nested sub groups under the same parent.
+   'new-name' is the name for the cloned top group (nil keeps the source name)."
+  [db-key group-uuid new-name dispatch-fn]
+  ;; clone_group returns the cloned group's uuid string; skip the usual response
+  ;; conversion so the raw uuid string is passed through (as done for clone_entry)
+  (invoke-api "clone_group" {:db-key db-key :group-uuid group-uuid :new-name new-name}
+              dispatch-fn
+              :convert-response false))
+
 (defn move-entry-to-other-db
   [source-db-key entry-uuid target-db-key target-parent-group-uuid dispatch-fn]
   (invoke-api "move_entry_to_other_db"
@@ -619,6 +659,7 @@
   (invoke-api "save_kdbx" {:db-key db-key :overwrite overwrite} dispatch-fn))
 
 (defn save-all-modified-dbs
+  "Called when user quits the applications when one or more databases have pending save state"
   [db-keys dispatch-fn]
   (invoke-api "save_all_modified_dbs" {:db-keys db-keys} dispatch-fn))
 
@@ -750,6 +791,15 @@
   ;; The api 'menu_action_requested' expects one argument 'request' of type MenuActionRequest
   (let [api-args (clj->js {:request {:menu_id menu-id :menu_action action}})]
     (invoke-api "menu_action_requested" api-args dispatch-fn :convert-request false)))
+
+(defn activate-menu-shortcut
+  "Forwards a Windows webview shortcut to an enabled native menu item."
+  [submenu-id menu-id]
+  (invoke-api "activate_menu_shortcut"
+              {:submenu-id submenu-id :menu-id menu-id}
+              (fn [{:keys [error]}]
+                (when error
+                  (js/console.error "Failed to activate menu shortcut" error)))))
 
 ;;menu_titles_change_requested
 (defn menu-titles-change-requested [menu-titles dispatch-fn]

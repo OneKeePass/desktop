@@ -7,9 +7,9 @@
    [onekeepass.frontend.events.common :as cmn-events]
    [onekeepass.frontend.events.entry-form-ex :as form-events]
    [onekeepass.frontend.constants :as const :refer
-    [BROWSER_CONNECTION_REQUEST_EVENT CLOSE_REQUESTED DB_FILE_CHANGED_EVENT FILE_DROP MAIN_WINDOW_EVENT
-     MENU_ID_ABOUT OTP_TOKEN_UPDATE_EVENT PASSKEY_DATA_CHANGED_EVENT SSH_AGENT_SIGN_REQUEST_EVENT
-     TAURI_MENU_EVENT WINDOW_FOCUS_CHANGED]]
+    [BROWSER_CONNECTION_REQUEST_EVENT CLOSE_REQUESTED DATABASES_LOCKED DB_FILE_CHANGED_EVENT FILE_DROP
+     MAIN_WINDOW_EVENT MENU_ID_ABOUT OTP_TOKEN_UPDATE_EVENT PASSKEY_DATA_CHANGED_EVENT
+     SSH_AGENT_SIGN_REQUEST_EVENT TAURI_MENU_EVENT WINDOW_FOCUS_CHANGED]]
    [re-frame.core :refer [dispatch]]))
 
 (defn- to-cljs [js-event-repsonse]
@@ -67,14 +67,29 @@
       (= menu-id const/MENU_ID_NEW_ENTRY)
       (menu-action-call menu-id)
 
+      (= menu-id const/MENU_ID_CLONE_ENTRY)
+      (menu-action-call menu-id)
+
+      (= menu-id const/MENU_ID_DELETE_ENTRY)
+      (menu-action-call menu-id)
+
       (= menu-id const/MENU_ID_NEW_GROUP)
       (dispatch [:group-tree-content/new-group])
 
       (= menu-id const/MENU_ID_EDIT_GROUP)
       (dispatch [:group-tree-content/edit-group])
 
+      (= menu-id const/MENU_ID_CLONE_GROUP)
+      (dispatch [:group-tree-content/clone-group])
+
+      (= menu-id const/MENU_ID_DELETE_GROUP)
+      (dispatch [:group-tree-content/delete-group])
+
       (= menu-id const/MENU_ID_LOCK_DATABASE)
       (dispatch [:tool-bar/lock-current-db])
+
+      (= menu-id const/MENU_ID_LOCK_ALL_DATABASES)
+      (dispatch [:common/lock-all-dbs])
 
       (= menu-id const/MENU_ID_CLOSE_DATABASE)
       (dispatch [:tool-bar/close-current-db-start])
@@ -152,6 +167,12 @@
       (= action FILE_DROP)
       (when-let [file-path (-> cljs-response :payload :file-path)]
         (dispatch [:open-db-dialog-show-on-file-selection file-path]))
+
+      ;; The backend locked all open databases before the system slept. Reflect
+      ;; that in the UI (show the lock screen for every open db). The content is
+      ;; already encrypted in the backend, so no bg lock call is made here.
+      (= action DATABASES_LOCKED)
+      (cmn-events/databases-locked-on-suspend)
 
       :else
       (println "No handler for Main Window event response: " js-event-repsonse))))

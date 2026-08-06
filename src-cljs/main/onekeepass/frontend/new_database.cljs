@@ -1,6 +1,7 @@
 (ns onekeepass.frontend.new-database
   (:require
    [onekeepass.frontend.common-components :refer [cipher-algorithms
+                                                  field-help-icon
                                                   kdf-algorithms]]
    [onekeepass.frontend.events.generic-dialogs :as gd-events]
    [onekeepass.frontend.events.new-database :as nd-events]
@@ -95,7 +96,7 @@
                     :variant "standard" :fullWidth true
                     :type (if password-visible "text" "password")
                     :slotProps {:input {:endAdornment (r/as-element
-                                                       [mui-input-adornment {:position "end"}
+                                                       [mui-input-adornment {:position "end" :sx {:mr "6px"}}
                                                         (if password-visible
                                                           [mui-icon-button {:edge "end" :sx {:mr "-8px"}
                                                                             :on-click #(nd-events/database-field-update :password-visible false)}
@@ -182,11 +183,11 @@
 (defn- security-info [{:keys [cipher-id error-fields]
                        {:keys [iterations memory parallelism algorithm]} :kdf}]
   [mui-stack {:spacing 2}
-   [mui-typography (tr-l security)]
+   [mui-typography (t/lstr-t "encryption")]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}} ;;:alignItems "center"
     [mui-stack {:direction "row" :sx {:width "100%"}}
-     [mui-stack {:sx {:width "50%" :ml 3}}
-      [m/text-field {:label "Encription Algorithm"
+     [mui-stack {:direction "row" :sx {:width "50%" :ml 3 :align-items "flex-end"}}
+      [m/text-field {:label (lstr-l "encriptionAlgorithm")
                      :value cipher-id
                      :required true
                      :select true
@@ -195,10 +196,11 @@
                      :variant "standard" :fullWidth true}
        (doall
         (for [{:keys [name value]} cipher-algorithms]
-          ^{:key value} [mui-menu-item {:value value} name]))]]]
+          ^{:key value} [mui-menu-item {:value value} name]))]
+      [field-help-icon (t/lstr-h "encryptionAlgorithm")]]]
 
     [mui-stack {:direction "row" :sx {:width "100%"}}
-     [mui-stack {:sx {:width "50%" :ml 3}}
+     [mui-stack {:direction "row" :sx {:width "50%" :ml 3 :align-items "flex-end"}}
       [m/text-field {:label (tr-l kdf)
                      :value algorithm
                      :required true
@@ -209,27 +211,31 @@
                      :variant "standard" :fullWidth true}
        (doall
         (for [{:keys [name value]} kdf-algorithms]
-          ^{:key value} [mui-menu-item {:value value} name]))]]]
+          ^{:key value} [mui-menu-item {:value value} name]))]
+      [field-help-icon (t/lstr-h "kdf")]]]
 
     [mui-stack {:direction "row" :sx {:width "100%"}}
-     [mui-stack {:sx {:width "33.33%" :ml 3}}
+     [mui-stack {:direction "row" :sx {:width "33.33%" :ml 3 :align-items "flex-end"}}
       [m/text-field {:label (tr-l "transformRounds")
                      :value iterations
                      :type "number"
                      :error (contains? error-fields :iterations)
                      :helperText (get error-fields :iterations)
                      :on-change (nd-events/field-update-factory [:kdf :iterations])
-                     :variant "standard" :fullWidth true}]]
+                     :variant "standard" :fullWidth true}]
+      [field-help-icon (t/lstr-h "transformRounds")]]
 
-     [mui-stack {:sx {:width "33.33%" :ml 3}}
+     [mui-stack {:direction "row" :sx {:width "33.33%" :ml 3 :align-items "flex-end"}}
       [m/text-field {:label (tr-l "memoryUsage")
                      :value memory
                      :type "number"
                      :error (contains? error-fields :memory)
                      :helperText (get error-fields :memory)
                      :on-change (nd-events/field-update-factory [:kdf :memory])
-                     :variant "standard" :fullWidth true}]]
-     [mui-stack {:sx {:width "33.33%" :ml 3}}
+                     :variant "standard" :fullWidth true}]
+      [field-help-icon (t/lstr-h "memoryUsage")]]
+
+     [mui-stack {:direction "row" :sx {:width "33.33%" :ml 3 :align-items "flex-end"}}
       [m/text-field {:label (tr-l "parallelism")
                      :value parallelism
                      :type "number"
@@ -237,9 +243,10 @@
                      :helperText (get error-fields :parallelism)
                      ;; Using min for "number" type is not working
                      ;;:InputProps {:min "2"}
-                     ;;:min 2 
+                     ;;:min 2
                      :on-change (nd-events/field-update-factory [:kdf :parallelism])
-                     :variant "standard" :fullWidth true}]]]]])
+                     :variant "standard" :fullWidth true}]
+      [field-help-icon (t/lstr-h "parallelism")]]]]])
 
 (defn new-database-dialog [{:keys [dialog-show panel call-to-create-status api-error-text] :as m}]
   (let [in-progress? (= :in-progress call-to-create-status)]
@@ -296,11 +303,9 @@
      [mui-dialog-content {:sx {:pt 2}}
       [mui-typography {:variant "body1"} (lstr-dlg-text 'noRemoteConnections)]]
      [mui-dialog-actions
-      [mui-button {:color "secondary"
-                   :on-click nd-events/no-remote-warning-uncheck}
+      [mui-button {:on-click nd-events/no-remote-warning-uncheck}
        (lstr-bl "uncheck")]
-      [mui-button {:variant "contained"
-                   :on-click nd-events/no-remote-warning-continue}
+      [mui-button {:on-click nd-events/no-remote-warning-continue}
        (lstr-bl "continue")]]]))
 
 (defn new-database-dialog-main []

@@ -145,9 +145,18 @@
     (-> theme .-customColors .-sectionHeader)
 
     (= color-kw :category-item)
-    ;; secondary.main (was secondary.dark) - a softer pill background; the dark
-    ;; variant read as too strong. White pill text stays legible on .main.
-    (->  theme .-palette .-secondary .-main)
+    ;; primary.main - the entry-count pill background. Matches the app button
+    ;; color (MuiButton defaultProps :color "primary") so the count circles and
+    ;; the ADD ENTRY button read as the same accent. White pill text stays
+    ;; legible on .main. (Was secondary.main/purple.)
+    (->  theme .-palette .-primary .-main)
+
+    (= color-kw :category-item-text)
+    ;; Legible pill text on the :category-item background. MUI computes
+    ;; contrastText for primary.main automatically - white on the light-mode
+    ;; blue (#1976d2), dark on the dark-mode light-blue (#90caf9). Using a fixed
+    ;; white read poorly on the dark-mode pill.
+    (->  theme .-palette .-primary .-contrastText)
 
     (= color-kw :color1)
     (-> theme .-customColors .-color1)
@@ -298,13 +307,45 @@
                               {:styleOverrides
                                {:root {:color text-primary}}}
 
+                              ;; Ripple (the ink-splash click animation) is turned
+                              ;; off app-wide here. MuiButtonBase is the base for
+                              ;; all button-like components (Button, IconButton,
+                              ;; Tab, MenuItem, ListItemButton ...), so one setting
+                              ;; covers them all. Flip these back to false to
+                              ;; restore the ripple.
+                              :MuiButtonBase
+                              {:defaultProps
+                               {:disableRipple true}}
+
                               :MuiButton
                               {:defaultProps
                                {:variant "contained"
-                                :color "secondary"
+                                :color "primary"
                                 :disableElevation true
-                                :disableRipple false
-                                :size "small"}}
+                                :disableRipple true
+                                :size "small"}
+                               ;; Button labels keep their natural (stored) casing
+                               ;; instead of MUI's default uppercase, matching the
+                               ;; MuiTab setting. Per-button :sx {:text-transform ...}
+                               ;; still overrides this.
+                               :styleOverrides
+                               {:root {:text-transform "none"}}}
+                              ;; Removes the animated slide of the tab underline
+                              ;; indicator - it now jumps instantly to the selected
+                              ;; tab instead of sliding across. Drop this override
+                              ;; to restore the sliding animation.
+                              :MuiTabs
+                              {:styleOverrides
+                               {:indicator {:transition "none"}}}
+
+                              ;; Tab labels keep their natural casing. MUI's default
+                              ;; is text-transform: uppercase; this turns it off
+                              ;; app-wide. A per-tab :sx {:text-transform ...} still
+                              ;; overrides this for an individual Tab if needed.
+                              :MuiTab
+                              {:styleOverrides
+                               {:root {:text-transform "none"}}}
+
                               :MuiLink {:defaultProps {:color "inherit" :underline "hover" :href "#"}} ;;
                               :MuiSvgIcon
                               {:styleOverrides
@@ -510,6 +551,7 @@
   FavoriteBorder
   FeedOutlined
   FlightTakeoffOutlined
+  HelpOutline
   Image
   Launch
   LoginOutlined
@@ -531,6 +573,8 @@
   ExpandMore
   ChevronRight
   MoreHoriz
+  Refresh
+  CasinoOutlined
   GroupWorkOutlined
   ;;TextSnippetOutlined
   WifiOutlined
@@ -632,6 +676,13 @@
      (r/as-element
       [:textarea (ime-safe-input-props (js->clj props :keywordize-keys true) ref)]))))
 
+;; The OS/webview (WKWebView on macOS in particular) applies automatic
+;; capitalization, correction and spell checking to text inputs unless these
+;; attributes turn them off. A password manager should never have the typed
+;; usernames/passwords altered or sent to a spell checker
+(def auto-capitalize-off-props
+  {:autoCapitalize "off" :autoCorrect "off" :spellCheck false})
+
 ;; To fix cursor jumping when controlled input value is changed,
 ;; use wrapper input element created by Reagent instead of
 ;; letting Material-UI to create input element directly using React.
@@ -657,6 +708,7 @@
                        input-component)
 
           props (-> props
+                    (update-in [:slotProps :htmlInput] #(merge auto-capitalize-off-props %))
                     (cond-> slot-input (assoc-in [:slotProps :input :inputComponent] slot-input))
                     rtpl/convert-prop-value)]
       (apply r/create-element mui/TextField props (map r/as-element children))))

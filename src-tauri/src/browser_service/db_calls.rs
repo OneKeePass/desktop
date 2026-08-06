@@ -7,15 +7,20 @@ use uuid::Uuid;
 
 use crate::browser_service::{passkey_db, passkey_db::OpenedDbInfo};
 
-// Validates that `db_key` refers to a currently open database.
-// Returns a generic error if the key is not recognised to avoid revealing
-// which databases exist (enumeration protection).
+// Validates that `db_key` refers to a currently open AND unlocked database.
+// Returns a generic error if the key is not recognised or is locked, to avoid
+// revealing which databases exist (enumeration protection) and to keep a locked
+// database unreachable from the extension. A locked db is treated exactly like an
+// unavailable one, so the extension needs no change (see Extension-Locked-DB
+// gating plan). Since every db-key-specific handler (entry details, custom icon,
+// group/entry pickers, sign assertion, passkey create) routes through here, this
+// single check gates them all.
 pub(crate) fn validate_db_key(db_key: &str) -> Result<()> {
-    let open_keys = kp_service::all_kdbx_cache_keys()?;
+    let open_keys = kp_service::unlocked_kdbx_cache_keys()?;
     if open_keys.iter().any(|k| k == db_key) {
         Ok(())
     } else {
-        log::warn!("db_key validation failed — key not in open databases");
+        log::warn!("db_key validation failed — key not in open, unlocked databases");
         Err(onekeepass_core::error::Error::UnexpectedError(
             "DATABASE_NOT_AVAILABLE".to_string(),
         ))
@@ -31,7 +36,9 @@ pub(crate) struct AllMatchedEntries {
 
 pub(crate) fn find_matching_in_enabled_db_entries(input_url: &str) -> Result<AllMatchedEntries> {
     // TODO: Need to get only the browser enabaled databases
-    let enabled_db_keys = kp_service::all_kdbx_cache_keys()?;
+    // Only unlocked databases are reachable from the extension; a locked (but open)
+    // db is excluded so no matches leak from it.
+    let enabled_db_keys = kp_service::unlocked_kdbx_cache_keys()?;
 
     // log::debug!("In find_matching_in_enabled_db_entries enabled_db_keys are {:?}", &enabled_db_keys);
 
@@ -109,7 +116,7 @@ pub(crate) fn find_matching_passkeys(
     rp_id: &str,
     allow_credential_ids: Vec<String>,
 ) -> Result<PasskeyListResult> {
-    let db_keys = kp_service::all_kdbx_cache_keys()?;
+    let db_keys = kp_service::unlocked_kdbx_cache_keys()?;
     let browser_enabled_db_available = !db_keys.is_empty();
     let passkey_list = passkey_db::find_matching_passkeys(rp_id, allow_credential_ids)?;
     Ok(PasskeyListResult {

@@ -121,6 +121,8 @@
  (fn [{:keys [db]} [_event-id _source-db-key target-db-key summary]]
    ;; Only target is modified — source entry is unchanged
    (let [group-name (:target-parent-group-name summary)]
+     ;; No auto-save opt-in. The clone lands in another database, and the user is
+     ;; expected to look it over there and save only if satisfied
      {:db (assoc-in db [target-db-key :db-modification :save-pending] true)
       :fx [[:dispatch [:generic-dialog-close :clone-entry-to-other-db-dialog]]
            [:dispatch [:common/message-snackbar-open

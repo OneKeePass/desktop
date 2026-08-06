@@ -284,28 +284,28 @@
         parent-dir (:parent-dir cur)]
     (case step
       :source-pick
-      [mui-button {:on-click rs-events/cancel-dialog :color "secondary"}
+      [mui-button {:on-click rs-events/cancel-dialog}
        (lstr-bl 'cancel)]
 
       :form
       [:<>
-       [mui-button {:on-click rs-events/back-step :color "secondary"
+       [mui-button {:on-click rs-events/back-step
                     :disabled in-progress?}
         (lstr-bl 'back)]
-       [mui-button {:on-click rs-events/cancel-dialog :color "secondary"
+       [mui-button {:on-click rs-events/cancel-dialog
                     :disabled in-progress?}
         (lstr-bl 'cancel)]
        [mui-button {:on-click rs-events/connect-ad-hoc-start
-                    :color "primary" :variant "contained"
+                    :color "primary"
                     :disabled in-progress?}
         (lstr-bl 'connect)]]
 
       :browse
       [:<>
        (when-not direct-open?
-         [mui-button {:sx {:margin-top "20px"} :on-click rs-events/back-step :color "secondary"}
+         [mui-button {:sx {:margin-top "20px"} :on-click rs-events/back-step}
           (lstr-bl 'back)])
-       [mui-button {:sx {:margin-top "20px"} :on-click rs-events/cancel-dialog :color "secondary"}
+       [mui-button {:sx {:margin-top "20px"} :on-click rs-events/cancel-dialog}
         (lstr-bl 'cancel)]
        (when (= mode :create)
          (let [file-name @(rs-events/new-db-file-name)]
@@ -319,7 +319,7 @@
                                          (.. e -target -value)))}]
             [mui-button {:style {:margin-top "20px"} :on-click #(rs-events/folder-picked-for-new-db
                                                                  parent-dir file-name)
-                         :color "primary" :variant "contained"
+                         :color "primary"
                          :disabled (or in-progress? (str/blank? file-name))}
              (lstr-bl 'create)]]))]
 

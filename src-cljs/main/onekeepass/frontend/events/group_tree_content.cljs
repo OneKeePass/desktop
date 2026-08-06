@@ -182,6 +182,19 @@
          (assoc-in-key-db db' [:groups-tree :version] (inc ver)))
        db'))))
 
+;; Called after a new group is inserted - selects and highlights the newly added
+;; group (the old/parent group was staying selected otherwise), reloads the tree
+;; so the new group and count pills appear, and shows its (empty) entry list.
+(reg-event-fx
+ :group-tree-content/group-inserted
+ (fn [{:keys [_db]} [_event-id group-uuid]]
+   {:fx [[:dispatch [:group-selected group-uuid]]
+         [:dispatch [:entry-category/clear-selected-category-info]]
+         [:dispatch [:group-tree-content/load-groups]]
+         [:dispatch [:entry-category/reload-category-data]]
+         [:dispatch [:entry-form-ex/show-welcome]]
+         [:dispatch [:entry-list/load-entry-items {:group group-uuid}]]]}))
+
 ;; Called when a new entry is created under a group selected in the category view
 (reg-event-fx
  :group-tree-content/entry-inserted
@@ -363,6 +376,63 @@
    {:db (-> db (assoc-in-key-db  [:group-delete :status] :completed))
     :fx [[:dispatch [:common/message-snackbar-open (lstr-sm 'groupDeleted)]]
          [:dispatch [:common/refresh-forms-2]]]}))
+
+;; Called from the native system menu - deletes (moves to recycle bin) the
+;; currently selected group
+(reg-event-fx
+ :group-tree-content/delete-group
+ (fn [{:keys [db]} [_event-id]]
+   (let [group-uuid (get-in-key-db db [:groups-tree :selected-group-uuid])]
+     (if-not (nil? group-uuid)
+       {:fx [[:dispatch [:group-delete-start group-uuid]]]}
+       {}))))
+
+;;;;;;;;;;;;;;;;;; Group Clone      ;;;;;;;;;;;;;;;;;
+
+;; Called from the group context menu with the group's uuid
+(defn group-clone-start [group-uuid]
+  (dispatch [:group-clone-start group-uuid]))
+
+;; Called from the native system menu - clones the currently selected group
+(reg-event-fx
+ :group-tree-content/clone-group
+ (fn [{:keys [db]} [_event-id]]
+   (let [group-uuid (get-in-key-db db [:groups-tree :selected-group-uuid])]
+     (if-not (nil? group-uuid)
+       {:fx [[:dispatch [:group-clone-start group-uuid]]]}
+       {}))))
+
+(reg-event-fx
+ :group-clone-start
+ (fn [{:keys [db]} [_event-id group-uuid]]
+   ;; The cloned top group gets a " - Clone" suffix (the entries and nested sub
+   ;; groups keep their original names). Mirrors the entry-clone naming style.
+   (let [group-name (get-in-key-db db [:groups-tree :data "groups" group-uuid "name"])
+         new-name (when group-name (str group-name " - Clone"))]
+     {:fx [[:bg-clone-group [(active-db-key db) group-uuid new-name]]]})))
+
+(reg-fx
+ :bg-clone-group
+ (fn [[db-key group-uuid new-name]]
+   (bg/clone-group db-key group-uuid new-name
+                   (fn [api-response]
+                     ;; clone_group returns the cloned (top) group's uuid string
+                     (when-let [cloned-group-uuid (check-error api-response)]
+                       (dispatch [:group-clone-completed cloned-group-uuid]))))))
+
+(reg-event-fx
+ :group-clone-completed
+ (fn [_cofx [_event-id cloned-group-uuid]]
+   {:fx [[:dispatch [:common/message-snackbar-open (lstr-sm 'groupCloned)]]
+         ;; Select and highlight the newly cloned group (mirrors node-on-select
+         ;; and :group-tree-content/entry-inserted): clear any category highlight,
+         ;; reload the tree so the clone and its count pills appear, and show the
+         ;; cloned group's entries.
+         [:dispatch [:group-selected cloned-group-uuid]]
+         [:dispatch [:entry-category/clear-selected-category-info]]
+         [:dispatch [:group-tree-content/load-groups]]
+         [:dispatch [:entry-form-ex/show-welcome]]
+         [:dispatch [:entry-list/load-entry-items {:group cloned-group-uuid}]]]}))
 
 ;;;;;;;;;;;;;;;;;;;;;  Group sort ;;;;;;;;;;;;;;;;;;;;;;;;;;
 

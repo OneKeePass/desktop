@@ -2,6 +2,8 @@
   (:require
    [clojure.string :as str]
    [onekeepass.frontend.background :as bg]
+   [onekeepass.frontend.common-components :refer [field-help-icon
+                                                  settings-panel-title]]
    [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.events.app-settings :as app-settings-events]
    [onekeepass.frontend.events.ssh-agent :as ssh-agent-events]
@@ -93,9 +95,7 @@
   [{:keys [_error-fields]
     {:keys  [theme language]} :preference-data}]
   [mui-stack
-   [mui-stack {:sx {:pt 1 :pb 1}}  ;;:bgcolor "rgba(25, 118, 210, 0.20)"
-    [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
-     (tr-t "userInterface")]]
+   [settings-panel-title (tr-t "userInterface")]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
     [mui-box {:sx {:width "80%"}}
      [m/text-field {:label (tr-l "theme")
@@ -128,10 +128,7 @@
 (defn entry-management [{:keys [_error-fields]
                          {:keys  [default-entry-category-groupings]} :preference-data}]
   [mui-stack
-   [mui-stack {:sx {:pt 1 :pb 1}}  ;;:bgcolor "rgba(25, 118, 210, 0.20)"
-
-    [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
-     (tr-t "entryManagement")]]
+   [settings-panel-title (tr-t "entryManagement")]
 
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
     [mui-box {:sx {:width "80%"}}
@@ -156,9 +153,7 @@
 (defn security-info [{:keys [error-fields]
                       {:keys  [clipboard-timeout session-timeout]} :preference-data}]
   [mui-stack
-   [mui-stack {:sx {:pt 1 :pb 1}}
-    [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
-     (tr-t "timeouts")]]
+   [settings-panel-title (tr-t "timeouts")]
 
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
     [mui-box {:sx {:width "80%"}}
@@ -181,12 +176,31 @@
                      :variant "standard" :fullWidth true}]]]]])
 
 (defn file-management [{:keys [error-fields]
-                        {:keys [backup]} :preference-data}]
-  (let [{:keys [enabled dir]} backup]
+                        {:keys [backup auto-save]} :preference-data}]
+  (let [{:keys [enabled dir max-copies]} backup
+        auto-save-enabled? (boolean (:enabled auto-save))]
     [mui-stack
-     [mui-stack {:sx {:pt 1 :pb 1}}
-      [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
-       (tr-t "backups")]]
+     [settings-panel-title (t/lstr-t "saving")]
+
+     [mui-stack {:spacing 2 :sx {:alignItems "center"}}
+      [mui-box {:sx {:width "80%"}}
+       [mui-stack {:direction "row" :sx {:align-items "center"}}
+        [mui-form-control-label
+         {:control (r/as-element
+                    [mui-checkbox
+                     {:checked auto-save-enabled?
+                      :on-change (fn [^js/CheckedEvent e]
+                                   (app-settings-events/field-update
+                                    [:preference-data :auto-save :enabled]
+                                    (-> e .-target .-checked)))}])
+          :label (t/lstr-l "enableAutoSave")}]
+        ;; Next to a checkbox, not a text field - drop the helper-text offset so
+        ;; the icon sits on the label's centre line
+        [field-help-icon (t/lstr-h "autoSaveHelp") {:mb 0}]]]]
+     
+     [m/mui-divider {:sx {:mt 1 :mb 1}}]
+     
+     [settings-panel-title (tr-t "backups")]
 
      [mui-stack {:spacing 2 :sx {:alignItems "center"}}
       [mui-box {:sx {:width "80%"}}
@@ -209,12 +223,28 @@
                       :on-change (app-settings-events/field-update-factory [:preference-data :backup :dir])
                       :variant "standard" :fullWidth true
                       :slotProps {:input {:endAdornment (r/as-element
-                                                         [mui-input-adornment {:position "end"}
+                                                         [mui-input-adornment {:position "end" :sx {:mr "6px"}}
                                                           [mui-icon-button {:edge "end"
                                                                             :disabled (not enabled)
                                                                             :sx {:mr "-8px"}
                                                                             :on-click app-settings-events/open-backup-dir-dialog}
-                                                           [mui-icon-folder-outlined]]])}}}]]]]))
+                                                           [mui-icon-folder-outlined]]])}}}]]
+
+      ;; Only the custom backup dir keeps a new timestamped file per save. The
+      ;; default app-home backup is a single file that is overwritten, so this
+      ;; has no meaning while backup is off
+      [mui-box {:sx {:width "80%"}}
+       [mui-stack {:direction "row" :sx {:align-items "flex-end"}}
+        [m/text-field {:label (t/lstr-l "backupMaxCopies")
+                       :value (if (nil? max-copies) "" max-copies)
+                       :type "number"
+                       :disabled (not enabled)
+                       :error (contains? error-fields :backup-max-copies)
+                       :helperText (get error-fields :backup-max-copies)
+                       :on-change (app-settings-events/field-update-factory
+                                   [:preference-data :backup :max-copies])
+                       :variant "standard" :fullWidth true}]
+        [field-help-icon (t/lstr-h "backupMaxCopiesHelp")]]]]]))
 
 (declare browser-manifest-statuses)
 
@@ -222,9 +252,7 @@
                             {:keys  [browser-ext-support]} :preference-data}]
   ;; (println "browser-ext-support: " browser-ext-support)
   [mui-stack
-   [mui-stack {:sx {:pt 1 :pb 1}}
-    [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
-     (tr-t "extensions")]]
+   [settings-panel-title (tr-t "extensions")]
 
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
     [mui-box {:sx {:width "80%"}}
@@ -265,9 +293,7 @@
                                               (str/starts-with? (or transport "") "OpenSSH pipe")))
           active-selected-config? (and active-selected-mode? active-selected-transport?)]
       [mui-stack
-       [mui-stack {:sx {:pt 1 :pb 1}}
-        [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
-         (t/lstr-l "sshAgentService")]]
+       [settings-panel-title (t/lstr-l "sshAgentService")]
 
        [mui-stack {:spacing 2 :sx {:alignItems "center"}}
         [mui-box {:sx {:width "80%"}}
@@ -441,11 +467,9 @@
      [mui-dialog-content {:dividers true :style {:min-height "120px"}}
       [browser-manifest-reconnect-dialog-content dialog-data]]
      [mui-dialog-actions
-      [mui-button {:color "secondary"
-                   :on-click app-settings-events/browser-reconnect-confirm-dialog-close}
+      [mui-button {:on-click app-settings-events/browser-reconnect-confirm-dialog-close}
        "Cancel"]
-      [mui-button {:color "secondary"
-                   :on-click app-settings-events/browser-reconnect-confirmed}
+      [mui-button {:on-click app-settings-events/browser-reconnect-confirmed}
        "Reconnect"]]]))
 
 (defn- manifest-status-text [{:keys [owner installed-proxy-path]}]
@@ -535,9 +559,7 @@
                                                         (toggle-browser-group-enabled checked? browser-names allowed-browsers)))))}])
                                      :label label}]))]
     [mui-stack
-     [mui-stack {:sx {:pt 1 :pb 1}}
-      [mui-typography {:text-align "center" :sx {:color (theme-color @custom-theme-atom :info-main)}}
-       (tr-t "supportedBrowsers")]]
+     [settings-panel-title (tr-t "supportedBrowsers")]
 
      [mui-stack {:spacing 2 :sx {:alignItems "center"}}
       [mui-box {:sx {:width "80%"}}
@@ -604,11 +626,9 @@
         [:div])]]]
 
    [mui-dialog-actions
-    [mui-button {:variant "contained" :color "secondary"
-                 ;;:disabled in-progress?
+    [mui-button {;;:disabled in-progress?
                  :on-click app-settings-events/app-settings-dialog-close} (t/lstr-bl 'cancel)]
-    [mui-button {:variant "contained" :color "secondary"
-                 :disabled (or (not @(app-settings-events/app-settings-modified)) (-> error-fields seq boolean))
+    [mui-button {:disabled (or (not @(app-settings-events/app-settings-modified)) (-> error-fields seq boolean))
                  ;;:disabled (or (not modified) in-progress? (-> error-fields seq boolean))
                  :on-click app-settings-events/app-settings-save} (t/lstr-bl 'ok)]]])
 

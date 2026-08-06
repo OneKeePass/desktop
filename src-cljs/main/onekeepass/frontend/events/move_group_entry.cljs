@@ -315,6 +315,9 @@
 (defn- call-on-cross-db-move-complete [kind-kw source-db-key target-db-key api-response]
   (when-let [summary (check-error api-response)]
     (dispatch [:generic-dialog-close :move-group-or-entry-dialog])
+    ;; Neither db opts into auto-save. A cross-db move rewrites two databases at
+    ;; once, one of which is usually not the tab the user is looking at, so both
+    ;; are left for the user to review and save
     (dispatch [:common/db-save-pending-set true source-db-key])
     (dispatch [:common/db-save-pending-set true target-db-key])
     (dispatch [:common/refresh-forms])

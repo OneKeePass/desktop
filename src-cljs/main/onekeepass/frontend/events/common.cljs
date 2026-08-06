@@ -175,6 +175,9 @@
 (defn app-preference-phrase-generator-options [app-db]
   (-> app-db :app-preference :password-gen-preference :phrase-generator-options))
 
+(defn app-preference-password-generation-options [app-db]
+  (-> app-db :app-preference :password-gen-preference :password-generation-options))
+
 (reg-event-fx
  :init-process
  (fn [{:keys [_db]} [_event-id]]
@@ -742,6 +745,24 @@
                             ;;(println "Database is locked")
                             #())))))
 
+;; Locks every open database that is currently unlocked (the "Lock All Databases"
+;; menu). Encrypts each in the backend via bg lock-kdbx and switches its UI to the
+;; lock screen. Unsaved edits are preserved by the in-place lock and restored on
+;; unlock, so no save prompt is shown for this bulk action.
+(reg-event-fx
+ :common/lock-all-dbs
+ (fn [{:keys [db]} [_event-id]]
+   (let [unlocked-keys (->> (:opened-db-list db)
+                            (map :db-key)
+                            (remove (fn [db-key] (get-in db [db-key :locked]))))
+         db (reduce (fn [db db-key]
+                      (-> db (assoc-in [db-key :locked] true)
+                          (assoc-in [db-key :show-content] :locked-content)))
+                    db unlocked-keys)]
+     {:db db
+      :fx (into [[:dispatch [:db-settings/notify-screen-locked]]]
+                (mapv (fn [db-key] [:bg-lock-kdbx [db-key]]) unlocked-keys))})))
+
 ;; Dispatched from a open-db-form event
 (reg-event-fx
  :common/kdbx-database-unlocked
@@ -989,7 +1010,7 @@
 (reg-event-db
  :load-entry-type-headers-completed
  (fn [db [_event-id et-headers-m]]
-   (println "load-entry-type-headers-completed et-headers-m" et-headers-m)
+   #_(println "load-entry-type-headers-completed et-headers-m" et-headers-m)
    (assoc-in-key-db db [:entry-type-headers] et-headers-m)))
 
 ;; Gets a map formed by struct EntryTypeHeaders
@@ -1046,8 +1067,17 @@
  (fn [{:keys [db]} [_event-id db-key]]
    {:db (assoc db :current-db-file-name db-key)
     :fx [[:bg-set-active-db-key db-key]
-         (when (get-in db [db-key :external-change-pending])
-           [:dispatch [:external-db-change/check-external-change-pending db-key]])
+         ;; Same routing as after an unlock: a flagged change is shown straight
+         ;; away, otherwise a remote db gets a fresh mtime check. No watcher
+         ;; covers a remote file, and the window-focus poll does not fire while
+         ;; the user stays inside the app, so this is the only check a tab
+         ;; switch would otherwise get.
+         (cond
+           (get-in db [db-key :external-change-pending])
+           [:dispatch [:external-db-change/check-external-change-pending db-key]]
+
+           (and (remote-db-key? db-key) (not (locked? db db-key)))
+           [:dispatch [:external-db-change/check-remote-db db-key]])
          ;; A passkey was added to this db (via the browser extension) while it
          ;; was not active; refresh its panels now that it is the active db.
          (when (get-in db [db-key :passkey-refresh-pending])
@@ -1260,6 +1290,7 @@
 
    "update_group"
    "insert_group"
+   "clone_group"
    "sort_sub_groups"
    "move_group"
    "mark_group_as_category"
@@ -1279,6 +1310,41 @@
    "update_db_with_imported_csv"
    "remove_custom_icon"])
 
+;; Subset of 'all-modiying-api-calls' that also triggers an auto-save when the
+;; auto-save preference is enabled (issue #90). These are the actions where the
+;; user finishes a form or dialog and moves on, believing the change is already
+;; committed.
+;;
+;; Deliberately excluded:
+;;   - reorganisation (move_entry, move_group, sort_sub_groups,
+;;     mark_group_as_category) - cheap to redo and arrives in drag-and-drop bursts
+;;   - history housekeeping (delete_history_entry*, remove_custom_icon)
+;;   - every deletion (move_*_to_recycle_bin, remove_*_permanently, empty_trash) -
+;;     closing a db without saving is currently the only undo for an accidental
+;;     delete, and recycle-bin moves are already recoverable in-app
+;;   - CSV import (update_db_with_imported_csv) - a bulk change the user reviews
+;;     before committing, and a wrong column mapping is easy to produce. Same
+;;     safety-net argument as the deletions above
+;;
+;; The cross-db (clone/move to another db) and merge paths do not come through
+;; here at all. They could opt in via the trailing flag on
+;; :common/db-save-pending-set, but deliberately do not - they are bulk changes,
+;; and they dirty a db the user is usually not even looking at.
+(def ^:private auto-save-api-calls
+  ["update_entry"
+   "insert_entry"
+   "update_entry_from_form_data"
+   "insert_entry_from_form_data"
+   "clone_entry"
+   "upload_entry_attachment"
+
+   "insert_group"
+   "update_group"
+   "clone_group"
+
+   "insert_or_update_custom_entry_type"
+   "set_db_settings"])
+
 (defn db-save-pending?
   "Checks whether there is any unsaved changes for the current db
   If the app-db is passed, then checking is done and returns boolean
@@ -1290,31 +1356,43 @@
   ([]
    (subscribe [:db-save-pending])))
 
-;; An event that is called from other ns to enable or disable save pending 
+;; An event that is called from other ns to enable or disable save pending
+;; 'auto-save?' is opted into by the callers whose change qualifies for auto-save
+;; but does not go through :common/db-api-call-completed - the cross-db entry
+;; clone/move and the merge handlers. Those dirty a db the user may not be
+;; looking at, so its pending-save indicator is easy to miss entirely.
 (reg-event-fx
  :common/db-save-pending-set
- (fn [{:keys [db]} [_event-id flag target-db-key]]
+ (fn [{:keys [db]} [_event-id flag target-db-key auto-save?]]
    (let [db-key (if (nil? target-db-key) (active-db-key db) target-db-key)]
-     {:db (assoc-in db [db-key :db-modification :save-pending] flag)})))
+     (cond-> {:db (assoc-in db [db-key :db-modification :save-pending] flag)}
+       (and flag auto-save?)
+       (assoc :fx [[:dispatch [:tool-bar/auto-save-requested db-key]]])))))
 
 (reg-event-fx
  :common/db-api-call-completed
  (fn [{:keys [db]} [_event-id api-name]]
    ;; (println "api-name is " api-name (contains-val? all-modiying-api-calls api-name))
    (if (contains-val? all-modiying-api-calls api-name)
-     {:db (assoc-in-key-db db [:db-modification :save-pending] true)}
+     (cond-> {:db (assoc-in-key-db db [:db-modification :save-pending] true)}
+       (contains-val? auto-save-api-calls api-name)
+       (assoc :fx [[:dispatch [:tool-bar/auto-save-requested (active-db-key db)]]]))
      {})))
 
 ;; Receives the struct KdbxSaved
 (reg-event-db
  :common/db-modification-saved
- (fn [db [_event-id {:keys [db-key database-name]}]] ;; event arg is kdbx-saved   
+ (fn [db [_event-id {:keys [db-key database-name]}]] ;; event arg is kdbx-saved
    (let [dbs (mapv (fn [m]
                      (if (= db-key (:db-key m))
                        (assoc m :database-name database-name)
-                       m)) (:opened-db-list db))]
+                       m)) (:opened-db-list db))
+         ;; Clear the pending flag on the db that was actually saved. Auto-save
+         ;; can save a non-active db (cross-db clone/move), so keying this off
+         ;; the active db would clear the wrong tab's indicator
+         saved-key (or db-key (active-db-key db))]
      (-> db (assoc-in [:opened-db-list] dbs)
-         (assoc-in-key-db [:db-modification :save-pending] false)))))
+         (assoc-in [saved-key :db-modification :save-pending] false)))))
 
 (reg-sub
  :db-modification
@@ -1365,14 +1443,25 @@
 (defn notify-copied-to-clipboard []
   (dispatch [:common/message-snackbar-open (lstr-sm 'copiedToClipboard)]))
 
-(defn write-to-clipboard [data]
-  (bg/write-to-clipboard data)
-  (notify-copied-to-clipboard))
-
 (defn- on-linux? []
   ;; Read os-name from app-db directly (not via subscribe) since this runs in
   ;; event/callback context, not a reactive one.
   (= (:os-name @rf-db/app-db) const/LINUX))
+
+;; Clipboard writes are routed by OS, mirroring read/clear below:
+;; - Linux: the GTK backend command (bg/write-to-clipboard-gtk). The arboard
+;;   plugin falls back to X11 and times out on Wayland, and the webview's
+;;   execCommand('copy') does not reliably place programmatically-copied text on
+;;   the GTK clipboard (it copied nothing from the Password Generator dialog).
+;; - Mac/Windows: the arboard plugin directly (bg/write-to-clipboard-plugin).
+;;   The webview-native copy relies on DOM focus/selection and is silently
+;;   defeated by a focus-trapping MUI dialog; the plugin writes through the
+;;   native OS clipboard API and is unaffected.
+(defn write-to-clipboard [data]
+  (if (on-linux?)
+    (bg/write-to-clipboard-gtk data)
+    (bg/write-to-clipboard-plugin data))
+  (notify-copied-to-clipboard))
 
 ;; On Linux the arboard-backed clipboard plugin fails (it falls back to X11 and
 ;; times out on Wayland), so clipboard read/clear go through the GTK backend
@@ -1478,6 +1567,23 @@
      {:db db
       ;; For now only db-settings dialog receives this and closes if user leaves it open
       ;; and session timeout happens during that time
+      :fx [[:dispatch [:db-settings/notify-screen-locked]]]})))
+
+;; Called (from tauri-events) after the backend has locked every open database
+;; in response to an OS suspend/sleep signal. The backend already encrypted the
+;; content in RAM, so this only reflects the locked state in the UI: mark every
+;; open db locked and switch it to the lock screen.
+(defn databases-locked-on-suspend []
+  (dispatch [:common/lock-all-opened-dbs-on-suspend]))
+
+(reg-event-fx
+ :common/lock-all-opened-dbs-on-suspend
+ (fn [{:keys [db]} [_event-id]]
+   (let [db (reduce (fn [db {:keys [db-key]}]
+                      (-> db (assoc-in [db-key :locked] true)
+                          (assoc-in [db-key :show-content] :locked-content)))
+                    db (:opened-db-list db))]
+     {:db db
       :fx [[:dispatch [:db-settings/notify-screen-locked]]]})))
 
 ;;;;;;;;;;  Tauri shell open common calls ;;;;;;;;;;;

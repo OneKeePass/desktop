@@ -210,14 +210,22 @@
     (m/react-use-effect (fn []
                           (doseq [menu-id entry-action-app-menu-ids]
                             (tauri-events/enable-app-menu menu-id edit-menu?))
+                          (tauri-events/enable-app-menu
+                           const/MENU_ID_CLONE_ENTRY edit-menu?
+                           {:callback-fn #(dlg-events/clone-entry-options-dialog-show entry-uuid)})
+                          (tauri-events/enable-app-menu
+                           const/MENU_ID_DELETE_ENTRY edit-menu?
+                           {:callback-fn #(form-events/entry-delete-start entry-uuid)})
                           ;; Copy TOTP is enabled only when the entry has an otp field set up
                           (tauri-events/enable-app-menu const/MENU_ID_COPY_TOTP (and edit-menu? otp-available?))
                           ;; cleanup fn is returned which is called when this component unmounts
                           (fn []
                             (doseq [menu-id entry-action-app-menu-ids]
                               (tauri-events/enable-app-menu menu-id false))
+                            (tauri-events/enable-app-menu const/MENU_ID_CLONE_ENTRY false)
+                            (tauri-events/enable-app-menu const/MENU_ID_DELETE_ENTRY false)
                             (tauri-events/enable-app-menu const/MENU_ID_COPY_TOTP false)))
-                        (clj->js [edit-menu? otp-available?]))
+                        (clj->js [entry-uuid edit-menu? otp-available?]))
     (when edit-menu?
       [entry-form-top-menu entry-uuid])))
 

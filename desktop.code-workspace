@@ -8,6 +8,9 @@
 
 		"rust-analyzer.diagnostics.disabled":["unresolved-proc-macro"],
 
+		// See comments in mobile/db-service-ffi.code-workspace
+		"rust-analyzer.server.path": "rust-analyzer",
+
 		"editor.semanticTokenColorCustomizations": {
 	        "enabled": true,
 	        	"rules": {

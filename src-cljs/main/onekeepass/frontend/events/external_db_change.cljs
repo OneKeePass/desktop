@@ -4,7 +4,8 @@
    [onekeepass.frontend.background :as bg]
    [onekeepass.frontend.background.merging :as bg-merging]
    [onekeepass.frontend.background-remote-storage :as bg-rs]
-   [onekeepass.frontend.constants :as const :refer [MERGE_FAILED_CREDENTIALS_CHANGED]]
+   [onekeepass.frontend.constants :as const :refer [DB_CHANGED
+                                                    MERGE_FAILED_CREDENTIALS_CHANGED]]
    [onekeepass.frontend.events.common :refer [active-db-key
                                               check-error
                                               get-in-key-db
@@ -26,8 +27,16 @@
 (defn external-change-ignore [db-key]
   (dispatch [:external-change-ignore db-key]))
 
+;; True while the save-time "Content conflicts detected" dialog is up. It is
+;; rendered purely off this error text (see save-info-dialog in tool_bar.cljs)
+;; and is cleared when the save completes or the dialog is cancelled.
+(defn- save-conflict-showing? [db]
+  (= (get-in db [:save-current-db :api-error-text]) DB_CHANGED))
+
 ;; Triggered by the Tauri DB_FILE_CHANGED_EVENT.
 ;; Routes based on whether the changed DB is the active one and whether it is locked.
+;;   - Save conflict open -> store :external-change-pending flag; that dialog is
+;;                           already asking the user to resolve the same divergence
 ;;   - Active + unlocked  -> show dialog immediately
 ;;   - Active + locked    -> store :external-change-pending flag; picked up after unlock
 ;;   - Non-active tab     -> store flag; picked up when user switches to that tab
@@ -35,6 +44,13 @@
  :external-db-change/db-file-changed-externally
  (fn [{:keys [db]} [_event-id db-key]]
    (cond
+     ;; No snackbar here - the conflict dialog on screen already says it. For a
+     ;; remote db the mtime stays diverged, so the next focus poll re-detects
+     ;; once that dialog is gone; for a local db the flag is picked up on the
+     ;; next unlock or tab switch.
+     (save-conflict-showing? db)
+     {:db (assoc-in db [db-key :external-change-pending] true)}
+
      (and (= db-key (active-db-key db)) (not (locked? db)))
      {:fx [[:dispatch [:show-external-db-change-dialog db-key]]]}
 
@@ -66,8 +82,11 @@
 ;; use the existing disk-version merge.
 (reg-event-fx
  :external-change-merge-start
- (fn [{:keys [_db]} [_event-id db-key]]
-   {:fx [[:dispatch [:generic-dialog-close :external-db-change-dialog]]
+ (fn [{:keys [db]} [_event-id db-key]]
+   ;; The merge resolves the change, so any flag left by a deferred
+   ;; notification must not re-prompt on the next unlock or tab switch
+   {:db (assoc-in db [db-key :external-change-pending] false)
+    :fx [[:dispatch [:generic-dialog-close :external-db-change-dialog]]
          [:dispatch [:common/progress-message-box-show
                      (tr-dlg-title "mergingExternalChanges")
                      (tr-dlg-text "mergingExternalChangesTxt")]]
@@ -188,6 +207,14 @@
          remote-keys (filter remote-db-key? keys)]
      (when (seq remote-keys)
        {:fx (mapv (fn [k] [:bg-rs-check-remote-modified [k]]) remote-keys)}))))
+
+;; Fresh check for a single remote db, used on a tab switch. Silent like the
+;; focus poll - it only speaks up when the remote actually diverged.
+(reg-event-fx
+ :external-db-change/check-remote-db
+ (fn [{:keys [_db]} [_event-id db-key]]
+   (when (remote-db-key? db-key)
+     {:fx [[:bg-rs-check-remote-modified [db-key]]]})))
 
 (reg-fx
  :bg-rs-check-remote-modified

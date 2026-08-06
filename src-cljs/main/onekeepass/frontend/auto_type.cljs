@@ -50,11 +50,9 @@
                    (if (is-custom-sequence (get-sequence auto-type)) "Key Sequence"  "Default Sequence")]]
        [mui-typography {:variant "body2"} (get-sequence auto-type)]]]]]
    [mui-dialog-actions
-    [mui-button {:variant "contained" :color "secondary"
-                 :disabled false
+    [mui-button {:disabled false
                  :on-click at-events/perform-dialog-show-close} (t/lstr-bl 'cancel)]
-    [mui-button {:variant "contained" :color "secondary"
-                 :disabled false
+    [mui-button {:disabled false
                  :on-click at-events/send-auto-sequence} "Send"]]])
 
 ;; See parsing module in the backend
@@ -112,9 +110,7 @@
 
 
     [mui-dialog-actions
-     [mui-button {:variant "contained" :color "secondary"
-                  :disabled false
+     [mui-button {:disabled false
                   :on-click at-events/auto-type-edit-dialog-close} (t/lstr-bl 'cancel)]
-     [mui-button {:variant "contained" :color "secondary"
-                  :disabled (not @(at-events/auto-type-modified))
+     [mui-button {:disabled (not @(at-events/auto-type-modified))
                   :on-click at-events/auto-type-edit-dialog-ok} (t/lstr-bl 'ok)]]]])

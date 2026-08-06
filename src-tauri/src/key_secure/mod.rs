@@ -3,9 +3,14 @@
 #[path = "macos.rs"]
 mod imp;
 
-#[cfg(any(target_os = "windows", target_os = "linux"))]
-//#[cfg(any(target_os = "windows", target_os = "linux", feature = "onekeepass-dev"))]
-#[path = "other.rs"]
+// Windows uses the Credential Manager backed store (parallel of the macOS
+// Keychain).
+#[cfg(target_os = "windows")]
+#[path = "windows.rs"]
+mod imp;
+
+#[cfg(target_os = "linux")]
+#[path = "linux.rs"]
 mod imp;
 
 use self::imp::KeyStoreServiceImpl;

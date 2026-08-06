@@ -1,6 +1,6 @@
 (ns onekeepass.frontend.keyboard-shortcuts
   "Application wide keyboard shortcuts (KeePass style) that act on the
-   currently selected entry
+   currently selected entry (Works only with entry types similar to Login that have standard fields such as UserName, Password, Url, totp)
      Ctrl/Cmd+B       - copy user name
      Ctrl/Cmd+C       - copy password
      Ctrl/Cmd+Shift+U - copy url
@@ -11,6 +11,7 @@
    system Edit menu, context menus and text fields are never affected
    See https://github.com/OneKeePass/desktop/issues/79"
   (:require [clojure.string :as str]
+            [onekeepass.frontend.background :as bg]
             [onekeepass.frontend.constants :as const :refer [PASSWORD URL USERNAME]]
             [onekeepass.frontend.events.entry-form-ex :as form-events]))
 
@@ -63,29 +64,69 @@
     (and (not shift?) (= k "u")) form-events/open-selected-entry-url
     (and (not shift?) (= k "t")) form-events/copy-entry-form-otp-token-to-clipboard))
 
+(defn- windows-platform? []
+  (str/includes? (str/lower-case (or (.-platform js/navigator) "")) "win"))
+
+(defn- system-menu-shortcut
+  "Returns [submenu-id menu-id] for native menu accelerators that need a
+   webview fallback on Windows. Entry copy/open shortcuts are handled above."
+  [k shift? primary-modifier?]
+  (cond
+    (and (not primary-modifier?) (not shift?) (= k "delete"))
+    ["Entries" const/MENU_ID_DELETE_ENTRY]
+
+    (and (not shift?) (= k ",")) ["OneKeePass" const/APP_SETTINGS]
+    (and (not shift?) (= k "q")) ["OneKeePass" const/MENU_ID_QUIT]
+    (and (not shift?) (= k "f")) ["Edit" const/MENU_ID_SEARCH]
+    (and shift? (= k "n"))       ["Database" const/MENU_ID_NEW_DATABASE]
+    (and (not shift?) (= k "o")) ["Database" const/MENU_ID_OPEN_DATABASE]
+    (and shift? (= k "o"))       ["Database" const/MENU_ID_OPEN_REMOTE]
+    (and (not shift?) (= k "s")) ["Database" const/MENU_ID_SAVE_DATABASE]
+    (and shift? (= k "s"))       ["Database" const/MENU_ID_SAVE_DATABASE_AS]
+    (and (not shift?) (= k "w")) ["Database" const/MENU_ID_CLOSE_DATABASE]
+    (and (not shift?) (= k "l")) ["Database" const/MENU_ID_LOCK_DATABASE]
+    (and shift? (= k "l"))       ["Database" const/MENU_ID_LOCK_ALL_DATABASES]
+    (and (not shift?) (= k "n")) ["Entries" const/MENU_ID_NEW_ENTRY]
+    (and (not shift?) (= k "e")) ["Entries" const/MENU_ID_EDIT_ENTRY]
+    (and (not shift?) (= k "k")) ["Entries" const/MENU_ID_CLONE_ENTRY]
+    (and (not shift?) (= k "g")) ["Tools" const/MENU_ID_PASSWORD_GENERATOR]))
+
 (defn- handle-key-down [^js e]
-  (when (and (or (.-ctrlKey e) (.-metaKey e))
-             (not (.-altKey e))
-             (not (.-isComposing e)))
-    (let [k (some-> e .-key str/lower-case)
-          el (.-activeElement js/document)
-          action (shortcut-action k (.-shiftKey e))]
-      (when (and action
-                 (not (dialog-shown?))
-                 (not (text-editing-target? el))
-                 ;; The text selection check applies only to Ctrl/Cmd+C. That key has a
-                 ;; competing native meaning - 'copy the selected text' - so any selection
-                 ;; is left to the default copy handling. The other keys (b,u,t) have no
-                 ;; native meaning in this app and always act on the selected entry
-                 ;; ignoring any selection - matching the KeePass/KeePassXC convention
-                 (or (not= k "c") (not (text-selection-found? el))))
-        (when (action)
-          (.preventDefault e))))))
+  (let [k (some-> e .-key str/lower-case)
+        primary-modifier? (or (.-ctrlKey e) (.-metaKey e))
+        windows? (windows-platform?)]
+    (when (and (or primary-modifier?
+                   (and windows? (= k "delete")))
+               (not (.-altKey e))
+               (not (.-isComposing e)))
+      (let [el (.-activeElement js/document)
+            shift? (.-shiftKey e)
+            action (shortcut-action k shift?)
+            menu-shortcut (when (and windows?
+                                     (or (not= k "delete")
+                                         (and (not (dialog-shown?))
+                                              (not (text-editing-target? el)))))
+                            (system-menu-shortcut k shift? primary-modifier?))]
+        (when (and action
+                   (not (dialog-shown?))
+                   (not (text-editing-target? el))
+                   ;; The text selection check applies only to Ctrl/Cmd+C. That key has a
+                   ;; competing native meaning - 'copy the selected text' - so any selection
+                   ;; is left to the default copy handling. The other keys (b,u,t) have no
+                   ;; native meaning in this app and always act on the selected entry
+                   ;; ignoring any selection - matching the KeePass/KeePassXC convention
+                   (or (not= k "c") (not (text-selection-found? el))))
+          (when (action)
+            (.preventDefault e)))
+        (when menu-shortcut
+          (.preventDefault e)
+          (apply bg/activate-menu-shortcut menu-shortcut))))))
 
 (defonce ^:private key-down-handler (atom nil))
 
 (defn install-shortcuts!
-  "Called once during the app startup to install the document level key handler"
+  "Called once during app startup to install the entry shortcuts and the
+   Windows fallback for native system-menu accelerators."
   []
   (when-not @key-down-handler
     (let [handler (fn [^js e] (handle-key-down e))]

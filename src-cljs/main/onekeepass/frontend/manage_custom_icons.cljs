@@ -67,11 +67,12 @@
          (for [icon icons]
            ^{:key (:uuid icon)} [icon-card icon])])]
      [mui-dialog-actions
-      [mui-stack {:direction "row" :spacing 1 :sx {:width "100%" :justify-content "space-between"}}
+      [mui-stack {:direction "row" :spacing 1 :sx {:width "100%" 
+                                                   :justify-content "flex-end"
+                                                   }}
        [mui-stack {:direction "row" :spacing 1}
-        [mui-button {:variant "outlined"
+        [mui-button {;;:variant "outlined"
                      :on-click #(ci-events/add-icon-from-file)}
          (lstr-l 'addFromFile)]]
-       [mui-button {:variant "contained" :color "secondary"
-                    :on-click ci-events/close-manage-dialog}
+       [mui-button {:on-click ci-events/close-manage-dialog}
         (lstr-bl 'close)]]]]))

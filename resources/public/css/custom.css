@@ -59,7 +59,14 @@ body {
 }
 
 .gbox .gfooter {
-  flex: 0 1 40px;
+  /* Fixed height + vertical centering for every footer bar so the entry-list
+     and entry-form footers line up and their buttons sit on the same center
+     line. Individual footers only set horizontal alignment (justify-content)
+     and their own background/border. */
+  flex: 0 0 46px;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
 }
 
 /* Windows (WebView2) only scrollbar styling. WebView2 shows classic wide,

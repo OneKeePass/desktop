@@ -214,6 +214,17 @@ pub(crate) async fn menu_action_requested<R: Runtime>(
     Ok(())
 }
 
+#[cfg(target_os = "windows")]
+#[tauri::command]
+pub(crate) async fn activate_menu_shortcut<R: Runtime>(
+    app_handle: tauri::AppHandle<R>,
+    submenu_id: String,
+    menu_id: String,
+) -> Result<bool> {
+    menu::activate_menu_shortcut(&app_handle, &submenu_id, &menu_id)
+        .map_err(|error| error.to_string())
+}
+
 #[command]
 pub(crate) async fn is_path_exists(in_path: String) -> bool {
     Path::new(&in_path).exists()
@@ -242,6 +253,15 @@ pub(crate) async fn clipboard_get_text<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<Option<String>> {
     crate::clipboard::get_text(&app)
+}
+
+#[cfg(target_os = "linux")]
+#[tauri::command]
+pub(crate) async fn clipboard_set_text<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    text: String,
+) -> Result<()> {
+    crate::clipboard::set_text(&app, text)
 }
 
 #[cfg(target_os = "linux")]
@@ -353,6 +373,15 @@ pub(crate) async fn move_group_to_recycle_bin(db_key: &str, group_uuid: Uuid) ->
 #[command]
 pub(crate) async fn move_group(db_key: &str, group_uuid: Uuid, new_parent_id: Uuid) -> Result<()> {
     Ok(kp_service::move_group(db_key, group_uuid, new_parent_id)?)
+}
+
+#[command]
+pub(crate) async fn clone_group(
+    db_key: &str,
+    group_uuid: Uuid,
+    new_name: Option<String>,
+) -> Result<Uuid> {
+    Ok(kp_service::clone_group(db_key, &group_uuid, new_name)?)
 }
 
 #[command]
@@ -848,6 +877,23 @@ pub(crate) async fn save_all_modified_dbs(
 
     let mut results = kp_service::save_all_modified_dbs_with_backups(dbs_with_backups)?;
 
+    // Defense in depth: never run the remote save (a network round-trip that
+    // would touch the remote file's mtime) for a locked db. Its content is
+    // encrypted in memory and cannot be written. The UI already filters locked
+    // dbs out, so this normally skips nothing; it just guards other callers.
+    let (locked_remote_keys, remote_keys): (Vec<String>, Vec<String>) = remote_keys
+        .into_iter()
+        .partition(|k| kp_service::is_db_locked(k).unwrap_or(false));
+
+    for db_key in locked_remote_keys {
+        results.push(kp_service::SaveAllResponse {
+            db_key,
+            save_status: kp_service::SaveStatus::Message(
+                "The database is locked. Unlock it to save the changes.".into(),
+            ),
+        });
+    }
+
     for db_key in remote_keys {
         let recorded_mtime = app_state.remote_mtime(&db_key);
         let backup_file_name = app_state.get_backup_file(&db_key);
@@ -957,6 +1003,13 @@ pub(crate) async fn lock_kdbx(_db_key: &str) -> Result<()> {
     // Need to remove the session encryption key from memory in 'key_secure' module
     // This key need to be retreived during 'unlock_kdbx' call
 
+    // Lock the database in the core: encrypt the decrypted content in
+    // place so only ciphertext stays in RAM, and mark it locked. This is the single
+    // lock choke point (manual, menu, and session-timeout locks all route here), so
+    // it also gates browser-extension access to unlocked databases only (see
+    // browser_service). The matching unlock commands restore the content.
+    kp_service::lock_kdbx(_db_key)?;
+
     // Drop this db's decrypted SSH keys from the agent on lock. This is correct
     // regardless of the lock_kdbx stub above: a locked database must not keep
     // serving its keys, so the agent's in-memory copy is wiped here.
@@ -969,6 +1022,30 @@ pub(crate) async fn lock_kdbx(_db_key: &str) -> Result<()> {
 pub(crate) async fn unlock_kdbx_on_biometric_authentication(
     db_key: &str,
 ) -> Result<kp_service::KdbxLoaded> {
+    let r = kp_service::unlock_kdbx_on_biometric_authentication(db_key)?;
+    // Re-add this db's SSH keys now that it is unlocked.
+    ssh_agent::reload_keys_for_db(db_key);
+    Ok(r)
+}
+
+#[command]
+pub(crate) async fn unlock_kdbx_with_biometric(db_key: &str) -> Result<kp_service::KdbxLoaded> {
+    // Combine the biometric verification and the unlock in a single Rust command
+    // so the success boolean never round-trips through JS. This removes the
+    // trivial bypass where the renderer could call the unlock command
+    // (unlock_kdbx_on_biometric_authentication) directly without a successful
+    // biometric. Works on macOS (Touch ID/Face ID) and Windows (Hello); it is
+    // never invoked on Linux, which has no biometric and uses credential re-entry
+    // (unlock_kdbx) - that path is untouched.
+    //
+    // The older two-step commands (authenticate_with_biometric +
+    // unlock_kdbx_on_biometric_authentication) are retained for compatibility.
+    if !biometric::authenticate_with_biometric(db_key) {
+        // Marker string the frontend recognizes, so it falls back to the password
+        // dialog instead of showing a hard error (see BIOMETRIC_AUTH_FAILED in
+        // constants.cljs).
+        return Err("BiometricAuthenticationFailed".to_string());
+    }
     let r = kp_service::unlock_kdbx_on_biometric_authentication(db_key)?;
     // Re-add this db's SSH keys now that it is unlocked.
     ssh_agent::reload_keys_for_db(db_key);
@@ -1028,6 +1105,23 @@ pub(crate) async fn import_csv_file(file_full_path: &str) -> Result<kp_service::
 #[command]
 pub(crate) async fn clear_csv_data_cache() -> Result<()> {
     Ok(kp_service::CsvImport::clear_stored_records())
+}
+
+// Products the csv mapping dialog offers in its "exported from" dropdown, so the user
+// can correct or override what was detected from the header row
+#[command]
+pub(crate) async fn csv_import_profiles() -> Result<Vec<kp_service::ProfileInfo>> {
+    Ok(kp_service::all_profiles())
+}
+
+// Column mapping a chosen profile suggests for the header row already loaded. Returns
+// an empty list for an unknown id, which the UI treats as "map it by hand"
+#[command]
+pub(crate) async fn csv_import_profile_mapping(
+    profile_id: String,
+    headers: Vec<String>,
+) -> Result<Option<kp_service::DetectedProfile>> {
+    Ok(kp_service::profile_mapping(&profile_id, &headers))
 }
 
 #[command]
@@ -1463,9 +1557,17 @@ pub async fn rs_create_kdbx(
 }
 
 // Refreshes the cached remote mtime to the current server value
-// without touching the in-memory db. Called when the user chooses
-// "Ignore" on the conflict dialog for a remote db, so the next
-// focus-poll doesn't re-prompt for the same diverged state.
+// without touching the in-memory db.
+//
+// Currently has no caller. It was written for the "Not Now" (formerly
+// "Ignore") action on the external-change dialog, but that action
+// deliberately does not acknowledge a remote change: leaving the recorded
+// mtime at its diverged value is what makes the next focus poll re-detect
+// and re-prompt, and keeps the save-time conflict guard accurate so a
+// pending local edit can never silently overwrite the newer remote file.
+// Kept as the building block for a future explicit "keep the remote
+// version / stop asking" action, which is the only case where dropping
+// the divergence is the right outcome.
 #[tauri::command]
 pub async fn rs_acknowledge_remote_change(
     db_key: String,

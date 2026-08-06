@@ -13,8 +13,8 @@
                                                      mui-date-time-picker
                                                      mui-desktop-date-picker
                                                      mui-form-control-label
-                                                     mui-icon-autorenew
                                                      mui-icon-button
+                                                     mui-icon-casino-outlined
                                                      mui-icon-delete-outline
                                                      mui-icon-visibility
                                                      mui-icon-visibility-off
@@ -77,6 +77,16 @@
   (cond-> {:readOnly (not edit)}
     protected (assoc :data-okp-sensitive-copy "true")))
 
+;; Read-mode monospace + per-character coloring (see 'colored-read-field') is
+;; applied only to protected fields whose key is in this set. Passwords and the
+;; passkey secret fields read as random strings and benefit; other protected
+;; fields (e.g. a free-text security answer) are left as plain text. Add a field
+;; key here to opt it in.
+(def ^:private colorable-protected-field-names
+  #{PASSWORD
+    const/KPEX_PASSKEY_USER_HANDLE
+    const/KPEX_PASSKEY_CREDENTIAL_ID})
+
 (defn- end-icons [{:keys [key protected visible edit] :as kv}]
   (let [val (to-value kv)
         entry-type-uuid @(form-events/entry-form-data-fields :entry-type-uuid)
@@ -112,18 +122,35 @@
                          :edge "end"
                          :on-click #(form-events/entry-form-open-url val)}
         [m/mui-icon-launch]])
-     ;; Password generator 
+     ;; Password generator
      (when (and edit protected (= key PASSWORD))
-       [mui-icon-button {:sx {:margin-right "-8px"}
-                         :edge "end"
-                         :on-click form-events/password-generator-show}
-        [mui-icon-autorenew]])
+       [mui-tooltip {:title (lstr-l 'passwordGenerator)}
+        [mui-icon-button {:sx {:margin-right "-8px"}
+                          :edge "end"
+                          :on-click form-events/password-generator-show}
+         [mui-icon-casino-outlined]]])
      ;; Copy 
      [(if protected
         (cc/copy-icon-factory #(cmn-events/write-sensitive-to-clipboard val))
         (cc/copy-icon-factory))
       val
       {:sx {:mr "-1px"}}]]))
+
+(defn- single-line-end-adornment
+  "InputAdornment that wraps the trailing action icons for single-line fields
+   (text-field, single-line-text-field, otp-read-field).
+
+   A standard MUI Input has no right padding, so its content box ends right at
+   the field border. The last icon uses edge=\"end\", which pushes its rounded
+   hover/press highlight onto - and past - that border. The right margin here
+   pushes the whole icon cluster inward so the highlight stays inside the field
+   in edit mode. This is most visible when the field shows multiple icons.
+
+   The multiline fields don't need this: they position their adornment
+   absolute at right:5px, which already gives the same clearance."
+  [icons-kv]
+  [mui-input-adornment {:position "end" :sx {:mr "2px"}}
+   [end-icons icons-kv]])
 
 (defn simple-selection-field [{:keys [key
                                       value
@@ -195,8 +222,7 @@
                                       :sx (theme-text-field-sx edit @custom-theme-atom)
                                       :endAdornment (if no-end-icons nil
                                                         (r/as-element
-                                                         [mui-input-adornment {:position "end"}
-                                                          [end-icons kv]]))
+                                                         [single-line-end-adornment kv]))
                                       :type (if (or (not protected) visible) "text" "password")}
                               :htmlInput (html-input-props kv)}}]))
 
@@ -272,11 +298,10 @@
                                            :sx (theme-text-field-sx edit @custom-theme-atom)
                                            :endAdornment (if (or (not valid-token-found) no-end-icons) nil
                                                              (r/as-element
-                                                              [mui-input-adornment {:position "end"}
-                                                               [end-icons (assoc kv
-                                                                                 :value token
-                                                                                 :read-value nil
-                                                                                 :protected false)]]))
+                                                              [single-line-end-adornment (assoc kv
+                                                                                                :value token
+                                                                                                :read-value nil
+                                                                                                :protected false)]))
                                            :type "text"}
                                    :htmlInput {:readOnly true}}}]
 
@@ -313,11 +338,11 @@
 
       :else
       (if (str/blank? value)
-        [mui-stack {:direction "row" :sx {:width "100%" :justify-content "center"}}
+        [mui-stack {:direction "row" :sx {:width "100%" :justify-content "center" :mt 2}}
          [mui-link {:sx {:color "primary.dark"}
                     :underline "hover"
                     :on-click  #(dlg-events/otp-settings-dialog-show section-name true)}
-          [mui-typography {:variant "h6" :sx {:font-size "1.1em"}}
+          [mui-typography {:variant "h6" :sx {:font-size ".9em"}}
            (tr-l "setUpOneTimePassword")]]]
         [mui-stack {:direction "row" :sx {:width "100%"}}
          [mui-stack {:direction "row" :sx {:width "100%"}}
@@ -418,8 +443,48 @@
                                          :sx {:ml ".5em" :mr ".5em"}
                                          :style {:resize "vertical"}}}}])
 
+(defn- colored-read-field
+  "Read-mode display for a visible protected field (e.g. Password): renders the
+   value in monospace with per-character coloring, keeping the label, trailing
+   action icons and strength helper text. Used instead of the plain input because
+   a native input renders its whole value in a single color.
+
+   Single-line path only. A protected value long enough to overflow to a
+   multiline text area is not colored in read mode - see the NOTE on
+   'multiline-text-field'."
+  [{:keys [password-score no-end-icons] :as kv}]
+  (let [label (translated-label kv)
+        val (to-value kv)]
+    [m/mui-form-control {:variant "standard"
+                         :fullWidth true
+                         :sx (merge {:margin-top "16px"}
+                                    (cc/password-helper-text-sx (:name password-score)))}
+     [m/mui-input-label {:shrink true} label]
+     [mui-box {:sx {:display "flex"
+                    :align-items "center"
+                    :min-height "32px"
+                    :margin-top "16px"
+                    :border-bottom "1px solid"
+                    :border-color "divider"}}
+      [mui-box {:sx {:flex-grow 1
+                     :font-family "monospace"
+                     :font-size "1.15rem"
+                     :letter-spacing "0.5px"
+                     :overflow-x "auto"
+                     :white-space "nowrap"
+                     :padding-bottom "2px"}}
+       [cc/colored-password val true true]]
+      (when-not no-end-icons
+        [mui-box {:sx {:display "flex" :align-items "center" :flex-shrink 0 :margin-right "2px"}}
+         [end-icons kv]])]
+     [m/mui-form-helper-text (helper-or-error-text kv)]]))
+
 (defn- single-line-text-field
-  "A single line text field"
+  "A single line text field.
+   In read mode a visible protected field whose key is in
+   'colorable-protected-field-names' is shown via 'colored-read-field'
+   (monospace + per-character coloring); all other cases use the standard MUI
+   text field."
   [{:keys [key
            label
            val
@@ -440,7 +505,10 @@
          disabled false
          on-change-handler #(println "No on change handler yet registered for the key")}
     :as kv}]
-  [m/text-field {:sx   (merge {:margin-top "16px"} (cc/password-helper-text-sx (:name password-score)))
+  (if (and (not edit) protected visible
+           (contains? colorable-protected-field-names key))
+    [colored-read-field kv]
+    [m/text-field {:sx   (merge {:margin-top "16px"} (cc/password-helper-text-sx (:name password-score)))
                  :fullWidth true
                  :label label
                  :variant "standard"
@@ -475,12 +543,54 @@
                                     :sx (theme-text-field-sx edit @custom-theme-atom)
                                     :endAdornment (if no-end-icons nil
                                                       (r/as-element
-                                                       [mui-input-adornment {:position "end"}
-                                                        [end-icons kv]]))
+                                                       [single-line-end-adornment kv]))
                                     :type (if (or (not protected) visible) "text" "password")}
-                             :htmlInput (html-input-props kv)}}])
+                             :htmlInput (html-input-props kv)}}]))
 
 
+
+;; NOTE: read-mode monospace + per-character coloring (see 'colored-read-field')
+;; is deliberately applied only to the single-line path. A protected value long
+;; enough to overflow to this multiline text area (roughly 60+ chars) is shown
+;; here as a plain, uncolored text area in read mode. This is an intentional
+;; trade-off: such long passwords are rare in practice, so the multiline read
+;; view is left uncolored rather than adding a parallel colored renderer here.
+;;
+;; If we decide to color the multiline read view later, the sketch below mirrors
+;; 'colored-read-field' but wraps the value across lines instead of scrolling.
+;; To enable: uncomment this defn and add the read-mode branch shown in the
+;; comment at the top of 'multiline-text-field' body.
+;;
+;; (defn- colored-read-multiline-field
+;;   "Read-mode multiline variant of 'colored-read-field': the value wraps across
+;;    lines (word-break) while keeping per-character coloring, label, action icons
+;;    and strength helper text."
+;;   [{:keys [password-score no-end-icons] :as kv}]
+;;   (let [label (translated-label kv)
+;;         val (to-value kv)]
+;;     [m/mui-form-control {:variant "standard"
+;;                          :fullWidth true
+;;                          :sx (merge {:margin-top "16px"}
+;;                                     (cc/password-helper-text-sx (:name password-score)))}
+;;      [m/mui-input-label {:shrink true} label]
+;;      [mui-box {:sx {:display "flex"
+;;                     :align-items "flex-start"
+;;                     :min-height "32px"
+;;                     :margin-top "16px"
+;;                     :border-bottom "1px solid"
+;;                     :border-color "divider"}}
+;;       [mui-box {:sx {:flex-grow 1
+;;                      :font-family "monospace"
+;;                      :font-size "1.15rem"
+;;                      :letter-spacing "0.5px"
+;;                      :white-space "pre-wrap"
+;;                      :word-break "break-all"
+;;                      :padding-bottom "2px"}}
+;;        [cc/colored-password val true true]]
+;;       (when-not no-end-icons
+;;         [mui-box {:sx {:display "flex" :align-items "center" :flex-shrink 0 :margin-right "2px"}}
+;;          [end-icons kv]])]
+;;      [m/mui-form-helper-text (helper-or-error-text kv)]]))
 
 (defn- multiline-text-field
   "A text area field with label on top"
@@ -499,6 +609,11 @@
          protected false
          visible true}
     :as kv}]
+  ;; To color the multiline read view later, wrap the body below like:
+  ;;   (if (and (not edit) protected visible)
+  ;;     [colored-read-multiline-field kv]
+  ;;     [m/text-field {...}])
+  ;; and add the closing paren for the 'if' at the end of this fn.
   [m/text-field {:sx (merge {:margin-top "16px"} (cc/password-helper-text-sx (:name password-score)))
                  :fullWidth true
                  :id key

@@ -103,6 +103,24 @@
   ([txt-key]
    (lstr-l txt-key nil)))
 
+(defn lstr-t
+  "Adds prefix 'titles' to the key before getting the translation
+   This is the fn equivalent of the macro tr-t
+  "
+  ([txt-key interpolation-args]
+   (-> (str "titles." (convert txt-key)) (lstr interpolation-args)))
+  ([txt-key]
+   (lstr-t txt-key nil)))
+
+(defn lstr-h
+  "Adds prefix 'helperTexts' to the key before getting the translation
+   This is the fn equivalent of the macro tr-h
+  "
+  ([txt-key interpolation-args]
+   (-> (str "helperTexts." (convert txt-key)) (lstr interpolation-args)))
+  ([txt-key]
+   (lstr-h txt-key nil)))
+
 (defn lstr-bl [txt-key]
   (-> (str "buttonLabels." (convert txt-key)) lstr))
 

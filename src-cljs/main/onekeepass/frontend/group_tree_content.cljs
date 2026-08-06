@@ -4,7 +4,6 @@
                                                   confirm-text-dialog
                                                   dialog-factory menu-action
                                                   selection-autocomplete]]
-   [onekeepass.frontend.constants :as const]
    [onekeepass.frontend.context-menu :as ctx-menu]
    [onekeepass.frontend.db-icons :refer [group-icon render-group-icon]]
    [onekeepass.frontend.events.common :as cmn-events]
@@ -15,8 +14,6 @@
    [onekeepass.frontend.events.move-group-entry :as move-events]
    [onekeepass.frontend.events.clone-entry-to-other-db :as clone-events]
    [re-frame.core :refer [dispatch]]
-   [onekeepass.frontend.events.tauri-events :as tauri-events]
-   [onekeepass.frontend.group-form :as gf]
    [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                      theme-color
                                                      mui-alert mui-box
@@ -378,31 +375,15 @@
                                :margin-left 15}} [mui-icon-more-vert]]
      [tree-item-recycle-bin-menu-items anchor-el]]))
 
-;; Keep the group uuid for which the system menu is active
-(def menu-event-uuid (atom nil))
-
-;; A functional component that uses react useEffect
+;; A functional component.
+;; The native "Groups" menu (New Group / Edit Group) enable state is driven
+;; reactively from top-bar (see tool_bar.cljs) based on db lock state and the
+;; selected group, so it is no longer toggled here from this menu's lifecycle.
 (defn- tree-item-menu []
   (let [anchor-el (r/atom nil)]
     (fn [g-uuid]
       (let [recycle-bin? (gt-events/recycle-group-selected?)
             group-in-recycle-bin? (gt-events/selected-group-in-recycle-bin?)]
-
-        ;;;;;; 
-        (m/react-use-effect (fn []
-                              (reset! menu-event-uuid g-uuid)
-                              (tauri-events/enable-app-menu const/MENU_ID_NEW_GROUP (not @recycle-bin?))
-                              (tauri-events/enable-app-menu const/MENU_ID_EDIT_GROUP (not @recycle-bin?))
-                              ;; cleanup fn is returned which is called when this component unmounts
-                              (fn []
-                                ;; Sometime this clean up call is called for the previous group after the build call for 
-                                ;; the new group is called  
-                                ;; Need to ensure that "Menu Disable" -> "Menu Enable" and not "Menu Enable" -> "Menu Disable"
-                                ;; when moving one group to another in the group tree view 
-                                (when (or (nil? @menu-event-uuid) (= g-uuid @menu-event-uuid))
-                                  (tauri-events/enable-app-menu const/MENU_ID_NEW_GROUP false)
-                                  (tauri-events/enable-app-menu const/MENU_ID_EDIT_GROUP false)))) (clj->js []))
-        ;;;;;;
 
         [:div {:style {:height 24}}
          [mui-icon-button {:edge "start"
@@ -475,6 +456,12 @@
                           current-db-key)}))
             (when-not (or recycle-bin? group-in-recycle-bin?)
               (ctx-menu/action-item
+               {:id "group-clone"
+                :text (t/lstr-ml 'clone)
+                :enabled? (not root-group?)
+                :action #(gt-events/group-clone-start uuid)}))
+            (when-not (or recycle-bin? group-in-recycle-bin?)
+              (ctx-menu/action-item
                {:id "group-delete"
                 :text (t/lstr-ml 'delete)
                 :enabled? (not root-group?)
@@ -539,7 +526,7 @@
                              :ml 0.5
                              :px 0.75
                              :min-width "20px"
-                             :color "white"
+                             :color (theme-color @custom-theme-atom :category-item-text)
                              :background-color (theme-color @custom-theme-atom :category-item)
                              :border-radius "10px"
                              :text-align "center"}}
@@ -560,11 +547,13 @@
 ;; Need to use :strs to retrive values from map argument 
 ;; as "uuid name icon_id" are the string keys in the map
 (defn- make-tree-item [{:strs [uuid name icon_id custom_icon_uuid]}]
+  ;; The group form dialog is not mounted here. It is a singleton driven by shared
+  ;; re-frame state and is mounted once in entry-category-content. Mounting it per
+  ;; tree item made every group render its own Dialog, stacking one backdrop per
+  ;; group and darkening the app behind the dialog
   [mui-tree-item {:itemId uuid
                   ;; :f> ensures tree-label is treated as a pure React FC so hooks work correctly
-                  :label (r/as-element [:f> tree-label uuid name icon_id custom_icon_uuid])}
-   ;; We reuse the group form dialog from group-form ns
-   [gf/group-content-dialog-main]])
+                  :label (r/as-element [:f> tree-label uuid name icon_id custom_icon_uuid])}])
 
 (defn- group-visitor-action*
   ;; Internal impl that threads a seen-set atom to guard against duplicate UUIDs.

@@ -357,6 +357,9 @@
   [file-name-kw]
   (subscribe [:entry-form-field file-name-kw]))
 
+(defn is-new-entry? []
+  (subscribe [:entry-form-is-new-entry]))
+
 (defn modified
   "An atom that has a true value when entry form is modified"
   []
@@ -402,6 +405,7 @@
               (assoc-in-key-db [entry-form-key :showing] :selected)
               (assoc-in-key-db [entry-form-key :multiline-fields] {})
               (assoc-in-key-db [entry-form-key :visibility-list] nil)
+              (assoc-in-key-db [entry-form-key :revealed-sections] nil)
               ;; otp-fields is map with otp field name as key and token info (map) as value
               ;; This map is updated periodically when polling is started
               (assoc-in-key-db [entry-form-key :otp-fields] otp-fields))})))
@@ -497,6 +501,24 @@
        (assoc-in-key-db db [entry-form-key :visibility-list] (filterv #(not= % key) vl))
        (assoc-in-key-db db [entry-form-key :visibility-list] (conj vl key))))))
 
+;; Some standard sections of an entry type are not shown in the edit mode when they do not have
+;; any data - see 'on-demand-section?' in ns onekeepass.frontend.entry-form-ex. This event adds
+;; such a section to the revealed list so that the user can enter values in it. The list is
+;; transient and is cleared whenever the form data is (re)loaded or the editing is done
+(reg-event-db
+ :entry-form-section-reveal
+ (fn [db [_event-id section-name]]
+   (let [sections (get-in-key-db db [entry-form-key :revealed-sections])]
+     (if (contains-val? sections section-name)
+       db
+       (assoc-in-key-db db [entry-form-key :revealed-sections] (conj (vec sections) section-name))))))
+
+(defn section-reveal [section-name]
+  (dispatch [:entry-form-section-reveal section-name]))
+
+(defn revealed-sections []
+  (subscribe [:entry-form-revealed-sections]))
+
 (reg-event-db
  :entry-form-tags-selected-ex
  (fn [db [_event-id tags]]
@@ -519,6 +541,7 @@
               (assoc-in-key-db [entry-form-key :welcome-text-to-show] text-to-show)
               (assoc-in-key-db [entry-form-key :edit] false)
               (assoc-in-key-db [entry-form-key :error-fields] {})
+              (assoc-in-key-db [entry-form-key :revealed-sections] nil)
               (assoc-in-key-db [entry-form-key :group-selection-info] nil))})))
 
 (reg-event-fx
@@ -530,11 +553,16 @@
 (reg-event-fx
  :entry-form-ex/edit
  (fn [{:keys [db]} [_event-id edit?]]
+   ;; Any 'on demand' section revealed in a previous editing is hidden again when the
+   ;; editing starts or ends
    (if edit?
      {:db (-> db
               (assoc-in-key-db [entry-form-key :undo-data] (get-form-data db))
+              (assoc-in-key-db [entry-form-key :revealed-sections] nil)
               (assoc-in-key-db [entry-form-key :edit] edit?))}
-     {:db (assoc-in-key-db db [entry-form-key :edit] edit?)})))
+     {:db (-> db
+              (assoc-in-key-db [entry-form-key :revealed-sections] nil)
+              (assoc-in-key-db [entry-form-key :edit] edit?))})))
 
 (reg-event-fx
  :cancel-entry-edit-ex
@@ -545,9 +573,11 @@
             (-> db (assoc-in-key-db [entry-form-key :data] undo-data)
                 (assoc-in-key-db [entry-form-key :undo-data] {})
                 (assoc-in-key-db [entry-form-key :edit] false)
+                (assoc-in-key-db [entry-form-key :revealed-sections] nil)
                 (assoc-in-key-db [entry-form-key :error-fields] {}))
             (-> db (assoc-in-key-db  [entry-form-key :edit] false)
                 (assoc-in-key-db [entry-form-key :undo-data] {})
+                (assoc-in-key-db [entry-form-key :revealed-sections] nil)
                 (assoc-in-key-db [entry-form-key :error-fields] {})))
       :fx []})))
 
@@ -614,7 +644,7 @@
       ;; be any validation error!
       :fx [(when (not= current-auto-type auto-type-m)
              [:dispatch [:ok-entry-edit-ex]])]})
-   
+
    #_{;; First set the changed incoming auto-type map to entry form data
       :db (-> db (assoc-in-key-db [entry-form-key :data :auto-type] auto-type-m))
       ;; For now, the 'ok-entry-edit-ex' event is reused for this save. It is assumed there will not 
@@ -724,6 +754,14 @@
    ;;(println "form-db called... " form-db)
    (get form-db field)))
 
+;; For a new form the field :showing will have kw :new
+(reg-sub
+ :entry-form-is-new-entry
+ :<- [:entry-form-all]
+ (fn [form-db [_query-id]]
+   ;;(println "form-db called... " form-db)
+   (= :new (get form-db :showing))))
+
 ;; Replace this with the above generic sub 'entry-form-field'
 (reg-sub
  :entry-form-showing-ex
@@ -734,6 +772,12 @@
  :entry-form-field-in-visibile-list
  (fn [db [_query-id key]]
    (contains-val? (get-in-key-db db [entry-form-key :visibility-list]) key)))
+
+;; The 'on demand' sections that the user has asked to show in the current editing of this form
+(reg-sub
+ :entry-form-revealed-sections
+ (fn [db _query-vec]
+   (get-in-key-db db [entry-form-key :revealed-sections])))
 
 (reg-sub
  :modified-ex
@@ -1169,14 +1213,14 @@
                                 :required required
                                 :data-type (or stored-data-type data-type const/TEXT_TYPE)
                                 :dialog-show true))
-       ;;  (to-section-field-data :popper-anchor-el popper-anchor-el)
-       ;;  (to-section-field-data :section-name section-name)
-       ;;  (to-section-field-data :mode :modify)
-       ;;  (to-section-field-data :field-name key)
-       ;;  (to-section-field-data :current-field-name key)
-       ;;  (to-section-field-data :protected protected)
-       ;;  (to-section-field-data :dialog-show true)
-       )))
+     ;;  (to-section-field-data :popper-anchor-el popper-anchor-el)
+     ;;  (to-section-field-data :section-name section-name)
+     ;;  (to-section-field-data :mode :modify)
+     ;;  (to-section-field-data :field-name key)
+     ;;  (to-section-field-data :current-field-name key)
+     ;;  (to-section-field-data :protected protected)
+     ;;  (to-section-field-data :dialog-show true)
+     )))
 
 (reg-event-db
  :section-field-dialog-update
@@ -1437,6 +1481,7 @@
          #_(assoc-in-key-db [entry-form-key :entry-type-name-selection] (:entry-type-name form-data))
          (assoc-in-key-db [entry-form-key :group-selection-info] group-info)
          (assoc-in-key-db [entry-form-key :edit] true)
+         (assoc-in-key-db [entry-form-key :revealed-sections] nil)
          (assoc-in-key-db [entry-form-key :error-fields] {})))))
 
 ;; This event is dispatched when a new group option is selected in the new entry form

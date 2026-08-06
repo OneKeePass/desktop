@@ -1,6 +1,9 @@
 (ns onekeepass.frontend.db-settings
   (:require [onekeepass.frontend.events.db-settings :as settings-events]
-            [onekeepass.frontend.common-components :refer [cipher-algorithms kdf-algorithms]]
+            [onekeepass.frontend.common-components :refer [cipher-algorithms
+                                                           field-help-icon
+                                                           kdf-algorithms
+                                                           settings-panel-title]]
             [onekeepass.frontend.mui-components :as m :refer [custom-theme-atom
                                                               mui-alert
                                                               mui-box
@@ -12,7 +15,7 @@
                                                               mui-icon-button
                                                               mui-icon-feed-outlined
                                                               mui-icon-folder-outlined
-                                                              mui-icon-security-outlined
+                                                              mui-icon-lock-outlined
                                                               mui-icon-settings-outlined
                                                               mui-icon-visibility
                                                               mui-icon-visibility-off
@@ -57,8 +60,8 @@
 
     [mui-list-item-button {:on-click #(settings-events/db-settings-panel-select :security-info)
                            :selected (= :security-info panel)}
-     [mui-list-item-icon [mui-icon-security-outlined]]
-     [mui-list-item-text text-style-m (tr-l security)]]]])
+     [mui-list-item-icon [mui-icon-lock-outlined]]
+     [mui-list-item-text text-style-m (t/lstr-l "encryption")]]]])
 
 (defn- basic-info
   "Incoming settings map has nested maps and are destructred"
@@ -67,7 +70,7 @@
      {:keys [database-name database-description]} :meta} :data
     :as _settings}]  ;;error-fields is a map
   [mui-stack
-   [mui-typography {:text-align "center"} (tr-t basicDatabaseInformation)]
+   [settings-panel-title (tr-t basicDatabaseInformation)]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
     [mui-box {:sx {:width "80%"}}
      [m/text-field {:label (tr-l name)
@@ -134,7 +137,7 @@
                      :variant "standard" :fullWidth true
                      :type (if password-visible "text" "password")
                      :slotProps {:input {:endAdornment (r/as-element
-                                                        [mui-input-adornment {:position "end"}
+                                                        [mui-input-adornment {:position "end" :sx {:mr "6px"}}
                                                          (if password-visible
                                                            [mui-icon-button
                                                             {:edge "end" :sx {:mr "-8px"}
@@ -215,7 +218,7 @@
 (defn- credentials-info [{:keys [error-fields]  :as credentials-m}]
 
   [mui-stack {:spacing 2}
-   [mui-typography {:text-align "center"} (tr-t databaseCredentials)]
+   [settings-panel-title (tr-t databaseCredentials)]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
 
     [password-credential credentials-m]
@@ -230,10 +233,10 @@
                        {:keys [cipher-id]
                         {:keys [iterations memory parallelism algorithm]} :kdf} :data}] 
   [mui-stack {:spacing 2}
-   [mui-typography {:text-align "center"} (tr-t security)]
+   [settings-panel-title (t/lstr-t "encryption")]
    [mui-stack {:spacing 2 :sx {:alignItems "center"}} ;;:alignItems "center"
     [mui-stack {:direction "row" :sx {:width "100%"}}
-     [mui-stack {:sx {:width "50%" :ml 3}}
+     [mui-stack {:direction "row" :sx {:width "50%" :ml 3 :align-items "flex-end"}}
       [m/text-field {:label (tr-l encriptionAlgorithm)
                      :value cipher-id
                      :required true
@@ -243,10 +246,11 @@
                      :variant "standard" :fullWidth true}
        (doall
         (for [{:keys [name value]} cipher-algorithms]
-          ^{:key value} [mui-menu-item {:value value} name]))]]]
+          ^{:key value} [mui-menu-item {:value value} name]))]
+      [field-help-icon (t/lstr-h "encryptionAlgorithm")]]]
 
     [mui-stack {:direction "row" :sx {:width "100%"}}
-     [mui-stack {:sx {:width "50%" :ml 3}}
+     [mui-stack {:direction "row" :sx {:width "50%" :ml 3 :align-items "flex-end"}}
       [m/text-field {:label (tr-l kdf)
                      :value algorithm
                      :required true
@@ -257,27 +261,31 @@
                      :variant "standard" :fullWidth true}
        (doall
         (for [{:keys [name value]} kdf-algorithms]
-          ^{:key value} [mui-menu-item {:value value} name]))]]]
+          ^{:key value} [mui-menu-item {:value value} name]))]
+      [field-help-icon (t/lstr-h "kdf")]]]
 
     [mui-stack {:direction "row" :sx {:width "100%"}}
-     [mui-stack {:sx {:width "33.33%" :ml 3}}
+     [mui-stack {:direction "row" :sx {:width "33.33%" :ml 3 :align-items "flex-end"}}
       [m/text-field {:label (tr-l transformRounds)
                      :value iterations ;;(:iterations kdf)
                      :type "number"
                      :error (contains? error-fields :iterations)
                      :helperText (get error-fields :iterations)
                      :on-change (settings-events/field-update-factory [:data :kdf :iterations])
-                     :variant "standard" :fullWidth true}]]
+                     :variant "standard" :fullWidth true}]
+      [field-help-icon (t/lstr-h "transformRounds")]]
 
-     [mui-stack {:sx {:width "33.33%" :ml 3}}
+     [mui-stack {:direction "row" :sx {:width "33.33%" :ml 3 :align-items "flex-end"}}
       [m/text-field {:label (tr-l memoryUsage)
                      :value memory ;;(:memory kdf)
                      :type "number"
                      :error (contains? error-fields :memory)
                      :helperText (get error-fields :memory)
                      :on-change (settings-events/field-update-factory [:data :kdf :memory])
-                     :variant "standard" :fullWidth true}]]
-     [mui-stack {:sx {:width "33.33%" :ml 3}}
+                     :variant "standard" :fullWidth true}]
+      [field-help-icon (t/lstr-h "memoryUsage")]]
+
+     [mui-stack {:direction "row" :sx {:width "33.33%" :ml 3 :align-items "flex-end"}}
       [m/text-field {:label (tr-l parallelism)
                      :value parallelism ;;(:parallelism kdf)
                      :type "number"
@@ -285,9 +293,10 @@
                      :helperText (get error-fields :parallelism)
                      ;; Using min for "number" type is not working
                      ;;:InputProps {:min "2"}
-                     ;;:min 2 
+                     ;;:min 2
                      :on-change (settings-events/field-update-factory [:data :kdf :parallelism])
-                     :variant "standard" :fullWidth true}]]]]])
+                     :variant "standard" :fullWidth true}]
+      [field-help-icon (t/lstr-h "parallelism")]]]]])
 
 (defn settings-dialog [{:keys [dialog-show
                                status
@@ -314,10 +323,9 @@
           [:div {:class "gcontent" :style {}}
            [list-items dialog-data]]
           [:div {:class "gfooter"}
-           [mui-stack {:justify-content "center"}
+           [mui-stack {:sx {:width "100%"} :justify-content "center"}
             [mui-button {:variant "text"
                          :disabled (or modified in-progress? (-> error-fields seq boolean))
-                         :color "secondary"
                          :on-click settings-events/app-settings-dialog-read-start}
              (tr-l "appSettings")]]]]]
 
@@ -353,11 +361,9 @@
          [mui-linear-progress {:sx {:mt 2}}])]]
 
      [mui-dialog-actions
-      [mui-button {:variant "contained" :color "secondary"
-                   :disabled in-progress?
+      [mui-button {:disabled in-progress?
                    :on-click settings-events/cancel-on-click} (t/lstr-bl 'cancel)]
-      [mui-button {:variant "contained" :color "secondary"
-                   :disabled (or (not modified) in-progress? (-> error-fields seq boolean))
+      [mui-button {:disabled (or (not modified) in-progress? (-> error-fields seq boolean))
                    :on-click settings-events/ok-on-click} (t/lstr-bl 'ok)]]]))
 
 (defn settings-dialog-main []

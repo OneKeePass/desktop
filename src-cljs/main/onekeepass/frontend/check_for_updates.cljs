@@ -46,12 +46,10 @@
                               :margin 0}}
          release-notes]])]]
    [mui-dialog-actions
-    [mui-button {:color "secondary"
-                 :on-click (fn []
+    [mui-button {:on-click (fn []
                              (gd-events/check-for-updates-dialog-close))}
      (lstr-bl "later")]
-    [mui-button {:variant "contained"
-                 :on-click (fn []
+    [mui-button {:on-click (fn []
                              (cmn-events/open-url download-url)
                              (gd-events/check-for-updates-dialog-close))}
      (lstr-bl "download")]]])
@@ -67,8 +65,7 @@
     [mui-typography {:variant "body1"}
      (lstr-dlg-text 'upToDate {:current-version current-version})]]
    [mui-dialog-actions
-    [mui-button {:color "secondary"
-                 :on-click (fn []
+    [mui-button {:on-click (fn []
                              (gd-events/check-for-updates-dialog-close))}
      (lstr-bl "ok")]]])
 

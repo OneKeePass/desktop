@@ -22,6 +22,8 @@
                                                      mui-text-field
                                                      mui-tooltip
                                                      mui-typography
+                                                     custom-theme-atom
+                                                     theme-color
                                                      react-use-state]]
    [onekeepass.frontend.translation :as t :refer-macros [tr-bl] :refer [lstr-sm]]
    [onekeepass.frontend.utils :refer [contains-val? str->int]]
@@ -196,6 +198,11 @@
                     ;; to Cljs maps, which breaks them
                     (set! (.-variant params) "standard")
                     (set! (.-label params) "Tags")
+                    ;; Turn off the OS/webview auto capitalization,correction and spell check
+                    (let [^js input-props (.-inputProps params)]
+                      (set! (.-autoCapitalize input-props) "off")
+                      (set! (.-autoCorrect input-props) "off")
+                      (set! (.-spellCheck input-props) false))
                     ;;(println "InputProps is " (.-label params)) results in stackoverflow
                     (r/create-element mui-text-field-type params)) ;;mui/TextField
     }])
@@ -265,6 +272,11 @@
                     (set! (.-error params) error)
                     (set! (.-helperText params) (if error error-text helper-text))
                     (set! (.-required params) required)
+                    ;; Turn off the OS/webview auto capitalization,correction and spell check
+                    (let [^js input-props (.-inputProps params)]
+                      (set! (.-autoCapitalize input-props) "off")
+                      (set! (.-autoCorrect input-props) "off")
+                      (set! (.-spellCheck input-props) false))
                     (r/create-element mui-text-field-type params)) ;;mui/TextField
     }])
 
@@ -292,7 +304,10 @@
                        :or {item-size 60
                             scroll-to-item-index 0
                             div-style {}
-                            list-style {:max-width 275}}}]
+                            ;; No default max-width; the list fills the width given by auto-sizer.
+                            ;; The earlier {:max-width 275} default was needed only for the old
+                            ;; resizable split-pane layout to keep its left side from expanding
+                            list-style {}}}]
   ;; This component makes use of 'fixed-size-list' and 'auto-sizer' (Function-as-child Components)
   ;; which expect a function as their only child. 
   ;; See 
@@ -303,8 +318,8 @@
   (fn
     []
     ;;(println "opts in row-item-fn is" options)
-    ;; Need to set this so that splitpane's left side has some min width when content is small 
-    [:div {:style (merge {:min-width 200 :height "100%" :width "275"} div-style)}
+    ;; min-width keeps the pane usable when content is small
+    [:div {:style (merge {:min-width 200 :height "100%"} div-style)}
      ;;AutoSizer needs to be a child of div for its to work within a flex container  
      (let [list-items (if (instance? reagent.ratom/Reaction items) @items items)]
        (when  (not-empty list-items) #_(not-empty @items)
@@ -315,8 +330,7 @@
                    ;; (println "dims are " dims)
                    (r/as-element
                     [:div {:style {:min-width 200 :height (:height dims)}}
-                     ;; :> m/MyFixedSizeList 
-                     [fixed-size-list {:style list-style ;;{:max-width 275} ;; Need to set this so that splitpane's left side  does not expand
+                     [fixed-size-list {:style list-style
                                        :height (:height dims)
                                        :width (:width dims)
                                        ;; this is the size of the row component returned by render-row fn
@@ -360,8 +374,7 @@
       [mui-dialog-content-text body-text]]
      [mui-dialog-actions
       (for [{:keys [label on-click]}  actions]
-        ^{:key label} [mui-button {:color "secondary"
-                                   :disabled (= status :in-progress)
+        ^{:key label} [mui-button {:disabled (= status :in-progress)
                                    :on-click on-click} label])]]))
 
 (defn dialog-factory
@@ -392,8 +405,7 @@
       ;; TODO: We can pass  on-click or on-click-factory and assign to :on-click prop accordingly
       ;; For example :on-click (if (nil? on-click) (on-click-factory all-data) on-click)
       (for [{:keys [label on-click-factory]} actions]
-        ^{:key label} [mui-button {:color "secondary"
-                                   :disabled (= status :in-progress)
+        ^{:key label} [mui-button {:disabled (= status :in-progress)
                                    :on-click (on-click-factory all-data)} label])]]))
 
 ;; TODO: 
@@ -433,8 +445,7 @@
         [mui-linear-progress {:sx {:mt 2}}]])]]
    [mui-dialog-actions
     (for [{:keys [label on-click]}  actions]
-      ^{:key label} [mui-button {:color "secondary"
-                                 :disabled (= status :in-progress)
+      ^{:key label} [mui-button {:disabled (= status :in-progress)
                                  ;; The fn 'on-click' may accept a map as an optional arg or nil
                                  :on-click (fn []
                                              (on-click dialog-data))} label])]])
@@ -458,8 +469,7 @@
      (when (and (nil? api-error-text) (= status :in-progress))
        [mui-linear-progress {:sx {:mt 2}}])]]
    [mui-dialog-actions
-    [mui-button {:color "secondary"
-                 :disabled (= status :in-progress)
+    [mui-button {:disabled (= status :in-progress)
                  :on-click close-fn} (tr-bl close)]]])
 
 (defn error-info-dialog
@@ -473,8 +483,7 @@
       (when error-text
         [mui-alert {:severity "error" :sx {:mt 1}} error-text])]]
     [mui-dialog-actions
-     [mui-button {:color "secondary"
-                  :on-click cmn-events/close-error-info-dialog} (tr-bl close)]]])
+     [mui-button {:on-click cmn-events/close-error-info-dialog} (tr-bl close)]]])
   ([]
    (error-info-dialog @(cmn-events/error-info-dialog-data))))
 
@@ -486,8 +495,7 @@
     [mui-dialog-content {:dividers true :style {:min-height "100px"}}
      [mui-dialog-content-text message]]
     [mui-dialog-actions
-     [mui-button {:color "secondary"
-                  :on-click cmn-events/close-message-dialog} (t/lstr-bl 'ok)]]])
+     [mui-button {:on-click cmn-events/close-message-dialog} (t/lstr-bl 'ok)]]])
   ([]
    [message-dialog @(cmn-events/message-dialog-data)]))
 
@@ -610,8 +618,13 @@
   "Returns a form-2 reagent component that on click copies the 'value' 
   field to clipboard"
   ([on-click-fn]
-   (fn []
+   ;; Same [value & props] call convention as the 0-arg arity below so callers
+   ;; can pass :sx (e.g. the end-icon right margin) and the icon aligns the same
+   ;; whether or not the field is protected. 'value' is unused here because the
+   ;; sensitive on-click-fn already closes over it.
+   (fn [_value & {:as props}]
      [mui-icon-button {:edge "end"
+                       :sx (:sx props)
                        :on-click #(on-click-fn)}
       [mui-icon-file-copy-outlined]]))
   ([]
@@ -707,8 +720,30 @@
     :else
     {}))
 
+(defn colored-password
+  "Renders the value string as per-character spans.
+   When colorize? is true, digits and symbols get accent colors while letters
+   inherit the theme text color, making random passwords easier to scan.
+   When visible? is false, mask dots are shown instead of the characters.
+   Shared by the password generator dialog and the entry form password field."
+  [value visible? colorize?]
+  (let [s (str value)]
+    (if-not visible?
+      [:span (apply str (repeat (count s) "•"))]
+      (into [:span]
+            (map-indexed
+             (fn [i ch]
+               (let [c (str ch)
+                     color (when colorize?
+                             (cond
+                               (re-matches #"[0-9]" c) "#2979ff"   ;; digits
+                               (re-matches #"[a-zA-Z]" c) nil        ;; letters - inherit
+                               :else "#e53935"))]                    ;; symbols
+                 ^{:key i} [:span (when color {:style {:color color}}) c]))
+             s)))))
+
 (defn menu-action
-  " The arg 'action' is a fn 
+  " The arg 'action' is a fn
     The arg 'action-args' is one or more arguments that are passed to the action fn
     Returns a fn that is used as on-click handler of a menu item
   "
@@ -722,6 +757,45 @@
 (def cipher-algorithms [{:name "AES 256" :value "Aes256"} {:name "ChaCha20 256" :value "ChaCha20"}])
 
 (def kdf-algorithms [{:name "Argon 2d (KDBX 4)" :value "Argon2d"} {:name "Argon 2id (KDBX 4)" :value "Argon2id"}])
+
+(defn settings-panel-title
+  "The heading shown at the top of a settings dialog panel
+
+   Centered and in the theme's info color - the app settings and the database settings
+   dialogs share this so that their panels keep looking the same
+   The arg 'title' is the already translated text
+  "
+  [title]
+  [mui-stack {:sx {:pt 1 :pb 1}}
+   [mui-typography {:text-align "center"
+                    :sx {:color (theme-color @custom-theme-atom :info-main)}}
+    title]])
+
+(def ^:private field-help-icon-default-sx
+  {:cursor "help"
+   :ml "6px"
+   ;; Lifts the icon clear of a text field's helper-text slot so it lines up with
+   ;; the input itself. Panels that place it next to something other than a text
+   ;; field - a checkbox row, say - should pass {:mb 0} to cancel this
+   :mb "6px"
+   :color "text.secondary"})
+
+(defn field-help-icon
+  "A '?' icon that shows the passed help text as a tooltip on hover
+
+   Meant to be placed next to a text field - in a row stack - so that the field keeps
+   its own helper text slot free for validation errors and the row does not grow taller.
+   The arg 'help-text' is the already translated text
+
+   The optional 'sx' map is merged over the defaults, so a caller overrides only the
+   keys it cares about - typically spacing/alignment - and keeps the rest
+  "
+  ([help-text]
+   (field-help-icon help-text nil))
+  ([help-text sx]
+   [mui-tooltip {:title help-text :placement "top" :enterDelay 400}
+    [m/mui-icon-help-outline {:font-size "small"
+                              :sx (merge field-help-icon-default-sx sx)}]]))
 
 
 

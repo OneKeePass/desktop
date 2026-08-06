@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+		"settings": {
+
+		"rust-analyzer.diagnostics.disabled":["unresolved-proc-macro"],
+
+		// See comments in mobile/db-service-ffi.code-workspace
+		"rust-analyzer.server.path": "rust-analyzer",
+
+		"editor.foldingStrategy": "indentation",
+		"editor.hover.delay": 600,
+		"editor.hover.hidingDelay": 600
+    }
+}

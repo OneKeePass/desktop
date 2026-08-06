@@ -39,10 +39,14 @@ pub mod menu_ids {
 
     pub const NEW_GROUP: &str = "NewGroup";
     pub const EDIT_GROUP: &str = "EditGroup";
+    pub const CLONE_GROUP: &str = "CloneGroup";
+    pub const DELETE_GROUP: &str = "DeleteGroup";
 
     pub const SEARCH: &str = "Search";
     pub const NEW_ENTRY: &str = "NewEntry";
     pub const EDIT_ENTRY: &str = "EditEntry";
+    pub const CLONE_ENTRY: &str = "CloneEntry";
+    pub const DELETE_ENTRY: &str = "DeleteEntry";
 
     // Entry field copy/open actions. See build_entries_menus for how their
     // accelerators interplay with the document level key handler in the UI
@@ -266,6 +270,8 @@ fn build_database_menus<R: Runtime>(
             app_handle,
             MERGE_DATABASE,
             system_menu_translation.sub_menu(MERGE_DATABASE, "Merge Database..."),
+            // A merge writes into the currently open db, so this starts disabled and
+            // the UI enables it once a db is open and unlocked. See tool_bar.cljs
             false,
             None::<&str>,
         )?,
@@ -304,6 +310,11 @@ fn build_entries_menus<R: Runtime>(
     app_handle: &AppHandle<R>,
     system_menu_translation: &SystemMenuTranslation,
 ) -> Result<Submenu<R>, tauri::Error> {
+    #[cfg(target_os = "macos")]
+    let delete_entry_accelerator = "Backspace";
+    #[cfg(not(target_os = "macos"))]
+    let delete_entry_accelerator = "Delete";
+
     let entries_menus = SubmenuBuilder::new(
         app_handle,
         system_menu_translation.main_menu(MAIN_MENU_ENTRIES),
@@ -323,6 +334,23 @@ fn build_entries_menus<R: Runtime>(
             system_menu_translation.sub_menu(EDIT_ENTRY, "Edit Entry"),
             false,
             Some("CmdOrControl+E"),
+        )?,
+    ])
+    .separator()
+    .items(&[
+        &MenuItem::with_id(
+            app_handle,
+            CLONE_ENTRY,
+            system_menu_translation.sub_menu(CLONE_ENTRY, "Clone Entry"),
+            false,
+            Some("CmdOrControl+K"),
+        )?,
+        &MenuItem::with_id(
+            app_handle,
+            DELETE_ENTRY,
+            system_menu_translation.sub_menu(DELETE_ENTRY, "Delete Entry"),
+            false,
+            Some(delete_entry_accelerator),
         )?,
     ])
     .separator()
@@ -402,6 +430,21 @@ fn build_groups_menus<R: Runtime>(
         false,
         None::<&str>,
     )?)
+    .item(&MenuItem::with_id(
+        app_handle,
+        CLONE_GROUP,
+        system_menu_translation.sub_menu(CLONE_GROUP, "Clone Group"),
+        false,
+        None::<&str>,
+    )?)
+    .separator()
+    .item(&MenuItem::with_id(
+        app_handle,
+        DELETE_GROUP,
+        system_menu_translation.sub_menu(DELETE_GROUP, "Delete Group"),
+        false,
+        None::<&str>,
+    )?)
     .build();
 
     groups_menus
@@ -454,12 +497,49 @@ pub fn handle_menu_events<R: Runtime>(
     app_handle: &AppHandle<R>,
     menu_event: &MenuEvent,
 ) -> Result<(), tauri::Error> {
+    emit_menu_event(app_handle, &menu_event.id().0)
+}
+
+fn emit_menu_event<R: Runtime>(
+    app_handle: &AppHandle<R>,
+    menu_id: &str,
+) -> Result<(), tauri::Error> {
     app_handle.emit(
         TAURI_MENU_EVENT,
         MenuPayload {
-            menu_id: menu_event.id().0.clone(),
+            menu_id: menu_id.to_string(),
         },
     )
+}
+
+// Activates a menu item on behalf of the Windows webview keyboard handler.
+//
+// Native menu accelerators currently do not reach OneKeePass through Tauri's
+// Windows event loop. Keep the workaround behind the UI's Windows check, and
+// verify the native item's enabled state here so a shortcut has exactly the
+// same availability as selecting the item from the menu bar.
+#[cfg(target_os = "windows")]
+pub fn activate_menu_shortcut<R: Runtime>(
+    app_handle: &AppHandle<R>,
+    submenu_id: &str,
+    menu_id: &str,
+) -> Result<bool, tauri::Error> {
+    let Some(item) = app_handle
+        .menu()
+        .and_then(|menu| menu.get(submenu_id))
+        .and_then(|submenu| submenu.as_submenu().cloned())
+        .and_then(|submenu| submenu.get(menu_id))
+        .and_then(|item| item.as_menuitem().cloned())
+    else {
+        return Ok(false);
+    };
+
+    if item.is_enabled()? {
+        emit_menu_event(app_handle, menu_id)?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
 
 fn toggle_enable_disable<R: Runtime>(
@@ -523,11 +603,11 @@ pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app_handle:
         | CHECK_REMOTE_CHANGES => {
             toggle_enable_disable(app_handle, MAIN_MENU_DATABASE, menu_id, menu_enabled);
         }
-        EDIT_ENTRY | NEW_ENTRY | COPY_USERNAME | COPY_PASSWORD | COPY_URL | OPEN_URL
-        | COPY_TOTP => {
+        EDIT_ENTRY | NEW_ENTRY | CLONE_ENTRY | DELETE_ENTRY | COPY_USERNAME | COPY_PASSWORD
+        | COPY_URL | OPEN_URL | COPY_TOTP => {
             toggle_enable_disable(app_handle, MAIN_MENU_ENTRIES, menu_id, menu_enabled);
         }
-        EDIT_GROUP | NEW_GROUP => {
+        EDIT_GROUP | NEW_GROUP | CLONE_GROUP | DELETE_GROUP => {
             toggle_enable_disable(app_handle, MAIN_MENU_GROUPS, menu_id, menu_enabled);
         }
         // PASSWORD_GENERATOR => {

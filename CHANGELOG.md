@@ -1,3 +1,38 @@
+### 0.25.0
+
+#### Changes
+- Memory security on lock — when a database is locked, its decrypted content is removed from memory and kept only as ciphertext until the database is unlocked again; entry attachment contents are protected the same way and the plain content is zeroized
+- Databases are now locked automatically when the computer goes to sleep or suspends, on macOS, Windows and Linux — the content is encrypted before the memory image can reach a hibernation/sleep file, and the lock screen is shown on resume
+- Quick unlock is now available on Windows using **Windows Hello** (PIN or biometric), alongside TouchID/FaceID on macOS
+- The encryption key held for an open database is now kept in the platform's own secure store on every platform — Windows Credential Manager on Windows and the freedesktop Secret Service on Linux, matching the existing macOS Keychain use
+- A locked database is no longer reachable by the browser extension — password autofill, passkey registration and passkey authentication only see unlocked databases
+- Saving now considers only unlocked and modified databases. The messages shown when closing a database or quitting the application explain what will and will not be saved when some of the open databases are locked
+- Auto save after an edit — an application setting (off by default) that saves the database as soon as an edit is completed [#90](https://github.com/OneKeePass/desktop/issues/90)
+    - Applies to entry, group, custom entry type and database settings edits
+    - Imports, merges, deletions and moves are deliberately not auto saved — those wait for you to review and save
+- **Backup copies to keep** setting added — how many backup files are retained for each database when a backup directory is configured
+- CSV import now recognises the export files of many well known password managers — Bitwarden, 1Password, LastPass, NordPass, Proton Pass, Dashlane, Safari/iCloud Passwords, Firefox and Chrome/Edge
+    - The format is detected from the file's header row and the column mapping is filled in for you to check and correct before anything is imported
+    - An unrecognised export can still be mapped by hand as a generic CSV
+    - Card and identity data, from the exports that carry it, is imported into the matching OneKeePass entry types instead of being flattened into notes
+- Password generator improvements
+    - Generated passwords are shown in a monospaced font with the characters colour coded by type, both in the generator and in the entry form
+    - **Exclude similar characters** option added
+    - The options you choose are now remembered across sessions
+- The database settings **Security** tab is now called **Encryption**, and each of its fields — cipher, key derivation function, memory, parallelism and iterations — has a help tooltip explaining what it does and what changing it costs
+- System menu actions added for **Clone Entry**, **Delete Entry**, **Clone Group** and **Delete Group**, with keyboard shortcuts; the entry and group menus are enabled only when the corresponding action is possible
+- **Merge Database** is enabled only when a database is open and unlocked
+- Auto-capitalize, auto-correct and spell-check are turned off on text fields
+- User interface refinements — flat tabs and buttons (no click ripple, labels keep their natural casing), aligned entry list and entry form footers, adjusted toolbar icon spacing, themed entry count pills and consistent spacing for the icons inside text fields
+
+#### Fixed
+- Copy and paste of a password generated from **Tools -> Password Generator** now works on Windows and Linux [#87](https://github.com/OneKeePass/desktop/issues/87)
+- Sidebar scrollbar no longer appears in the middle of the entry list panel [#88](https://github.com/OneKeePass/desktop/issues/88)
+- Cursor focus is placed in the **Search term** field when the search popup opens [#89](https://github.com/OneKeePass/desktop/issues/89)
+- System menu keyboard shortcuts now work on Windows
+- The browser extension proxy no longer consumes a full CPU core
+- A database whose XML has no declaration line can now be opened [#70](https://github.com/OneKeePass/desktop/issues/70)
+
 ### 0.24.0
 
 #### Changes

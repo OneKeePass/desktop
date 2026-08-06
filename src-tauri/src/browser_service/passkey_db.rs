@@ -53,7 +53,8 @@ pub struct OpenedDbInfo {
 // The extension presents this list to the user as the first step of the
 // passkey creation popup.
 pub(crate) fn get_opened_databases_for_passkey() -> Result<Vec<OpenedDbInfo>> {
-    let db_keys = kp_service::all_kdbx_cache_keys()?;
+    // Only unlocked databases; a locked db must not be offered as a passkey target.
+    let db_keys = kp_service::unlocked_kdbx_cache_keys()?;
     let active_db_key = app_state::AppState::state_instance().active_db_key();
     let mut result = Vec::with_capacity(db_keys.len());
 
@@ -174,7 +175,8 @@ pub(crate) fn find_matching_passkeys(
     rp_id: &str,
     allow_credential_ids: Vec<String>,
 ) -> Result<Vec<PasskeySummary>> {
-    let db_keys = kp_service::all_kdbx_cache_keys()?;
+    // Search only unlocked databases; a locked (but open) db is excluded.
+    let db_keys = kp_service::unlocked_kdbx_cache_keys()?;
     kp_service::browser_extension::find_matching_passkeys(&db_keys, rp_id, &allow_credential_ids)
 }
 

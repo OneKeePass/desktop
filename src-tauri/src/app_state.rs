@@ -330,6 +330,21 @@ impl AppState {
         );
 
         if use_timestamped_name {
+            // Each timestamped backup is a new file, so old ones are trimmed
+            // before handing out the next name. Keeping (max - 1) here leaves
+            // exactly max once the caller writes the file it just asked for.
+            let max_copies = store_pref
+                .backup
+                .max_copies
+                .clamp(
+                    file_util::MIN_MAX_BACKUP_COPIES,
+                    file_util::MAX_MAX_BACKUP_COPIES,
+                ) as usize;
+            file_util::prune_timestamped_backups(
+                &backup_dir_path,
+                db_file_name,
+                max_copies.saturating_sub(1),
+            );
             file_util::generate_timestamped_backup_file_name(backup_dir_path, db_file_name)
         } else {
             file_util::generate_backup_file_name(backup_dir_path, db_file_name)
