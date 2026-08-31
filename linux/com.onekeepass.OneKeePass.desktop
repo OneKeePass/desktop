@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=OneKeePass
+GenericName=Password Manager
+Comment=Store and manage passwords in an encrypted KeePass database
+Exec=OneKeePass
+Icon=com.onekeepass.OneKeePass
+Terminal=false
+Categories=Utility;Security;
+Keywords=password;passwords;keepass;kdbx;totp;passphrase;vault;
+StartupNotify=true
+StartupWMClass=OneKeePass

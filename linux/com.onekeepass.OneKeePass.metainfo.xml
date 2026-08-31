@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2026 OneKeePass -->
+<component type="desktop-application">
+  <id>com.onekeepass.OneKeePass</id>
+
+  <name>OneKeePass</name>
+  <summary>Offline password manager</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <developer id="com.onekeepass">
+    <name>OneKeePass</name>
+  </developer>
+
+  <launchable type="desktop-id">com.onekeepass.OneKeePass.desktop</launchable>
+
+  <description>
+    <p>
+      OneKeePass keeps your passwords and other sensitive information in a single
+      encrypted KeePass-compatible database file (KDBX 4). The file stays yours: keep
+      it on your computer, on a USB drive, or on cloud storage you already use.
+    </p>
+    <p>
+      Everything happens on your own machine. There is no account to create, no server
+      to trust and no telemetry. Databases are encrypted with AES-256 or ChaCha20 and
+      unlocked with a master password, a key file, or both.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Entries organised by type, category, tag or the standard group tree</li>
+      <li>Custom entry types and any number of custom fields, grouped into sections</li>
+      <li>Built-in entry types for SSH keys, identities, passports and driver licences</li>
+      <li>Time-based one-time passwords (TOTP) with a live countdown</li>
+      <li>Password and diceware passphrase generator</li>
+      <li>File attachments, and custom icons for entries and groups</li>
+      <li>Open databases directly over SFTP or WebDAV, without a third-party sync tool</li>
+      <li>Import CSV exports from Bitwarden, 1Password, LastPass and others</li>
+      <li>Merge databases, clone entries, and work with several databases at once</li>
+    </ul>
+  </description>
+
+  <!--
+    TODO before Flathub submission: these screenshots are macOS captures at sizes
+    Flathub's quality guidelines do not accept. Recapture on Linux, showing native
+    window decoration and shadow, at 1000x700 or smaller (2000x1400 for HiDPI), then
+    re-pin the URLs to the release tag being submitted. Best screenshot goes first.
+  -->
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/OneKeePass/desktop/v0.25.0/screenshots/entrycategory-type-allentries.jpg</image>
+      <caption>Browsing all entries in a database</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/OneKeePass/desktop/v0.25.0/screenshots/entrycategory-type-allentries-okp-dark-mode.jpg</image>
+      <caption>The same database in dark mode</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/OneKeePass/desktop/v0.25.0/screenshots/Entry-Cat-Types.jpg</image>
+      <caption>Entries grouped by the type of information they hold</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/OneKeePass/desktop/v0.25.0/screenshots/Showing-Generated-Tokens-With-Time-Progress.jpg</image>
+      <caption>One-time passwords with the time remaining before they change</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/OneKeePass/desktop/v0.25.0/screenshots/New-Custom-Entry-Type.jpg</image>
+      <caption>Creating a custom entry type to use as a template</caption>
+    </screenshot>
+  </screenshots>
+
+  <url type="homepage">https://www.onekeepass.com</url>
+  <url type="bugtracker">https://github.com/OneKeePass/desktop/issues</url>
+  <url type="vcs-browser">https://github.com/OneKeePass/desktop</url>
+
+  <keywords>
+    <keyword>password</keyword>
+    <keyword>KeePass</keyword>
+    <keyword>KDBX</keyword>
+    <keyword>TOTP</keyword>
+    <keyword>encryption</keyword>
+    <keyword>vault</keyword>
+  </keywords>
+
+  <content_rating type="oars-1.1"/>
+
+  <recommends>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <display_length compare="ge">1024</display_length>
+  </recommends>
+
+  <releases>
+    <release version="0.25.0" date="2026-08-05">
+      <url type="details">https://github.com/OneKeePass/desktop/releases/tag/v0.25.0</url>
+      <description>
+        <p>
+          Locking a database now removes its decrypted content from memory, and
+          databases lock automatically when the computer sleeps.
+        </p>
+        <p>
+          CSV import recognises the export files of many password managers, the
+          password generator gained an exclude-similar-characters option and colour
+          coded output, and an optional auto-save-after-edit setting was added.
+        </p>
+      </description>
+    </release>
+  </releases>
+</component>

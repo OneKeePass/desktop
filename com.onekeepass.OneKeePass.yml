@@ -1,0 +1,302 @@
+# OneKeePass Flatpak manifest.
+#
+# Everything is built from source with no network available to any build command:
+# the Rust app, the proxy sidecar, and the ClojureScript frontend. Every dependency
+# arrives through a declared source, so what is shipped can be derived from what is
+# published.
+#
+# The four generated source lists must be regenerated whenever the matching lockfile
+# changes (see linux/README.md):
+#   cargo-sources.json        src-tauri/Cargo.lock
+#   proxy-cargo-sources.json  onekeepass-proxy/Cargo.lock
+#   node-sources.json         yarn.lock
+#   maven-sources.json        src-cljs/shadow-cljs.edn
+#
+# This lives at the repo root rather than in linux/ because --sandbox — the mode
+# Flathub's buildbot uses — refuses any source outside the manifest's own directory.
+# The Flathub manifest satisfies that by pulling the repo as one git source; here the
+# manifest has to sit above the trees it references instead.
+#
+# Build:   flatpak run org.flatpak.Builder --force-clean --user --install build-dir \
+#            com.onekeepass.OneKeePass.yml
+# Run:     flatpak run com.onekeepass.OneKeePass
+#
+# Prove it builds offline the way Flathub's buildbot does — download first, then build
+# with the network and the download cache both taken away:
+#   flatpak run org.flatpak.Builder --download-only build-dir \
+#     com.onekeepass.OneKeePass.yml
+#   flatpak run org.flatpak.Builder --force-clean --sandbox --disable-download \
+#     --user --install build-dir com.onekeepass.OneKeePass.yml
+
+id: com.onekeepass.OneKeePass
+
+# Verified on the Fedora VM 2026-08-29:
+#   - org.gnome.Platform/Sdk 49 and 50 are both published; 50 chosen because GNOME
+#     runtimes get roughly a year of support (48 released 2025-03, EOL 2026-03), so 49
+#     is close to EOL and would force an immediate bump.
+#   - `pkg-config --exists webkit2gtk-4.1` succeeds in org.gnome.Sdk//50, which is the
+#     API version Tauri v2 targets.
+#   - The Sdk's extension point declares `version = 25.08`, so the rust-stable branch
+#     is 25.08 (Rust 1.98.0) — the newest published. No version is named below because
+#     flatpak-builder resolves it from that extension point.
+# Do not copy the runtime version from the Tauri docs; they still show 47.
+runtime: org.gnome.Platform
+runtime-version: '50'
+sdk: org.gnome.Sdk
+# Pinned explicitly rather than the unversioned org.freedesktop.Sdk.Extension.openjdk:
+# that alias tracks whatever JDK the SDK considers default and can shift between runtime
+# releases. openjdk21 + node20 match the Mac toolchain (JDK 21.0.6, Node 20.20.2), so the
+# Flatpak-built bundle corresponds to what `just build-cljs-bundle` produces there.
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+  - org.freedesktop.Sdk.Extension.openjdk21
+  - org.freedesktop.Sdk.Extension.node20
+
+command: OneKeePass
+
+# The compiled ClojureScript is handed from the frontend module to the Rust module
+# through /app (see onekeepass-cljs below); strip it from the finished app.
+cleanup:
+  - /share/onekeepass-build
+
+finish-args:
+  # Display
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  - --device=dri
+
+  # Remote storage (SFTP/WebDAV) and favicon fetch
+  - --share=network
+
+  # Encryption key for an open database is held in the freedesktop Secret Service
+  # (src-tauri/Cargo.toml: keyring-core + zbus-secret-service-keyring-store)
+  - --talk-name=org.freedesktop.secrets
+
+  # power_monitor.rs takes a logind delay inhibitor and listens for PrepareForSleep so
+  # open databases are encrypted before the memory image can reach a hibernation file.
+  # It uses the SYSTEM bus (Connection::system(), power_monitor.rs:190), which the
+  # sandbox does not have by default — without this the app logs
+  # "lock-on-suspend: no system D-Bus, sleep locking disabled" and the feature is
+  # silently off.
+  - --system-talk-name=org.freedesktop.login1
+
+  # app_paths.rs::app_home_dir() is std::env::home_dir()/.onekeepass/prod — a dotdir in
+  # $HOME, not an XDG dir. That path is not writable in the sandbox, and
+  # init_app_paths() probes writability at startup, so WITHOUT THIS THE APP WILL NOT
+  # START. --persist maps it to ~/.var/app/com.onekeepass.OneKeePass/.onekeepass.
+  # Holds preferences, logs, backups and wordlists.
+  - --persist=.onekeepass
+
+  # NOTE: no --filesystem grant on purpose. Database files come through the XDG
+  # document portal (Flathub makes portals mandatory where one exists). Verified
+  # 2026-08-30: opening, saving and the recent-databases list all survive the portal's
+  # /run/user/<uid>/doc/... indirection, because the document id stays stable across
+  # restarts. The recents list does display those raw portal paths rather than the
+  # user's own ~/Documents/... path, which is cosmetic and tracked separately.
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  env:
+    # Matches `just build-linux-x86_64`; botan is vendored via onekeepass-core
+    BOTAN_CONFIGURE_EXTRA_CXXFLAGS: '-fPIC'
+  # No build-args here on purpose. flatpak-builder gives a build no network unless it is
+  # asked for, so the absence of --share=network is what makes this Flathub-legal — and
+  # what forces every dependency to be a declared source.
+
+# Split into four modules on purpose. flatpak-builder caches per module, and a change
+# anywhere in a module re-runs all of it — with everything in one module, editing an
+# `install` line cost a full 21-minute cargo rebuild. The expensive Rust and
+# ClojureScript builds are now isolated from the cheap file-install steps.
+modules:
+
+  # ---------------------------------------------------------------- sidecar
+  - name: onekeepass-proxy
+    buildsystem: simple
+    build-options:
+      env:
+        CARGO_HOME: /run/build/onekeepass-proxy/cargo
+    sources:
+      - type: dir
+        path: onekeepass-proxy
+        dest: onekeepass-proxy
+        skip:
+          - target
+          - binaries
+      # Vendored crates plus the cargo config that redirects crates.io to them.
+      # Generated from onekeepass-proxy/Cargo.lock.
+      - linux/proxy-cargo-sources.json
+    build-commands:
+      - cd onekeepass-proxy && cargo build --release --locked
+      # proxy_full_path() looks for current_exe().parent()/onekeepass-proxy
+      - install -Dm755 onekeepass-proxy/target/release/onekeepass-proxy
+        /app/bin/onekeepass-proxy
+
+  # ---------------------------------------------------------------- frontend
+  # Compiles the ClojureScript here rather than shipping the bundle built on the
+  # developer's machine. resources/public/cljs-out/dev/main.js is a Closure :advanced
+  # build — nobody can audit it against the published source, and for a password
+  # manager the shipped UI should be derivable from what is published.
+  - name: onekeepass-cljs
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/openjdk21/bin:/usr/lib/sdk/node20/bin
+      env:
+        # yarn keeps its cache and .yarnrc under $HOME; point it at the build dir so it
+        # is writable and self-contained. Note this does NOT decide where shadow-cljs
+        # looks for Maven artifacts — see the :local-repo command below.
+        HOME: /run/build/onekeepass-cljs
+        npm_config_cache: /run/build/onekeepass-cljs/npm-cache
+        # flatpak-node-generator's node-headers source expects the node-gyp cache here
+        XDG_CACHE_HOME: /run/build/onekeepass-cljs/flatpak-node/cache
+    sources:
+      - type: dir
+        path: src-cljs
+        dest: src-cljs
+        skip:
+          - .shadow-cljs
+          - .clj-kondo
+          - .lsp
+          - .calva
+      - type: dir
+        path: resources
+        dest: resources
+      - type: file
+        path: package.json
+      - type: file
+        path: yarn.lock
+      # The node extension ships npm but not yarn, and SDK extensions are mounted
+      # READ-ONLY, so `npm install -g yarn` fails with ENOENT trying to mkdir under
+      # /usr/lib/sdk/node20/lib/node_modules. Bring yarn in as a declared source
+      # instead: pinned by checksum, needs no global write, and needs no network.
+      # Version matches the Mac toolchain (yarn 1.22.22).
+      - type: archive
+        url: https://registry.npmjs.org/yarn/-/yarn-1.22.22.tgz
+        sha256: c17d3797fb9a9115bf375e31bfd30058cac6bc9c3b8807a3d8cb2094794b51ca
+        dest: yarn
+      # The 248 npm tarballs, as a yarn offline mirror. Generated from yarn.lock.
+      - linux/node-sources.json
+      # The Maven artifacts shadow-cljs resolves, as a populated local repository:
+      # 58 jars plus the 113 poms Aether reads to rebuild the dependency graph.
+      # Generated by linux/flatpak-maven-generator.py.
+      - linux/maven-sources.json
+    build-commands:
+      # Invoke yarn's entry point directly through node — no PATH or shim needed.
+      # Point it at the mirror node-sources.json populated, then install from it alone.
+      - node yarn/bin/yarn.js config --offline set yarn-offline-mirror
+        $FLATPAK_BUILDER_BUILDDIR/flatpak-node/yarn-mirror
+      - node yarn/bin/yarn.js install --offline --frozen-lockfile --non-interactive
+
+      # Tell shadow-cljs where the vendored Maven repository is. This cannot be done
+      # with HOME: shadow-cljs resolves through pomegranate/Aether, which takes the
+      # default repository path from the JVM's user.home, and the JVM reads that from
+      # the OS rather than the environment. Setting HOME alone leaves the resolver
+      # looking somewhere else entirely and it would try to reach the network.
+      # :local-repo is read from the config map, so prepending it to the map is enough.
+      - 'sed -i "1s|^{|{:maven {:local-repo \"$FLATPAK_BUILDER_BUILDDIR/.m2/repository\"} |" src-cljs/shadow-cljs.edn'
+
+      # Mirrors src-cljs/justfile's shadow-cljs-clean-release. The rm matters: if a
+      # Mac-built cljs-out arrived with the resources source, a skipped or failed
+      # compile would otherwise ship it silently — the exact failure D1 option B exists
+      # to prevent.
+      - rm -rf resources/public/cljs-out
+      - cd src-cljs && ../node_modules/.bin/shadow-cljs release app
+
+      # cljs-out is a build INPUT to the onekeepass module (embedded by
+      # generate_context!), not a runtime file, and each module gets a fresh build dir.
+      # Hand it over through /app; the top-level cleanup: strips it from the final app.
+      - mkdir -p /app/share/onekeepass-build
+      - cp -r resources/public/cljs-out /app/share/onekeepass-build/cljs-out
+
+  # ---------------------------------------------------------------- the app
+  - name: onekeepass
+    buildsystem: simple
+    build-options:
+      env:
+        CARGO_HOME: /run/build/onekeepass/cargo
+    # tauri.conf.json's frontendDist is "../resources/public" and its externalBin is
+    # "../onekeepass-proxy/binaries/onekeepass-proxy", both relative to src-tauri, so
+    # the trees must stay siblings.
+    sources:
+      - type: dir
+        path: src-tauri
+        dest: src-tauri
+        skip:
+          - target
+          - swift-lib
+      - type: dir
+        path: resources
+        dest: resources
+      # Vendored crates plus the cargo config that redirects crates.io — and the
+      # onekeepass-core git dependency — to them. Generated from src-tauri/Cargo.lock.
+      - linux/cargo-sources.json
+    build-commands:
+      # Take the ClojureScript built by the onekeepass-cljs module. Without this the
+      # binary would embed whatever cljs-out the resources source happened to carry.
+      - rm -rf resources/public/cljs-out
+      - cp -r /app/share/onekeepass-build/cljs-out resources/public/cljs-out
+
+      # tauri-build resolves externalBin during the app build, so the sidecar must
+      # already sit at the target-triple path `just build-linux-x86_64` uses. Take it
+      # from /app, which the previous module has already populated.
+      - install -Dm755 /app/bin/onekeepass-proxy
+        onekeepass-proxy/binaries/onekeepass-proxy-x86_64-unknown-linux-gnu
+
+      # Deliberately `cargo build`, not `cargo tauri build`: we want the binary, not
+      # deb/rpm/AppImage bundles. The frontend (resources/public, including the cljs-out
+      # copied in above) is embedded by tauri::generate_context! at compile time.
+      - cd src-tauri && cargo build --release --locked
+
+      # The cargo package is `onekeepass-frontend` (src-tauri/Cargo.toml) with no
+      # [[bin]] override, so the built binary carries that name. tauri.conf.json's
+      # mainBinaryName "OneKeePass" is applied by `cargo tauri build` during bundling,
+      # which we skip — so rename here. Matches what the .deb ships (/usr/bin/OneKeePass)
+      # and keeps `command:` and the .desktop Exec aligned.
+      - install -Dm755 src-tauri/target/release/onekeepass-frontend /app/bin/OneKeePass
+
+  # ------------------------------------------------- resources and desktop files
+  # Cheap module: iterate here without touching the Rust builds above.
+  - name: onekeepass-data
+    buildsystem: simple
+    sources:
+      - type: dir
+        path: linux
+        dest: linux
+      - type: dir
+        path: resources
+        dest: resources
+      - type: file
+        path: LICENSE
+    build-commands:
+      # tauri.conf.json bundle.resources are given as "../resources/public/<x>", relative
+      # to src-tauri. Tauri resolves the resource root at <exe_dir>/../lib/<productName>
+      # and encodes each leading ".." as "_up_", so the runtime paths are
+      #   /app/lib/OneKeePass/_up_/resources/public/{icons,translations,wordlists}
+      # Confirmed 2026-08-30 from the app's own startup log:
+      #   Translation files root dir for i18n is
+      #     "/app/lib/OneKeePass/_up_/resources/public/translations"
+      # Flattening these into /app/lib/OneKeePass/ builds fine and then fails silently
+      # at runtime as untranslated UI.
+      - mkdir -p /app/lib/OneKeePass/_up_/resources/public
+      - cp -r resources/public/icons resources/public/translations resources/public/wordlists
+        /app/lib/OneKeePass/_up_/resources/public/
+
+      # Both already named by the app ID, as Flathub requires
+      - install -Dm644 linux/com.onekeepass.OneKeePass.desktop
+        /app/share/applications/com.onekeepass.OneKeePass.desktop
+      - install -Dm644 linux/com.onekeepass.OneKeePass.metainfo.xml
+        /app/share/metainfo/com.onekeepass.OneKeePass.metainfo.xml
+      # Install each icon explicitly rather than `cp -r linux/icons/hicolor
+      # /app/share/icons/`: when /app/share/icons does not exist yet, cp treats it as
+      # the destination NAME and renames hicolor to icons, dropping the theme
+      # directory. The icons then sit outside any icon theme and flatpak warns
+      # "Icon referenced in desktop file but not exported". install -D creates the
+      # parents and cannot be misread.
+      - install -Dm644 linux/icons/hicolor/256x256/apps/com.onekeepass.OneKeePass.png
+        /app/share/icons/hicolor/256x256/apps/com.onekeepass.OneKeePass.png
+      - install -Dm644 linux/icons/hicolor/512x512/apps/com.onekeepass.OneKeePass.png
+        /app/share/icons/hicolor/512x512/apps/com.onekeepass.OneKeePass.png
+
+      # Flathub requires each module's license under share/licenses
+      - install -Dm644 LICENSE
+        /app/share/licenses/com.onekeepass.OneKeePass/LICENSE
