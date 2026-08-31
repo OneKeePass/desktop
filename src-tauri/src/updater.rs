@@ -24,6 +24,9 @@ const USER_AGENT: &str = "OneKeePass-Updater";
 #[serde(rename_all = "camelCase")]
 pub struct UpdateCheckResult {
     pub update_available: bool,
+    // True when something other than this app installs updates, so the UI must
+    // not offer a download. The remaining fields carry no useful value then.
+    pub managed_externally: bool,
     pub current_version: String,
     pub latest_version: String,
     pub release_notes: String,
@@ -31,6 +34,21 @@ pub struct UpdateCheckResult {
 }
 
 pub async fn check_for_updates(current_version: String) -> Result<UpdateCheckResult, String> {
+    // A Flatpak is updated by the package manager it was installed with. Offering
+    // a GitHub download here would leave the user with a second, unmanaged copy,
+    // and the running one would keep reporting the old version. Answer without a
+    // network call rather than asking GitHub something we cannot act on.
+    if crate::sandbox::is_flatpak() {
+        return Ok(UpdateCheckResult {
+            update_available: false,
+            managed_externally: true,
+            current_version,
+            latest_version: String::new(),
+            release_notes: String::new(),
+            download_url: String::new(),
+        });
+    }
+
     check_via_atom_feed(current_version).await
 }
 
@@ -79,6 +97,7 @@ async fn check_via_atom_feed(current_version: String) -> Result<UpdateCheckResul
 
     Ok(UpdateCheckResult {
         update_available,
+        managed_externally: false,
         current_version,
         latest_version,
         release_notes: entry.notes,
@@ -293,6 +312,7 @@ async fn check_via_rest_api(current_version: String) -> Result<UpdateCheckResult
 
     Ok(UpdateCheckResult {
         update_available,
+        managed_externally: false,
         current_version,
         latest_version,
         release_notes,

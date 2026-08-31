@@ -224,6 +224,10 @@ modules:
         skip:
           - target
           - swift-lib
+          # Editor/LSP caches. .lsp is gitignored, but .clj-kondo/.cache/v1/lock is
+          # tracked, so it would arrive with the git source on Flathub too.
+          - .lsp
+          - .clj-kondo
       - type: dir
         path: resources
         dest: resources

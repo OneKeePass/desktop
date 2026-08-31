@@ -317,6 +317,7 @@
             "sshAgentSignRequest": "SSH agent signing request",
             "unsavedChanges": "Unsaved Changes",
             "updateAvailable": "Update Available",
+            "updatesManagedExternally": "Updates Are Managed Externally",
             "upToDate": "You're Up to Date"
         },
         "texts": {
@@ -384,6 +385,7 @@
             "unsavedChangesTxt3": "There are changes yet to be saved. Do you want to save before closing the database?",
             "updateAvailable": "A new version {{latestVersion}} is available. You are running {{currentVersion}}.",
             "updateCheckFailed": "Could not check for updates. Please try again later.",
+            "updatesManagedExternally": "This installation is updated by the package manager it was installed with. You are running {{currentVersion}}.",
             "upToDate": "You are running the latest version ({{currentVersion}})."
         }
     },

@@ -69,9 +69,25 @@
                              (gd-events/check-for-updates-dialog-close))}
      (lstr-bl "ok")]]])
 
+(defn- managed-externally-dialog [{:keys [current-version]}]
+  [mui-dialog {:open true
+               :dir (t/dir)
+               :on-click #(.stopPropagation ^js/Event %)
+               :sx {"& .MuiPaper-root" {:width "420px"}}}
+   [mui-dialog-title (lstr-dlg-title 'updatesManagedExternally)]
+   [mui-divider]
+   [mui-dialog-content {:sx {:pt 2}}
+    [mui-typography {:variant "body1"}
+     (lstr-dlg-text 'updatesManagedExternally {:current-version current-version})]]
+   [mui-dialog-actions
+    [mui-button {:on-click (fn []
+                             (gd-events/check-for-updates-dialog-close))}
+     (lstr-bl "ok")]]])
+
 (defn check-for-updates-dialog-main []
   (let [{:keys [dialog-show data]} @(gd-events/check-for-updates-dialog-data)]
     (when dialog-show
-      (if (:update-available? data)
-        [update-available-dialog data]
-        [up-to-date-dialog data]))))
+      (cond
+        (:update-available? data)   [update-available-dialog data]
+        (:managed-externally? data) [managed-externally-dialog data]
+        :else                       [up-to-date-dialog data]))))

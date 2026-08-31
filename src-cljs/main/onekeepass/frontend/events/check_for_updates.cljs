@@ -24,6 +24,7 @@
    ;; The Rust side returns `updateAvailable` (camelCase). invoke-api
    ;; kebab-cases it to :update-available — note: no `?` suffix.
    (let [{:keys [update-available
+                 managed-externally
                  current-version
                  latest-version
                  release-notes
@@ -41,6 +42,14 @@
 
        silent?
        {}
+
+       ;; Nothing to download - the install is updated by whatever package
+       ;; manager put it there. Only worth saying when the user asked.
+       managed-externally
+       {:fx [[:dispatch
+              [:generic-dialog-show-with-state :check-for-updates-dialog
+               {:data {:managed-externally? true
+                       :current-version current-version}}]]]}
 
        :else
        {:fx [[:dispatch

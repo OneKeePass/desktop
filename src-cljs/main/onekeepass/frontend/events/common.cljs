@@ -61,6 +61,28 @@
       #_(str (if (str/blank? file-name) after-uuid file-name)
              " (" label ")"))))
 
+(def ^:private document-portal-path-re
+  ;; A sandboxed app is handed /run/user/<uid>/doc/<doc-id>/<file name> instead
+  ;; of the path the user picked. The directory is an indirection the portal
+  ;; creates per file per app - it is stable, but it names nothing the user
+  ;; would recognise.
+  #"^/run/user/\d+/doc/[^/]+/(.+)$")
+
+(defn document-portal-path-display
+  "Renders an XDG document portal path as just the file name. Returns nil for
+   any other path, so callers can fall back to the db-key as-is."
+  [db-key]
+  (second (re-matches document-portal-path-re db-key)))
+
+(defn db-key-display
+  "Label to show for a db-key in the recent-files lists. Falls back to the
+   db-key itself, which is what a plain local path should show. Both call sites
+   keep the full db-key in a tooltip, so this only decides the visible line."
+  [db-key]
+  (or (remote-db-key-display db-key)
+      (document-portal-path-display db-key)
+      db-key))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn sync-initialize

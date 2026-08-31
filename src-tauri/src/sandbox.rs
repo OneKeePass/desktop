@@ -21,6 +21,20 @@ pub fn is_sandboxed() -> bool {
     false
 }
 
+// True when running inside a Flatpak. The runtime writes /.flatpak-info into
+// every instance before the app starts. $FLATPAK_ID is also set, but it is a
+// plain environment variable and survives into processes launched on the host,
+// so the file is the reliable signal.
+#[cfg(target_os = "linux")]
+pub fn is_flatpak() -> bool {
+    std::path::Path::new("/.flatpak-info").exists()
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn is_flatpak() -> bool {
+    false
+}
+
 // User's real home directory, even when called from inside an App Sandbox
 // where $HOME is redirected to the per-app container. Strips the
 // /Library/Containers/<bundle>/Data suffix when present.
