@@ -1,3 +1,10 @@
+### 0.25.1
+
+#### Changes
+- OneKeePass is now published on Flathub and can be installed as a Flatpak. The Flatpak is built entirely from source, including the user interface, so what is shipped can be checked against what is published
+- In the Flatpak build, **Check for Updates** now explains that your package manager provides updates instead of offering a download, and no update check is made at startup
+- The recent databases list now shows plain file names for databases opened through the desktop file chooser, rather than the internal path a sandboxed application is given
+
 ### 0.25.0
 
 #### Changes

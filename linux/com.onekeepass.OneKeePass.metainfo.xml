@@ -41,31 +41,30 @@
   </description>
 
   <!--
-    TODO before Flathub submission: these screenshots are macOS captures at sizes
-    Flathub's quality guidelines do not accept. Recapture on Linux, showing native
-    window decoration and shadow, at 1000x700 or smaller (2000x1400 for HiDPI), then
-    re-pin the URLs to the release tag being submitted. Best screenshot goes first.
+    Captured on Linux at 1024x700 with native window decoration and shadow, as
+    Flathub's quality guidelines ask. Exactly one screenshot carries type="default"
+    - it is the one shown first, and AppStream allows only one.
+
+    The URLs are fetched by Flathub at BUILD time, so they must be pinned to a ref
+    that exists and never moves. A tag that has not been pushed yet, or one that is
+    later moved, is a failed build.
   -->
   <screenshots>
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/OneKeePass/desktop/v0.25.0/screenshots/entrycategory-type-allentries.jpg</image>
-      <caption>Browsing all entries in a database</caption>
+      <image>https://raw.githubusercontent.com/OneKeePass/desktop/v0.25.1/screenshots/fh-entry-form-light-mode.png</image>
+      <caption>Browsing a database with an entry's details and a live one-time password</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/OneKeePass/desktop/v0.25.0/screenshots/entrycategory-type-allentries-okp-dark-mode.jpg</image>
-      <caption>The same database in dark mode</caption>
+      <image>https://raw.githubusercontent.com/OneKeePass/desktop/v0.25.1/screenshots/fh-entry-form-dark-mode.png</image>
+      <caption>The same entry shown in dark mode</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/OneKeePass/desktop/v0.25.0/screenshots/Entry-Cat-Types.jpg</image>
-      <caption>Entries grouped by the type of information they hold</caption>
+      <image>https://raw.githubusercontent.com/OneKeePass/desktop/v0.25.1/screenshots/fh-password-generator.png</image>
+      <caption>Generating a password with adjustable length and character sets</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/OneKeePass/desktop/v0.25.0/screenshots/Showing-Generated-Tokens-With-Time-Progress.jpg</image>
-      <caption>One-time passwords with the time remaining before they change</caption>
-    </screenshot>
-    <screenshot>
-      <image>https://raw.githubusercontent.com/OneKeePass/desktop/v0.25.0/screenshots/New-Custom-Entry-Type.jpg</image>
-      <caption>Creating a custom entry type to use as a template</caption>
+      <image>https://raw.githubusercontent.com/OneKeePass/desktop/v0.25.1/screenshots/fh-application-settings.png</image>
+      <caption>Application settings, including the interface language</caption>
     </screenshot>
   </screenshots>
 
@@ -91,6 +90,21 @@
   </recommends>
 
   <releases>
+    <release version="0.25.1" date="2026-08-31">
+      <url type="details">https://github.com/OneKeePass/desktop/releases/tag/v0.25.1</url>
+      <description>
+        <p>
+          The first release published on Flathub. The Flatpak is built entirely from
+          source, the user interface included, so what is shipped can be checked
+          against what is published.
+        </p>
+        <p>
+          Checking for updates now explains that your package manager provides them
+          instead of offering a download, and the recent databases list shows plain
+          file names for databases opened through the desktop file chooser.
+        </p>
+      </description>
+    </release>
     <release version="0.25.0" date="2026-08-05">
       <url type="details">https://github.com/OneKeePass/desktop/releases/tag/v0.25.0</url>
       <description>
