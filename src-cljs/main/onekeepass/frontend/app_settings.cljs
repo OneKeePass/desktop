@@ -248,28 +248,39 @@
 
 (declare browser-manifest-statuses)
 
+;; Explains a setting that is shown but cannot be turned on in this build. Turning
+;; the setting on would fail at the point of use -- with a permission error for the
+;; browser manifest, or silently for the agent socket -- so the reason is given up
+;; front instead.
+(defn- unavailable-note [help-key]
+  [mui-alert {:severity "info" :sx {:mb 2}} (t/lstr-h help-key)])
+
 (defn browser-integration [{:keys [_error-fields]
                             {:keys  [browser-ext-support]} :preference-data}]
   ;; (println "browser-ext-support: " browser-ext-support)
-  [mui-stack
-   [settings-panel-title (tr-t "extensions")]
+  (let [flatpak? (boolean @(ce/is-flatpak-build?))]
+    [mui-stack
+     [settings-panel-title (tr-t "extensions")]
 
-   [mui-stack {:spacing 2 :sx {:alignItems "center"}}
-    [mui-box {:sx {:width "80%"}}
-     [mui-stack {:direction "row" :sx {:justify-content "space-between"}}
-      [mui-form-control-label
-       {:control (r/as-element
-                  [mui-checkbox
-                   {:checked (:extension-use-enabled browser-ext-support)
-                    :on-change (fn [^js/CheckedEvent e]
-                                 (let [checked? (-> e .-target  .-checked)]
-                                   ;; If user is disabling browser ext support, we need to clear the allowed-browsers list
-                                   (when (not checked?)
-                                     (app-settings-events/field-update
-                                      [:preference-data :browser-ext-support :allowed-browsers] []))
-                                   (app-settings-events/field-update [:preference-data :browser-ext-support :extension-use-enabled] checked?)))}])
-        :label (tr-l "enableBrowserIntegration")}]]]]
-   #_[browser-manifest-statuses]])
+     [mui-stack {:spacing 2 :sx {:alignItems "center"}}
+      [mui-box {:sx {:width "80%"}}
+       (when flatpak?
+         [unavailable-note 'browserIntegrationUnavailableFlatpak])
+       [mui-stack {:direction "row" :sx {:justify-content "space-between"}}
+        [mui-form-control-label
+         {:control (r/as-element
+                    [mui-checkbox
+                     {:checked (and (not flatpak?) (:extension-use-enabled browser-ext-support))
+                      :disabled flatpak?
+                      :on-change (fn [^js/CheckedEvent e]
+                                   (let [checked? (-> e .-target  .-checked)]
+                                     ;; If user is disabling browser ext support, we need to clear the allowed-browsers list
+                                     (when (not checked?)
+                                       (app-settings-events/field-update
+                                        [:preference-data :browser-ext-support :allowed-browsers] []))
+                                     (app-settings-events/field-update [:preference-data :browser-ext-support :extension-use-enabled] checked?)))}])
+          :label (tr-l "enableBrowserIntegration")}]]]]
+     #_[browser-manifest-statuses]]))
 
 ;; SSH agent settings panel. Like the other preference panels, the enable
 ;; checkbox only stages the desired flag into preference-data (lighting up the
@@ -279,7 +290,8 @@
 (defn ssh-agent-panel [{{:keys [ssh-agent-support]} :preference-data}]
   (r/with-let [_ (ssh-agent-events/init-panel)]
     (let [{:keys [running socket-path key-count error transport mode]} @(ssh-agent-events/agent-status)
-          enabled? (boolean (:enabled ssh-agent-support))
+          flatpak? (boolean @(ce/is-flatpak-build?))
+          enabled? (and (not flatpak?) (boolean (:enabled ssh-agent-support)))
           configured-mode (or (:mode ssh-agent-support) const/SSH_AGENT_MODE_AGENT)
           client-mode? (= configured-mode const/SSH_AGENT_MODE_CLIENT)
           configured-transport (or (:client-transport ssh-agent-support)
@@ -297,11 +309,14 @@
 
        [mui-stack {:spacing 2 :sx {:alignItems "center"}}
         [mui-box {:sx {:width "80%"}}
+         (when flatpak?
+           [unavailable-note 'sshAgentUnavailableFlatpak])
          [mui-stack {:direction "row" :sx {:justify-content "space-between"}}
           [mui-form-control-label
            {:control (r/as-element
                       [mui-checkbox
                        {:checked enabled?
+                        :disabled flatpak?
                         :on-change (fn [^js/CheckedEvent e]
                                      (app-settings-events/field-update
                                       [:preference-data :ssh-agent-support :enabled]

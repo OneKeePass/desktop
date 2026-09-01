@@ -683,6 +683,12 @@ pub(crate) struct SystemInfoWithPreference {
     // either kernel-blocked under App Sandbox (auto-type) or otherwise
     // unavailable in the MAS build, so users don't see non-functional UI.
     mas_build: bool,
+    // True when running inside a Flatpak. Same purpose as mas_build: the sandbox
+    // has no write access to a browser's own config directory, where the
+    // native-messaging manifest has to go, and the SSH agent socket has not been
+    // shown to be reachable from outside the sandbox. The cljs UI shows both
+    // settings disabled with the reason rather than letting them fail on use.
+    flatpak_build: bool,
     // True when the app found the '.portable' marker next to the exe and keeps
     // all its data in 'onekeepass-data' beside the exe (Windows portable zip)
     portable: bool,
@@ -719,6 +725,7 @@ impl SystemInfoWithPreference {
             preference: pref.clone(),
             dev_mode: cfg!(feature = "onekeepass-dev"),
             mas_build: cfg!(feature = "mas-build"),
+            flatpak_build: crate::sandbox::is_flatpak(),
             portable: app_paths::is_portable(),
         }
     }

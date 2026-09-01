@@ -176,6 +176,13 @@
 (defn is-mas-build? []
   (subscribe [:mas-build]))
 
+;; True when running inside a Flatpak. Used to show the Browser Integration and
+;; SSH Agent settings disabled with a reason: the sandbox cannot write the
+;; native-messaging manifest into a browser's config dir, and the agent socket
+;; is not known to be reachable from outside the sandbox.
+(defn is-flatpak-build? []
+  (subscribe [:flatpak-build]))
+
 (defn biometric-type-available []
   (subscribe [:biometric-type-available]))
 
@@ -238,6 +245,7 @@
                                       biometric-type-available
                                       dev-mode
                                       mas-build
+                                      flatpak-build
                                       preference]}]]
    (set-session-timeout (:session-timeout preference))
    (set-clipboard-timeout (:clipboard-timeout preference))
@@ -253,6 +261,7 @@
             (assoc :arch arch)
             (assoc :dev-mode dev-mode)
             (assoc :mas-build mas-build)
+            (assoc :flatpak-build flatpak-build)
             (assoc-in [:background-loading-statuses :app-preference] true))}))
 
 (reg-event-db
@@ -400,6 +409,11 @@
  :mas-build
  (fn [db _query-vec]
    (:mas-build db)))
+
+(reg-sub
+ :flatpak-build
+ (fn [db _query-vec]
+   (:flatpak-build db)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

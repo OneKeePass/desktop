@@ -2,6 +2,7 @@
     "helperTexts": {
         "autoSaveHelp": "Saves the database automatically once an edit is complete. Imports, merges, deletions and moves are not auto saved — those wait for you to review and save.",
         "backupMaxCopiesHelp": "How many backup copies to keep for each database. The oldest are removed once this many exist.",
+        "browserIntegrationUnavailableFlatpak": "Not available in the Flatpak build. Registering with a browser needs write access to the browser's own configuration directory, which this package does not have. Use the deb, rpm or AppImage package if you need browser integration.",
         "cardVerificationValue/Number": "Card Verification Value/Number",
         "copiedToClipboard": "Copied to clipboard",
         "customFieldAdded": "Custom field added. You can add more field or cancel to close",
@@ -32,6 +33,7 @@
         "requiresApplicationRestart": "Requires application restart",
         "selectAValidGroup": "Please select a valid group",
         "selectTag": "Select a tag or start entering a new tag and add",
+        "sshAgentUnavailableFlatpak": "Not available in the Flatpak build. Use the deb, rpm or AppImage package if you need the SSH agent.",
         "transformRounds": "Number of passes the key derivation makes. Higher values make unlocking slower for you and much slower for anyone trying to guess your password."
     },
     "titles": {
