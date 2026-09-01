@@ -6,8 +6,9 @@ Files here build OneKeePass as a Flatpak for Flathub. The app ID is
 The manifest itself is one level up, at `desktop/com.onekeepass.OneKeePass.yml`.
 `--sandbox` — the mode Flathub's buildbot builds in — rejects any source outside the
 manifest's own directory, and the manifest has to reach `src-tauri`, `src-cljs`,
-`onekeepass-proxy` and `resources`. The Flathub manifest will satisfy that rule by
-pulling the whole repo as a single git source instead.
+`onekeepass-proxy` and `resources`. The Flathub manifest satisfies that rule by
+pulling the whole repo as a single git source instead — see *The Flathub manifest*
+below.
 
 | File | What it is |
 | --- | --- |
@@ -15,6 +16,7 @@ pulling the whole repo as a single git source instead.
 | `com.onekeepass.OneKeePass.desktop` | desktop entry |
 | `icons/hicolor/**` | icons, named by app ID |
 | `flatpak-maven-generator.py` | generates `maven-sources.json` |
+| `make-flathub-manifest.py` | derives the Flathub manifest from the one above |
 | `cargo-sources.json` | generated — vendored crates for the app |
 | `proxy-cargo-sources.json` | generated — vendored crates for the proxy sidecar |
 | `node-sources.json` | generated — npm tarballs as a yarn offline mirror |
@@ -111,3 +113,38 @@ flatpak run org.flatpak.Builder --force-clean --sandbox --disable-download \
 Do not toggle `--ccache` between runs. flatpak-builder prunes cache stages it no
 longer references after a successful build, so switching it on or off costs two full
 rebuilds rather than one.
+
+## The Flathub manifest
+
+The manifest published on Flathub is not maintained by hand. It differs from
+`desktop/com.onekeepass.OneKeePass.yml` in exactly one way — each module's
+`type: dir` / `type: file` sources become one `type: git` source pinned to a tag — so
+it is derived, and the two cannot drift:
+
+```sh
+python3 linux/make-flathub-manifest.py --tag v0.25.1 --out-dir /tmp/flathub-pr
+```
+
+That writes what the Flathub repo holds, and nothing else:
+
+```
+com.onekeepass.OneKeePass.yml
+flathub.json                  # only-arches: [x86_64]
+linux/cargo-sources.json
+linux/proxy-cargo-sources.json
+linux/node-sources.json
+linux/maven-sources.json
+```
+
+The four lists are copied rather than fetched with the git source because a source
+list is read relative to the **manifest's** repo. Regenerate them here, then re-run
+the script and copy its output across.
+
+The script refuses to run unless the tag exists **and is already pushed**. That is
+not pedantry: Flathub downloads the AppStream screenshot URLs at build time and they
+are pinned to the same tag, so generating against a local-only tag produces a
+manifest that fails to build for everyone but you.
+
+Never move or delete a tag Flathub has built from. It rebuilds by itself when the
+runtime updates, and re-reads both the tag and those URLs. If review asks for
+changes, cut a new version.
