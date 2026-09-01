@@ -138,7 +138,28 @@ linux/maven-sources.json
 
 The four lists are copied rather than fetched with the git source because a source
 list is read relative to the **manifest's** repo. Regenerate them here, then re-run
-the script and copy its output across.
+the script and copy its output across. The script also appends the trailing newline
+that the upstream cargo and node generators omit, so regenerating them does not show
+up in git as a changed last line.
+
+### Comments: `#` ships, `##` does not
+
+Half this manifest is comments, and that is deliberate — it is where the reasoning
+behind the packaging is written down. The Flathub copy is a packaging file, not a
+document, and Flathub neither requires nor expects comments; most published manifests
+have almost none. So the two are marked apart:
+
+- `#` — kept in both. The minimum that stops a future maintainer breaking something:
+  why a permission exists, and why a build step is not what it looks like.
+- `##` — kept here only. Everything else: rationale, dates, the Fedora VM, the Mac
+  toolchain, `just` recipes, `file.rs:123` references.
+
+When a block is half and half, split it — the short version under `#`, the full
+reasoning beneath it under `##`. The `#` line is what a reviewer sees, so it has to
+stand on its own.
+
+If a reviewer asks why something is the way it is, the answer is already written under
+a `##` here; promote it to `#` and regenerate.
 
 The script refuses to run unless the tag exists **and is already pushed**. That is
 not pedantry: Flathub downloads the AppStream screenshot URLs at build time and they

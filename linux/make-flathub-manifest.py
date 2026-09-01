@@ -8,7 +8,10 @@ finish-args, the four generated source lists -- is identical, so deriving one fr
 the other is what keeps them from drifting.
 
 The transform is textual on purpose: the manifest's comments carry most of what was
-learned building it, and a YAML round-trip would throw them away.
+learned building it, and a YAML round-trip would throw them away. Comment lines
+starting with `##` are repo-only -- development history, dates, `just` recipes, source
+line references -- and are dropped here. Plain `#` comments justify a permission or a
+non-obvious build step, which is what a Flathub reviewer reads, so they stay.
 
     python3 linux/make-flathub-manifest.py --tag v0.25.1 --out-dir /tmp/flathub-pr
 
@@ -19,7 +22,6 @@ laid out as the Flathub repo expects.
 import argparse
 import json
 import re
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -41,19 +43,11 @@ HEADER = """\
 # Generated from com.onekeepass.OneKeePass.yml in the app repo by
 # linux/make-flathub-manifest.py. Edit it there, not here.
 #
-# Everything is built from source with no network available to any build command:
-# the Rust app, the proxy sidecar, and the ClojureScript frontend. Every dependency
-# arrives through a declared source, so what is shipped can be derived from what is
-# published.
+# The application, proxy and ClojureScript frontend are built from source offline.
 #
 # The four linux/*-sources.json lists live in THIS repo, not in the app repo, because
 # a source list is read relative to the manifest's own repo. Regenerate them there
 # whenever a lockfile changes and copy them across.
-#
-# The tag below is immutable. Flathub re-builds on its own when the runtime updates
-# and re-fetches the screenshot URLs in the AppStream metadata, which are pinned to
-# the same tag -- so moving or deleting it changes what is published, or breaks it.
-# Review changes get a new version, never a moved tag.
 
 """
 
@@ -99,6 +93,19 @@ def is_worktree_source(chunk: str) -> bool:
     return bool(re.search(r"^      - type: (dir|file)$", entry, re.MULTILINE))
 
 
+def strip_repo_only_comments(text: str) -> str:
+    """Drop '##' lines, and any blank line a dropped block leaves stranded."""
+    out = []
+    for line in text.splitlines(keepends=True):
+        if line.lstrip().startswith("##"):
+            continue
+        # A block that was entirely '##' can leave two blank lines where there was one.
+        if not line.strip() and out and not out[-1].strip():
+            continue
+        out.append(line)
+    return "".join(out)
+
+
 def transform(text: str, tag: str, commit: str) -> str:
     # Replace the header: its build/run instructions and its note about why the
     # manifest sits at the repo root are about the in-repo copy only.
@@ -112,7 +119,7 @@ def transform(text: str, tag: str, commit: str) -> str:
         out.append("    sources:\n" + git_source(tag, commit) + "".join(kept))
         pos = m.end()
     out.append(body[pos:])
-    return "".join(out)
+    return strip_repo_only_comments("".join(out))
 
 
 def main() -> int:
@@ -156,7 +163,10 @@ def main() -> int:
     (out_dir / "flathub.json").write_text(json.dumps({"only-arches": ["x86_64"]}, indent=4) + "\n")
 
     for name in GENERATED_LISTS:
-        shutil.copy2(repo / "linux" / name, out_dir / "linux" / name)
+        # The upstream cargo and node generators write no trailing newline. Add one so
+        # git does not report "\ No newline at end of file" on every regeneration.
+        text = (repo / "linux" / name).read_text()
+        (out_dir / "linux" / name).write_text(text if text.endswith("\n") else text + "\n")
 
     print(f"{args.tag} -> {commit}")
     for p in sorted(out_dir.rglob("*")):
