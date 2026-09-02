@@ -70,9 +70,16 @@ finish-args:
   # Remote storage (SFTP/WebDAV) and favicon fetch
   - --share=network
 
-  # Encryption key for an open database is held in the freedesktop Secret Service
-  # (src-tauri/Cargo.toml: keyring-core + zbus-secret-service-keyring-store)
-  - --talk-name=org.freedesktop.secrets
+  ## No Secret Service access on purpose. key_secure/linux.rs keeps each open
+  ## database's encryption key in the freedesktop Secret Service where one is
+  ## reachable, and in a process-local store where it is not — a fallback that
+  ## predates the Flatpak and is what the sandbox uses. The keys are scoped to an
+  ## open database (delete_key runs on close), so nothing is lost by holding them
+  ## in the process.
+  ##
+  ## org.freedesktop.portal.Secret is the portal answer, but it is not a swap: it
+  ## hands an app one secret, not a keyed store, so it would be used to encrypt a
+  ## local store of the per-database keys. Worth doing, tracked separately.
 
   # Takes a logind delay inhibitor and listens for PrepareForSleep so open databases
   # are encrypted before the memory image can reach a hibernation file. This uses the
@@ -83,13 +90,12 @@ finish-args:
   ## "lock-on-suspend: no system D-Bus, sleep locking disabled".
   - --system-talk-name=org.freedesktop.login1
 
-  # The app keeps its data in $HOME/.onekeepass — a dotdir, not an XDG dir — and probes
-  # it for writability at startup, so without this the app does not start. --persist
-  # maps it under ~/.var/app/ rather than granting any host path. Holds preferences,
-  # logs, backups and wordlists.
-  ## app_paths.rs::app_home_dir() is std::env::home_dir()/.onekeepass/prod;
-  ## init_app_paths() does the writability probe at app_paths.rs:150.
-  - --persist=.onekeepass
+  ## No grant for the app's own data directory on purpose. Under Flatpak the app puts
+  ## preferences, logs, backups and wordlists under XDG_DATA_HOME, which already
+  ## resolves to ~/.var/app/<app-id>/data and needs no permission. Other Linux packages
+  ## keep using ~/.onekeepass, which is why app_home_dir() branches on is_flatpak()
+  ## rather than changing for everyone. An earlier revision asked for
+  ## --persist=.onekeepass here; the XDG path removed the need for it.
 
   # No --filesystem grant on purpose. Database files come through the XDG document
   # portal; opening, saving and the recent-databases list all work through it, because

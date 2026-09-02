@@ -161,18 +161,30 @@ pub(crate) fn app_home_dir() -> PathBuf {
     }
 
     #[cfg(not(feature = "onekeepass-dev"))]
-    let p = std::env::home_dir()
-        .unwrap()
-        .join(Path::new(".onekeepass"))
-        .join(Path::new("prod"));
+    let variant = "prod";
 
     // To activate this feature during development, we need to use 'cargo tauri dev -f onekeepass-dev'
     #[cfg(feature = "onekeepass-dev")]
-    let p = std::env::home_dir()
+    let variant = "dev";
+
+    // Inside a Flatpak, $HOME is not writable and XDG_DATA_HOME already points at the
+    // app's own private directory (~/.var/app/<app-id>/data). Keeping the data there
+    // follows the XDG layout and needs no sandbox permission at all, where recreating
+    // ~/.onekeepass would need one.
+    //
+    // Only the Flatpak takes this path. A deb, rpm or AppImage install keeps using
+    // ~/.onekeepass, so an existing installation's preferences, logs and backups are
+    // left exactly where they are and nothing has to be migrated.
+    if crate::sandbox::is_flatpak() {
+        if let Some(data_dir) = dirs::data_dir() {
+            return data_dir.join(Path::new("onekeepass")).join(Path::new(variant));
+        }
+    }
+
+    std::env::home_dir()
         .unwrap()
         .join(Path::new(".onekeepass"))
-        .join(Path::new("dev"));
-    p
+        .join(Path::new(variant))
 }
 
 // All fns getting app dir should be called only after 'init_app_paths' is called

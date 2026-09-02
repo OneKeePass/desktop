@@ -1,3 +1,9 @@
+### 0.25.2
+
+#### Changes
+- In the Flatpak build, application data (preferences, logs, backups and wordlists) now follows the XDG layout and is kept in the application's own data directory. Other Linux packages are unchanged and continue to use `~/.onekeepass`
+- The Flatpak no longer asks for access to the system keyring. The encryption key held for an open database stays within the running application instead, using the fallback that already existed for sessions without a keyring. Other platforms are unchanged
+
 ### 0.25.1
 
 #### Changes

@@ -90,6 +90,15 @@
   </recommends>
 
   <releases>
+    <release version="0.25.2" date="2026-09-01">
+      <url type="details">https://github.com/OneKeePass/desktop/releases/tag/v0.25.2</url>
+      <description>
+        <p>Application data now follows the XDG layout and is kept in the
+          application's own data directory.</p>
+        <p>Access to the system keyring is no longer requested. The encryption key
+          held for an open database stays within the running application instead.</p>
+      </description>
+    </release>
     <release version="0.25.1" date="2026-08-31">
       <url type="details">https://github.com/OneKeePass/desktop/releases/tag/v0.25.1</url>
       <description>
