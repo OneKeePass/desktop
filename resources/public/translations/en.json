@@ -55,6 +55,7 @@
         "start": "Start",
         "supportedBrowsers": "Supported Browsers",
         "timeouts": "Timeouts",
+        "windowBehavior": "Window Behavior",
         "unlockDatabase": "Unlock Database",
         "userInterface": "User Interface"
     },

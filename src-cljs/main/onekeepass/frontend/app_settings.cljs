@@ -144,24 +144,31 @@
        (for [{:keys [name value]} entry-groupings]
          ^{:key value} [mui-menu-item {:value value} (lstr-l-cv name)]))]]]])
 
+(defn- window-behavior [{{:keys [minimize-on-copy]} :preference-data}]
+  [mui-stack
+   [settings-panel-title (tr-t "windowBehavior")]
+   [mui-stack {:sx {:alignItems "center"}}
+    [mui-box {:sx {:width "80%"}}
+     [mui-form-control-label
+      {:control (r/as-element
+                 [mui-checkbox
+                  {:checked (boolean minimize-on-copy)
+                   :on-change (fn [e]
+                                (app-settings-events/field-update
+                                 [:preference-data :minimize-on-copy]
+                                 (-> e .-target .-checked)))}])
+       :label (t/lstr-l "minimizeOnCopy")}]]]])
+
 (defn general-info [dialog-data]
   [mui-stack
    [user-interface dialog-data]
-   [entry-management dialog-data]])
+   [entry-management dialog-data]
+   [window-behavior dialog-data]])
 
 
 (defn security-info [{:keys [error-fields]
-                      {:keys  [clipboard-timeout session-timeout minimize-on-copy]} :preference-data}]
+                      {:keys  [clipboard-timeout session-timeout]} :preference-data}]
   [mui-stack
-   [mui-form-control-label
-    {:control (r/as-element
-               [mui-checkbox
-                {:checked (boolean minimize-on-copy)
-                 :on-change (fn [e]
-                              (app-settings-events/field-update
-                               [:preference-data :minimize-on-copy]
-                               (-> e .-target .-checked)))}])
-     :label (t/lstr-l "minimizeOnCopy")}]
    [settings-panel-title (tr-t "timeouts")]
 
    [mui-stack {:spacing 2 :sx {:alignItems "center"}}
