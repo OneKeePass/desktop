@@ -17,6 +17,10 @@ non-obvious build step, which is what a Flathub reviewer reads, so they stay.
 
 Writes the manifest plus flathub.json and the generated source lists into --out-dir,
 laid out as the Flathub repo expects.
+
+Run it with the tag checked out. The manifest and source lists come from the working
+tree while the output pins the tag, so the script refuses unless HEAD is at the tag and
+those files have no uncommitted changes.
 """
 
 import argparse
@@ -150,6 +154,32 @@ def main() -> int:
     )
     if remote.get(f"refs/tags/{args.tag}") != ref:
         print(f"error: {args.tag} is not pushed to origin (or points elsewhere there).", file=sys.stderr)
+        return 1
+
+    # The manifest and the source lists are read from the working tree, but the git
+    # source pins the tag. When the two disagree -- a checkout of a newer release, or
+    # uncommitted edits -- the lists no longer describe the source Flathub fetches, and
+    # its offline build fails on dependencies the VM build never saw.
+    head = git("rev-parse", "--verify", "--quiet", "HEAD").stdout.strip()
+    if head != commit:
+        print(
+            f"error: HEAD ({head[:12]}) is not at {args.tag} ({commit[:12]}).\n"
+            f"  Check out the tag:        git switch --detach {args.tag}\n"
+            f"  or use a worktree:        git worktree add ../okp-{args.tag} {args.tag}\n"
+            f"                            and pass --manifest ../okp-{args.tag}/{Path(args.manifest).name}",
+            file=sys.stderr,
+        )
+        return 1
+
+    dirty = git(
+        "status", "--porcelain", "--", Path(args.manifest).name, *(f"linux/{n}" for n in GENERATED_LISTS)
+    ).stdout
+    if dirty:
+        print(
+            f"error: uncommitted changes to files this script reads:\n{dirty}"
+            f"  Commit them and cut a new tag, or discard them.",
+            file=sys.stderr,
+        )
         return 1
 
     out_dir = Path(args.out_dir)

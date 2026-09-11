@@ -142,6 +142,20 @@ the script and copy its output across. The script also appends the trailing newl
 that the upstream cargo and node generators omit, so regenerating them does not show
 up in git as a changed last line.
 
+Run it with the tag checked out. The manifest and the four lists are read from the
+working tree, but the output pins the tag — generate for an older tag from a newer
+checkout and the lists describe dependencies the tagged source does not have, which
+Flathub's offline build rejects and a VM build never notices. So the script refuses
+unless the tag is pushed, HEAD is at the tag, and the manifest and lists have no
+uncommitted changes. To generate for an older tag without leaving your branch:
+
+```sh
+git worktree add ../okp-v0.25.3 v0.25.3
+python3 linux/make-flathub-manifest.py --tag v0.25.3 \
+  --manifest ../okp-v0.25.3/com.onekeepass.OneKeePass.yml --out-dir /tmp/flathub-pr
+git worktree remove ../okp-v0.25.3
+```
+
 ### Comments: `#` ships, `##` does not
 
 Half this manifest is comments, and that is deliberate — it is where the reasoning
