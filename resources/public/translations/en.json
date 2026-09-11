@@ -90,6 +90,7 @@
         "changeIcon": "Click to change icon",
         "changePassword": "Change password",
         "clearList": "Clear list",
+        "minimizeOnCopy": "Minimize window after copying to clipboard",
         "clipboardTimeout": "Clipboard Timeout(in sec)",
         "confirmDeleteCustomIcon": "Delete this custom icon? It will be removed from all entries and groups that use it.",
         "confirmPassword": "Confirm Password",

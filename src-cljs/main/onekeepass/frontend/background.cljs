@@ -268,10 +268,11 @@
    works even when the copy is triggered from inside a focus-trapping MUI
    dialog (e.g. the Password Generator). See write-to-clipboard for the
    Linux/Wayland webview-native path."
-  [data]
+  [data on-success]
   (go
     (try
       (<p! (writeText data))
+      (on-success)
       (catch js/Error err
         (js/console.error "write-to-clipboard-plugin failed: " err)))))
 
@@ -319,11 +320,12 @@
   "Linux GTK-backed clipboard write. Used instead of the webview's
    execCommand('copy'), which does not reliably place programmatically-copied
    text on the GTK clipboard (e.g. from the Password Generator dialog)."
-  [data]
+  [data on-success]
   (invoke-api "clipboard_set_text" {:text data}
               (fn [{:keys [error]}]
-                (when error
-                  (js/console.error "clipboard_set_text failed: " error)))))
+                (if error
+                  (js/console.error "clipboard_set_text failed: " error)
+                  (on-success)))))
 
 (defn clear-clipboard-gtk []
   (invoke-api "clipboard_clear" {}

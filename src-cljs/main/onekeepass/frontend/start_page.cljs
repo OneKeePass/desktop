@@ -37,6 +37,7 @@
   (let [recent-files-list @(cmn-events/recent-files)
         app-version @(cmn-events/app-version)]
     [mui-container {:dir (t/dir)
+                    :maxWidth false
                     :sx {:height "100%"
                          ;;:bgcolor "text.disabled" 
                          :bgcolor "background.default"
@@ -48,7 +49,7 @@
                  :sx {:height "100%"}}
 
       ;; Left side
-      [mui-box {:sx {:display "flex" :width "50%" :height "100%" :flexDirection "column"}}
+      [mui-box {:sx {:display "flex" :flex "1 1 0" :min-width 0 :height "100%" :flexDirection "column"}}
        [mui-typography {:variant "h6"}
         (tr-t start)]
        [mui-stack {:direction "row" :gap 2 :alignItems "center"}
@@ -103,7 +104,7 @@
 
       ;; Right side
       [mui-box {:sx {:display "flex"
-                     :width "50%"
+                     :flex "1 1 0" :min-width 0
                      :justify-content "flex-start"
                      :flexDirection "column"}}
 

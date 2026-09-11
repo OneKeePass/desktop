@@ -139,6 +139,10 @@ pub(crate) struct Preference {
     // In seconds
     clipboard_timeout: u16,
 
+    // Optional workflow behavior; old preferences keep the window visible.
+    #[serde(default)]
+    minimize_on_copy: bool,
+
     // Determines the theme colors etc
     theme: String,
 
@@ -185,6 +189,7 @@ impl Default for Preference {
             version: "0.21.0".into(),
             session_timeout: (15 as u16),
             clipboard_timeout: (30 as u16),
+            minimize_on_copy: false,
             theme: LIGHT.into(),
             language: translation::current_locale_language(),
             default_entry_category_groupings: "Groups".into(),
@@ -404,6 +409,11 @@ impl Preference {
             updated = true;
         }
 
+        if let Some(v) = preference_data.minimize_on_copy {
+            self.minimize_on_copy = v;
+            updated = true;
+        }
+
         if let Some(mut v) = preference_data.backup {
             // Guard against a hand-edited preference.toml or an out-of-range
             // value slipping past the settings dialog's own validation
@@ -599,6 +609,23 @@ impl Preference {
 #[cfg(test)]
 mod tests {
     use super::Preference;
+
+    #[test]
+    fn minimize_on_copy_defaults_off_for_existing_preferences() {
+        let mut value = serde_json::to_value(Preference::default()).unwrap();
+        value.as_object_mut().unwrap().remove("minimize_on_copy");
+        let preference: Preference = serde_json::from_value(value).unwrap();
+        assert!(!preference.minimize_on_copy);
+    }
+
+    #[test]
+    fn minimize_on_copy_survives_toml_round_trip() {
+        let mut preference = Preference::default();
+        preference.minimize_on_copy = true;
+        let encoded = toml::to_string(&preference).unwrap();
+        let decoded: Preference = toml::from_str(&encoded).unwrap();
+        assert!(decoded.minimize_on_copy);
+    }
 
     #[test]
     fn pre_0_20_versions_are_detected() {

@@ -54,6 +54,7 @@ pub(crate) struct PreferenceData {
     // In minutes; the settings UI accepts 1-1440 (issue #80)
     session_timeout: Option<u16>,
     clipboard_timeout: Option<u16>,
+    minimize_on_copy: Option<bool>,
     default_entry_category_groupings: Option<String>,
     theme: Option<String>,
     language: Option<String>,

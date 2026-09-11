@@ -1494,10 +1494,13 @@
 ;;   defeated by a focus-trapping MUI dialog; the plugin writes through the
 ;;   native OS clipboard API and is unaffected.
 (defn write-to-clipboard [data]
-  (if (on-linux?)
-    (bg/write-to-clipboard-gtk data)
-    (bg/write-to-clipboard-plugin data))
-  (notify-copied-to-clipboard))
+  (let [on-success (fn []
+                     (notify-copied-to-clipboard)
+                     (when (get-in @rf-db/app-db [:app-preference :minimize-on-copy])
+                       (bg/minimize-window)))]
+    (if (on-linux?)
+      (bg/write-to-clipboard-gtk data on-success)
+      (bg/write-to-clipboard-plugin data on-success))))
 
 ;; On Linux the arboard-backed clipboard plugin fails (it falls back to X11 and
 ;; times out on Wayland), so clipboard read/clear go through the GTK backend

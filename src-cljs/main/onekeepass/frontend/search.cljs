@@ -87,6 +87,10 @@
         matched-count (count matched-entries)]
     [mui-dialog {:open (if (nil? dialog-show) false dialog-show)
                  :dir (t/dir)
+                 :slotProps {:transition {:onEntered (fn []
+                                                       (when-let [input (.getElementById js/document "search_fld")]
+                                                         (.focus input)
+                                                         (.select input)))}}
                  :on-click #(.stopPropagation %)
                  :sx {"& .MuiDialog-paper" {:width "85%"}}}
      [mui-dialog-title (tr-dlg-title "search")]

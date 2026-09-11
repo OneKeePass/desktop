@@ -1,6 +1,6 @@
 (ns  onekeepass.frontend.core  ;;ns ^:figwheel-always onekeepass.frontend.core
   (:require [onekeepass.frontend.common-components :as cc]
-            [onekeepass.frontend.constants :as const :refer [THEME_LIGHT]]
+            [onekeepass.frontend.constants :as const]
             [onekeepass.frontend.context-menu :as ctx-menu]
             [onekeepass.frontend.dnd :as dnd]
             [onekeepass.frontend.entry-category :as ec]
@@ -25,7 +25,6 @@
                                                               mui-theme-provider
                                                               mui-tooltip
                                                               mui-typography
-                                                              split-pane
                                                               theme-color]]
             [onekeepass.frontend.keyboard-shortcuts :as kb-shortcuts]
             [onekeepass.frontend.start-page :as sp]
@@ -36,23 +35,35 @@
 
 ;;(set! *warn-on-infer* true)
 
-(defn right-content
-  "Component that has entry list and any selected entry content.
-  Used only by the commented-out split-pane layout in group-entry-content;
-  the current proportional layout inlines entry-list and entry-form directly."
-  []
-  [split-pane {:split "vertical"
-               :defaultSize 225
-               :minSize 225
-               :maxSize 275
-               :primary "first"
-               :resizerClassName  (if (= @(cmn-events/app-theme) THEME_LIGHT)
-                                    "Resizer1 vertical" "Resizer2 vertical")
-               :style {:position "relative"}}
-   ;; Pane1
-   [el/entry-list-content]
-   ;; Pane2
-   [eform-ex/entry-content-core]])
+(defn panel-resizer [label value min-value max-value on-change]
+  [:div {:role "separator" :tabIndex 0
+         :aria-label label :aria-orientation "vertical"
+         :aria-valuenow value :aria-valuemin min-value :aria-valuemax max-value
+         :style {:flex "0 0 2px" :cursor "col-resize" :touch-action "none"
+                 :background (theme-color @custom-theme-atom :color1)}
+         :on-pointer-down (fn [e]
+                            (.preventDefault e)
+                            (.stopPropagation e)
+                            (.setPointerCapture (.-currentTarget e) (.-pointerId e)))
+         :on-pointer-move
+         (fn [e]
+           (let [node (.-currentTarget e)]
+             (when (.hasPointerCapture node (.-pointerId e))
+               (let [bounds (.getBoundingClientRect (.-parentElement node))
+                     x (if (= (t/dir) "rtl")
+                         (- (.-right bounds) (.-clientX e))
+                         (- (.-clientX e) (.-left bounds)))]
+                 (on-change (max min-value (min max-value (* 100 (/ x (.-width bounds))))))))))
+         :on-pointer-up (fn [e]
+                          (let [node (.-currentTarget e)]
+                            (when (.hasPointerCapture node (.-pointerId e))
+                              (.releasePointerCapture node (.-pointerId e)))))
+         :on-key-down (fn [e]
+                        (let [delta (case (.-key e) "ArrowLeft" -2 "ArrowRight" 2 nil)
+                              delta (when delta (if (= (t/dir) "rtl") (- delta) delta))]
+                          (when delta
+                            (.preventDefault e)
+                            (on-change (max min-value (min max-value (+ value delta)))))))}])
 
 (defn group-entry-content
   "Shows the group and entry content from the current active db.
@@ -60,6 +71,8 @@
   list (right) and dropped onto groups in the tree (left)."
     []
     (let [[active-uuid set-active-uuid] (m/react-use-state nil)
+          [category-end set-category-end] (m/react-use-state 23)
+          [list-end set-list-end] (m/react-use-state 45)
           sensors (dnd/use-sensors
                    (dnd/use-sensor dnd/PointerSensor #js {:activationConstraint #js {:distance 8}})
                    (dnd/use-sensor dnd/KeyboardSensor))]
@@ -80,66 +93,35 @@
         :onDragCancel       (fn [_]
                               (set-active-uuid nil)
                               (el-events/set-drag-active nil))}
-       ;; ===== Fixed proportional layout (current approach) =====
-       ;; entry-category 25% | entry-list 20% | entry-form 55% of the window width.
-       ;; These are percentages, so the panes re-flow proportionally whenever the
-       ;; app window is resized - no resize listener needed.
-       ;; min-width 0 lets the flex children honour the percentages instead of
-       ;; growing to fit their content; overflow hidden clips/scrolls internally.
-       ;; Thin vertical divider lines separate category|list and list|form via a
-       ;; border-right on the first two panes.
-       ;; The previous resizable split-pane version is kept commented just below
-       ;; so the two can be compared.
-       ;; flex 1 + min-height 0 makes this take the height left over after the
-       ;; tab bar and gap divider above it (this is a child of the column
-       ;; mui-stack in main-content). Using height 100% here instead would add
-       ;; full height ON TOP of those siblings and overflow into a whole-app
-       ;; scrollbar. min-height 0 lets the panes scroll internally.
+       ;; Percentages preserve the chosen proportions when the window resizes.
        [:div {:style {:display "flex"
                       :flex-direction "row"
                       :width "100%"
                       :flex "1 1 0"
                       :min-height 0
                       :position "relative"}}
-        ;; entry-category 25%
-        [:div {:style {:flex "0 0 23%"
+        ;; Group/category panel
+        [:div {:style {:flex (str "0 0 " category-end "%")
                        :min-width 0
                        :height "100%"
                        :overflow "hidden"
-                       :border-right "1px solid"
-                       :border-right-color (theme-color @custom-theme-atom :color1)
                        :background (theme-color @custom-theme-atom :bg-default)}}
          [ec/entry-category-content]]
-        ;; entry-list 20%
-        [:div {:style {:flex "0 0 22%"
+        [panel-resizer "Group panel width" category-end 12 (- list-end 12) set-category-end]
+        ;; Entry list
+        [:div {:style {:flex (str "0 0 calc(" (- list-end category-end) "% - 2px)")
                        :min-width 0
                        :height "100%"
-                       :overflow "hidden"
-                       :border-right "1px solid"
-                       :border-right-color (theme-color @custom-theme-atom :color1)}}
+                       :overflow "hidden"}}
          [el/entry-list-content]]
-        ;; entry-form 55% (flex-grow 1 absorbs any rounding remainder)
-        [:div {:style {:flex "1 1 55%"
+        [panel-resizer "Entry list width" list-end (+ category-end 12) 75 set-list-end]
+        ;; Entry details fill the remaining space.
+        [:div {:style {:flex "1 1 0"
                        :min-width 0
                        :height "100%"
                        :overflow "hidden"}}
          [eform-ex/entry-content-core]]]
 
-       ;; ===== Previous resizable split-pane layout (kept for comparison) =====
-       #_[split-pane {:split "vertical"
-                      :defaultSize 250
-                      :minSize 220
-                      :maxSize 350
-                      :primary "first"
-                      :style {:position "relative"}
-                      :pane1Style {:background (theme-color @custom-theme-atom :bg-default)
-                                   :overflow "hidden"}
-                      :resizerClassName (if (= @(cmn-events/app-theme) THEME_LIGHT)
-                                          "Resizer1 vertical" "Resizer2 vertical")}
-          ;; Pane1
-          [ec/entry-category-content]
-          ;; Pane2
-          [right-content]]
        ;; Ghost shown while dragging — rendered via portal at document body
        [dnd/drag-overlay {}
         (when active-uuid

@@ -290,7 +290,8 @@
                              :components
                              {:MuiInput
                               {:styleOverrides
-                               {:root {:border (str "1px solid" (gobj/get color-grey 500))
+                               {:root {:padding-inline "3px"
+                                       :border (str "1px solid" (gobj/get color-grey 500))
                                        :outline "1px solid transparent"
                                        "&.Mui-focused" {:border "1px solid"
                                                         :border-color primary-main
