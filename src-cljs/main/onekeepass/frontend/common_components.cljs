@@ -315,34 +315,48 @@
   ;; https://github.com/bvaughn/react-virtualized/blob/master/docs/usingAutoSizer.md
   ;; https://mui.com/components/lists/#virtualized-list
 
-  (fn
-    []
-    ;;(println "opts in row-item-fn is" options)
-    ;; min-width keeps the pane usable when content is small
-    [:div {:style (merge {:min-width 200 :height "100%"} div-style)}
-     ;;AutoSizer needs to be a child of div for its to work within a flex container  
-     (let [list-items (if (instance? reagent.ratom/Reaction items) @items items)]
-       (when  (not-empty list-items) #_(not-empty @items)
-              [auto-sizer {}
-               ;; auto-sizer child should be a function 
-               (fn [dims]
-                 (let [dims (js->clj dims :keywordize-keys true)]
-                   ;; (println "dims are " dims)
-                   (r/as-element
-                    [:div {:style {:min-width 200 :height (:height dims)}}
-                     [fixed-size-list {:style list-style
-                                       :height (:height dims)
-                                       :width (:width dims)
-                                       ;; this is the size of the row component returned by render-row fn
-                                       :itemSize item-size
-                                       :overflow-y "scroll"
-                                       ;; Need to get ref to access methods scrollToItem or scrollTo
-                                       ;; See https://react-window.vercel.app/#/api/FixedSizeList
-                                       ;; See https://react-window.vercel.app/#/examples/list/scroll-to-item
-                                       :ref (fn [^js/Ref e]
-                                              (some-> e (.scrollToItem scroll-to-item-index)))
-                                       :itemCount (count list-items)
-                                       :overscanCount 1} row-item-fn]])))]))]))
+  ;; Holds the index that the list was last scrolled to. The ':ref' fn of 'fixed-size-list'
+  ;; is a new fn on every render and React then detaches and reattaches the ref, calling it
+  ;; again. Without this guard the list would scroll back to 'scroll-to-item-index' on every
+  ;; re-render - for example when auto-sizer re-measures the pane after the entry form is
+  ;; loaded - and that moves the row the user is looking at or undoes the user's own scrolling
+  (let [scrolled-to-index (atom nil)]
+    (fn
+      []
+      ;;(println "opts in row-item-fn is" options)
+      ;; min-width keeps the pane usable when content is small
+      [:div {:style (merge {:min-width 200 :height "100%"} div-style)}
+       ;;AutoSizer needs to be a child of div for its to work within a flex container  
+       (let [list-items (if (instance? reagent.ratom/Reaction items) @items items)]
+         (when  (not-empty list-items) #_(not-empty @items)
+                [auto-sizer {}
+                 ;; auto-sizer child should be a function 
+                 (fn [dims]
+                   (let [dims (js->clj dims :keywordize-keys true)]
+                     ;; (println "dims are " dims)
+                     (r/as-element
+                      [:div {:style {:min-width 200 :height (:height dims)}}
+                       [fixed-size-list {:style list-style
+                                         :height (:height dims)
+                                         :width (:width dims)
+                                         ;; this is the size of the row component returned by render-row fn
+                                         :itemSize item-size
+                                         :overflow-y "scroll"
+                                         ;; Need to get ref to access methods scrollToItem or scrollTo
+                                         ;; See https://react-window.vercel.app/#/api/FixedSizeList
+                                         ;; See https://react-window.vercel.app/#/examples/list/scroll-to-item
+                                         ;; The align arg 'center' puts the row in the middle of the
+                                         ;; visible area. The default 'auto' (and 'smart', which falls
+                                         ;; back to 'auto' for a row that is within a couple of screens)
+                                         ;; scrolls the least amount needed, which leaves the row flush
+                                         ;; against the bottom edge where it is cut off by the footer
+                                         :ref (fn [^js/Ref e]
+                                                (when (and (some? e)
+                                                           (not= @scrolled-to-index scroll-to-item-index))
+                                                  (reset! scrolled-to-index scroll-to-item-index)
+                                                  (.scrollToItem e scroll-to-item-index "center")))
+                                         :itemCount (count list-items)
+                                         :overscanCount 1} row-item-fn]])))]))])))
 
 (defn list-items-factory
   "Returns a function that can be used as a child in fixed-size-list.

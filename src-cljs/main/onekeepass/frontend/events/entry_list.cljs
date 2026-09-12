@@ -99,16 +99,33 @@
    entries))
 
 (defn sort-entries-with-creteria
-  "Sorts the entry list based on the currrent sort creteria"
+  "Sorts the entry list based on the currrent sort creteria and returns a vec"
   [db entries]
   (let [sort-creteria (list-sort-creteria db)]
-    (sort-entries sort-creteria entries)))
+    (vec (sort-entries sort-creteria entries))))
+
+(defn- entry-item-index
+  "Finds the position of the entry with the uuid 'entry-uuid' in the entry summary items 'entries'
+  Returns the index or nil when the uuid is nil or is not found in that list"
+  [entries entry-uuid]
+  (when-not (nil? entry-uuid)
+    (first (keep-indexed (fn [idx {:keys [uuid]}]
+                           (when (= uuid entry-uuid) idx))
+                         entries))))
 
 (reg-event-fx
  :sort-entry-items
  (fn [{:keys [db]} [_event-id]]
-   (let [entries (get-in-key-db db [:entry-list :selected-entry-items])]
-     {:db (assoc-in-key-db db [:entry-list :selected-entry-items] (sort-entries-with-creteria db entries))})))
+   (let [entries (get-in-key-db db [:entry-list :selected-entry-items])
+         sorted-entries (sort-entries-with-creteria db entries)
+         selected-entry-id (get-in-key-db db [:entry-list :selected-entry-id])]
+     ;; Re-sorting moves the selected entry to a new position and the index used to scroll
+     ;; the virtualized list needs to follow it. Otherwise the list scrolls to the row that
+     ;; happens to be at the old index
+     {:db (-> db
+              (assoc-in-key-db [:entry-list :selected-entry-items] sorted-entries)
+              (assoc-in-key-db [:entry-list :selected-entry-item-index]
+                               (entry-item-index sorted-entries selected-entry-id)))})))
 
 ;; entry-list-sort is a map with keys [key-name direction]
 (reg-event-fx
@@ -207,24 +224,26 @@
  :entry-list-load-complete
  (fn [{:keys [db]} [_event-id entry-summaries-v category]]
    (let [current-selected-entry-id (get-in-key-db db [:entry-list :selected-entry-id])
-         ;; When user selects an entry (double click) in the search list, current-selected-entry-id is set and 
-         ;; entry summary vec is loaded to show in 'entry-list'. 
-         ;; We need to find the entry's index in that vec so that we can use that info to scroll to that item. 
-         ;; In all other cases, the index is 0  
-         [item-index item] (as-> entry-summaries-v coll
-                             (map-indexed (fn [idx item] [idx item]) coll)
-                             (filter (fn [[_idx m]] (= current-selected-entry-id (:uuid m))) coll)
-                             (first coll))]
+         ;; The loaded entry list is sorted as per the current sort creteria before it is shown
+         ;; The index used to scroll the virtualized list must be found in this sorted vec and
+         ;; not in the vec as returned by the backend. The backend sorts the entries by title
+         ;; only and that order does not match when the user sorts by any other key or direction
+         sorted-entries (sort-entries-with-creteria db entry-summaries-v)
+
+         ;; When user selects an entry in the search list, current-selected-entry-id is set and
+         ;; entry summary vec is loaded to show in 'entry-list'.
+         ;; We need to find the entry's index in that vec so that we can use that info to scroll to that item.
+         ;; In all other cases, the index is nil and the list is shown from the top
+         item-index (entry-item-index sorted-entries current-selected-entry-id)]
 
      {:db (-> db (assoc-in-key-db [:entry-list :selected-entry-item-index] item-index))
-      :fx [;; Need to sort the loaded entry list as per the current sort creteria
-           [:dispatch [:update-selected-entry-items (sort-entries-with-creteria db entry-summaries-v)]]
+      :fx [[:dispatch [:update-selected-entry-items sorted-entries]]
            [:dispatch [:update-category-source category]]
-           (if-not (boolean (seq item))
+           (if (nil? item-index)
              [:dispatch [:entry-form-ex/show-welcome]]
-             ;; Following event is dipatched only when 'item' is non nil value ( search time ) 
+             ;; Following event is dipatched only when the selected entry is in the list ( search time )
              [:dispatch [:entry-form-ex/find-entry-by-id current-selected-entry-id]]
-             ;; Following will not work as  we see warning on console "re-frame: in ":fx" effect found" 
+             ;; Following will not work as  we see warning on console "re-frame: in ":fx" effect found"
              #_[[:dispatch [:entry-form-ex/find-entry-by-id current-selected-entry-id]]])]})))
 
 ;; list of entry items returned by backend api when a category selected
