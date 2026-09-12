@@ -1,23 +1,8 @@
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use serde::{Deserialize, Serialize};
 
-// We have two ways to query GitHub for the latest release:
-//
-//   1. The JSON REST API at /repos/.../releases/latest. Rich data (assets,
-//      release notes body) but rate-limited to 60 req/hr per IP for
-//      unauthenticated callers — easy to hit on shared/CGNAT IPs (returns 403).
-//
-//   2. The releases.atom feed. Unauthenticated, not rate-limited, but does
-//      not expose per-asset download URLs.
-//
-// The active implementation is the Atom feed (`check_via_atom_feed`).
-// The REST implementation (`check_via_rest_api`) is kept for reference
-// in case we add an authenticated/token-backed flow later.
-const RELEASES_ATOM_URL: &str = "https://github.com/OneKeePass/desktop/releases.atom";
-const RELEASES_API_URL: &str =
-    "https://api.github.com/repos/OneKeePass/desktop/releases/latest";
-const RELEASES_PAGE_URL: &str = "https://github.com/OneKeePass/desktop/releases/latest";
+const MANIFEST_URL: &str = "https://onekeepass.com/updates/desktop-stable.json";
 const USER_AGENT: &str = "OneKeePass-Updater";
 
 #[derive(Debug, Serialize)]
@@ -49,396 +34,199 @@ pub async fn check_for_updates(current_version: String) -> Result<UpdateCheckRes
         });
     }
 
-    check_via_atom_feed(current_version).await
+    check_via_manifest(current_version).await
 }
 
-fn http_client() -> Result<reqwest::Client, String> {
-    reqwest::Client::builder()
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateManifest {
+    schema_version: u32,
+    platforms: HashMap<String, PlatformRelease>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PlatformRelease {
+    version: String,
+    release_url: String,
+}
+
+async fn check_via_manifest(current_version: String) -> Result<UpdateCheckResult, String> {
+    let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
         .build()
-        .map_err(|e| format!("Failed to build HTTP client: {e}"))
-}
-
-// =========================================================================
-// Active path: GitHub releases.atom feed (unauthenticated, no rate limit)
-// =========================================================================
-
-async fn check_via_atom_feed(current_version: String) -> Result<UpdateCheckResult, String> {
-    let client = http_client()?;
-
-    let resp = client
-        .get(RELEASES_ATOM_URL)
+        .map_err(|e| format!("Failed to build HTTP client: {e}"))?;
+    let response = client
+        .get(MANIFEST_URL)
         .header(reqwest::header::USER_AGENT, USER_AGENT)
+        .header(reqwest::header::ACCEPT, "application/json")
         .send()
         .await
         .map_err(|e| format!("Update check request failed: {e}"))?;
-
-    if !resp.status().is_success() {
+    if !response.status().is_success() {
         return Err(format!(
-            "GitHub releases feed returned status {}",
-            resp.status()
+            "Update manifest returned status {}",
+            response.status()
         ));
     }
-
-    let xml = resp
-        .text()
-        .await
-        .map_err(|e| format!("Failed to read releases feed: {e}"))?;
-
-    let entry =
-        parse_latest_atom_entry(&xml).ok_or_else(|| "No releases found in feed.".to_string())?;
-
-    let latest_version = entry.tag.trim_start_matches('v').to_string();
-    let update_available = is_newer(&latest_version, &current_version);
-
-    let download_url = entry
-        .link
-        .unwrap_or_else(|| RELEASES_PAGE_URL.to_string());
-
-    Ok(UpdateCheckResult {
-        update_available,
-        managed_externally: false,
-        current_version,
-        latest_version,
-        release_notes: entry.notes,
-        download_url,
-    })
-}
-
-struct AtomEntry {
-    tag: String,
-    notes: String,
-    link: Option<String>,
-}
-
-fn parse_latest_atom_entry(xml: &str) -> Option<AtomEntry> {
-    let entry_start = xml.find("<entry>")?;
-    let entry_close_rel = xml[entry_start..].find("</entry>")?;
-    let entry = &xml[entry_start..entry_start + entry_close_rel];
-
-    // Prefer the tag from the link href (e.g. .../releases/tag/v0.20.0) —
-    // it's an exact identifier; fall back to parsing the <title>.
-    let link = extract_alternate_href(entry);
-    let tag = link
-        .as_deref()
-        .and_then(|h| h.rsplit_once("/tag/").map(|(_, t)| t.to_string()))
-        .or_else(|| extract_tag_from_title(&extract_element(entry, "title")?))?;
-
-    let raw_notes = extract_element(entry, "content").unwrap_or_default();
-    let notes = clean_html(&raw_notes);
-
-    Some(AtomEntry { tag, notes, link })
-}
-
-fn extract_element(entry: &str, tag: &str) -> Option<String> {
-    // Tolerate attributes on the opening tag (e.g. `<content type="html">`).
-    let open = format!("<{tag}");
-    let close = format!("</{tag}>");
-    let open_idx = entry.find(&open)?;
-    let after_open = open_idx + open.len();
-    let gt = entry[after_open..].find('>')?;
-    let body_start = after_open + gt + 1;
-    let body_end_rel = entry[body_start..].find(&close)?;
-    Some(entry[body_start..body_start + body_end_rel].to_string())
-}
-
-fn extract_alternate_href(entry: &str) -> Option<String> {
-    for chunk in entry.split("<link") {
-        if chunk.contains("rel=\"alternate\"") {
-            if let Some(start) = chunk.find("href=\"") {
-                let after = &chunk[start + 6..];
-                if let Some(end) = after.find('"') {
-                    return Some(after[..end].to_string());
-                }
-            }
-        }
-    }
-    None
-}
-
-fn extract_tag_from_title(title: &str) -> Option<String> {
-    // Titles look like "OneKeePass v0.20.0" — grab the last whitespace-separated token.
-    title.split_whitespace().last().map(|s| s.to_string())
-}
-
-fn clean_html(s: &str) -> String {
-    // Decode entities first so that block-boundary replacements (which
-    // look for literal `</p>`, `<br>`, etc.) match the real tags rather
-    // than their entity-encoded form (`&lt;/p&gt;`).
-    let decoded = decode_entities(s);
-
-    // Promote block boundaries to explicit newlines before stripping tags,
-    // so inline elements like <a> or <strong> don't break the sentence.
-    let with_breaks = decoded
-        .replace("<br>", "\n")
-        .replace("<br/>", "\n")
-        .replace("<br />", "\n")
-        .replace("</p>", "\n\n")
-        .replace("</li>", "\n")
-        .replace("<li>", "\n* ")
-        .replace("</h1>", "\n\n")
-        .replace("</h2>", "\n\n")
-        .replace("</h3>", "\n\n")
-        .replace("</h4>", "\n\n")
-        .replace("</h5>", "\n\n")
-        .replace("</h6>", "\n\n");
-
-    let stripped = strip_tags(&with_breaks);
-
-    // Collapse runs of blank lines that result from stripped block elements.
-    let mut out = String::with_capacity(stripped.len());
-    let mut blank_run = 0;
-    for line in stripped.lines() {
-        let trimmed = line.trim_end();
-        if trimmed.is_empty() {
-            blank_run += 1;
-            if blank_run <= 1 {
-                out.push('\n');
-            }
-        } else {
-            blank_run = 0;
-            out.push_str(trimmed);
-            out.push('\n');
-        }
-    }
-    out.trim().to_string()
-}
-
-fn decode_entities(s: &str) -> String {
-    s.replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&apos;", "'")
-        // &amp; must be last so we do not double-decode entities like &amp;lt;.
-        .replace("&amp;", "&")
-}
-
-fn strip_tags(s: &str) -> String {
-    // Drop everything between `<` and `>`. Block boundaries are already
-    // replaced with newlines by `clean_html`, so inline tags (e.g. `<a>`,
-    // `<strong>`) disappear without breaking the surrounding sentence.
-    let mut out = String::with_capacity(s.len());
-    let mut in_tag = false;
-    for ch in s.chars() {
-        match ch {
-            '<' => in_tag = true,
-            '>' => in_tag = false,
-            c if !in_tag => out.push(c),
-            _ => {}
-        }
-    }
-    out
-}
-
-// =========================================================================
-// Reference path: GitHub REST API (rich data, but rate-limited per IP)
-// =========================================================================
-
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct GithubRelease {
-    tag_name: String,
-    #[serde(default)]
-    name: Option<String>,
-    #[serde(default)]
-    body: Option<String>,
-    #[serde(default)]
-    assets: Vec<GithubAsset>,
-    #[serde(default)]
-    html_url: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct GithubAsset {
-    name: String,
-    browser_download_url: String,
-}
-
-#[allow(dead_code)]
-async fn check_via_rest_api(current_version: String) -> Result<UpdateCheckResult, String> {
-    let client = http_client()?;
-
-    let resp = client
-        .get(RELEASES_API_URL)
-        .header(reqwest::header::USER_AGENT, USER_AGENT)
-        .header(reqwest::header::ACCEPT, "application/vnd.github+json")
-        .send()
-        .await
-        .map_err(|e| format!("Update check request failed: {e}"))?;
-
-    if !resp.status().is_success() {
-        return Err(format!(
-            "GitHub releases API returned status {}",
-            resp.status()
-        ));
-    }
-
-    let release: GithubRelease = resp
+    let manifest: UpdateManifest = response
         .json()
         .await
-        .map_err(|e| format!("Failed to parse releases response: {e}"))?;
+        .map_err(|e| format!("Failed to parse update manifest: {e}"))?;
+    select_release(
+        manifest,
+        current_version,
+        std::env::consts::OS,
+        std::env::consts::ARCH,
+    )
+}
 
-    let latest_version = release.tag_name.trim_start_matches('v').to_string();
-    let update_available = is_newer(&latest_version, &current_version);
-
-    let download_url = if update_available {
-        match_asset(&release.assets).unwrap_or_else(|| {
-            release
-                .html_url
-                .clone()
-                .unwrap_or_else(|| RELEASES_PAGE_URL.to_string())
-        })
-    } else {
-        release
-            .html_url
-            .clone()
-            .unwrap_or_else(|| RELEASES_PAGE_URL.to_string())
-    };
-
-    let release_notes = release
-        .name
-        .filter(|s| !s.trim().is_empty())
-        .map(|n| {
-            if let Some(body) = release.body.as_ref().filter(|b| !b.trim().is_empty()) {
-                format!("{n}\n\n{body}")
-            } else {
-                n
-            }
-        })
-        .or_else(|| release.body.clone())
-        .unwrap_or_default();
-
+// These are the build target OS/architecture, so an Intel build running under
+// Rosetta continues to check the Intel entry. Never substitute another target.
+fn select_release(
+    manifest: UpdateManifest,
+    current_version: String,
+    os: &str,
+    arch: &str,
+) -> Result<UpdateCheckResult, String> {
+    if manifest.schema_version != 1 {
+        return Err(format!(
+            "Unsupported update manifest schema: {}",
+            manifest.schema_version
+        ));
+    }
+    let target = format!("{os}-{arch}");
+    let release = manifest
+        .platforms
+        .get(&target)
+        .ok_or_else(|| format!("No update information is available for {target}"))?;
+    let latest = parse_version(&release.version)?;
+    let current = parse_version(&current_version)?;
+    let latest_version = release
+        .version
+        .strip_prefix('v')
+        .unwrap_or(&release.version)
+        .to_string();
+    // The offline generator emits this exact release page. Validate before the
+    // frontend passes the manifest URL to the system browser.
+    let expected_url =
+        format!("https://github.com/OneKeePass/desktop/releases/tag/v{latest_version}");
+    if release.release_url != expected_url {
+        return Err(format!(
+            "Invalid release URL in update manifest for {target}"
+        ));
+    }
     Ok(UpdateCheckResult {
-        update_available,
+        update_available: latest > current,
         managed_externally: false,
         current_version,
         latest_version,
-        release_notes,
-        download_url,
+        // The offline manifest supplies no release notes. The existing dialog
+        // already omits its notes section when this string is empty.
+        release_notes: String::new(),
+        download_url: release.release_url.clone(),
     })
 }
 
-#[allow(dead_code)]
-fn match_asset(assets: &[GithubAsset]) -> Option<String> {
-    let os = std::env::consts::OS;
-    let arch = std::env::consts::ARCH;
-
-    let (exts, arch_hints): (&[&str], &[&str]) = match os {
-        "macos" => (
-            &[".dmg"],
-            if arch == "aarch64" {
-                &["aarch64", "arm64"]
-            } else {
-                &["x86_64", "x64", "intel"]
-            },
-        ),
-        "windows" => (
-            &[".msi", ".exe"],
-            if arch == "aarch64" {
-                &["aarch64", "arm64"]
-            } else {
-                &["x86_64", "x64"]
-            },
-        ),
-        "linux" => (
-            &[".AppImage", ".deb", ".rpm"],
-            if arch == "aarch64" {
-                &["aarch64", "arm64"]
-            } else {
-                &["x86_64", "amd64"]
-            },
-        ),
-        _ => return None,
-    };
-
-    for ext in exts {
-        for hint in arch_hints {
-            if let Some(a) = assets
-                .iter()
-                .find(|a| a.name.ends_with(ext) && a.name.to_lowercase().contains(hint))
-            {
-                return Some(a.browser_download_url.clone());
-            }
-        }
-        if let Some(a) = assets.iter().find(|a| a.name.ends_with(ext)) {
-            return Some(a.browser_download_url.clone());
-        }
+// Match the stable major.minor.patch format accepted by the local generator.
+// Invalid versions must fail a check rather than silently comparing as zero.
+fn parse_version(version: &str) -> Result<[u64; 3], String> {
+    let invalid = || format!("Invalid stable release version: {version}");
+    let parts: Vec<_> = version
+        .strip_prefix('v')
+        .unwrap_or(version)
+        .split('.')
+        .collect();
+    if parts.len() != 3 {
+        return Err(invalid());
     }
-
-    None
-}
-
-// =========================================================================
-// Shared
-// =========================================================================
-
-fn is_newer(latest: &str, current: &str) -> bool {
-    let parse = |s: &str| -> Vec<u32> {
-        s.trim_start_matches('v')
-            .split(['.', '-'])
-            .take(3)
-            .map(|p| p.parse::<u32>().unwrap_or(0))
-            .collect()
-    };
-    parse(latest) > parse(current)
+    let mut parsed = [0; 3];
+    for (index, part) in parts.iter().enumerate() {
+        if part.is_empty()
+            || !part.bytes().all(|b| b.is_ascii_digit())
+            || (part.len() > 1 && part.starts_with('0'))
+        {
+            return Err(invalid());
+        }
+        parsed[index] = part.parse().map_err(|_| invalid())?;
+    }
+    Ok(parsed)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn is_newer_basic() {
-        assert!(is_newer("0.23.0", "0.22.0"));
-        assert!(is_newer("v0.23.0", "0.22.0"));
-        assert!(!is_newer("0.22.0", "0.22.0"));
-        assert!(!is_newer("0.22.0", "0.23.0"));
-        assert!(is_newer("1.0.0", "0.99.0"));
+    fn manifest() -> UpdateManifest {
+        serde_json::from_str(r#"{
+          "schemaVersion": 1,
+          "platforms": {
+            "macos-aarch64": {"version": "0.25.0", "releaseUrl": "https://github.com/OneKeePass/desktop/releases/tag/v0.25.0"},
+            "macos-x86_64": {"version": "0.24.0", "releaseUrl": "https://github.com/OneKeePass/desktop/releases/tag/v0.24.0"},
+            "windows-x86_64": {"version": "0.26.0", "releaseUrl": "https://github.com/OneKeePass/desktop/releases/tag/v0.26.0"},
+            "linux-x86_64": {"version": "0.23.0", "releaseUrl": "https://github.com/OneKeePass/desktop/releases/tag/v0.23.0"}
+          }
+        }"#).unwrap()
     }
 
     #[test]
-    fn parses_atom_entry() {
-        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
-<feed>
-  <entry>
-    <id>tag:github.com,2008:Repository/1/v0.20.0</id>
-    <updated>2026-04-28T15:15:35Z</updated>
-    <link rel="alternate" type="text/html" href="https://github.com/OneKeePass/desktop/releases/tag/v0.20.0"/>
-    <title>OneKeePass v0.20.0</title>
-    <content type="html">&lt;p&gt;See assets to install. See the &lt;a href=&quot;CHANGELOG&quot;&gt;CHANGELOG&lt;/a&gt;&lt;/p&gt;</content>
-  </entry>
-  <entry>
-    <title>OneKeePass v0.19.0</title>
-  </entry>
-</feed>"#;
-
-        let entry = parse_latest_atom_entry(xml).expect("should parse");
-        assert_eq!(entry.tag, "v0.20.0");
+    fn platform_only_release_does_not_notify_other_platforms() {
+        let windows = select_release(manifest(), "0.25.0".into(), "windows", "x86_64").unwrap();
+        assert!(windows.update_available);
         assert_eq!(
-            entry.link.as_deref(),
-            Some("https://github.com/OneKeePass/desktop/releases/tag/v0.20.0")
+            windows.download_url,
+            "https://github.com/OneKeePass/desktop/releases/tag/v0.26.0"
         );
-        // Inline anchor must not split the sentence onto separate lines.
-        assert_eq!(entry.notes, "See assets to install. See the CHANGELOG");
-        assert!(!entry.notes.contains("&lt;"));
-        assert!(!entry.notes.contains("<p>"));
+        let mac = select_release(manifest(), "0.25.0".into(), "macos", "aarch64").unwrap();
+        assert!(!mac.update_available);
+        assert!(mac.release_notes.is_empty());
+        let linux = select_release(manifest(), "0.25.0".into(), "linux", "x86_64").unwrap();
+        assert!(!linux.update_available);
     }
 
     #[test]
-    fn clean_html_preserves_paragraph_breaks() {
-        let html =
-            "&lt;p&gt;First paragraph.&lt;/p&gt;\n&lt;p&gt;&lt;strong&gt;Second&lt;/strong&gt; paragraph.&lt;/p&gt;";
-        let out = clean_html(html);
-        assert_eq!(out, "First paragraph.\n\nSecond paragraph.");
+    fn architecture_is_selected_exactly() {
+        let arm = select_release(manifest(), "0.24.0".into(), "macos", "aarch64").unwrap();
+        let intel = select_release(manifest(), "0.24.0".into(), "macos", "x86_64").unwrap();
+        assert!(arm.update_available);
+        assert!(!intel.update_available);
+        assert!(select_release(manifest(), "0.24.0".into(), "windows", "aarch64").is_err());
     }
 
     #[test]
-    fn extract_tag_from_title_handles_v_prefix() {
+    fn invalid_schema_missing_target_and_bad_url_are_errors() {
+        let mut data = manifest();
+        data.schema_version = 2;
+        assert!(select_release(data, "0.24.0".into(), "macos", "aarch64").is_err());
+        let mut data = manifest();
+        data.platforms.clear();
+        assert!(select_release(data, "0.24.0".into(), "macos", "aarch64").is_err());
+        let mut data = manifest();
+        data.platforms.get_mut("macos-aarch64").unwrap().release_url = "https://example.com".into();
+        assert!(select_release(data, "0.24.0".into(), "macos", "aarch64").is_err());
+        assert!(serde_json::from_str::<UpdateManifest>("<html>404</html>").is_err());
+    }
+
+    #[test]
+    fn versions_are_compared_numerically_and_strictly() {
+        assert!(parse_version("0.10.0").unwrap() > parse_version("0.9.0").unwrap());
         assert_eq!(
-            extract_tag_from_title("OneKeePass v0.20.0").as_deref(),
-            Some("v0.20.0")
+            parse_version("v0.25.0").unwrap(),
+            parse_version("0.25.0").unwrap()
         );
+        for value in [
+            "",
+            "0.25",
+            "0.25.0-beta",
+            "0.25.0.1",
+            "0.025.0",
+            "x.1.0",
+            "+1.0.0",
+        ] {
+            assert!(parse_version(value).is_err(), "{value}");
+        }
+        let mut data = manifest();
+        data.platforms.get_mut("macos-aarch64").unwrap().version = "invalid".into();
+        assert!(select_release(data, "0.24.0".into(), "macos", "aarch64").is_err());
     }
 }
