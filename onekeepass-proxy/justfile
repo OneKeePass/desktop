@@ -54,6 +54,16 @@ build-cp-linux-x86_64 release="":(build-linux-x86_64 release)
     mkdir -p ./binaries
     cp ./target/x86_64-unknown-linux-gnu/{{ if release == "true" {"release"} else {"debug"} }}/onekeepass-proxy ./binaries/onekeepass-proxy-x86_64-unknown-linux-gnu
 
+# aarch64-unknown-linux-gnu
+
+build-linux-aarch64 release="":
+    cargo build --target aarch64-unknown-linux-gnu {{ if release == "true" {"--release" } else {""}  }}
+
+build-cp-linux-aarch64 release="":(build-linux-aarch64 release)
+    rm -f ./binaries/*
+    mkdir -p ./binaries
+    cp ./target/aarch64-unknown-linux-gnu/{{ if release == "true" {"release"} else {"debug"} }}/onekeepass-proxy ./binaries/onekeepass-proxy-aarch64-unknown-linux-gnu
+
 
 ####################  Windows ############################
 ## https://v2.tauri.app/develop/sidecar/

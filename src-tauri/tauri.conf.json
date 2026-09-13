@@ -52,7 +52,7 @@
   "identifier": "com.onekeepass",
   "plugins": {
     "shell": {
-      "open": "https://**|http://**"
+      "open": "https?://.+"
     }
   },
   "app": {
