@@ -56,6 +56,9 @@ impl kp_service::KeyStoreService for KeyStoreServiceImpl {
             return Ok(());
         }
 
+        // A local key from an earlier failed key chain call must not shadow this newly stored key
+        self.store.remove(db_key);
+
         //debug!("Storing to the key chain is successful");
 
         Ok(())
@@ -88,6 +91,7 @@ impl kp_service::KeyStoreService for KeyStoreServiceImpl {
     }
 
     fn delete_key(&mut self, db_key: &str) -> kp_service::Result<()> {
+        self.store.remove(db_key);
         let sr_db_key: SRString = formatted_key(db_key);
         let _staus_code = unsafe { delete_key_in_key_chain(&sr_db_key) };
         //debug!("Key is deleted.. with status_code {}", staus_code);
