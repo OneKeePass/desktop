@@ -191,14 +191,24 @@
                               (:entry-type-uuid item)
                               uuid)}))])))))
 
-(defn- row-otp-badge
-  "The current TOTP code of the row's entry, or nothing when it has none.
+(defn- row-secondary
+  "The row's second line: the secondary title (usually the username) and, when the entry has
+  one, its current TOTP code at the end. Keeping the code on this line leaves the title line
+  above the full width, and rows keep the fixed height the virtualized list needs.
   A reagent component of its own rather than part of the :f> row, so that a code refresh
-  re-renders only the badge and not the whole row"
-  [entry-uuid]
+  re-renders only this line and not the whole row"
+  [entry-uuid secondary-title]
   (let [token-data @(otp-events/otp-token-data entry-uuid)]
     (otp-events/ensure-otp-token entry-uuid token-data)
-    [otp-badge token-data]))
+    [mui-stack {:direction "row"
+                :sx {:align-items "center"}}
+     [:span {:style {:flex "1 1 auto"
+                     :min-width 0
+                     :white-space "nowrap"
+                     :overflow "hidden"
+                     :text-overflow "ellipsis"}}
+      secondary-title]
+     [otp-badge token-data]]))
 
 (defn- row-item-draggable
   "Form-1 component rendered with :f> so React treats it as a function component.
@@ -303,17 +313,16 @@
        [render-entry-icon {:db-key active-db-key
                            :icon-id (:icon-id item)
                            :custom-icon-uuid (:custom-icon-uuid item)}]]]
+     ;; No fixed max-width on the text: the list item text shrinks to the room left, so the
+     ;; title uses the whole width of a wide panel and is cut short only in a narrow one
      [mui-list-item-text
-      {:primaryTypographyProps {:max-width 155
-                                :white-space "nowrap"
+      {:primaryTypographyProps {:white-space "nowrap"
                                 :text-overflow "ellipsis"
                                 :overflow "hidden"}
-       :secondaryTypographyProps {:max-width 155
-                                  :white-space "nowrap"
-                                  :text-overflow "ellipsis"
-                                  :overflow "hidden"}
-       :primary (:title item) :secondary (:secondary-title item)}]
-     [row-otp-badge uuid]]]))
+       ;; A div rather than the default p, as the line holds the username and the TOTP code
+       :secondaryTypographyProps {:component "div"}
+       :primary (:title item)
+       :secondary (r/as-element [row-secondary uuid (:secondary-title item)])}]]]))
 
 (defn row-item
   "Renders a list item.
