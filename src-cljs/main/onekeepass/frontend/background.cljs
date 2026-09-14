@@ -903,6 +903,15 @@
                :otp-field-names otp-field-names}
               dispatch-fn))
 
+(defn entry-list-current-otps
+  "Gets the current tokens of the entries in 'entry-uuids' for the entry list rows.
+   Entries with no usable otp field are absent from the result"
+  [db-key entry-uuids dispatch-fn]
+  (invoke-api "entry_list_current_otps"
+              {:db-key db-key
+               :entry-uuids entry-uuids}
+              dispatch-fn))
+
 (defn form-otp-url [otp-settings dispatch-fn]
   ;; Tauri api args are in camelcase, but any value struct passed should have its 
   ;; field name in snake_case

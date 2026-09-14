@@ -138,6 +138,7 @@ fn main() {
             commands::empty_trash,
             commands::entry_form_current_otp,
             commands::entry_form_current_otps,
+            commands::entry_list_current_otps,
             commands::entry_summary_data,
             commands::entry_type_headers,
             commands::export_as_xml,

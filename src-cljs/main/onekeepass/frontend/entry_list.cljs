@@ -15,6 +15,7 @@
             [onekeepass.frontend.events.entry-form-dialogs :as dlg-events]
             [onekeepass.frontend.events.entry-form-ex :as form-events]
             [onekeepass.frontend.events.entry-list :as el-events]
+            [onekeepass.frontend.events.entry-list-otp :as otp-events]
             [onekeepass.frontend.events.group-tree-content :as gt-events]
             [onekeepass.frontend.events.move-group-entry :as move-events]
             [onekeepass.frontend.events.remote-storage :as rs-events]
@@ -35,6 +36,7 @@
                                                               mui-menu-item
                                                               mui-stack
                                                               theme-color]]
+            [onekeepass.frontend.otp-badge :refer [otp-badge]]
             [onekeepass.frontend.translation :as t]
             [onekeepass.frontend.translation :refer-macros [tr-bl tr-ml] :refer [lstr-ml]]
             [reagent.core :as r]))
@@ -189,6 +191,15 @@
                               (:entry-type-uuid item)
                               uuid)}))])))))
 
+(defn- row-otp-badge
+  "The current TOTP code of the row's entry, or nothing when it has none.
+  A reagent component of its own rather than part of the :f> row, so that a code refresh
+  re-renders only the badge and not the whole row"
+  [entry-uuid]
+  (let [token-data @(otp-events/otp-token-data entry-uuid)]
+    (otp-events/ensure-otp-token entry-uuid token-data)
+    [otp-badge token-data]))
+
 (defn- row-item-draggable
   "Form-1 component rendered with :f> so React treats it as a function component.
   use-draggable must be called here, not inside a form-2 inner fn, because hooks
@@ -301,7 +312,8 @@
                                   :white-space "nowrap"
                                   :text-overflow "ellipsis"
                                   :overflow "hidden"}
-       :primary (:title item) :secondary (:secondary-title item)}]]]))
+       :primary (:title item) :secondary (:secondary-title item)}]
+     [row-otp-badge uuid]]]))
 
 (defn row-item
   "Renders a list item.

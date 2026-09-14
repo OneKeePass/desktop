@@ -207,7 +207,9 @@
          ;; before calling db merge. If the nil category is passed to the backend api 'bg/entry-summary-data'
          ;; The cameCase conversion will fail. So we need to ensure some default 'category' to use in such a case
          category (if-not (nil? category) category const/CATEGORY_ALL_ENTRIES)]
-     {:fx [[:load-bg-entry-summary-data [(active-db-key db) category]]]})))
+     {:fx [[:load-bg-entry-summary-data [(active-db-key db) category]]
+           ;; The TOTP codes shown on the rows may have changed with the entries
+           [:dispatch [:entry-list-otp/entries-changed]]]})))
 
 (reg-fx
  :load-bg-entry-summary-data

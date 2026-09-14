@@ -744,6 +744,16 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; DB Lock/Unlock ;;;;;;;;;;;;;;;;;;;;;
 
+;; Drops the TOTP codes held for the entry list rows of a database (see events.entry-list-otp).
+;; Closing a database needs no such call - its whole key-db goes with it - but locking keeps
+;; the key-db, and a locked database must not leave live codes behind in app-db.
+;; Done here as a plain db update because every lock path already has the db in hand, and
+;; there are several of them
+(defn- drop-entry-list-otps [app-db db-key]
+  (if (contains? app-db db-key)
+    (update app-db db-key dissoc :entry-list-otp)
+    app-db))
+
 #_(defn locked? []
     (subscribe [:common/current-db-locked]))
 
@@ -768,7 +778,9 @@
 (reg-event-fx
  :common/lock-current-db
  (fn [{:keys [db]} [_event-id]]
-   {:db (assoc-in-key-db db [:locked] true)
+   {:db (-> db
+            (assoc-in-key-db [:locked] true)
+            (drop-entry-list-otps (active-db-key db)))
     :fx [[:bg-lock-kdbx [(active-db-key db)]]
          [:dispatch [:common/show-content :locked-content]]]}))
 
@@ -793,7 +805,8 @@
                             (remove (fn [db-key] (get-in db [db-key :locked]))))
          db (reduce (fn [db db-key]
                       (-> db (assoc-in [db-key :locked] true)
-                          (assoc-in [db-key :show-content] :locked-content)))
+                          (assoc-in [db-key :show-content] :locked-content)
+                          (drop-entry-list-otps db-key)))
                     db unlocked-keys)]
      {:db db
       :fx (into [[:dispatch [:db-settings/notify-screen-locked]]]
@@ -1601,7 +1614,8 @@
                       (if  (> (- tick user-action-time) @session-timeout) ;; 2 min = 120000 , 5 min = 300000
                         ;; Need to update :locked :show-content of all dbs that are timed out
                         (-> db (assoc-in [db-key :locked] true)
-                            (assoc-in [db-key :show-content] :locked-content))
+                            (assoc-in [db-key :show-content] :locked-content)
+                            (drop-entry-list-otps db-key))
                         db)) db (:opened-db-list db))]
      {:db db
       ;; For now only db-settings dialog receives this and closes if user leaves it open
@@ -1620,7 +1634,8 @@
  (fn [{:keys [db]} [_event-id]]
    (let [db (reduce (fn [db {:keys [db-key]}]
                       (-> db (assoc-in [db-key :locked] true)
-                          (assoc-in [db-key :show-content] :locked-content)))
+                          (assoc-in [db-key :show-content] :locked-content)
+                          (drop-entry-list-otps db-key)))
                     db (:opened-db-list db))]
      {:db db
       :fx [[:dispatch [:db-settings/notify-screen-locked]]]})))

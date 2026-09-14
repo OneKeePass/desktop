@@ -498,6 +498,16 @@ pub(crate) async fn entry_form_current_otps(
     )?)
 }
 
+// Current tokens for the rows of the entry list. Entries with no usable otp field are
+// absent from the reply, so the list needs no separate 'has TOTP' query
+#[command]
+pub(crate) async fn entry_list_current_otps(
+    db_key: &str,
+    entry_uuids: Vec<Uuid>,
+) -> Result<Vec<kp_service::EntryListOtpToken>> {
+    Ok(kp_service::entry_list_current_otps(db_key, &entry_uuids)?)
+}
+
 #[command]
 pub(crate) async fn form_otp_url(otp_settings: kp_service::OtpSettings) -> Result<String> {
     Ok(kp_service::form_otp_url(&otp_settings)?)

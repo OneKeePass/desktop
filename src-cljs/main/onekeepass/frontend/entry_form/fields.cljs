@@ -26,6 +26,7 @@
                                                      mui-text-field
                                                      mui-tooltip
                                                      mui-typography]]
+   [onekeepass.frontend.otp-badge :refer [formatted-token]]
    [onekeepass.frontend.translation :as t :refer [lstr-l lstr-l-cv] :refer-macros [tr-h
                                                                                    tr-l
                                                                                    tr-l-cv
@@ -246,25 +247,6 @@
                   :position "absolute" :display "flex" :alignItems "center" :justifyContent "center"}}
     [mui-typography {:vaiant "caption" :component "div"}
      ttl-time]]])
-
-(defn formatted-token
-  "Groups digits with spaces between them for easy reading"
-  [token]
-  (let [len (count token)
-        n (cond
-            (or (= len 6) (= len 7) (= len 9))
-            3
-
-            (or (= len 8) (= len 10))
-            4
-
-            :else
-            3)
-        ;; step = n, pad = ""
-        parts (partition n n "" token)
-        parts (map (fn [c] (str/join c)) parts)
-        spaced (str/join " " parts)]
-    spaced))
 
 (defn otp-read-field
   "This is called only during read time and edit flag is false"
