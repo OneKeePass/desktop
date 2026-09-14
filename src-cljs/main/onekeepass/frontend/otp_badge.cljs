@@ -123,11 +123,14 @@
                                    :font-variant-numeric "tabular-nums"}}
               (formatted-token token)]
 
-             ;; Rotated so that the arc starts at the top, the way a clock reads
+             ;; Rotated so that the arc is anchored at the top, then mirrored so that the
+             ;; remaining arc sits to the left of it and empties clockwise, like a clock hand
+             ;; sweeping round. That is also how the entry form's ring runs (it passes MUI a
+             ;; negative value), and the two are on screen together
              [:svg {:width RING-SIZE
                     :height RING-SIZE
                     :view-box (str "0 0 " RING-SIZE " " RING-SIZE)
-                    :style {:transform "rotate(-90deg)"
+                    :style {:transform "scaleX(-1) rotate(-90deg)"
                             :flex-shrink 0}}
               [:circle {:cx center
                         :cy center
