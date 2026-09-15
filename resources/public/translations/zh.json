@@ -54,7 +54,8 @@
         "supportedBrowsers": "支持的浏览器",
         "timeouts": "超时设置",
         "unlockDatabase": "解锁数据库",
-        "userInterface": "用户界面"
+        "userInterface": "用户界面",
+        "windowBehavior": "窗口行为"
     },
     "labels": {
         "1Year": "1年",
@@ -157,6 +158,7 @@
         "loadFromFile": "从文件加载",
         "lowerCaseAZ": "小写字母",
         "memoryUsage": "内存时间",
+        "minimizeOnCopy": "复制到剪切板后最小化窗口",
         "modifyField": "修改字段",
         "manageCustomIcons": "管理自定义图标",
         "modifySectionName": "修改部分名称",
@@ -205,6 +207,8 @@
         "separator": "分隔符",
         "sessionTimeout": "会话超时（分钟）",
         "setUpOneTimePassword": "设置一次性密码",
+        "showLess": "显示更少",
+        "showMore": "显示更多",
         "showSectionToAddDetails": "显示此部分以添加详细信息",
         "sometimes": "有时",
         "sourceDatabase": "源数据库",

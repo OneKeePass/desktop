@@ -54,7 +54,8 @@
         "supportedBrowsers": "Tuetut selaimet",
         "timeouts": "Aikakatkaisut",
         "unlockDatabase": "Avaa tietokanta",
-        "userInterface": "Käyttöliittymä"
+        "userInterface": "Käyttöliittymä",
+        "windowBehavior": "Ikkunan toiminta"
     },
     "labels": {
         "1Year": "1 vuosi",
@@ -157,6 +158,7 @@
         "loadFromFile": "Lataa tiedostosta",
         "lowerCaseAZ": "Pienet kirjaimet (a-z)",
         "memoryUsage": "Muistin käyttö",
+        "minimizeOnCopy": "Pienennä ikkuna leikepöydälle kopioinnin jälkeen",
         "modifyField": "Muokkaa kenttää",
         "manageCustomIcons": "Hallitse mukautettuja kuvakkeita",
         "modifySectionName": "Muokkaa osion nimeä",
@@ -205,6 +207,8 @@
         "separator": "Erottaja",
         "sessionTimeout": "SIstunnon ikakatkaisu(min)",
         "setUpOneTimePassword": "Määritä kertakäyttöinen salasana",
+        "showLess": "Näytä vähemmän",
+        "showMore": "Näytä lisää",
         "showSectionToAddDetails": "Näytä tämä osio lisätäksesi tietoja",
         "sometimes": "Toisinann",
         "sourceDatabase": "Lähdetietokanta",

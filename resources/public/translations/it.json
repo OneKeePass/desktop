@@ -54,7 +54,8 @@
         "supportedBrowsers": "Browser supportati",
         "timeouts": "Timeout",
         "unlockDatabase": "Sblocca Database",
-        "userInterface": "Interfaccia Utente"
+        "userInterface": "Interfaccia Utente",
+        "windowBehavior": "Comportamento Finestra"
     },
     "labels": {
         "1Year": "1 Anno",
@@ -157,6 +158,7 @@
         "loadFromFile": "Carica da file",
         "lowerCaseAZ": "Minuscolo (a-z)",
         "memoryUsage": "Utilizzo Memoria",
+        "minimizeOnCopy": "Riduci a icona la finestra dopo la copia negli appunti",
         "modifyField": "Modifica Campo",
         "manageCustomIcons": "Gestisci icone personalizzate",
         "modifySectionName": "Modifica nome sezione",
@@ -205,6 +207,8 @@
         "separator": "Separatore",
         "sessionTimeout": "Timeout Sessione (in min)",
         "setUpOneTimePassword": "Configura Password Monouso",
+        "showLess": "Mostra meno",
+        "showMore": "Mostra altro",
         "showSectionToAddDetails": "Mostra questa sezione per aggiungere dettagli",
         "sometimes": "A volte",
         "sourceDatabase": "Database Sorgente",

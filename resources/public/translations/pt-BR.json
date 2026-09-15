@@ -54,7 +54,8 @@
         "supportedBrowsers": "Navegadores suportados",
         "timeouts": "Tempos limite",
         "unlockDatabase": "Desbloquear banco de dados",
-        "userInterface": "Interface do usuário"
+        "userInterface": "Interface do usuário",
+        "windowBehavior": "Comportamento da janela"
     },
     "labels": {
         "1Year": "1 ano",
@@ -157,6 +158,7 @@
         "loadFromFile": "Carregar do arquivo",
         "lowerCaseAZ": "Minúsculas (a-z)",
         "memoryUsage": "Uso de memória",
+        "minimizeOnCopy": "Minimizar a janela após copiar para a área de transferência",
         "modifyField": "Modificar campo",
         "manageCustomIcons": "Gerenciar ícones personalizados",
         "modifySectionName": "Modificar nome da seção",
@@ -205,6 +207,8 @@
         "separator": "Separador",
         "sessionTimeout": "Tempo limite da sessão (em min)",
         "setUpOneTimePassword": "Configurar senha de uso único",
+        "showLess": "Mostrar menos",
+        "showMore": "Mostrar mais",
         "showSectionToAddDetails": "Mostrar esta seção para adicionar detalhes",
         "sometimes": "Às vezes",
         "sourceDatabase": "Banco de dados de origem",

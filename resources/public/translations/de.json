@@ -54,7 +54,8 @@
         "supportedBrowsers": "Unterstützte Browser",
         "timeouts": "Zeitlimits",
         "unlockDatabase": "Datenbank entsperren",
-        "userInterface": "Benutzeroberfläche"
+        "userInterface": "Benutzeroberfläche",
+        "windowBehavior": "Fensterverhalten"
     },
     "labels": {
         "1Year": "1 Jahr",
@@ -157,6 +158,7 @@
         "loadFromFile": "Aus Datei laden",
         "lowerCaseAZ": "Kleinbuchstaben (a-z)",
         "memoryUsage": "Speichernutzung",
+        "minimizeOnCopy": "Fenster nach dem Kopieren in die Zwischenablage minimieren",
         "modifyField": "Feld ändern",
         "manageCustomIcons": "Benutzerdefinierte Symbole verwalten",
         "modifySectionName": "Abschnittsnamen ändern",
@@ -205,6 +207,8 @@
         "separator": "Trennzeichen",
         "sessionTimeout": "Sitzungs-Timeout (in Min.)",
         "setUpOneTimePassword": "Einmal-Passwort einrichten",
+        "showLess": "Weniger anzeigen",
+        "showMore": "Mehr anzeigen",
         "showSectionToAddDetails": "Diesen Abschnitt einblenden, um Details hinzuzufügen",
         "sometimes": "Manchmal",
         "sourceDatabase": "Quelldatenbank",

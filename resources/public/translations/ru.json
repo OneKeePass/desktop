@@ -54,7 +54,8 @@
         "supportedBrowsers": "Поддерживаемые браузеры",
         "timeouts": "Таймауты",
         "unlockDatabase": "Разблокировать базу данных",
-        "userInterface": "Интерфейс пользователя"
+        "userInterface": "Интерфейс пользователя",
+        "windowBehavior": "Поведение окна"
     },
     "labels": {
         "1Year": "1 год",
@@ -157,6 +158,7 @@
         "loadFromFile": "Загрузить из файла",
         "lowerCaseAZ": "Строчные (a-z)",
         "memoryUsage": "Использование памяти",
+        "minimizeOnCopy": "Сворачивать окно после копирования в буфер обмена",
         "modifyField": "Изменить поле",
         "manageCustomIcons": "Управление пользовательскими иконками",
         "modifySectionName": "Изменить имя секции",
@@ -205,6 +207,8 @@
         "separator": "Разделитель",
         "sessionTimeout": "Таймаут сессии (в мин)",
         "setUpOneTimePassword": "Установить одноразовый пароль",
+        "showLess": "Показать меньше",
+        "showMore": "Показать больше",
         "showSectionToAddDetails": "Показать этот раздел, чтобы добавить сведения",
         "sometimes": "Иногда",
         "sourceDatabase": "База данных источника",

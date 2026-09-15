@@ -54,7 +54,8 @@
         "supportedBrowsers": "المتصفحات المدعومة",
         "timeouts": "المهل الزمنية",
         "unlockDatabase": "فتح قفل قاعدة البيانات",
-        "userInterface": "واجهة المستخدم"
+        "userInterface": "واجهة المستخدم",
+        "windowBehavior": "سلوك النافذة"
     },
     "labels": {
         "1Year": "سنة واحدة",
@@ -157,6 +158,7 @@
         "loadFromFile": "تحميل من ملف",
         "lowerCaseAZ": "حروف صغيرة (a-z)",
         "memoryUsage": "استهلاك الذاكرة",
+        "minimizeOnCopy": "تصغير النافذة بعد النسخ إلى الحافظة",
         "modifyField": "تعديل الحقل",
         "manageCustomIcons": "إدارة الأيقونات المخصصة",
         "modifySectionName": "تعديل اسم الفئة",
@@ -205,6 +207,8 @@
         "separator": "فاصل",
         "sessionTimeout": "وقت انتهاء الجلسة (دقيقة)",
         "setUpOneTimePassword": "إعداد كلمة مرور لمرة واحدة",
+        "showLess": "عرض أقل",
+        "showMore": "عرض المزيد",
         "showSectionToAddDetails": "أظهر هذا القسم لإضافة التفاصيل",
         "sometimes": "احيانا",
         "sourceDatabase": "قاعدة البيانات المصدر",
