@@ -104,6 +104,24 @@ body.platform-windows ::-webkit-scrollbar-corner {
   background: transparent;
 }
 
+/* Linux (WebKitGTK) draws a list's overlay scrollbar above popups, so it showed
+   through a menu opened over the list until it faded. While any Mui menu or select
+   dropdown is open, the menu-open class is on body (kept in step by
+   install-menu-open-observer! in context_menu.cljs) and scrollbars are hidden.
+   Overlay scrollbars take no layout space, so hiding them does not move content,
+   and the menu locks scrolling while it is open anyway. Not applied on Windows,
+   where the styled scrollbars above do take space. The platform-linux class is
+   added to body at app startup (events/common.cljs).
+   A body class is used rather than body:has(> .MuiPopover-root): with :has()
+   WebKitGTK did not show the scrollbars again after the menu closed */
+body.platform-linux.menu-open * {
+  scrollbar-width: none;
+}
+
+body.platform-linux.menu-open ::-webkit-scrollbar {
+  display: none;
+}
+
 /** All Mui component cutomizations **/
 
 /* .app-bar-icon-root {

@@ -242,8 +242,10 @@
       (m/react-use-effect
        (fn []
          (ctx-menu/install-global-text-context-menu!)
+         (ctx-menu/install-menu-open-observer!)
          (fn []
-           (ctx-menu/uninstall-global-text-context-menu!)))
+           (ctx-menu/uninstall-global-text-context-menu!)
+           (ctx-menu/uninstall-menu-open-observer!)))
        (clj->js []))
 
       [mui-stack {:sx {:height "100%"}

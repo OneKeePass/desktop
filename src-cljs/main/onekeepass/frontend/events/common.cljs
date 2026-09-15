@@ -227,13 +227,16 @@
  (fn []
    (bg/init-timers #(on-error %))))
 
-(defn- add-windows-platform-class
-  "Adds a marker class on body so that css rules can target Windows alone.
-   Used for the scrollbar styling in custom.css; styling ::-webkit-scrollbar
-   on macOS/Linux would disable their native auto-hiding overlay scrollbars"
+(defn- add-platform-class
+  "Adds a marker class on body so that css rules in custom.css can target one platform.
+   platform-windows: the scrollbar styling; styling ::-webkit-scrollbar on macOS/Linux
+   would disable their native auto-hiding overlay scrollbars.
+   platform-linux: hiding the overlay scrollbars while a menu is open"
   [os-name]
-  (when (= os-name const/WINDOWS)
-    (-> js/document .-body .-classList (.add "platform-windows"))))
+  (condp = os-name
+    const/WINDOWS (-> js/document .-body .-classList (.add "platform-windows"))
+    const/LINUX (-> js/document .-body .-classList (.add "platform-linux"))
+    nil))
 
 (reg-event-fx
  :load-system-info-with-preference-complete
@@ -249,7 +252,7 @@
                                       preference]}]]
    (set-session-timeout (:session-timeout preference))
    (set-clipboard-timeout (:clipboard-timeout preference))
-   (add-windows-platform-class os-name)
+   (add-platform-class os-name)
    ;;(println "os-name os-version arch path-sep preference -- " os-name os-version arch path-sep preference)
    {:db (-> db
             (assoc :app-preference preference)

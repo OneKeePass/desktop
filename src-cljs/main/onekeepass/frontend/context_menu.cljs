@@ -232,6 +232,33 @@
                             :selection selection}))
       true)))
 
+(def ^:private menu-open-observer (atom nil))
+
+(defn- sync-menu-open-class!
+  "Sets the 'menu-open' class on body while a Mui menu or select dropdown is open.
+   Mui adds its MuiPopover-root portal as a direct child of body when the menu opens
+   and removes it after the close transition ends"
+  []
+  (let [body (.-body js/document)]
+    (-> body .-classList
+        (.toggle "menu-open" (some? (.querySelector body ":scope > .MuiPopover-root"))))))
+
+(defn install-menu-open-observer!
+  "On Linux, WebKitGTK draws a list's overlay scrollbar above popups, so it showed through
+   menus until it faded. custom.css hides scrollbars while body has the 'menu-open' class,
+   which this keeps in step with every Mui menu, including the context menu"
+  []
+  (when-not @menu-open-observer
+    (let [observer (js/MutationObserver. (fn [_mutations _observer] (sync-menu-open-class!)))]
+      (.observe observer (.-body js/document) #js {:childList true})
+      (reset! menu-open-observer observer))))
+
+(defn uninstall-menu-open-observer! []
+  (when-let [^js observer @menu-open-observer]
+    (.disconnect observer)
+    (reset! menu-open-observer nil))
+  (-> js/document .-body .-classList (.remove "menu-open")))
+
 (defn install-global-text-context-menu! []
   ;; Our custom text context menu handles right-click Copy/Paste.
   (when-not @global-text-menu-handler
