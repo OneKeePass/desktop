@@ -55,9 +55,9 @@
         "start": "Start",
         "supportedBrowsers": "Supported Browsers",
         "timeouts": "Timeouts",
-        "windowBehavior": "Window Behavior",
         "unlockDatabase": "Unlock Database",
-        "userInterface": "User Interface"
+        "userInterface": "User Interface",
+        "windowBehavior": "Window Behavior"
     },
     "labels": {
         "1Year": "1 Year",
@@ -91,7 +91,6 @@
         "changeIcon": "Click to change icon",
         "changePassword": "Change password",
         "clearList": "Clear list",
-        "minimizeOnCopy": "Minimize window after copying to clipboard",
         "clipboardTimeout": "Clipboard Timeout(in sec)",
         "confirmDeleteCustomIcon": "Delete this custom icon? It will be removed from all entries and groups that use it.",
         "confirmPassword": "Confirm Password",
@@ -161,6 +160,7 @@
         "loadFromFile": "Load from file",
         "lowerCaseAZ": "Lowercase (a-z)",
         "memoryUsage": "Memory Usage",
+        "minimizeOnCopy": "Minimize window after copying to clipboard",
         "modifyField": "Modify Field",
         "manageCustomIcons": "Manage Custom Icons",
         "modifySectionName": "Modify section name",
@@ -209,6 +209,8 @@
         "separator": "Separator",
         "sessionTimeout": "Session Timeout(in min)",
         "setUpOneTimePassword": "Set up One-Time Password",
+        "showLess": "Show less",
+        "showMore": "Show more",
         "showSectionToAddDetails": "Show this section to add details",
         "sometimes": "Sometimes",
         "sourceDatabase": "Source Database",

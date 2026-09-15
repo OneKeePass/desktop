@@ -700,24 +700,166 @@
          [mui-box {:sx (theme-content-read-sx @custom-theme-atom)}
           [tags-field all-tags tags form-events/on-tags-selection edit]]]))))
 
+;; Read-mode notes taller than this many displayed lines start collapsed
+(def ^:private NOTES_COLLAPSED_LINES 20)
+
+(defn- scroll-parent
+  "Returns the nearest ancestor of 'node' that scrolls vertically, or nil"
+  [^js node]
+  (loop [^js parent (.-parentElement node)]
+    (cond
+      (nil? parent) nil
+      (#{"auto" "scroll"} (.-overflowY (js/getComputedStyle parent))) parent
+      :else (recur (.-parentElement parent)))))
+
+;; Shared by the notes text area and its hidden measuring copy so that both wrap the
+;; text identically
+(def ^:private notes-text-style
+  {:display "block"
+   :width "100%"
+   :box-sizing "border-box"
+   :margin 0
+   :padding 0
+   :border "none"
+   :font "inherit"
+   :color "inherit"
+   :line-height 1.5
+   :white-space "pre-wrap"
+   :overflow-wrap "break-word"})
+
+(defn- notes-read-view
+  "Entry notes in read mode, shown in full rather than in a small scrolling box so that
+   the later part of a long note is not missed. Notes taller than
+   'NOTES_COLLAPSED_LINES' displayed lines are cut off under a fade with a
+   'Show more' / 'Show less' toggle. Each mount, and each change of the notes text,
+   starts collapsed.
+   The notes stay in a read-only, borderless text area sized to its content, so the
+   app's text context menu, the copied message and Select All (limited to the notes)
+   work as they do for other fields"
+  [_notes]
+  (let [expanded (r/atom false)
+        ;; {:content px :collapsed px}, nil until the first measurement
+        heights (r/atom nil)
+        root-node (atom nil)
+        text-area-node (atom nil)
+        measure-node (atom nil)
+        resize-observer (atom nil)
+        ;; Lines are counted as displayed. Wrapping changes with the panel width, so the
+        ;; height is measured from a hidden copy of the text rather than counted from line
+        ;; breaks. A text area only reports its content height after being shrunk, which
+        ;; would move the page, hence the separate copy
+        measure (fn []
+                  (when-let [^js node @measure-node]
+                    (let [line-height (js/parseFloat (.-lineHeight (js/getComputedStyle node)))]
+                      ;; Rounded up so that a fractional height never clips the last line
+                      (reset! heights {:content (js/Math.ceil (.-height (.getBoundingClientRect node)))
+                                       :collapsed (* line-height NOTES_COLLAPSED_LINES)}))))
+        collapse (fn []
+                   (reset! expanded false)
+                   (r/after-render
+                    (fn []
+                      (when-let [^js text-area @text-area-node]
+                        (set! (.-scrollTop text-area) 0))
+                      ;; If the expanded note was scrolled past, bring the Notes title back
+                      ;; into view instead of leaving the form far below it
+                      (when-let [^js root @root-node]
+                        (when-let [^js parent (scroll-parent root)]
+                          (when (< (.-top (.getBoundingClientRect root))
+                                   (.-top (.getBoundingClientRect parent)))
+                            (.scrollIntoView root #js {:block "start"})))))))
+        set-root-node (fn [node] (reset! root-node node))
+        set-text-area-node (fn [node] (reset! text-area-node node))
+        ;; Defined once so that React does not detach and reattach the ref on every render.
+        ;; The observer also reports the initial size, which gives the first measurement
+        set-measure-node (fn [node]
+                           (when-let [^js observer @resize-observer]
+                             (.disconnect observer)
+                             (reset! resize-observer nil))
+                           (reset! measure-node node)
+                           (when node
+                             (let [observer (js/ResizeObserver. (fn [_entries] (measure)))]
+                               (.observe observer node)
+                               (reset! resize-observer observer))))]
+    (r/create-class
+     {:display-name "notes-read-view"
+
+      ;; The measuring copy may keep the same height when the text changes (e.g. another
+      ;; history version), so the observer does not fire and it is measured here
+      :component-did-update
+      (fn [this old-argv]
+        (when (not= (second old-argv) (second (r/argv this)))
+          (reset! expanded false)
+          (measure)))
+
+      :reagent-render
+      (fn [notes]
+        (let [{:keys [content collapsed]} @heights
+              overflowing (and content (> content (+ 1 collapsed)))
+              collapsed? (and overflowing (not @expanded))]
+          [:div {:ref set-root-node}
+           [mui-box {:sx {:margin-bottom "8px"}}
+            [read-section-title (tr-entry-section-name-cv "Notes")]
+            [mui-box {:sx (theme-content-read-sx @custom-theme-atom)}
+             [mui-box {:sx {:position "relative" :pt "8px"}}
+              [mui-typography {:component "div" :variant "body1"}
+               ;; A zero-width space keeps a trailing line break counted, as a text area
+               ;; shows an empty last line for it
+               [:div {:ref set-measure-node
+                      :aria-hidden true
+                      :style (merge notes-text-style
+                                    {:position "absolute"
+                                     :top 0
+                                     :left 0
+                                     :visibility "hidden"
+                                     :pointer-events "none"})}
+                (str notes "\u200b")]
+               [:textarea {:ref set-text-area-node
+                           :id "Notes"
+                           :read-only true
+                           :value notes
+                           ;; Until measured, approximate the height by the line breaks
+                           :rows (when-not content
+                                   (min NOTES_COLLAPSED_LINES
+                                        (inc (count (re-seq #"\n" notes)))))
+                           :style (cond-> (merge notes-text-style
+                                                 {:background "transparent"
+                                                  :outline "none"
+                                                  :resize "none"
+                                                  :overflow "hidden"})
+                                    content
+                                    (assoc :height (str (if collapsed? collapsed content) "px")))}]]
+              (when collapsed?
+                [mui-box {:sx {:position "absolute"
+                               :left 0
+                               :right 0
+                               :bottom 0
+                               :height "3em"
+                               :pointer-events "none"
+                               :background (str "linear-gradient(to bottom, transparent, "
+                                                (theme-color @custom-theme-atom :entry-section-card-bg)
+                                                ")")}}])]
+             (when overflowing
+               [mui-button {:variant "text"
+                            :size "small"
+                            :sx {:text-transform "none" :min-width 0 :px 0 :mt "4px"}
+                            :on-click (if @expanded collapse #(reset! expanded true))}
+                (if @expanded (lstr-l 'showLess) (lstr-l 'showMore))])]]]))})))
+
 (defn notes-content []
   (let [edit @(form-events/form-edit-mode)
         notes @(form-events/entry-form-data-fields :notes)
-        body [mui-stack
-              [text-area-field {:key "Notes"
-                                :value notes
-                                :edit edit
-                                :on-change-handler (on-change-factory form-events/entry-form-data-update-field-value :notes)
-                                #_#(form-events/entry-form-data-update-field-value :notes (-> % .-target  .-value))}]]]
+        entry-uuid @(form-events/entry-form-data-fields :uuid)]
     (when (or edit (not (str/blank? notes)))
       (if edit
         [mui-box {:sx (theme-content-sx @custom-theme-atom)}
          [mui-stack {:direction "row"} [box-caption (tr-entry-section-name-cv "Notes")]]
-         body]
-        [mui-box {:sx {:margin-bottom "8px"}}
-         [read-section-title (tr-entry-section-name-cv "Notes")]
-         [mui-box {:sx (theme-content-read-sx @custom-theme-atom)}
-          body]]))))
+         [mui-stack
+          [text-area-field {:key "Notes"
+                            :value notes
+                            :edit edit
+                            :on-change-handler (on-change-factory form-events/entry-form-data-update-field-value :notes)}]]]
+        ;; Keyed on the entry so that moving to another entry starts collapsed
+        ^{:key entry-uuid} [notes-read-view notes]))))
 
 (defn attachments-content []
   (let [edit @(form-events/form-edit-mode)
