@@ -1,3 +1,20 @@
+### 0.26.0
+
+#### Changes
+- The entry list now shows the live one-time password code for entries that have one, with a countdown, at the end of the entry's second line
+- The group, entry list and entry form panels can be resized by dragging the divider between them; the chosen proportions are kept when the window is resized
+- Entry notes in read mode are shown in full instead of in a small scrolling box; a long note is cut off with a **Show more** / **Show less** toggle
+- New **Window Behavior** section in the application settings **General** tab, with a **Minimize window after copying to clipboard** option (off by default)
+- Pre-selecting the search text ensures that user can clear the previous search text easily for the next search
+- Picking an entry from the search results now scrolls that entry into view in the entry list
+- Linux builds for ARM64 (aarch64) machines are now available
+- **Check for Updates** now reads a release manifest published on the OneKeePass site and offers only the release matching the platform and architecture of the running application
+
+#### Fixed
+- On macOS, a key left in memory after a failed keychain call is now removed, so saving a database no longer fails until the application is restarted
+- Passkey fields in entries saved by an earlier version are now protected, as they are in newly created entries
+- On Linux, a list's scrollbar no longer shows through a context menu or drop-down opened over the list
+
 ### 0.25.2
 
 #### Changes
