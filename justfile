@@ -70,3 +70,16 @@ build-linux-x86_64 features='':
     else
         cargo tauri build -- --locked
     fi
+
+# This will build linux aarch64 "release" bundle when called in an aarch64 Linux terminal
+# Optional 'features' arg is passed to cargo as --features (e.g. 'devtools')
+build-linux-aarch64 features='':
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    export BOTAN_CONFIGURE_EXTRA_CXXFLAGS='-fPIC'
+    just -f ./onekeepass-proxy/justfile build-cp-linux-aarch64 true
+    if [ -n "{{features}}" ]; then
+        cargo tauri build --features "{{features}}" -- --locked
+    else
+        cargo tauri build -- --locked
+    fi
