@@ -15,8 +15,9 @@ non-obvious build step, which is what a Flathub reviewer reads, so they stay.
 
     python3 linux/make-flathub-manifest.py --tag v0.25.1 --out-dir /tmp/flathub-pr
 
-Writes the manifest plus flathub.json and the generated source lists into --out-dir,
-laid out as the Flathub repo expects.
+Writes the manifest and the generated source lists into --out-dir, laid out as the
+Flathub repo expects. No flathub.json: Flathub builds x86_64 and aarch64 by default,
+and both are built and tested here, so there is nothing to restrict.
 
 Run it with the tag checked out. The manifest and source lists come from the working
 tree while the output pins the tag, so the script refuses unless HEAD is at the tag and
@@ -24,7 +25,6 @@ those files have no uncommitted changes.
 """
 
 import argparse
-import json
 import re
 import subprocess
 import sys
@@ -187,10 +187,6 @@ def main() -> int:
 
     manifest = transform(Path(args.manifest).read_text(), args.tag, commit)
     (out_dir / Path(args.manifest).name).write_text(manifest)
-
-    # x86_64 only: the botan build and the vendored crate set are generated for it,
-    # and we have no way to test aarch64.
-    (out_dir / "flathub.json").write_text(json.dumps({"only-arches": ["x86_64"]}, indent=4) + "\n")
 
     for name in GENERATED_LISTS:
         # The upstream cargo and node generators write no trailing newline. Add one so

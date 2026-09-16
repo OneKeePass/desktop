@@ -18,15 +18,15 @@
 ### 0.25.2
 
 #### Changes
-- In the Flatpak build, application data (preferences, logs, backups and wordlists) now follows the XDG layout and is kept in the application's own data directory. Other Linux packages are unchanged and continue to use `~/.onekeepass`
-- The Flatpak no longer asks for access to the system keyring. The encryption key held for an open database stays within the running application instead, using the fallback that already existed for sessions without a keyring. Other platforms are unchanged
+- In the Flatpak build, application data follows the XDG layout and is kept in the application's own data directory. Other Linux packages continue to use `~/.onekeepass`
+- The Flatpak no longer asks for access to the system keyring; an open database's encryption key stays within the running application. Other platforms are unchanged
 
 ### 0.25.1
 
 #### Changes
-- OneKeePass is now published on Flathub and can be installed as a Flatpak. The Flatpak is built entirely from source, including the user interface, so what is shipped can be checked against what is published
-- In the Flatpak build, **Check for Updates** now explains that your package manager provides updates instead of offering a download, and no update check is made at startup
-- The recent databases list now shows plain file names for databases opened through the desktop file chooser, rather than the internal path a sandboxed application is given
+- OneKeePass can now be built and installed as a Flatpak, entirely from source including the user interface
+- In the Flatpak build, **Check for Updates** points to your package manager, and no update check is made at startup
+- The recent databases list shows plain file names for databases opened through the desktop file chooser
 
 ### 0.25.0
 

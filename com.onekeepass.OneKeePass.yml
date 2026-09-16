@@ -81,14 +81,18 @@ finish-args:
   ## hands an app one secret, not a keyed store, so it would be used to encrypt a
   ## local store of the per-database keys. Worth doing, tracked separately.
 
-  # Takes a logind delay inhibitor and listens for PrepareForSleep so open databases
-  # are encrypted before the memory image can reach a hibernation file. This uses the
-  # SYSTEM bus, which the sandbox does not have by default, and there is no portal
-  # equivalent: the Inhibit portal can block a suspend but gives no notification that
-  # one is starting. Without it the feature is silently off.
-  ## Connection::system() at power_monitor.rs:190; the app logs
-  ## "lock-on-suspend: no system D-Bus, sleep locking disabled".
-  - --system-talk-name=org.freedesktop.login1
+  ## No --system-talk-name=org.freedesktop.login1, so lock-on-suspend is off here.
+  ## power_monitor.rs takes a logind delay inhibitor and listens for PrepareForSleep, so
+  ## an open database is encrypted before the memory image can reach a hibernation file.
+  ## That needs the SYSTEM bus, which the sandbox does not have by default, and no portal
+  ## replaces it: the Inhibit portal can block a suspend but never says one is starting.
+  ##
+  ## The permission is the one thing here that needs a flatpak-builder-lint exception, and
+  ## the request for it sat unreviewed while the submission could not build at all. It is
+  ## dropped so the submission can proceed; the app degrades gracefully, logging
+  ## "lock-on-suspend: no system D-Bus, sleep locking disabled". Every other Linux package
+  ## keeps the feature. Add the finish-arg back once the exception is granted.
+  ## Connection::system() at power_monitor.rs:190.
 
   ## No grant for the app's own data directory on purpose. Under Flatpak the app puts
   ## preferences, logs, backups and wordlists under XDG_DATA_HOME, which already
@@ -108,7 +112,7 @@ build-options:
   append-path: /usr/lib/sdk/rust-stable/bin
   env:
     # botan is vendored via onekeepass-core
-    ## Matches `just build-linux-x86_64`
+    ## Matches the flags used by the just build-linux-* recipes
     BOTAN_CONFIGURE_EXTRA_CXXFLAGS: '-fPIC'
   ## No build-args here on purpose. flatpak-builder gives a build no network unless it is
   ## asked for, so the absence of --share=network is what makes this Flathub-legal — and
@@ -255,9 +259,10 @@ modules:
 
       # tauri-build resolves externalBin during the app build, so the sidecar must
       # already sit at its target-triple path. Take it from /app, which the previous
-      # module has already populated.
+      # module has already populated. The triple comes from rustc rather than being
+      # written out, so the same command works on x86_64 and aarch64.
       - install -Dm755 /app/bin/onekeepass-proxy
-        onekeepass-proxy/binaries/onekeepass-proxy-x86_64-unknown-linux-gnu
+        "onekeepass-proxy/binaries/onekeepass-proxy-$(rustc -vV | grep '^host:' | cut -d' ' -f2)"
 
       # Deliberately `cargo build`, not `cargo tauri build`: we want the binary, not
       # deb/rpm/AppImage bundles. The frontend (resources/public, including the cljs-out
@@ -285,36 +290,7 @@ modules:
       - type: file
         path: LICENSE
     build-commands:
-      # tauri.conf.json bundle.resources are given as "../resources/public/<x>",
-      # relative to src-tauri. Tauri resolves the resource root at
-      # <exe_dir>/../lib/<productName> and encodes each leading ".." as "_up_", so the
-      # runtime paths are
-      #   /app/lib/OneKeePass/_up_/resources/public/{icons,translations,wordlists}
-      # Flattening these into /app/lib/OneKeePass/ builds fine and then fails silently
-      # at runtime as untranslated UI.
-      ## Confirmed 2026-08-30 from the app's own startup log:
-      ##   Translation files root dir for i18n is
-      ##     "/app/lib/OneKeePass/_up_/resources/public/translations"
-      - mkdir -p /app/lib/OneKeePass/_up_/resources/public
-      - cp -r resources/public/icons resources/public/translations resources/public/wordlists
-        /app/lib/OneKeePass/_up_/resources/public/
-
-      ## Both already named by the app ID, as Flathub requires
-      - install -Dm644 linux/com.onekeepass.OneKeePass.desktop
-        /app/share/applications/com.onekeepass.OneKeePass.desktop
-      - install -Dm644 linux/com.onekeepass.OneKeePass.metainfo.xml
-        /app/share/metainfo/com.onekeepass.OneKeePass.metainfo.xml
-      ## Install each icon explicitly rather than `cp -r linux/icons/hicolor
-      ## /app/share/icons/`: when /app/share/icons does not exist yet, cp treats it as
-      ## the destination NAME and renames hicolor to icons, dropping the theme
-      ## directory. The icons then sit outside any icon theme and flatpak warns
-      ## "Icon referenced in desktop file but not exported". install -D creates the
-      ## parents and cannot be misread.
-      - install -Dm644 linux/icons/hicolor/256x256/apps/com.onekeepass.OneKeePass.png
-        /app/share/icons/hicolor/256x256/apps/com.onekeepass.OneKeePass.png
-      - install -Dm644 linux/icons/hicolor/512x512/apps/com.onekeepass.OneKeePass.png
-        /app/share/icons/hicolor/512x512/apps/com.onekeepass.OneKeePass.png
-
-      ## Flathub requires each module's license under share/licenses
-      - install -Dm644 LICENSE
-        /app/share/licenses/com.onekeepass.OneKeePass/LICENSE
+      # Installs the Tauri resources, desktop entry, metainfo, icons and licence into
+      # /app. The layout is Tauri's own and is easy to get subtly wrong, so it lives in
+      # a script kept with the app rather than as install lines here.
+      - linux/flatpak-install-data.sh

@@ -48,3 +48,5 @@ src-tauri/entitlements.mas.plist
 src-tauri/entitlements.proxy.mas.plist
 src-tauri/tauri.mas.conf.json
 OneKeePass*.pkg
+
+__pycache__/
