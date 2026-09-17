@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Merged into the generated Info.plist for Mac App Store builds only, via
+  bundle.macOS.infoPlist in tauri.mas.conf.json. DMG builds do not use it:
+  the compliance code below belongs to the App Store Connect record for
+  com.onekeepass.
+
+  The code was issued by Apple after the export compliance documentation
+  (French ANSSI declaration) was approved. Without these keys App Store
+  Connect asks for export compliance on every uploaded build.
+-->
+<plist version="1.0">
+<dict>
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <true/>
+    <key>ITSEncryptionExportComplianceCode</key>
+    <string>ac983047-7ab2-4774-86a5-d8f03454a53e</string>
+</dict>
+</plist>

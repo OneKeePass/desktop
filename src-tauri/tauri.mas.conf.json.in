@@ -1,7 +1,8 @@
 {
   "bundle": {
     "macOS": {
-      "entitlements": "entitlements.mas.plist"
+      "entitlements": "entitlements.mas.plist",
+      "infoPlist": "Info.mas.plist"
     }
   }
 }
