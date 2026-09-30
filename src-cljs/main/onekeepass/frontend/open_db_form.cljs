@@ -89,6 +89,7 @@
                          :type (if password-visibility-on "text" "password")}]
 
           [m/text-field {:label (tr-l keyFileName) :value key-file-name
+                         :sx {:mt "20px"}
                          :on-change od-events/key-file-name-on-change
                          :variant "standard" :fullWidth true
                          ;;:placeholder "Optional"
