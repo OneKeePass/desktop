@@ -281,13 +281,12 @@
      [mui-stack {:spacing 2 :sx {:alignItems "center"}}
       [mui-box {:sx {:width "80%"}}
        (when flatpak?
-         [unavailable-note 'browserIntegrationUnavailableFlatpak])
+         [unavailable-note 'browserIntegrationFlatpakHostBrowsersOnly])
        [mui-stack {:direction "row" :sx {:justify-content "space-between"}}
         [mui-form-control-label
          {:control (r/as-element
                     [mui-checkbox
-                     {:checked (and (not flatpak?) (:extension-use-enabled browser-ext-support))
-                      :disabled flatpak?
+                     {:checked (:extension-use-enabled browser-ext-support)
                       :on-change (fn [^js/CheckedEvent e]
                                    (let [checked? (-> e .-target  .-checked)]
                                      ;; If user is disabling browser ext support, we need to clear the allowed-browsers list

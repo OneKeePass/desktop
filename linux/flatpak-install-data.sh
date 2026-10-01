@@ -43,5 +43,10 @@ for size in 256x256 512x512; do
                  "$DEST/share/icons/hicolor/$size/apps/$APP_ID.png"
 done
 
+# Dispatches between the app and onekeepass-proxy on the browser's argv; see the script
+# itself. Installed under a name of its own rather than replacing OneKeePass, so that the
+# desktop entry and the app binary stay exactly what they are on every other Linux build.
+install -Dm755 linux/flatpak-onekeepass-wrapper.sh "$DEST/bin/onekeepass-wrapper"
+
 # Flathub requires each module's licence under share/licenses.
 install -Dm644 LICENSE "$DEST/share/licenses/$APP_ID/LICENSE"

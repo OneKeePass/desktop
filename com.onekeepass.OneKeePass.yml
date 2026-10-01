@@ -53,7 +53,10 @@ sdk-extensions:
   - org.freedesktop.Sdk.Extension.openjdk21
   - org.freedesktop.Sdk.Extension.node20
 
-command: OneKeePass
+# Not the app binary: a Flatpak has one command, and a browser launching the native
+# messaging proxy can only reach it through this one. The wrapper dispatches on the
+# browser's argv and otherwise runs the app.
+command: onekeepass-wrapper
 
 # The compiled ClojureScript is handed from the frontend module to the Rust module
 # through /app (see onekeepass-cljs below); strip it from the finished app.
@@ -101,9 +104,26 @@ finish-args:
   ## rather than changing for everyone. An earlier revision asked for
   ## --persist=.onekeepass here; the XDG path removed the need for it.
 
-  # No --filesystem grant on purpose. Database files come through the XDG document
-  # portal; opening, saving and the recent-databases list all work through it, because
-  # the document id stays stable across restarts.
+  # Browser integration. Registering with a browser means writing a native messaging
+  # manifest into that browser's own configuration directory, and these three are the
+  # only directories the app touches outside its own data.
+  - --filesystem=~/.mozilla/native-messaging-hosts:create
+  - --filesystem=~/.config/google-chrome/NativeMessagingHosts:create
+  - --filesystem=~/.config/BraveSoftware/Brave-Browser/NativeMessagingHosts:create
+  ## Host-installed browsers only. A browser that is itself a Flatpak reads its manifests
+  ## from ~/.var/app/<browser-id>/..., and none of Firefox, Chrome or Brave on Flathub has
+  ## org.freedesktop.Flatpak or host filesystem access, so none of them can execute the
+  ## exported launcher. That combination needs a `flatpak override` the user runs, which is
+  ## documented rather than worked around. Writing into another app's ~/.var/app would also
+  ## need a lint exception per browser, as Bitwarden has.
+  ##
+  ## Verified 2026-10-01: these three narrow grants pass flatpak-builder-lint with no
+  ## exception, and without them the app would write the manifest into its own private
+  ## home and report success -- see verify_flatpak_access() in native_messaging_config.rs.
+
+  # No --filesystem grant for databases on purpose. Database files come through the XDG
+  # document portal; opening, saving and the recent-databases list all work through it,
+  # because the document id stays stable across restarts.
   ## Verified 2026-08-30. The recents list displays the raw /run/user/<uid>/doc/...
   ## path rather than the user's own ~/Documents/... path — cosmetic, tracked
   ## separately.

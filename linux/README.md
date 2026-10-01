@@ -15,7 +15,8 @@ below.
 | `com.onekeepass.OneKeePass.metainfo.xml` | AppStream metadata; mandatory for Flathub |
 | `com.onekeepass.OneKeePass.desktop` | desktop entry |
 | `icons/hicolor/**` | icons, named by app ID |
-| `flatpak-install-data.sh` | installs resources, desktop entry, metainfo, icons and licence into /app |
+| `flatpak-install-data.sh` | installs resources, desktop entry, metainfo, icons, the wrapper and licence into /app |
+| `flatpak-onekeepass-wrapper.sh` | the Flatpak's `command:`; sends a browser's native messaging launch to the proxy, everything else to the app |
 | `flatpak-maven-generator.py` | generates `maven-sources.json` |
 | `make-flathub-manifest.py` | derives the Flathub manifest from the one above |
 | `cargo-sources.json` | generated — vendored crates for the app |
