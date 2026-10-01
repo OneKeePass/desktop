@@ -65,6 +65,20 @@ fn main() {
     #[cfg(target_os = "linux")]
     std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
 
+    // Ubuntu's GNOME session lists appmenu-gtk-module in GTK_MODULES. With it
+    // loaded, attaching the window menu recurses until the main thread's stack
+    // overflows and the app aborts before any window shows. Drop just that
+    // module; GNOME has no global menu, so nothing is lost there.
+    // See https://github.com/tauri-apps/muda/issues/411
+    #[cfg(target_os = "linux")]
+    if let Ok(modules) = std::env::var("GTK_MODULES") {
+        let kept: Vec<&str> = modules
+            .split(':')
+            .filter(|m| *m != "appmenu-gtk-module")
+            .collect();
+        std::env::set_var("GTK_MODULES", kept.join(":"));
+    }
+
     // Need to create 'context' here before building the app so that we can load language translation files
     // for the current prefered language from the resource dir in order to prepare Menus
     let context = tauri::generate_context!();
