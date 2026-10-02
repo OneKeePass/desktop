@@ -30,28 +30,28 @@
 
 id: com.onekeepass.OneKeePass
 
-## Verified on the Fedora VM 2026-08-29:
-##   - org.gnome.Platform/Sdk 49 and 50 are both published; 50 chosen because GNOME
-##     runtimes get roughly a year of support (48 released 2025-03, EOL 2026-03), so 49
-##     is close to EOL and would force an immediate bump.
-##   - `pkg-config --exists webkit2gtk-4.1` succeeds in org.gnome.Sdk//50, which is the
-##     API version Tauri v2 targets.
-##   - The Sdk's extension point declares `version = 25.08`, so the rust-stable branch
-##     is 25.08 (Rust 1.98.0) — the newest published. No version is named below because
-##     flatpak-builder resolves it from that extension point.
+##   - org.gnome.Platform/Sdk 51 is published. GNOME runtimes get roughly a year of
+##     support, so each release takes the newest one rather than sitting on a pinned
+##     version until it nears EOL and forces an urgent bump.
+##   - org.gnome.Sdk//51 declares `version = 26.08` at its extension point, so that is
+##     the branch rust-stable, openjdk21 and node22 resolve to. No version is named
+##     below because flatpak-builder resolves it from that extension point.
+##   - The node20 extension is not published for 26.08; node22 is the oldest that is.
+##   - `pkg-config --modversion webkit2gtk-4.1` reports 2.54.0 in org.gnome.Sdk//51, which
+##     is the API version Tauri v2 targets.
 ## Do not copy the runtime version from the Tauri docs; they still show 47.
 runtime: org.gnome.Platform
-runtime-version: '50'
+runtime-version: '51'
 sdk: org.gnome.Sdk
 ## Pinned explicitly rather than the unversioned org.freedesktop.Sdk.Extension.openjdk:
 ## that alias tracks whatever JDK the SDK considers default and can shift between runtime
 ## releases.
-## openjdk21 + node20 match the Mac toolchain (JDK 21.0.6, Node 20.20.2), so the
+## openjdk21 + node22 match the Mac toolchain (JDK 21.0.6, Node 22.23.3), so the
 ## Flatpak-built bundle corresponds to what `just build-cljs-bundle` produces there.
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
   - org.freedesktop.Sdk.Extension.openjdk21
-  - org.freedesktop.Sdk.Extension.node20
+  - org.freedesktop.Sdk.Extension.node22
 
 # Not the app binary: a Flatpak has one command, and a browser launching the native
 # messaging proxy can only reach it through this one. The wrapper dispatches on the
@@ -117,14 +117,15 @@ finish-args:
   ## documented rather than worked around. Writing into another app's ~/.var/app would also
   ## need a lint exception per browser, as Bitwarden has.
   ##
-  ## Verified 2026-10-01: these three narrow grants pass flatpak-builder-lint with no
+  ## These three narrow grants pass flatpak-builder-lint with no
   ## exception, and without them the app would write the manifest into its own private
   ## home and report success -- see verify_flatpak_access() in native_messaging_config.rs.
 
   # No --filesystem grant for databases on purpose. Database files come through the XDG
   # document portal; opening, saving and the recent-databases list all work through it,
   # because the document id stays stable across restarts.
-  ## Verified 2026-08-30. The recents list displays the raw /run/user/<uid>/doc/...
+  
+  ## The recents list displays the raw /run/user/<uid>/doc/...
   ## path rather than the user's own ~/Documents/... path — cosmetic, tracked
   ## separately.
 
@@ -175,7 +176,7 @@ modules:
   - name: onekeepass-cljs
     buildsystem: simple
     build-options:
-      append-path: /usr/lib/sdk/openjdk21/bin:/usr/lib/sdk/node20/bin
+      append-path: /usr/lib/sdk/openjdk21/bin:/usr/lib/sdk/node22/bin
       env:
         # Yarn requires a writable home and cache during the build.
         ## yarn keeps its cache and .yarnrc under $HOME; point it at the build dir so it
@@ -203,7 +204,7 @@ modules:
         path: yarn.lock
       # Yarn is not included in the Node SDK extension, so provide it as a pinned source.
       ## SDK extensions are mounted READ-ONLY, so `npm install -g yarn` fails with ENOENT
-      ## trying to mkdir under /usr/lib/sdk/node20/lib/node_modules. Declared as a source
+      ## trying to mkdir under /usr/lib/sdk/node22/lib/node_modules. Declared as a source
       ## instead: pinned by checksum, needs no global write, and needs no network.
       ## Version matches the Mac toolchain (yarn 1.22.22).
       - type: archive
