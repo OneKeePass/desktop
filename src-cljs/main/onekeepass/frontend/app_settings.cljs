@@ -82,6 +82,8 @@
                 {:name "es - Español" :value "es"}
                 {:name "de - Deutsch" :value "de"}
                 {:name "zh - 中文" :value "zh"}
+                {:name "zh-TW - 繁體中文 (台灣)" :value "zh-TW"}
+                {:name "zh-HK - 繁體中文 (香港)" :value "zh-HK"}
                 {:name "ar - العربية" :value "ar"}
                 {:name "fi - suomi" :value "fi"}
                 {:name "ru - русский" :value "ru"}
