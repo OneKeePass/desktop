@@ -108,6 +108,7 @@ windows = { version = "0.58", features = [
 ssh-encoding = "0.2"
 windows-sys = { version = "0.52", features = [
     "Win32_Foundation",
+    "Win32_Graphics_Dwm",
     "Win32_Graphics_Gdi",
     "Win32_System_DataExchange",
     "Win32_System_Memory",
@@ -123,6 +124,10 @@ windows-sys = { version = "0.52", features = [
 # same gtk version webkit2gtk/Tauri use so we share the one GdkDisplay/main loop.
 [target."cfg(target_os = \"linux\")".dependencies]
 gtk = "0.18"
+# "Send window to background" on X11 (src/window_behavior.rs): reads
+# _NET_CLIENT_LIST_STACKING and sends _NET_ACTIVE_WINDOW. Pure-Rust connection,
+# same version arboard already pulls in.
+x11rb = "0.13"
 keyring-core = "1.0.0"
 # KeyStoreService is synchronous and is called from Tauri's Tokio workers. The
 # keyring backend's blocking API must therefore use async-io: selecting its

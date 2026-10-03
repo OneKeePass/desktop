@@ -692,6 +692,9 @@ pub(crate) struct SystemInfoWithPreference {
     // True when the app found the '.portable' marker next to the exe and keeps
     // all its data in 'onekeepass-data' beside the exe (Windows portable zip)
     portable: bool,
+    // False on Linux Wayland, where an app cannot hand focus to another app's
+    // window. The cljs UI shows the "Send window to background" choice disabled.
+    send_to_background_supported: bool,
 }
 //app_state: State<'_, app_state::AppState>
 // app: tauri::AppHandle<R>,
@@ -699,6 +702,10 @@ impl SystemInfoWithPreference {
     // pub fn init(app_state: &AppState) -> Self {
 
     pub fn init<R: Runtime>(app: tauri::AppHandle<R>) -> Self {
+        // Before taking the preference lock: on Linux this waits for the GTK
+        // main thread, which must not be blocked on that lock meanwhile
+        let send_to_background_supported = crate::window_behavior::is_supported(&app);
+
         let app_state: State<'_, AppState> = app.state();
 
         let pref = app_state.preference.lock().unwrap();
@@ -727,6 +734,7 @@ impl SystemInfoWithPreference {
             mas_build: cfg!(feature = "mas-build"),
             flatpak_build: crate::sandbox::is_flatpak(),
             portable: app_paths::is_portable(),
+            send_to_background_supported,
         }
     }
 }

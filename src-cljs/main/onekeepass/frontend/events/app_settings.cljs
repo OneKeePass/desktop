@@ -160,7 +160,7 @@
                                          :language
                                          :session-timeout
                                          :clipboard-timeout
-                                         :minimize-on-copy
+                                         :window-action-on-copy
                                          :backup
                                          :browser-ext-support
                                          :ssh-agent-support
@@ -254,7 +254,7 @@
                    language
                    session-timeout
                    clipboard-timeout
-                   minimize-on-copy
+                   window-action-on-copy
                    backup
                    browser-ext-support
                    ssh-agent-support
@@ -267,7 +267,7 @@
                                              language
                                              session-timeout
                                              clipboard-timeout
-                                             minimize-on-copy
+                                             window-action-on-copy
                                              backup
                                              browser-ext-support
                                              ssh-agent-support

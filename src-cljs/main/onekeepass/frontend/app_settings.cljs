@@ -146,20 +146,32 @@
        (for [{:keys [name value]} entry-groupings]
          ^{:key value} [mui-menu-item {:value value} (lstr-l-cv name)]))]]]])
 
-(defn- window-behavior [{{:keys [minimize-on-copy]} :preference-data}]
-  [mui-stack
-   [settings-panel-title (tr-t "windowBehavior")]
-   [mui-stack {:sx {:alignItems "center"}}
-    [mui-box {:sx {:width "80%"}}
-     [mui-form-control-label
-      {:control (r/as-element
-                 [mui-checkbox
-                  {:checked (boolean minimize-on-copy)
-                   :on-change (fn [e]
-                                (app-settings-events/field-update
-                                 [:preference-data :minimize-on-copy]
-                                 (-> e .-target .-checked)))}])
-       :label (t/lstr-l "minimizeOnCopy")}]]]])
+;; On Linux Wayland "Send window to background" stays listed but disabled. A
+;; value saved earlier in an X11 session is kept (and shown) so it applies again
+;; when the user is back on X11; on Wayland copying then leaves the window as is.
+(defn- window-behavior [{{:keys [window-action-on-copy]} :preference-data}]
+  (let [background-supported? (boolean @(ce/send-to-background-supported?))]
+    [mui-stack
+     [settings-panel-title (tr-t "windowBehavior")]
+     [mui-stack {:sx {:alignItems "center"}}
+      [mui-box {:sx {:width "80%"}}
+       [m/text-field {:label (t/lstr-l "afterCopyToClipboard")
+                      :value (if (str/blank? window-action-on-copy)
+                               const/WINDOW_ACTION_ON_COPY_NONE
+                               window-action-on-copy)
+                      :select true
+                      :helperText (when-not background-supported?
+                                    (t/lstr-h "sendToBackgroundNotOnWayland"))
+                      :on-change (app-settings-events/field-update-factory
+                                  [:preference-data :window-action-on-copy])
+                      :variant "standard" :fullWidth true}
+        [mui-menu-item {:value const/WINDOW_ACTION_ON_COPY_NONE}
+         (t/lstr-l "doNothing")]
+        [mui-menu-item {:value const/WINDOW_ACTION_ON_COPY_MINIMIZE}
+         (t/lstr-l "minimizeWindow")]
+        [mui-menu-item {:value const/WINDOW_ACTION_ON_COPY_BACKGROUND
+                        :disabled (not background-supported?)}
+         (t/lstr-l "sendWindowToBackground")]]]]]))
 
 (defn general-info [dialog-data]
   [mui-stack
@@ -619,7 +631,12 @@
    [browser-manifest-reconnect-dialog]
 
    [mui-dialog-content {:sx {:padding-left "10px"} :dividers true}
-    [mui-stack {:direction "row" :sx {:height "350px " :min-height "300px"}}
+    ;; Tall enough for the General panel (including the Wayland helper text under
+    ;; Window Behavior) without scrolling; the max-height keeps the dialog's title
+    ;; and buttons on screen in a small window, where the panel scrolls instead
+    [mui-stack {:direction "row" :sx {:height "430px"
+                                      :max-height "calc(100vh - 230px)"
+                                      :min-height "300px"}}
      [mui-box {:sx {:width "30%"
                     :background "rgba(241, 241, 241, 0.33)"}}
       [list-items panel]]

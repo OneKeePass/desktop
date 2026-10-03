@@ -245,6 +245,15 @@ pub(crate) async fn system_info_with_preference<R: Runtime>(
     Ok(SystemInfoWithPreference::init(app))
 }
 
+// Called after a copy when the user chose "Send window to background". Hands
+// focus to the window behind OneKeePass; see crate::window_behavior.
+#[tauri::command]
+pub(crate) async fn send_window_to_background<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<()> {
+    crate::window_behavior::send_to_background(&app)
+}
+
 // Linux clipboard read/clear via the GTK/GDK clipboard. See crate::clipboard
 // for why the arboard-backed clipboard plugin is bypassed on Linux.
 #[cfg(target_os = "linux")]

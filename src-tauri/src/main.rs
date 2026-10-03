@@ -28,6 +28,7 @@ mod ssh_agent;
 mod translation;
 #[cfg(not(feature = "mas-build"))]
 mod updater;
+mod window_behavior;
 // mod callback_service_provider;
 
 use constants::event_action_names::*;
@@ -248,6 +249,7 @@ fn main() {
             commands::supported_biometric_type,
             commands::svg_file,
             commands::system_info_with_preference,
+            commands::send_window_to_background,
             // commands::tokio_runtime_shutdown,
             // commands::tokio_runtime_start,
             commands::unlock_kdbx,
