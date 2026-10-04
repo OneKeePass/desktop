@@ -1,3 +1,17 @@
+### 0.27.0
+
+#### Changes
+- The **After copying to clipboard** setting can now **Do nothing**, **Minimize window** or **Send window to background** [#94](https://github.com/OneKeePass/desktop/issues/94)
+    - Send window to background is not available on Wayland
+- Browser extension support in the Flatpak build for Firefox, Chrome and Brave installed on the host system
+- Traditional Chinese (Taiwan and Hong Kong) translations added
+- The Flatpak now uses the GNOME 51 runtime
+
+#### Fixed
+- On GNOME Wayland, the window title bar buttons now work [#93](https://github.com/OneKeePass/desktop/issues/93)
+- On Ubuntu GNOME, the app no longer crashes at startup [#71](https://github.com/OneKeePass/desktop/issues/71)
+- The key file field in the Open Database dialog now has enough space above it [#92](https://github.com/OneKeePass/desktop/issues/92)
+
 ### 0.26.0
 
 #### Changes
