@@ -24,6 +24,25 @@ cfg_if::cfg_if! {
     }
 }
 
+// A Flatpak without a filesystem grant for the browser's configuration directory still
+// has a writable home of its own, so creating the directory and writing the manifest both
+// succeed -- into a private path no browser ever reads, leaving the browser reported as
+// registered while nothing can connect. Nothing later in the write path can detect that,
+// so it is rejected here.
+#[cfg(target_os = "linux")]
+fn verify_flatpak_access(dir: &std::path::Path) -> Result<()> {
+    if crate::sandbox::is_flatpak() && crate::sandbox::flatpak_filesystem_grant_missing(dir) {
+        log::error!(
+            "No Flatpak filesystem grant covers {:?}; refusing to write a native messaging manifest the browser cannot read",
+            dir
+        );
+        return Err(error::Error::DataError(
+            "This package has no permission for the browser's configuration directory",
+        ));
+    }
+    Ok(())
+}
+
 // Based on https://www.reddit.com/r/tauri/comments/1l29c29/getting_absolute_path_of_sidecar_binary/
 // Other refs:
 // https://github.com/tauri-apps/tauri/issues/12621
@@ -33,6 +52,17 @@ cfg_if::cfg_if! {
 
 // Determine the full path of the proxy binary
 fn proxy_full_path() -> Result<PathBuf> {
+    // Inside a Flatpak the browser runs outside this sandbox, where /app/bin/onekeepass-proxy
+    // is not a path it can resolve or execute. The launcher Flatpak exports onto the host
+    // re-enters the sandbox, and the wrapper installed as the Flatpak's command dispatches
+    // a browser-shaped argv to the proxy, so the launcher is what the manifest must name.
+    #[cfg(target_os = "linux")]
+    if crate::sandbox::is_flatpak() {
+        if let Some(launcher) = crate::sandbox::flatpak_host_launcher_path() {
+            return Ok(launcher);
+        }
+    }
+
     let app_dir = std::env::current_exe()?;
 
     let parent = app_dir
@@ -269,6 +299,7 @@ impl<'a> FirefoxNativeMessagingConfig<'a> {
             } else if #[cfg(target_os = "linux")] {
                 if let Some(mut home) = std::env::home_dir() {
                     home.push(".mozilla/native-messaging-hosts");
+                    verify_flatpak_access(&home)?;
                     if !home.exists() {
                         let r = std::fs::create_dir_all(&home);
                         log::debug!("Created mozilla proxy location dir {:?} with result {:?}",&home,&r);
@@ -444,6 +475,7 @@ impl<'a> ChromeNativeMessagingConfig<'a> {
             } else if #[cfg(target_os = "linux")] {
                 if let Some(mut home) = std::env::home_dir() {
                     home.push(".config/google-chrome/NativeMessagingHosts");
+                    verify_flatpak_access(&home)?;
                     if !home.exists() {
                         let r = std::fs::create_dir_all(&home);
                         log::debug!("Created google-chrome proxy location dir {:?} with result {:?}",&home,&r);
@@ -598,6 +630,7 @@ impl<'a> BraveNativeMessagingConfig<'a> {
             } else if #[cfg(target_os = "linux")] {
                 if let Some(mut home) = std::env::home_dir() {
                     home.push(".config/BraveSoftware/Brave-Browser/NativeMessagingHosts");
+                    verify_flatpak_access(&home)?;
                     if !home.exists() {
                         let r = std::fs::create_dir_all(&home);
                         log::debug!("Created brave proxy location dir {:?} with result {:?}",&home,&r);

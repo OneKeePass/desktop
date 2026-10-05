@@ -156,6 +156,12 @@
 (def WINDOWS "windows")
 (def LINUX "linux")
 
+;; App Settings -> Window Behavior choices; match WindowActionOnCopy in
+;; src-tauri/src/app_preference/preference.rs
+(def WINDOW_ACTION_ON_COPY_NONE "none")
+(def WINDOW_ACTION_ON_COPY_MINIMIZE "minimize")
+(def WINDOW_ACTION_ON_COPY_BACKGROUND "background")
+
 (def GROUP "Group")
 
 ;; Some entry standard fields

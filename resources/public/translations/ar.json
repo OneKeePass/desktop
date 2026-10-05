@@ -2,6 +2,7 @@
     "helperTexts": {
         "autoSaveHelp": "يحفظ قاعدة البيانات تلقائيًا بمجرد اكتمال التعديل. لا يتم الحفظ التلقائي لعمليات الاستيراد والدمج والحذف والنقل — فهذه تنتظر مراجعتك وحفظك لها.",
         "backupMaxCopiesHelp": "عدد النسخ الاحتياطية التي يتم الاحتفاظ بها لكل قاعدة بيانات. تتم إزالة الأقدم عند بلوغ هذا العدد.",
+        "browserIntegrationFlatpakHostBrowsersOnly": "في إصدار Flatpak، يعمل تكامل المتصفح مع المتصفحات المثبتة على النظام، سواء من توزيعتك أو من الشركة المطوّرة للمتصفح. لا يمكن تسجيل متصفح مثبت هو نفسه كـ Flatpak تلقائيًا، لأنه غير مسموح له بتشغيل برامج خارج بيئة العزل الخاصة به.",
         "cardVerificationValue/Number": "قيمة/رقم التحقق من البطاقة",
         "copiedToClipboard": "تم النسخ إلى الحافظة",
         "customFieldAdded": "تمت إضافة حقل مخصص. يمكنك إضافة المزيد من الحقول أو ضغط إلغاء للإغلاق",
@@ -32,6 +33,8 @@
         "requiresApplicationRestart": "يتطلب إعادة تشغيل التطبيق",
         "selectAValidGroup": "الرجاء تحديد مجموعة صالحة",
         "selectTag": "حدد علامة أو ابدأ في إدخال علامة جديدة وأضف",
+        "sendToBackgroundNotOnWayland": "إرسال النافذة إلى الخلفية غير متاح على Wayland، الذي لا يسمح للتطبيق بالانتقال إلى نافذة تطبيق آخر.",
+        "sshAgentUnavailableFlatpak": "غير متاح في إصدار Flatpak. استخدم حزمة deb أو rpm أو AppImage إذا كنت بحاجة إلى وكيل SSH.",
         "transformRounds": "عدد الجولات التي يقوم بها اشتقاق المفتاح. القيم الأعلى تجعل الفتح أبطأ لك، وأبطأ بكثير لمن يحاول تخمين كلمة المرور."
     },
     "titles": {
@@ -70,6 +73,7 @@
         "addSection": "إضافة فئة",
         "addSectionAndFields": "إضافة قسم وحقول جديدة",
         "addToSshAgent": "إضافة إلى وكيل SSH",
+        "afterCopyToClipboard": "بعد النسخ إلى الحافظة",
         "algorithm": "الخوارزمية",
         "allEntries": "جميع الإدخالات",
         "always": "دائماً",
@@ -108,6 +112,7 @@
         "description": "الوصف",
         "destinationDatabase": "قاعدة البيانات الهدف",
         "done": "تم",
+        "doNothing": "لا تفعل شيئًا",
         "edit": "تعديل",
         "enableAutoSave": "الحفظ التلقائي بعد التعديل",
         "enableBackup": "تفعيل النسخ الاحتياطي",
@@ -158,7 +163,7 @@
         "loadFromFile": "تحميل من ملف",
         "lowerCaseAZ": "حروف صغيرة (a-z)",
         "memoryUsage": "استهلاك الذاكرة",
-        "minimizeOnCopy": "تصغير النافذة بعد النسخ إلى الحافظة",
+        "minimizeWindow": "تصغير النافذة",
         "modifyField": "تعديل الحقل",
         "manageCustomIcons": "إدارة الأيقونات المخصصة",
         "modifySectionName": "تعديل اسم الفئة",
@@ -204,6 +209,7 @@
         "secretOrTotpAuthUrl": "الرمز او عنوان TOTPAuth",
         "sectionName": "اسم الفئة",
         "security": "الحماية",
+        "sendWindowToBackground": "إرسال النافذة إلى الخلفية",
         "separator": "فاصل",
         "sessionTimeout": "وقت انتهاء الجلسة (دقيقة)",
         "setUpOneTimePassword": "إعداد كلمة مرور لمرة واحدة",
@@ -321,6 +327,7 @@
             "sshAgentSignRequest": "طلب توقيع من وكيل SSH",
             "unsavedChanges": "تغييرات غير محفوظة",
             "updateAvailable": "يتوفر تحديث",
+            "updatesManagedExternally": "تتم إدارة التحديثات خارجيًا",
             "upToDate": "أنت محدّث"
         },
         "texts": {
@@ -388,6 +395,7 @@
             "unsavedChangesTxt3": "هناك تغييرات لم يتم حفظها بعد. هل تريد الحفظ قبل إغلاق قاعدة البيانات؟",
             "updateAvailable": "يتوفر إصدار جديد {{latestVersion}}. أنت تستخدم {{currentVersion}}.",
             "updateCheckFailed": "تعذّر التحقق من التحديثات. يُرجى المحاولة لاحقًا.",
+            "updatesManagedExternally": "يتم تحديث هذا التثبيت بواسطة مدير الحزم الذي ثُبّت به. أنت تستخدم الإصدار {{currentVersion}}.",
             "upToDate": "أنت تستخدم أحدث إصدار ({{currentVersion}})."
         }
     },

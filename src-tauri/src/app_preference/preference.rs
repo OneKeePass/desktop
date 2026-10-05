@@ -128,6 +128,19 @@ pub(crate) struct AutoSavePreference {
     pub(crate) enabled: bool,
 }
 
+// What the app window does after a value is copied to the clipboard. The
+// default keeps the window where it is. 'Background' hands focus to the window
+// that was behind OneKeePass without minimizing it (issue #94); it is not
+// possible on Linux Wayland, where the settings UI shows it disabled.
+#[derive(Clone, Serialize, Deserialize, Debug, Default, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum WindowActionOnCopy {
+    #[default]
+    None,
+    Minimize,
+    Background,
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub(crate) struct Preference {
     version: String,
@@ -141,7 +154,13 @@ pub(crate) struct Preference {
 
     // Optional workflow behavior; old preferences keep the window visible.
     #[serde(default)]
-    minimize_on_copy: bool,
+    window_action_on_copy: WindowActionOnCopy,
+
+    // Replaced by window_action_on_copy. Read only so that an older
+    // preference.toml with 'minimize_on_copy = true' keeps minimizing; it is
+    // folded into window_action_on_copy on load and never written back.
+    #[serde(default, skip_serializing)]
+    minimize_on_copy: Option<bool>,
 
     // Determines the theme colors etc
     theme: String,
@@ -189,7 +208,8 @@ impl Default for Preference {
             version: "0.21.0".into(),
             session_timeout: (15 as u16),
             clipboard_timeout: (30 as u16),
-            minimize_on_copy: false,
+            window_action_on_copy: WindowActionOnCopy::None,
+            minimize_on_copy: None,
             theme: LIGHT.into(),
             language: translation::current_locale_language(),
             default_entry_category_groupings: "Groups".into(),
@@ -265,6 +285,10 @@ impl Preference {
             }
         };
 
+        if pref.migrate_minimize_on_copy() {
+            pref.write_toml();
+        }
+
         if pref.version != version {
             // The read preference from file system has version which is not the same as current one
             // So we need to write the new one
@@ -287,6 +311,20 @@ impl Preference {
             pref.write_toml();
         }
         pref
+    }
+
+    // Converts the old 'minimize_on_copy' flag to window_action_on_copy.
+    // Returns true when the preference changed and needs writing.
+    fn migrate_minimize_on_copy(&mut self) -> bool {
+        match self.minimize_on_copy.take() {
+            Some(minimize) => {
+                if minimize {
+                    self.window_action_on_copy = WindowActionOnCopy::Minimize;
+                }
+                true
+            }
+            None => false,
+        }
     }
 
     fn read_previous_preference(pref_str: &str) -> Option<Preference> {
@@ -409,8 +447,8 @@ impl Preference {
             updated = true;
         }
 
-        if let Some(v) = preference_data.minimize_on_copy {
-            self.minimize_on_copy = v;
+        if let Some(v) = preference_data.window_action_on_copy {
+            self.window_action_on_copy = v;
             updated = true;
         }
 
@@ -608,23 +646,50 @@ impl Preference {
 
 #[cfg(test)]
 mod tests {
-    use super::Preference;
+    use super::{Preference, WindowActionOnCopy};
 
     #[test]
-    fn minimize_on_copy_defaults_off_for_existing_preferences() {
+    fn window_action_on_copy_defaults_to_none_for_existing_preferences() {
         let mut value = serde_json::to_value(Preference::default()).unwrap();
-        value.as_object_mut().unwrap().remove("minimize_on_copy");
+        value.as_object_mut().unwrap().remove("window_action_on_copy");
         let preference: Preference = serde_json::from_value(value).unwrap();
-        assert!(!preference.minimize_on_copy);
+        assert_eq!(preference.window_action_on_copy, WindowActionOnCopy::None);
     }
 
     #[test]
-    fn minimize_on_copy_survives_toml_round_trip() {
+    fn window_action_on_copy_survives_toml_round_trip() {
         let mut preference = Preference::default();
-        preference.minimize_on_copy = true;
+        preference.window_action_on_copy = WindowActionOnCopy::Background;
         let encoded = toml::to_string(&preference).unwrap();
+        assert!(encoded.contains("window_action_on_copy = \"background\""));
         let decoded: Preference = toml::from_str(&encoded).unwrap();
-        assert!(decoded.minimize_on_copy);
+        assert_eq!(decoded.window_action_on_copy, WindowActionOnCopy::Background);
+    }
+
+    #[test]
+    fn legacy_minimize_on_copy_true_migrates_to_minimize() {
+        let mut encoded = toml::to_string(&Preference::default()).unwrap();
+        encoded = encoded.replace(
+            "window_action_on_copy = \"none\"\n",
+            "minimize_on_copy = true\n",
+        );
+        let mut preference: Preference = toml::from_str(&encoded).unwrap();
+        assert!(preference.migrate_minimize_on_copy());
+        assert_eq!(preference.window_action_on_copy, WindowActionOnCopy::Minimize);
+        assert!(!toml::to_string(&preference).unwrap().contains("minimize_on_copy"));
+        assert!(!preference.migrate_minimize_on_copy());
+    }
+
+    #[test]
+    fn legacy_minimize_on_copy_false_migrates_to_none() {
+        let mut encoded = toml::to_string(&Preference::default()).unwrap();
+        encoded = encoded.replace(
+            "window_action_on_copy = \"none\"\n",
+            "minimize_on_copy = false\n",
+        );
+        let mut preference: Preference = toml::from_str(&encoded).unwrap();
+        assert!(preference.migrate_minimize_on_copy());
+        assert_eq!(preference.window_action_on_copy, WindowActionOnCopy::None);
     }
 
     #[test]

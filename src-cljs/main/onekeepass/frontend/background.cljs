@@ -81,6 +81,12 @@
         (catch js/Error err
           (js/console.log "Error: " (ex-cause err)  "err " err))))))
 
+(defn send-window-to-background
+  "Hands focus to the window behind this app without minimizing it. Not
+   available on Linux Wayland (the backend then does nothing)."
+  [dispatch-fn]
+  (invoke-api "send_window_to_background" {} dispatch-fn))
+
 (defn set-window-focus []
   ;; Need to get the window before 'go' call to avoid something like "Warning - Cannot infer target type in expression...." 
   (let [window ^js/TauriWindow (getCurrentWindow)]

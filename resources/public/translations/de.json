@@ -2,6 +2,7 @@
     "helperTexts": {
         "autoSaveHelp": "Speichert die Datenbank automatisch, sobald eine Bearbeitung abgeschlossen ist. Importe, Zusammenführungen, Löschungen und Verschiebungen werden nicht automatisch gespeichert — diese warten darauf, dass Sie sie prüfen und speichern.",
         "backupMaxCopiesHelp": "Wie viele Sicherungskopien für jede Datenbank aufbewahrt werden. Die ältesten werden entfernt, sobald diese Anzahl erreicht ist.",
+        "browserIntegrationFlatpakHostBrowsersOnly": "Im Flatpak-Build funktioniert die Browser-Integration mit Browsern, die auf dem System installiert sind, aus Ihrer Distribution oder vom Browser-Hersteller. Ein Browser, der selbst als Flatpak installiert ist, kann nicht automatisch registriert werden, da er keine Programme außerhalb seiner eigenen Sandbox starten darf.",
         "cardVerificationValue/Number": "Kartenprüfwert/-nummer",
         "copiedToClipboard": "In die Zwischenablage kopiert",
         "customFieldAdded": "Benutzerdefiniertes Feld hinzugefügt. Sie können weitere Felder hinzufügen oder zum Schließen abbrechen",
@@ -32,6 +33,8 @@
         "requiresApplicationRestart": "Erfordert Neustart der Anwendung",
         "selectAValidGroup": "Bitte wählen Sie eine gültige Gruppe",
         "selectTag": "Wählen Sie ein Tag aus oder beginnen Sie, ein neues einzugeben und hinzufügen",
+        "sendToBackgroundNotOnWayland": "Das Senden des Fensters in den Hintergrund ist unter Wayland nicht verfügbar, da Wayland einer App nicht erlaubt, zum Fenster einer anderen App zu wechseln.",
+        "sshAgentUnavailableFlatpak": "Im Flatpak-Build nicht verfügbar. Verwenden Sie das deb-, rpm- oder AppImage-Paket, wenn Sie den SSH-Agenten benötigen.",
         "transformRounds": "Anzahl der Durchläufe der Schlüsselableitung. Höhere Werte machen das Entsperren für Sie langsamer und für jeden, der Ihr Passwort erraten will, sehr viel langsamer."
     },
     "titles": {
@@ -70,6 +73,7 @@
         "addSection": "Abschnitt hinzufügen",
         "addSectionAndFields": "Neuen Abschnitt und Felder hinzufügen",
         "addToSshAgent": "Zum SSH-Agenten hinzufügen",
+        "afterCopyToClipboard": "Nach dem Kopieren in die Zwischenablage",
         "algorithm": "Algorithmus",
         "allEntries": "Alle Einträge",
         "always": "Immer",
@@ -108,6 +112,7 @@
         "description": "Beschreibung",
         "destinationDatabase": "Zieldatenbank",
         "done": "Fertig",
+        "doNothing": "Nichts tun",
         "edit": "Bearbeiten",
         "enableAutoSave": "Automatisch speichern nach einer Bearbeitung",
         "enableBackup": "Sicherung aktivieren",
@@ -158,7 +163,7 @@
         "loadFromFile": "Aus Datei laden",
         "lowerCaseAZ": "Kleinbuchstaben (a-z)",
         "memoryUsage": "Speichernutzung",
-        "minimizeOnCopy": "Fenster nach dem Kopieren in die Zwischenablage minimieren",
+        "minimizeWindow": "Fenster minimieren",
         "modifyField": "Feld ändern",
         "manageCustomIcons": "Benutzerdefinierte Symbole verwalten",
         "modifySectionName": "Abschnittsnamen ändern",
@@ -204,6 +209,7 @@
         "secretOrTotpAuthUrl": "Geheimnis oder TOTPAuth-URL",
         "sectionName": "Abschnittsname",
         "security": "Sicherheit",
+        "sendWindowToBackground": "Fenster in den Hintergrund senden",
         "separator": "Trennzeichen",
         "sessionTimeout": "Sitzungs-Timeout (in Min.)",
         "setUpOneTimePassword": "Einmal-Passwort einrichten",
@@ -321,6 +327,7 @@
             "sshAgentSignRequest": "SSH-Agent-Signaturanforderung",
             "unsavedChanges": "Ungespeicherte Änderungen",
             "updateAvailable": "Update verfügbar",
+            "updatesManagedExternally": "Updates werden extern verwaltet",
             "upToDate": "Sie sind auf dem neuesten Stand"
         },
         "texts": {
@@ -388,6 +395,7 @@
             "unsavedChangesTxt3": "Es gibt noch ungespeicherte Änderungen. Möchten Sie speichern, bevor Sie die Datenbank schließen?",
             "updateAvailable": "Eine neue Version {{latestVersion}} ist verfügbar. Sie verwenden {{currentVersion}}.",
             "updateCheckFailed": "Es konnte nicht nach Updates gesucht werden. Bitte versuchen Sie es später erneut.",
+            "updatesManagedExternally": "Diese Installation wird über den Paketmanager aktualisiert, mit dem sie installiert wurde. Sie verwenden Version {{currentVersion}}.",
             "upToDate": "Sie verwenden die neueste Version ({{currentVersion}})."
         }
     },

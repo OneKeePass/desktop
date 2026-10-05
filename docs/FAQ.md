@@ -38,6 +38,8 @@ You can lock a database from the toolbar, from the **Database -> Lock Database**
 
 Yes. From release 0.25.0 onwards, all open databases are locked when the machine is about to suspend or sleep, on macOS, Windows and Linux.
 
+The Flatpak build from Flathub is the exception: its sandbox has no permission to watch for the system going to sleep, so lock your databases yourself before suspending.
+
 This matters because a suspended machine may write its whole memory image to a hibernation or sleep file on disk. The locking is done before the system sleeps, so what lands in that file is encrypted data rather than your decrypted passwords. When you come back, the databases are showing the lock screen and you unlock them as usual.
 
 ## Can I unlock quickly with Windows Hello or TouchID?
@@ -148,6 +150,16 @@ If you want to update or to change an OTP field, the existing field needs to be 
   <br>
 </h1>
 </details>
+
+## Can the OneKeePass window get out of the way after I copy a password?
+
+Yes. In **Application Settings -> General -> Window Behavior**, the **After copying to clipboard** setting chooses what happens to the window when you copy a field such as a username or password:
+
+- **Do nothing** — the window stays where it is. This is the default
+- **Minimize window** — from release 0.26.0 onwards
+- **Send window to background** — from release 0.27.0 onwards. OneKeePass moves behind the window you were using before, so you can paste straight away without the window being minimized
+
+Send window to background is not available on Linux with Wayland, which does not let an app switch to another app's window. Use Minimize window there instead.
 
 ## Is Auto-Type supported ?
 Yes. For now few basic features are supported for macOS and soon supports for other platforms will be added. See [here](./AUTO-TYPE.md) for additional details
@@ -270,6 +282,8 @@ This is a general limitation of native messaging with sandboxed browsers (it aff
    `flatpak override --user --talk-name=org.freedesktop.Flatpak org.mozilla.firefox`
 3. Edit the `path` in the copied manifest to invoke the proxy through the host, e.g. wrap it with `flatpak-spawn --host /path/to/onekeepass-proxy`.
 
+If OneKeePass itself is installed from Flathub, the manifest's `path` points at the OneKeePass Flatpak launcher instead of `onekeepass-proxy`. The steps above have not been tested with that combination.
+
 The non-sandboxed browser is the simpler and more reliable option.
 
 ## How can I quickly reopen recently used databases?
@@ -389,6 +403,19 @@ RUNAS /TRUSTLEVEL:0x20000 "%~dp0OneKeePass.exe"
 With this setup, everything OneKeePass needs travels with the folder and nothing is installed on the host system
 
 **Note:** A fixed-version runtime does not update itself. You should replace the `Webview2` folder with a newer version periodically to receive WebView2 security updates
+
+## Is OneKeePass available on Flathub?
+
+Yes. From release 0.26.0 onwards, OneKeePass is published on [Flathub](https://flathub.org/apps/com.onekeepass.OneKeePass) for x86_64 and ARM64 (aarch64) machines. Install it from your software center, or with:
+
+`flatpak install flathub com.onekeepass.OneKeePass`
+
+The Flatpak runs in a sandbox, so a few things work differently from the deb, rpm and AppImage packages:
+
+- **Browser integration** works from release 0.27.0 onwards with Firefox, Chrome and Brave installed on the system, from your distribution or from the browser vendor. A browser that is itself installed as a Flatpak cannot be registered automatically — see [The browser extension can't connect to OneKeePass on Linux](#the-browser-extension-cant-connect-to-onekeepass-on-linux-flatpaksnap-browser)
+- **The SSH agent** is not available. Use the deb, rpm or AppImage package if you need it
+- **Locking on suspend** is not available, because the sandbox has no permission to watch for the system going to sleep
+- **Updates** come from Flathub, through your software center or `flatpak update`. **Help -> Check for Updates** shows that the installation is updated by its package manager
 
 ## How do I check for new versions of OneKeePass?
 

@@ -183,6 +183,11 @@
 (defn is-flatpak-build? []
   (subscribe [:flatpak-build]))
 
+;; False on Linux Wayland, where the app cannot hand focus to another app's
+;; window. Used to show the "Send window to background" choice disabled.
+(defn send-to-background-supported? []
+  (subscribe [:send-to-background-supported]))
+
 (defn biometric-type-available []
   (subscribe [:biometric-type-available]))
 
@@ -249,6 +254,7 @@
                                       dev-mode
                                       mas-build
                                       flatpak-build
+                                      send-to-background-supported
                                       preference]}]]
    (set-session-timeout (:session-timeout preference))
    (set-clipboard-timeout (:clipboard-timeout preference))
@@ -265,6 +271,7 @@
             (assoc :dev-mode dev-mode)
             (assoc :mas-build mas-build)
             (assoc :flatpak-build flatpak-build)
+            (assoc :send-to-background-supported send-to-background-supported)
             (assoc-in [:background-loading-statuses :app-preference] true))}))
 
 (reg-event-db
@@ -417,6 +424,11 @@
  :flatpak-build
  (fn [db _query-vec]
    (:flatpak-build db)))
+
+(reg-sub
+ :send-to-background-supported
+ (fn [db _query-vec]
+   (:send-to-background-supported db)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1509,11 +1521,28 @@
 ;;   The webview-native copy relies on DOM focus/selection and is silently
 ;;   defeated by a focus-trapping MUI dialog; the plugin writes through the
 ;;   native OS clipboard API and is unaffected.
+;; Runs the window action chosen in App Settings -> Window Behavior after a
+;; successful copy. The values match the backend's WindowActionOnCopy enum.
+(defn- window-action-after-copy []
+  (condp = (get-in @rf-db/app-db [:app-preference :window-action-on-copy])
+    const/WINDOW_ACTION_ON_COPY_MINIMIZE
+    (bg/minimize-window)
+
+    const/WINDOW_ACTION_ON_COPY_BACKGROUND
+    (bg/send-window-to-background
+     (fn [api-response]
+       ;; The value is already on the clipboard; a failure here should not
+       ;; replace the "Copied" snackbar with an error
+       (on-error api-response
+                 (fn [error]
+                   (js/console.warn "Send window to background failed:" error)))))
+
+    nil))
+
 (defn write-to-clipboard [data]
   (let [on-success (fn []
                      (notify-copied-to-clipboard)
-                     (when (get-in @rf-db/app-db [:app-preference :minimize-on-copy])
-                       (bg/minimize-window)))]
+                     (window-action-after-copy))]
     (if (on-linux?)
       (bg/write-to-clipboard-gtk data on-success)
       (bg/write-to-clipboard-plugin data on-success))))

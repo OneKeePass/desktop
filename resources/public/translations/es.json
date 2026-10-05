@@ -2,6 +2,7 @@
     "helperTexts": {
         "autoSaveHelp": "Guarda la base de datos automáticamente en cuanto se completa una edición. Las importaciones, combinaciones, eliminaciones y movimientos no se guardan automáticamente: esperan a que los revise y los guarde.",
         "backupMaxCopiesHelp": "Cuántas copias de seguridad se conservan para cada base de datos. Las más antiguas se eliminan una vez alcanzado este número.",
+        "browserIntegrationFlatpakHostBrowsersOnly": "En la versión Flatpak, la integración con el navegador funciona con los navegadores instalados en el sistema, desde su distribución o desde el fabricante del navegador. Un navegador que esté instalado como Flatpak no se puede registrar automáticamente, porque no tiene permitido iniciar programas fuera de su propio entorno aislado.",
         "cardVerificationValue/Number": "Valor/número de verificación de la tarjeta",
         "copiedToClipboard": "Copiado al portapapeles",
         "customFieldAdded": "Campo personalizado añadido. Puede añadir más campos o cancelar para cerrar",
@@ -32,6 +33,8 @@
         "requiresApplicationRestart": "Requiere reiniciar la aplicación",
         "selectAValidGroup": "Seleccione un grupo válido",
         "selectTag": "Selecciona una etiqueta o empieza a introducir una nueva y añade",
+        "sendToBackgroundNotOnWayland": "Enviar la ventana a segundo plano no está disponible en Wayland, que no permite que una aplicación cambie a la ventana de otra aplicación.",
+        "sshAgentUnavailableFlatpak": "No disponible en la versión Flatpak. Use el paquete deb, rpm o AppImage si necesita el agente SSH.",
         "transformRounds": "Número de pasadas que realiza la derivación de la clave. Los valores más altos hacen que el desbloqueo sea más lento para usted y mucho más lento para quien intente adivinar su contraseña."
     },
     "titles": {
@@ -70,6 +73,7 @@
         "addSection": "Añadir sección",
         "addSectionAndFields": "Añadir una nueva sección y campos",
         "addToSshAgent": "Añadir al agente SSH",
+        "afterCopyToClipboard": "Después de copiar al portapapeles",
         "algorithm": "Algoritmo",
         "allEntries": "Todas las entradas",
         "always": "Siempre",
@@ -108,6 +112,7 @@
         "description": "Descripción",
         "destinationDatabase": "Base de datos de destino",
         "done": "Hecho",
+        "doNothing": "No hacer nada",
         "edit": "Editar",
         "enableAutoSave": "Guardado automático tras una edición",
         "enableBackup": "Activar copia de seguridad",
@@ -158,7 +163,7 @@
         "loadFromFile": "Cargar desde archivo",
         "lowerCaseAZ": "Minúsculas (a-z)",
         "memoryUsage": "Uso de la memoria",
-        "minimizeOnCopy": "Minimizar la ventana después de copiar al portapapeles",
+        "minimizeWindow": "Minimizar la ventana",
         "modifyField": "Modificar campo",
         "manageCustomIcons": "Administrar iconos personalizados",
         "modifySectionName": "Modificar el nombre de la sección",
@@ -204,6 +209,7 @@
         "secretOrTotpAuthUrl": "URL secreta o TOTPAuth",
         "sectionName": "Nombre de la sección",
         "security": "Seguridad",
+        "sendWindowToBackground": "Enviar la ventana a segundo plano",
         "separator": "Separador",
         "sessionTimeout": "Tiempo de espera de la sesión (en minutos)",
         "setUpOneTimePassword": "Configurar contraseña de un solo uso",
@@ -321,6 +327,7 @@
             "sshAgentSignRequest": "Solicitud de firma del agente SSH",
             "unsavedChanges": "Cambios no guardados",
             "updateAvailable": "Actualización disponible",
+            "updatesManagedExternally": "Las actualizaciones se gestionan externamente",
             "upToDate": "Está actualizado"
         },
         "texts": {
@@ -388,6 +395,7 @@
             "unsavedChangesTxt3": "Hay cambios pendientes de guardar. Quieres guardar antes de cerrar la base de datos?",
             "updateAvailable": "Hay una nueva versión {{latestVersion}} disponible. Está usando {{currentVersion}}.",
             "updateCheckFailed": "No se pudo buscar actualizaciones. Inténtelo de nuevo más tarde.",
+            "updatesManagedExternally": "Esta instalación se actualiza mediante el gestor de paquetes con el que se instaló. Está usando la versión {{currentVersion}}.",
             "upToDate": "Está usando la última versión ({{currentVersion}})."
         }
     },
