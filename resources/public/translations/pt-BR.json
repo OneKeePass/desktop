@@ -2,6 +2,7 @@
     "helperTexts": {
         "autoSaveHelp": "Salva o banco de dados automaticamente assim que uma edição é concluída. Importações, mesclagens, exclusões e movimentações não são salvas automaticamente — elas aguardam que você as revise e salve.",
         "backupMaxCopiesHelp": "Quantas cópias de backup manter para cada banco de dados. As mais antigas são removidas quando esse número é atingido.",
+        "browserIntegrationFlatpakHostBrowsersOnly": "Na versão Flatpak, a integração com navegador funciona com navegadores instalados no sistema, pela sua distribuição ou pelo fabricante do navegador. Um navegador que também esteja instalado como Flatpak não pode ser registrado automaticamente, pois não tem permissão para iniciar programas fora da sua própria sandbox.",
         "cardVerificationValue/Number": "Valor/Número de verificação do cartão",
         "copiedToClipboard": "Copiado para a área de transferência",
         "customFieldAdded": "Campo personalizado adicionado. Você pode adicionar mais campos ou cancelar para fechar",
@@ -32,6 +33,8 @@
         "requiresApplicationRestart": "Requer reinicialização do aplicativo",
         "selectAValidGroup": "Selecione um grupo válido",
         "selectTag": "Selecione uma etiqueta ou comece a digitar uma nova etiqueta e adicione",
+        "sendToBackgroundNotOnWayland": "Enviar a janela para segundo plano não está disponível no Wayland, que não permite que um aplicativo alterne para a janela de outro aplicativo.",
+        "sshAgentUnavailableFlatpak": "Não disponível na versão Flatpak. Use o pacote deb, rpm ou AppImage se precisar do agente SSH.",
         "transformRounds": "Número de passagens que a derivação de chave realiza. Valores mais altos tornam o desbloqueio mais lento para você e muito mais lento para quem tentar adivinhar sua senha."
     },
     "titles": {
@@ -70,6 +73,7 @@
         "addSection": "Adicionar seção",
         "addSectionAndFields": "Adicionar uma nova seção e campos",
         "addToSshAgent": "Adicionar ao agente SSH",
+        "afterCopyToClipboard": "Após copiar para a área de transferência",
         "algorithm": "Algoritmo",
         "allEntries": "Todas as entradas",
         "always": "Sempre",
@@ -108,6 +112,7 @@
         "description": "Descrição",
         "destinationDatabase": "Banco de dados de destino",
         "done": "Concluído",
+        "doNothing": "Não fazer nada",
         "edit": "Editar",
         "enableAutoSave": "Salvar automaticamente após uma edição",
         "enableBackup": "Ativar backup",
@@ -158,7 +163,7 @@
         "loadFromFile": "Carregar do arquivo",
         "lowerCaseAZ": "Minúsculas (a-z)",
         "memoryUsage": "Uso de memória",
-        "minimizeOnCopy": "Minimizar a janela após copiar para a área de transferência",
+        "minimizeWindow": "Minimizar a janela",
         "modifyField": "Modificar campo",
         "manageCustomIcons": "Gerenciar ícones personalizados",
         "modifySectionName": "Modificar nome da seção",
@@ -204,6 +209,7 @@
         "secretOrTotpAuthUrl": "Segredo ou URL TOTPAuth",
         "sectionName": "Nome da seção",
         "security": "Segurança",
+        "sendWindowToBackground": "Enviar a janela para segundo plano",
         "separator": "Separador",
         "sessionTimeout": "Tempo limite da sessão (em min)",
         "setUpOneTimePassword": "Configurar senha de uso único",
@@ -321,6 +327,7 @@
             "sshAgentSignRequest": "Solicitação de assinatura do agente SSH",
             "unsavedChanges": "Alterações não salvas",
             "updateAvailable": "Atualização disponível",
+            "updatesManagedExternally": "As atualizações são gerenciadas externamente",
             "upToDate": "Você está atualizado"
         },
         "texts": {
@@ -388,6 +395,7 @@
             "unsavedChangesTxt3": "Há alterações ainda não salvas. Deseja salvar antes de fechar o banco de dados?",
             "updateAvailable": "Uma nova versão {{latestVersion}} está disponível. Você está usando {{currentVersion}}.",
             "updateCheckFailed": "Não foi possível verificar atualizações. Tente novamente mais tarde.",
+            "updatesManagedExternally": "Esta instalação é atualizada pelo gerenciador de pacotes com o qual foi instalada. Você está usando a versão {{currentVersion}}.",
             "upToDate": "Você está usando a versão mais recente ({{currentVersion}})."
         }
     },

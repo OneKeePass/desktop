@@ -2,6 +2,7 @@
     "helperTexts": {
         "autoSaveHelp": "Tallentaa tietokannan automaattisesti heti, kun muokkaus on valmis. Tuonteja, yhdistämisiä, poistoja ja siirtoja ei tallenneta automaattisesti — ne odottavat, että tarkistat ja tallennat ne.",
         "backupMaxCopiesHelp": "Kuinka monta varmuuskopiota säilytetään kutakin tietokantaa kohden. Vanhimmat poistetaan, kun tämä määrä on saavutettu.",
+        "browserIntegrationFlatpakHostBrowsersOnly": "Flatpak-versiossa selaimen integraatio toimii järjestelmään asennettujen selainten kanssa, jotka on asennettu jakelustasi tai selaimen valmistajalta. Flatpakina asennettua selainta ei voi rekisteröidä automaattisesti, koska se ei saa käynnistää ohjelmia oman hiekkalaatikkonsa ulkopuolella.",
         "cardVerificationValue/Number": "Kortin vahvistusarvo/numero",
         "copiedToClipboard": "Kopioitu leikepöydälle",
         "customFieldAdded": "Mukautettu kenttä lisätty. Voit lisätä lisää kenttiä tai peruuttaa sulkemalla",
@@ -32,6 +33,8 @@
         "requiresApplicationRestart": "Vaatii sovelluksen uudelleen käynnistyksen",
         "selectAValidGroup": "Ole hyvä ja valitse sopiva ryhmä",
         "selectTag": "Valitse tunniste tai aloita uuden tunnisteen syöttäminen ja lisää",
+        "sendToBackgroundNotOnWayland": "Ikkunan siirtäminen taustalle ei ole käytettävissä Waylandissa, joka ei anna sovelluksen vaihtaa toisen sovelluksen ikkunaan.",
+        "sshAgentUnavailableFlatpak": "Ei käytettävissä Flatpak-versiossa. Käytä deb-, rpm- tai AppImage-pakettia, jos tarvitset SSH-agenttia.",
         "transformRounds": "Avaimen johtamisen kierrosten määrä. Suuremmat arvot hidastavat avaamista sinulle ja huomattavasti enemmän ketä tahansa, joka yrittää arvata salasanasi."
     },
     "titles": {
@@ -70,6 +73,7 @@
         "addSection": "Lisää osio",
         "addSectionAndFields": "Lisää uusi osio ja kentät",
         "addToSshAgent": "Lisää SSH-agenttiin",
+        "afterCopyToClipboard": "Leikepöydälle kopioinnin jälkeen",
         "algorithm": "Algoritmi",
         "allEntries": "Kiakki tietueet",
         "always": "Aina",
@@ -108,6 +112,7 @@
         "description": "Kuvaus",
         "destinationDatabase": "Kohdetietokanta",
         "done": "Valmis",
+        "doNothing": "Älä tee mitään",
         "edit": "Muokkaa",
         "enableAutoSave": "Tallenna automaattisesti muokkauksen jälkeen",
         "enableBackup": "Ota varmuuskopiointi käyttöön",
@@ -158,7 +163,7 @@
         "loadFromFile": "Lataa tiedostosta",
         "lowerCaseAZ": "Pienet kirjaimet (a-z)",
         "memoryUsage": "Muistin käyttö",
-        "minimizeOnCopy": "Pienennä ikkuna leikepöydälle kopioinnin jälkeen",
+        "minimizeWindow": "Pienennä ikkuna",
         "modifyField": "Muokkaa kenttää",
         "manageCustomIcons": "Hallitse mukautettuja kuvakkeita",
         "modifySectionName": "Muokkaa osion nimeä",
@@ -204,6 +209,7 @@
         "secretOrTotpAuthUrl": "Salainen or TOTPAuth URL",
         "sectionName": "Osion nimi",
         "security": "Suojattu",
+        "sendWindowToBackground": "Siirrä ikkuna taustalle",
         "separator": "Erottaja",
         "sessionTimeout": "SIstunnon ikakatkaisu(min)",
         "setUpOneTimePassword": "Määritä kertakäyttöinen salasana",
@@ -321,6 +327,7 @@
             "sshAgentSignRequest": "SSH-agentin allekirjoituspyyntö",
             "unsavedChanges": "Muutoksia ei tallennettu",
             "updateAvailable": "Päivitys saatavilla",
+            "updatesManagedExternally": "Päivityksiä hallitaan ulkoisesti",
             "upToDate": "Kaikki on ajan tasalla"
         },
         "texts": {
@@ -388,6 +395,7 @@
             "unsavedChangesTxt3": "Muutoksia on vielä tallennettavana. Haluatko tallentaa ennen tietokannan sulkemista?",
             "updateAvailable": "Uusi versio {{latestVersion}} on saatavilla. Käytössäsi on {{currentVersion}}.",
             "updateCheckFailed": "Päivityksiä ei voitu tarkistaa. Yritä myöhemmin uudelleen.",
+            "updatesManagedExternally": "Tämä asennus päivitetään sillä paketinhallinnalla, jolla se asennettiin. Käytössäsi on versio {{currentVersion}}.",
             "upToDate": "Käytössäsi on uusin versio ({{currentVersion}})."
         }
     },
