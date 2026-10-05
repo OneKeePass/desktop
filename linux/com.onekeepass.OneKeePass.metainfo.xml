@@ -90,19 +90,31 @@
   </recommends>
 
   <releases>
+    <release version="0.27.0" date="2026-10-05">
+      <url type="details">https://github.com/OneKeePass/desktop/releases/tag/v0.27.0</url>
+      <description>
+        <ul>
+          <li>Browser integration in the Flatpak build, with Firefox, Chrome and Brave installed on the system</li>
+          <li>After copying a field, the window can now be left as it is, minimised, or sent to the background (not available on Wayland)</li>
+          <li>Traditional Chinese translations for Taiwan and Hong Kong</li>
+          <li>The Flatpak now uses the GNOME 51 runtime</li>
+          <li>Fixed: the title bar buttons now work on GNOME with Wayland</li>
+          <li>Fixed: the key file field in the Open Database dialog has enough space above it</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.26.0" date="2026-09-16">
       <url type="details">https://github.com/OneKeePass/desktop/releases/tag/v0.26.0</url>
       <description>
-        <p>The entry list now shows a live one-time password with a countdown for the
-          entries that have one, and picking an entry from the search results scrolls it
-          into view.</p>
-        <p>The group, entry list and entry form panels can be resized by dragging the
-          dividers between them, a note is shown in full in read mode instead of in a
-          small scrolling box, and the window can now be set to minimise after a field is
-          copied to the clipboard.</p>
-        <p>Passkey fields in entries saved by an earlier version are now protected, as
-          they are in newly created entries, and a list's scrollbar no longer shows
-          through a menu opened over it.</p>
+        <ul>
+          <li>The entry list shows a live one-time password with a countdown</li>
+          <li>Picking an entry from the search results scrolls it into view</li>
+          <li>The group, entry list and entry form panels can be resized by dragging the dividers</li>
+          <li>Notes are shown in full in read mode, with a Show more / Show less toggle for long ones</li>
+          <li>The window can be set to minimise after a field is copied to the clipboard</li>
+          <li>Fixed: passkey fields in entries saved by an earlier version are now protected</li>
+          <li>Fixed: a list's scrollbar no longer shows through a menu opened over it</li>
+        </ul>
       </description>
     </release>
     <release version="0.25.2" date="2026-09-01">
