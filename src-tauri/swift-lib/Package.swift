@@ -1,4 +1,4 @@
-// swift-tools-version:5.3
+// swift-tools-version:5.5
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "swift-lib",
     platforms: [
-        .macOS(.v10_15), // macOS Catalina. Earliest version that is officially supported by Apple.
+        .macOS(.v12), // Xcode 27 rejects lower deployment targets. Keep in sync with build.rs and tauri.conf.json
     ],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
