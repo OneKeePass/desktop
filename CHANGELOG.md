@@ -2,7 +2,7 @@
 
 #### Changes
 - The **After copying to clipboard** setting can now **Do nothing**, **Minimize window** or **Send window to background** [#94](https://github.com/OneKeePass/desktop/issues/94)
-    - Send window to background is not available on Wayland
+- Send window to background is not available on Wayland
 - Browser extension support in the Flatpak build for Firefox, Chrome and Brave installed on the host system
 - Traditional Chinese (Taiwan and Hong Kong) translations added
 - The Flatpak now uses the GNOME 51 runtime
