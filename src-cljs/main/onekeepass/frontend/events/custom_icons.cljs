@@ -9,6 +9,7 @@
    [onekeepass.frontend.background-custom-icons :as bg-ci]
    [onekeepass.frontend.events.common :as cmn-events :refer [active-db-key
                                                              assoc-in-key-db
+                                                             assoc-in-with-db-key
                                                              get-in-key-db
                                                              check-error
                                                              on-error]]
@@ -109,12 +110,15 @@
 
 ;;; ── Event handlers ───────────────────────────────────────────────────────────
 
+;; db-key is optional and defaults to the active db. Auto-opened child dbs pass
+;; their own db-key as they are opened without becoming the active db.
 (reg-event-fx
  :custom-icons/load
- (fn [{:keys [db]} [_event-id]]
-   {:db (assoc-in-key-db db [:custom-icons]
-                         {:status :loading :icons [] :data-urls {}})
-    :fx [[:bg-list-custom-icons (active-db-key db)]]}))
+ (fn [{:keys [db]} [_event-id db-key]]
+   (let [db-key (or db-key (active-db-key db))]
+     {:db (assoc-in-with-db-key db db-key [:custom-icons]
+                                {:status :loading :icons [] :data-urls {}})
+      :fx [[:bg-list-custom-icons db-key]]})))
 
 (reg-event-fx
  :custom-icons/refresh
@@ -122,21 +126,29 @@
    {:db (assoc-in-key-db db [:custom-icons :status] :loading)
     :fx [[:bg-list-custom-icons (active-db-key db)]]}))
 
+;; The backend calls are async and the active db can change before they return
+;; (tab switch, auto-open of child dbs, opening another db). So the responses are
+;; stored under the db-key that made the request, not the db active on arrival -
+;; otherwise one db's icons land in another db's cache and the entries fall back
+;; to their built-in icons until the next refresh.
 (reg-event-fx
  :custom-icons-loaded
- (fn [{:keys [db]} [_event-id icons]]
-   (let [db-key (active-db-key db)
-         existing (or (get-in-key-db db [:custom-icons :data-urls]) {})
-         to-fetch (remove #(contains? existing %) (map :uuid icons))]
-     {:db (-> db
-              (assoc-in-key-db [:custom-icons :icons] icons)
-              (assoc-in-key-db [:custom-icons :status] :done))
-      :fx (mapv (fn [uuid] [:bg-get-custom-icon-data [db-key uuid]]) to-fetch)})))
+ (fn [{:keys [db]} [_event-id db-key icons]]
+   ;; The db may have been closed while the request was in flight
+   (when (contains? db db-key)
+     (let [existing (or (get-in db [db-key :custom-icons :data-urls]) {})
+           to-fetch (remove #(contains? existing %) (map :uuid icons))]
+       {:db (-> db
+                (assoc-in-with-db-key db-key [:custom-icons :icons] icons)
+                (assoc-in-with-db-key db-key [:custom-icons :status] :done))
+        :fx (mapv (fn [uuid] [:bg-get-custom-icon-data [db-key uuid]]) to-fetch)}))))
 
 (reg-event-db
  :custom-icons-data-url-ready
- (fn [db [_event-id uuid data-url]]
-   (assoc-in-key-db db [:custom-icons :data-urls uuid] data-url)))
+ (fn [db [_event-id db-key uuid data-url]]
+   (if (contains? db db-key)
+     (assoc-in-with-db-key db db-key [:custom-icons :data-urls uuid] data-url)
+     db)))
 
 (reg-event-fx
  :custom-icons-add-from-url
@@ -210,7 +222,7 @@
    (bg-ci/list-custom-icons db-key
                          (fn [response]
                            (when-let [icons (check-error response)]
-                             (dispatch [:custom-icons-loaded icons]))))))
+                             (dispatch [:custom-icons-loaded db-key icons]))))))
 
 (reg-fx
  :bg-get-custom-icon-data
@@ -218,7 +230,7 @@
    (bg-ci/get-custom-icon-data db-key uuid
                             (fn [response]
                               (when-let [b64 (check-error response)]
-                                (dispatch [:custom-icons-data-url-ready uuid
+                                (dispatch [:custom-icons-data-url-ready db-key uuid
                                            (str "data:image/png;base64," b64)]))))))
 
 (defn- on-icon-added

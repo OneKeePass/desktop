@@ -95,7 +95,12 @@
    ;; Need to take care of 'opening-failed-dbs' and 'error-messages' 
    ;; and if we find any values there, we need to show those errors 
    (if-not (empty? opened-dbs)
-     {:db (-> db (open-all-child-databases opened-dbs))}
+     {:db (-> db (open-all-child-databases opened-dbs))
+      ;; Custom icon data is fetched separately per db (not part of the
+      ;; auto-open init data), so load it for each child db here
+      :fx (mapv (fn [{:keys [kdbx-loaded]}]
+                  [:dispatch [:custom-icons/load (:db-key kdbx-loaded)]])
+                opened-dbs)}
      {})))
 
 (comment
