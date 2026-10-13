@@ -184,6 +184,30 @@
     (reduce m maps)))
 
 
+(def ^:private url-scheme-pattern #"^([A-Za-z][A-Za-z0-9+.-]*):(.*)$")
+
+;; "example.com:8080/path" also matches the scheme pattern. When what follows the colon is
+;; only a port number (optionally followed by a path, query or fragment), it is host:port
+(def ^:private url-port-pattern #"^\d{1,5}([/?#].*)?$")
+
+(defn split-url-scheme
+  "Returns [scheme remainder] with the scheme lowercased, or nil when 'url' has no scheme"
+  [url]
+  (when-let [[_ scheme remainder] (re-matches url-scheme-pattern url)]
+    (when-not (re-matches url-port-pattern remainder)
+      [(str/lower-case scheme) remainder])))
+
+(defn web-url
+  "Returns the trimmed 'url' as an http(s) url - https:// is added when there is no scheme.
+   Returns nil when 'url' has any other scheme"
+  [url]
+  (let [url (str/trim url)
+        [scheme remainder] (split-url-scheme url)]
+    (case scheme
+      ("http" "https") (str scheme ":" remainder)
+      nil (str "https://" url)
+      nil)))
+
 (comment
   (capitalize-words "custom fields") ;; => "Custom Fields"
   (capitalize-words "CUSTOM FIELDS") ;; => "Custom Fields"

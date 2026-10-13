@@ -13,7 +13,8 @@
                                                              get-in-key-db
                                                              check-error
                                                              on-error]]
-   [onekeepass.frontend.translation :as t]))
+   [onekeepass.frontend.translation :as t]
+   [onekeepass.frontend.utils :as u]))
 
 ;; Per-DB cache (scoped under active-db-key via assoc-in-key-db / get-in-key-db):
 ;;   [:custom-icons]
@@ -153,12 +154,16 @@
 (reg-event-fx
  :custom-icons-add-from-url
  (fn [{:keys [db]} [_event-id url on-success-event]]
-   {:db (assoc-in db [:custom-icons-ui :add-url-dialog :url] url)
-    :fx [[:dispatch [:common/progress-message-box-show
-                     (t/lstr-dlg-title 'addCustomIcon)
-                     (t/lstr-dlg-text 'downloadingFavicon)]]
-         [:bg-add-custom-icon-from-url
-          [(active-db-key db) url on-success-event]]]}))
+   (let [db (assoc-in db [:custom-icons-ui :add-url-dialog :url] url)]
+     (if-let [web-url (u/web-url url)]
+       {:db db
+        :fx [[:dispatch [:common/progress-message-box-show
+                         (t/lstr-dlg-title 'addCustomIcon)
+                         (t/lstr-dlg-text 'downloadingFavicon)]]
+             [:bg-add-custom-icon-from-url
+              [(active-db-key db) web-url on-success-event]]]}
+       {:db db
+        :fx [[:dispatch [:common/message-snackbar-error-open (t/lstr-error-sm 'urlSchemeNotSupported)]]]}))))
 
 (reg-event-fx
  :custom-icons-add-from-file

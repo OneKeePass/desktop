@@ -10,6 +10,8 @@
                                                          get-form-data
                                                          place-holder-resolved-value]]
    [onekeepass.frontend.background-auto-open :as bg-ao]
+   [onekeepass.frontend.translation :refer [lstr-error-sm]]
+   [onekeepass.frontend.utils :as u]
    [re-frame.core :refer [dispatch reg-event-fx reg-fx]]))
 
 
@@ -21,21 +23,22 @@
 
 (reg-event-fx
  :entry-form-open-url
- (fn [{:keys [_db]} [_event-id url-value]] 
-   (cond
-     ;; The url is expected to start with lowercase at this time
-     (str/starts-with? url-value "kdbx:")
-     {:fx [[:dispatch [:entry-form-auto-open-resolve-properties]]]}
+ (fn [{:keys [_db]} [_event-id url-value]]
+   (let [url-value (str/trim url-value)
+         [scheme _] (u/split-url-scheme url-value)]
+     (case scheme
+       "kdbx"
+       {:fx [[:dispatch [:entry-form-auto-open-resolve-properties]]]}
 
-     (or (str/starts-with? url-value "https://") (str/starts-with? url-value "http://"))
-     {:fx [[:common/bg-open-url [url-value]]]}
+       "file"
+       {:fx [[:common/bg-open-file [url-value]]]}
 
-     (str/starts-with? url-value "file://")
-     {:fx [[:common/bg-open-file [url-value]]]}
+       ;; http(s) or no scheme at all. The shell open scope allows only lowercase http(s) urls
+       ("http" "https" nil)
+       {:fx [[:common/bg-open-url [(u/web-url url-value)]]]}
 
-     ;; Just add the prefix and open
-     :else
-     {:fx [[:common/bg-open-url [(str "https://" url-value)]]]})))
+       ;; Any other scheme is rejected by the shell open scope
+       {:fx [[:dispatch [:common/message-snackbar-error-open (lstr-error-sm 'urlSchemeNotSupported)]]]}))))
 
 (def all-auto-open-kvd-keys [URL USERNAME IFDEVICE])
 
