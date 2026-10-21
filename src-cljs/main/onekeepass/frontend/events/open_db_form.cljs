@@ -33,7 +33,8 @@
   (if (cmn-events/remote-db-key? file-name)
     ;; Remote recent entry — route to the remote login flow so the OK click
     ;; calls rs_read_kdbx instead of the local bg-load-kdbx-file path.
-    (dispatch [:open-db-form/remote-open-show file-name nil])
+    ;; Only entry-backed remote dbs are added to the recent list
+    (dispatch [:open-db-form/remote-open-show file-name nil true])
     (dispatch [:open-db-dialog-show-on-file-selection file-name])))
 
 (defn cancel-on-click []
@@ -64,6 +65,9 @@
 (defn key-file-visible-change [^boolean t]
   (dispatch [:open-db-key-file-visible t]))
 
+(defn remember-key-file-on-change [^boolean t]
+  (dispatch [:open-db-remember-key-file-change t]))
+
 (defn dialog-data []
   (subscribe [:open-db-dialog-data]))
 
@@ -79,6 +83,13 @@
       (assoc-in [:open-db :remote?] false)
       (assoc-in [:open-db :password-visibility-on] false)
       (assoc-in [:open-db :key-file-visibility-on] false)
+      ;; When true, the key file used is remembered against the recent entry
+      (assoc-in [:open-db :remember-key-file] false)
+      ;; The hint about remembering is shown only after the user selects the option in this
+      ;; dialog and not when it comes already selected for a remembered key file
+      (assoc-in [:open-db :remember-key-file-hint] false)
+      ;; False for an ad-hoc remote connection whose key file cannot be remembered
+      (assoc-in [:open-db :remote-entry-backed?] false)
       (assoc-in [:open-db :status] nil)
       (assoc-in [:open-db :error-fields] {})
       (assoc-in [:open-db :error-text] nil)
@@ -112,6 +123,30 @@
    (assoc-in db [:open-db :password] (if (empty? password) nil password))))
 
 (reg-event-db
+ :open-db-remember-key-file-change
+ (fn [db [_event-id remember?]]
+   (-> db
+       (assoc-in [:open-db :remember-key-file] remember?)
+       (assoc-in [:open-db :remember-key-file-hint] remember?))))
+
+(defn- prefill-remembered-key-file
+  "Sets the key file remembered for 'db-file-name' in the recent list if any"
+  [db db-file-name]
+  (if-let [key-file-name (cmn-events/recent-file-key-file db db-file-name)]
+    (-> db
+        (assoc-in [:open-db :key-file-name] key-file-name)
+        (assoc-in [:open-db :remember-key-file] true))
+    db))
+
+(defn- remember-key-file-flag
+  "Returns true or false to remember or forget the key file of the db being opened
+   and nil when nothing should change (e.g ad-hoc remote connection)"
+  [db key-file-name]
+  (let [{:keys [remember-key-file remote? remote-entry-backed?]} (:open-db db)]
+    (when (or (not remote?) remote-entry-backed?)
+      (boolean (and remember-key-file (seq key-file-name))))))
+
+(reg-event-db
  :open-db-update-key-file-name
  (fn [db [_event-id key-file-name]]
    (assoc-in db [:open-db :key-file-name] key-file-name)))
@@ -130,10 +165,11 @@
  :open-db-dialog-show-on-file-selection
  (fn [{:keys [db]} [_event-id file-name dbs-merge-request]]
    (if file-name
-     {:db (-> db
-              (assoc-in [:open-db :dialog-show] true)
-              (assoc-in [:open-db :dbs-merge-request] dbs-merge-request)
-              (assoc-in [:open-db :file-name] file-name))}
+     {:db (cond-> (-> db
+                      (assoc-in [:open-db :dialog-show] true)
+                      (assoc-in [:open-db :dbs-merge-request] dbs-merge-request)
+                      (assoc-in [:open-db :file-name] file-name))
+            (not dbs-merge-request) (prefill-remembered-key-file file-name))}
      {:db (init-open-db-vals db)})))
 
 (reg-event-fx
@@ -151,12 +187,14 @@
 ;; remote-storage/read-kdbx instead of the local bg-load-kdbx-file path.
 (reg-event-fx
  :open-db-form/remote-open-show
- (fn [{:keys [db]} [_event-id db-file-name _file-name]]
+ (fn [{:keys [db]} [_event-id db-file-name _file-name entry-backed?]]
    {:db (-> db
             init-open-db-vals
             (assoc-in [:open-db :dialog-show] true)
             (assoc-in [:open-db :remote?] true)
-            (assoc-in [:open-db :file-name] db-file-name))}))
+            (assoc-in [:open-db :remote-entry-backed?] (boolean entry-backed?))
+            (assoc-in [:open-db :file-name] db-file-name)
+            (prefill-remembered-key-file db-file-name))}))
 
 ;; After unlock, we detected database change. But reloading of database fails
 ;; because the credentials of database has been changed outside our app
@@ -202,7 +240,8 @@
          ;; In remote mode the dialog's :file-name carries the prefixed db_key,
          ;; and the local file-name arg is unused — feed the db_key to the
          ;; remote read fx instead.
-         remote-db-key (when remote? (get-in db [:open-db :file-name]))]
+         remote-db-key (when remote? (get-in db [:open-db :file-name]))
+         remember-key-file (remember-key-file-flag db key-file-name)]
      {:db (-> db
               (assoc-in [:open-db :error-fields] {})
               (assoc-in [:open-db :status] :in-progress))
@@ -214,10 +253,10 @@
              [:dispatch [:merging/credentials-entered file-name pwd key-file-name]]
 
              remote?
-             [:dispatch [:remote-storage/read-kdbx remote-db-key pwd key-file-name]]
+             [:dispatch [:remote-storage/read-kdbx remote-db-key pwd key-file-name remember-key-file]]
 
              :else
-             [:bg-load-kdbx-file [file-name pwd key-file-name on-file-loading]])]})))
+             [:bg-load-kdbx-file [file-name pwd key-file-name remember-key-file on-file-loading]])]})))
 
 #_(reg-event-db
    :open-db-error
@@ -244,13 +283,15 @@
    {:db (-> db init-open-db-vals)
     ;; Need to hide any progress msg dialog if shown
     :fx [[:dispatch [:common/progress-message-box-hide]]
+         ;; Picks up the recent list reordering and any remembered key file change
+         [:dispatch [:common/load-app-preference]]
          [:dispatch [:common/kdbx-database-opened kdbx-loaded]]]}))
 
 ;;IMPORTANT reg-fx handler fn takes single argument. So we need to use vec [file-name pwd]
 (reg-fx
  :bg-load-kdbx-file
- (fn [[file-name pwd key-file-name on-file-loading]]
-   (bg/load-kdbx file-name pwd key-file-name on-file-loading)))
+ (fn [[file-name pwd key-file-name remember-key-file on-file-loading]]
+   (bg/load-kdbx file-name pwd key-file-name remember-key-file on-file-loading)))
 
 ;; Sandbox re-pick recovery: a recent-list click failed with the
 ;; BookmarkPermissionDenied marker. The previously-entered password and
@@ -368,7 +409,7 @@
        {:fx [[:dispatch [:common/progress-message-box-show
                          "Opening database"
                          "Please wait..."]]
-             [:bg-load-kdbx-file [db-file-full-path pwd key-file-name handle-auto-open-response]]]}))))
+             [:bg-load-kdbx-file [db-file-full-path pwd key-file-name nil handle-auto-open-response]]]}))))
 
 (reg-event-fx
  :auto-open-unlock-db-file-loading-done

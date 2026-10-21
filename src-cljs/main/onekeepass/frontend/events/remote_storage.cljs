@@ -16,7 +16,7 @@
     :kdbx-source       {:sftp [{summary} ...] :webdav [...]}
     :form-data         {:sftp {..} :webdav {..}}      ;; ad-hoc form
     :form-errors       {:sftp {..} :webdav {..}}
-    :listing           {:type kw :connection-id uuid
+    :listing           {:type kw :connection-id uuid :entry-backed? boolean
                         :stack [{:parent-dir .. :sub-dirs [..] :files [..]} ...]}
     :api-error-text    string-or-nil
     :status            :idle | :in-progress}"
@@ -344,7 +344,7 @@
       (when-some [connect-status (check-error
                                   api-response
                                   #(dispatch [:remote-storage-connect-failed %]))]
-        (dispatch [:remote-storage-connect-complete kw-type connection-id connect-status]))))))
+        (dispatch [:remote-storage-connect-complete kw-type connection-id connect-status true]))))))
 
 (reg-fx
  :remote-storage-bg-open-entry-remote
@@ -383,7 +383,7 @@
                                   api-response
                                   #(dispatch [:remote-storage-connect-failed %]))]
         (let [cid (:connection-id connect-status)]
-          (dispatch [:remote-storage-connect-complete kw-type cid connect-status])))))))
+          (dispatch [:remote-storage-connect-complete kw-type cid connect-status false])))))))
 
 (reg-event-db
  :remote-storage-connect-failed
@@ -394,7 +394,9 @@
 
 (reg-event-fx
  :remote-storage-connect-complete
- (fn [{:keys [db]} [_ kw-type connection-id {:keys [dir-entries]}]]
+ ;; entry-backed? is false for an ad-hoc form connection. Such a db is never added
+ ;; to the recent list, so its key file cannot be remembered
+ (fn [{:keys [db]} [_ kw-type connection-id {:keys [dir-entries]} entry-backed?]]
    (let [{:keys [parent-dir sub-dirs files]} dir-entries]
      {:db (-> db
               (assoc-in [:remote-storage :status] :idle)
@@ -402,6 +404,7 @@
               (assoc-in [:remote-storage :listing]
                         {:type kw-type
                          :connection-id connection-id
+                         :entry-backed? entry-backed?
                          :stack [{:parent-dir (or parent-dir "/")
                                   :sub-dirs (or sub-dirs [])
                                   :files (or files [])}]}))})))
@@ -421,6 +424,7 @@
                 (assoc :listing
                        {:type kw-type
                         :connection-id connection-id
+                        :entry-backed? true
                         :stack [{:parent-dir (or parent-dir "/")
                                  :sub-dirs (or sub-dirs [])
                                  :files (or files [])}]}))))))
@@ -460,10 +464,10 @@
 (reg-event-fx
  :remote-storage-file-picked-for-open
  (fn [{:keys [db]} [_ parent-dir file-name]]
-   (let [{:keys [type connection-id]} (get-in db [:remote-storage :listing])
+   (let [{:keys [type connection-id entry-backed?]} (get-in db [:remote-storage :listing])
          db-file-name (form-db-key type connection-id parent-dir file-name)]
      {:fx [[:dispatch [:remote-storage-dialog-hide]]
-           [:dispatch [:open-db-form/remote-open-show db-file-name file-name]]]})))
+           [:dispatch [:open-db-form/remote-open-show db-file-name file-name entry-backed?]]]})))
 
 (reg-event-fx
  :remote-storage-folder-picked-for-new-db
@@ -489,9 +493,9 @@
 
 (reg-event-fx
  :remote-storage/read-kdbx
- (fn [_ [_ db-file-name password key-file-name]]
+ (fn [_ [_ db-file-name password key-file-name remember-key-file]]
    {:fx [[:dispatch [:common/progress-message-box-show "Opening" "Please wait..."]]
-         [:remote-storage-bg-read-kdbx [db-file-name password key-file-name]]]}))
+         [:remote-storage-bg-read-kdbx [db-file-name password key-file-name remember-key-file]]]}))
 
 ;; Backend marker (variant Display) returned when the remote connection can't
 ;; be resolved — happens when an entry-backed remote is opened from a recent
@@ -501,9 +505,9 @@
 
 (reg-fx
  :remote-storage-bg-read-kdbx
- (fn [[db-file-name password key-file-name]]
+ (fn [[db-file-name password key-file-name remember-key-file]]
    (bg-rs/read-kdbx
-    db-file-name password key-file-name
+    db-file-name password key-file-name remember-key-file
     (fn [api-response]
       (dispatch [:common/progress-message-box-hide])
       (when-some [kdbx-loaded (check-error

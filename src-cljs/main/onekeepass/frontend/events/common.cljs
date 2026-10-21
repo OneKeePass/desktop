@@ -338,6 +338,12 @@
    ;; flatten here so all consumers see a vector of strings unchanged.
    (mapv :path (:recent-files pref))))
 
+(defn recent-file-key-file
+  "Returns the key file remembered for the recent entry 'db-file-name' or nil"
+  [app-db db-file-name]
+  (->> (get-in app-db [:app-preference :recent-files])
+       (some #(when (= (:path %) db-file-name) (:key-file %)))))
+
 (reg-sub
  :app-theme
  :<- [:app-preference]

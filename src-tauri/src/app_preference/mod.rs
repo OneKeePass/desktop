@@ -41,11 +41,19 @@ impl Default for BackupPreference {
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub(crate) struct RecentFile {
     pub(crate) path: String,
+    // Absolute key file path, kept only when the user opted to remember it in
+    // the open-db dialog. For remote entries 'path' is the remote db key while
+    // the key file is still a local path.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) key_file: Option<String>,
 }
 
 impl RecentFile {
     pub(crate) fn new(path: String) -> Self {
-        Self { path }
+        Self {
+            path,
+            key_file: None,
+        }
     }
 }
 

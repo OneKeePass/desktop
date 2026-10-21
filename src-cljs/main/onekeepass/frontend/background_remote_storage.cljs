@@ -51,12 +51,14 @@
 
 (defn read-kdbx
   "Reads a kdbx file from remote storage and opens it. The db-file-name
-   is the prefixed remote db_key (e.g. \"Sftp-<uuid>-/path/to/db.kdbx\")."
-  [db-file-name password key-file-name dispatch-fn]
+   is the prefixed remote db_key (e.g. \"Sftp-<uuid>-/path/to/db.kdbx\").
+   The arg 'remember-key-file' has the same meaning as in bg/load-kdbx"
+  [db-file-name password key-file-name remember-key-file dispatch-fn]
   (invoke-api "rs_read_kdbx"
               {:db-file-name db-file-name
                :password password
-               :key-file-name key-file-name}
+               :key-file-name key-file-name
+               :remember-key-file remember-key-file}
               dispatch-fn))
 
 (defn save-kdbx

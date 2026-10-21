@@ -536,11 +536,30 @@ impl Preference {
     }
 
     pub(crate) fn add_recent_file(&mut self, file_name: &str) -> &mut Self {
-        self.recent_files.retain(|r| r.path != file_name);
-        self.recent_files
-            .insert(0, RecentFile::new(file_name.to_string()));
+        // Move an existing entry to the top as is so that a remembered key file is kept
+        let entry = match self.recent_files.iter().position(|r| r.path == file_name) {
+            Some(idx) => self.recent_files.remove(idx),
+            None => RecentFile::new(file_name.to_string()),
+        };
+        self.recent_files.insert(0, entry);
         self.write_toml();
         self
+    }
+
+    // Stores or clears the remembered key file of a recent entry. Does nothing
+    // when the db is not in the recent list (e.g. an ad-hoc remote connection)
+    pub(crate) fn set_recent_file_key_file(&mut self, file_name: &str, key_file: Option<&str>) {
+        let Some(entry) = self.recent_files.iter_mut().find(|r| r.path == file_name) else {
+            return;
+        };
+        let key_file = key_file
+            .map(|k| k.trim())
+            .filter(|k| !k.is_empty())
+            .map(|k| k.to_string());
+        if entry.key_file != key_file {
+            entry.key_file = key_file;
+            self.write_toml();
+        }
     }
 
     pub(crate) fn remove_recent_file(&mut self, file_name: &str) -> &mut Self {

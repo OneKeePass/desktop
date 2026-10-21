@@ -616,26 +616,33 @@ dependencies = [
 
 [[package]]
 name = "botan"
-version = "0.11.1"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24d4c7647d67c53194fa0740404c6c508880aef2bfe99a9868dbb4b86f090377"
+checksum = "8d7d1401c5e2e626e4b45e80dc3820b3b76c4e439a564a7282406ec0d30d0abc"
 dependencies = [
  "botan-sys",
+ "rand_core 0.10.1",
 ]
 
 [[package]]
 name = "botan-src"
-version = "0.30701.2"
+version = "0.31300.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c4e1c7910f3b4712aed10e4259eca77e79ed84c1b023098c8eac596b993fc44"
+checksum = "e19afa24979ebb37fd22894895219e5f6bb6ba3d98f87c4aa147e59f4860efb7"
+dependencies = [
+ "lzma-rs",
+ "sha2 0.10.9",
+ "tar",
+]
 
 [[package]]
 name = "botan-sys"
-version = "0.11.1"
+version = "1.20260811.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04285fa0c094cc9961fe435b1b279183db9394844ad82ce483aa6196c0e6da38"
+checksum = "4cad0b52cabead10d0d240d93229ea6e91240577bcff5a9af383d11e4ab2278b"
 dependencies = [
  "botan-src",
+ "cc",
 ]
 
 [[package]]
@@ -1111,6 +1118,21 @@ checksum = "8b2a41393f66f16b0823bb79094d54ac5fbd34ab292ddafb9a0456ac9f87d201"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "crc"
+version = "3.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5eb8a2a1cd12ab0d987a5d5e825195d372001a4094a0376319d5a0ad71c1ba0d"
+dependencies = [
+ "crc-catalog",
+]
+
+[[package]]
+name = "crc-catalog"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "217698eaf96b4a3f0bc4f3662aaa55bdf913cd54d7204591faa790070c6d0853"
 
 [[package]]
 name = "crc32fast"
@@ -3654,6 +3676,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 
 [[package]]
+name = "lzma-rs"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "297e814c836ae64db86b36cf2a557ba54368d03f6afcd7d947c266692f71115e"
+dependencies = [
+ "byteorder",
+ "crc",
+]
+
+[[package]]
 name = "markup5ever"
 version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4218,8 +4250,7 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
 name = "onekeepass-core"
-version = "0.25.1"
-source = "git+https://github.com/OneKeePass/onekeepass-core.git?tag=v0.25.1#1e57070fe7ca0c7d3ae4fb6fe38cc9ebbca95da5"
+version = "0.26.0"
 dependencies = [
  "argon2-sys",
  "base64 0.22.1",
@@ -6833,6 +6864,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tar"
+version = "0.4.46"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f6221d9a6003c78398e3b239969f352578258df48c8eb051caadae0015bc840"
+dependencies = [
+ "filetime",
+ "libc",
+]
+
+[[package]]
 name = "target-lexicon"
 version = "0.12.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7152,7 +7193,7 @@ dependencies = [
  "serde_with",
  "swift-rs",
  "thiserror 2.0.18",
- "toml 0.9.12+spec-1.1.0",
+ "toml 1.1.3+spec-1.1.0",
  "url",
  "urlpattern",
  "uuid",

@@ -6,10 +6,12 @@
             [onekeepass.frontend.events.merging]
             [onekeepass.frontend.mui-components :as m :refer [mui-alert
                                                               mui-button
+                                                              mui-checkbox
                                                               mui-dialog
                                                               mui-dialog-actions
                                                               mui-dialog-content
                                                               mui-dialog-title
+                                                              mui-form-control-label
                                                               mui-icon-button
                                                               mui-icon-folder-outlined
                                                               mui-icon-visibility
@@ -33,6 +35,9 @@
                               key-file-name
                               password-visibility-on
                               key-file-visibility-on
+                              remember-key-file
+                              remember-key-file-hint
+                              remote-entry-backed?
                               status error-text error-fields]} opened-db-list]
   (let [in-progress? (= :in-progress status)
         passord-error-text (:password error-fields)
@@ -107,6 +112,23 @@
                                                                                             :onClick od-events/open-key-file-explorer-on-click}
                                                                            [mui-icon-folder-outlined]]])}}
                          :type (if key-file-visibility-on "text" "password")}]
+
+          ;; Not offered on unlock (key file is already known), on merge and for
+          ;; ad-hoc remote connections which are not kept in the recent list
+          (when (and (not unlock-request)
+                     (not dbs-merge-request)
+                     (or (not remote?) remote-entry-backed?)
+                     (seq key-file-name))
+            [mui-stack {:sx {:mt "8px"}}
+             [mui-form-control-label
+              {:control (r/as-element
+                         [mui-checkbox
+                          {:checked (boolean remember-key-file)
+                           :on-change (fn [^js/CheckedEvent e]
+                                        (od-events/remember-key-file-on-change (-> e .-target .-checked)))}])
+               :label (t/lstr-l "rememberKeyFile")}]
+             (when (and remember-key-file remember-key-file-hint)
+               [mui-typography {:variant "caption"} (t/lstr-h "rememberKeyFileHelp")])])
 
           [mui-stack {:sx {:margin-top "10px" :margin-bottom "5px"}}
            [mui-typography {:variant "caption"} (tr-m openDbPage txt1)]]

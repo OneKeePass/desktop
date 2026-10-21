@@ -352,12 +352,17 @@
 
 (defn load-kdbx
   "Calls the API to read and parse the selected db file.
-   Calls the dispatch-fn with the received map of type 'KdbxLoaded' 
+   Calls the dispatch-fn with the received map of type 'KdbxLoaded'
+   The arg 'remember-key-file' is true/false to remember/forget the key file
+   against the recent entry and nil to leave it unchanged
   "
-  [file-name password key-file-name dispatch-fn]
-  (invoke-api "load_kdbx" {:db-file-name file-name
-                           :password password
-                           :key-file-name key-file-name} dispatch-fn))
+  ([file-name password key-file-name dispatch-fn]
+   (load-kdbx file-name password key-file-name nil dispatch-fn))
+  ([file-name password key-file-name remember-key-file dispatch-fn]
+   (invoke-api "load_kdbx" {:db-file-name file-name
+                            :password password
+                            :key-file-name key-file-name
+                            :remember-key-file remember-key-file} dispatch-fn)))
 
 (defn lock-kdbx [db-key dispatch-fn]
   (invoke-api "lock_kdbx" {:db-key db-key} dispatch-fn))

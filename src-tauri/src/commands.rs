@@ -155,6 +155,9 @@ pub(crate) async fn load_kdbx(
     db_file_name: &str,
     password: Option<&str>,
     key_file_name: Option<&str>,
+    // Some(true) remembers key_file_name against the recent entry, Some(false)
+    // forgets it and None (auto-open, sandbox re-pick) leaves it unchanged
+    remember_key_file: Option<bool>,
     app_state: State<'_, app_state::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
     let mut scoped_access = mas::LoadKdbxAccess::prepare(db_file_name, key_file_name);
@@ -190,6 +193,14 @@ pub(crate) async fn load_kdbx(
         .add_recent_file(db_file_name);
 
     if r.is_ok() {
+        // Only after a successful load so a wrong key file is never remembered
+        if let Some(remember) = remember_key_file {
+            app_state
+                .preference
+                .lock()
+                .unwrap()
+                .set_recent_file_key_file(db_file_name, key_file_name.filter(|_| remember));
+        }
         scoped_access.store_success_handles(db_file_name, key_file_name, &app_state);
         app_state.db_file_watcher.start_watching(db_file_name);
         // Add this db's agent-enabled SSH keys to the running agent (if any).
@@ -1506,9 +1517,12 @@ pub async fn rs_read_kdbx(
     db_file_name: String,
     password: Option<String>,
     key_file_name: Option<String>,
+    // Same meaning as in load_kdbx
+    remember_key_file: Option<bool>,
     app_state: State<'_, app_state::AppState>,
 ) -> Result<kp_service::KdbxLoaded> {
     let db_key_for_cache = db_file_name.clone();
+    let key_file_to_remember = key_file_name.clone();
     let (kdbx_loaded, remote_mtime) = tokio::task::spawn_blocking(move || {
         crate::remote_storage::rs_read_kdbx(
             &db_file_name,
@@ -1520,11 +1534,14 @@ pub async fn rs_read_kdbx(
     .map_err(spawn_blocking_join_err)??;
     app_state.set_remote_mtime(&db_key_for_cache, remote_mtime);
     if crate::remote_storage::is_kdbx_entry_backed(&db_key_for_cache) {
-        app_state
-            .preference
-            .lock()
-            .unwrap()
-            .add_recent_file(&db_key_for_cache);
+        let mut pref = app_state.preference.lock().unwrap();
+        pref.add_recent_file(&db_key_for_cache);
+        if let Some(remember) = remember_key_file {
+            pref.set_recent_file_key_file(
+                &db_key_for_cache,
+                key_file_to_remember.as_deref().filter(|_| remember),
+            );
+        }
     }
     Ok(kdbx_loaded)
 }
