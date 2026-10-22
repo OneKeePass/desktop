@@ -152,10 +152,10 @@
     (< number KB)
     (str (.toFixed number 2) " B")
 
-    (and (> number KB) (< number MB))
+    (and (>= number KB) (< number MB))
     (str (.toFixed (/ number KB) 2) " KiB")
 
-    (and (> number MB) (< number GB))
+    (and (>= number MB) (< number GB))
     (str (.toFixed (/ number MB) 2) " MiB")
 
     :else

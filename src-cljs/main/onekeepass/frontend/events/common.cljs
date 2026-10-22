@@ -660,7 +660,8 @@
    {:fx [[:dispatch [:entry-form-ex/show-welcome]]
          [:dispatch [:group-tree-content/load-groups]]
          [:dispatch [:entry-category/reload-category-data]]
-         [:dispatch [:entry-list/clear-entry-items]]]}))
+         [:dispatch [:entry-list/clear-entry-items]]
+         [:dispatch [:find-entries/reload-if-shown]]]}))
 
 (defn- save-db-full-file-name
   [save-as-file-name]

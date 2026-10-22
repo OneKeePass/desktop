@@ -6,6 +6,7 @@
             [onekeepass.frontend.entry-category :as ec]
             [onekeepass.frontend.entry-form-ex :as eform-ex]
             [onekeepass.frontend.entry-list :as el]
+            [onekeepass.frontend.find-entries :as find-entries]
             [onekeepass.frontend.events.common :as cmn-events]
             [onekeepass.frontend.events.entry-list :as el-events]
             [onekeepass.frontend.events.move-group-entry :as move-events]
@@ -268,6 +269,9 @@
 
          (= content-to-show :entry-history)
          [eform-ex/entry-history-content-main]
+
+         (= content-to-show :find-entries)
+         [find-entries/find-entries-content-main]
 
          (= content-to-show :locked-content)
          [locked-content]

@@ -118,6 +118,7 @@
 (def MENU_ID_CHECK_REMOTE_CHANGES "CheckRemoteChanges")
 (def MENU_ID_IMPORT "Import")
 (def MENU_ID_PASSWORD_GENERATOR "PasswordGenerator")
+(def MENU_ID_FIND_ENTRIES "FindEntries")
 (def MENU_ID_NEW_ENTRY "NewEntry")
 (def MENU_ID_EDIT_ENTRY "EditEntry")
 (def MENU_ID_CLONE_ENTRY "CloneEntry")

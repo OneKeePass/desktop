@@ -44,6 +44,9 @@
       (= menu-id const/MENU_ID_PASSWORD_GENERATOR)
       (dispatch [:password-generator/start])
 
+      (= menu-id const/MENU_ID_FIND_ENTRIES)
+      (dispatch [:find-entries/start])
+
       (= menu-id const/MENU_ID_EDIT_ENTRY)
       (dispatch [:entry-form-ex/edit true])
 

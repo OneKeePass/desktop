@@ -606,6 +606,14 @@ pub async fn history_entries_summary(
 }
 
 #[tauri::command]
+pub async fn find_entries(
+    db_key: &str,
+    kind: kp_service::EntryFindKind,
+) -> Result<kp_service::EntryFindResult> {
+    Ok(kp_service::find_entries(db_key, kind)?)
+}
+
+#[tauri::command]
 pub(crate) async fn new_entry_form_data(
     db_key: &str,
     entry_type_uuid: Uuid,

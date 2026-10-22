@@ -78,6 +78,7 @@
     (and (not shift?) (= k ",")) ["OneKeePass" const/APP_SETTINGS]
     (and (not shift?) (= k "q")) ["OneKeePass" const/MENU_ID_QUIT]
     (and (not shift?) (= k "f")) ["Edit" const/MENU_ID_SEARCH]
+    (and shift? (= k "f"))       ["Tools" const/MENU_ID_FIND_ENTRIES]
     (and shift? (= k "n"))       ["Database" const/MENU_ID_NEW_DATABASE]
     (and (not shift?) (= k "o")) ["Database" const/MENU_ID_OPEN_DATABASE]
     (and shift? (= k "o"))       ["Database" const/MENU_ID_OPEN_REMOTE]

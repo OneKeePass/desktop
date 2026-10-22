@@ -280,6 +280,8 @@
                             ;; "Lock All Databases" applies when any open db is still unlocked
                             (tauri-events/enable-app-menu const/MENU_ID_LOCK_ALL_DATABASES any-unlocked?)
                             (tauri-events/enable-app-menu const/MENU_ID_SEARCH true)
+                            ;; Like the merge menus, not disabled in this effect's cleanup - see below
+                            (tauri-events/enable-app-menu const/MENU_ID_FIND_ENTRIES (not locked?))
                             ;; Neither merge menu is disabled in this effect's cleanup below.
                             ;; Turning the same menu id off there and on again here is a race -
                             ;; each call is a separate async tauri command, so the enable can
@@ -314,12 +316,13 @@
 
       ;; Mount only - the empty deps mean this cleanup runs just once, when the tool
       ;; bar unmounts because the last db was closed and the start page is shown. Both
-      ;; merge menus have to go off then, but they cannot be part of the deps driven
-      ;; cleanup above, which would race with that effect's own enable calls.
+      ;; merge menus and Find Entries have to go off then, but they cannot be part of the
+      ;; deps driven cleanup above, which would race with that effect's own enable calls.
       (m/react-use-effect (fn []
                             (fn []
                               (tauri-events/enable-app-menu const/MENU_ID_MERGE_DATABASE false)
-                              (tauri-events/enable-app-menu const/MENU_ID_MERGE_OPENED_DATABASES false)))
+                              (tauri-events/enable-app-menu const/MENU_ID_MERGE_OPENED_DATABASES false)
+                              (tauri-events/enable-app-menu const/MENU_ID_FIND_ENTRIES false)))
                           (clj->js []))
 
       [:div {:style {:flex-grow 1}}

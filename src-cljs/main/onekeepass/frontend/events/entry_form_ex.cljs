@@ -1619,15 +1619,25 @@
                                    (dispatch [:load-history-entries-summary-complete summary-list]))))
    {}))
 
+;; The content (:group-entry or :find-entries) to go back to when the history page closes
+(defn- history-return-content [db]
+  (or (get-in-key-db db [entry-form-key :entry-history-form :return-content]) :group-entry))
+
 (reg-event-fx
  :load-history-entries-summary-complete
  (fn [{:keys [db]} [_event-id summary-list]]
-
-   {:db (-> db
-            (assoc-in-key-db [entry-form-key :entry-history-form] {})
-            (assoc-in-key-db [entry-form-key :entry-history-form :entries-summary-list] summary-list))
-    :fx [[:dispatch [:common/show-content :entry-history]]
-         [:dispatch [:entry-form-ex/show-welcome "Showing history entries. Select one to see details"]]]}))
+   ;; This is also called to reload the list while the history page is showing (after deleting
+   ;; a history entry), so the content that opened the page is kept in that case
+   (let [current-content (get-in-key-db db [:show-content])
+         return-content (if (= current-content :entry-history)
+                          (history-return-content db)
+                          current-content)]
+     {:db (-> db
+              (assoc-in-key-db [entry-form-key :entry-history-form] {})
+              (assoc-in-key-db [entry-form-key :entry-history-form :entries-summary-list] summary-list)
+              (assoc-in-key-db [entry-form-key :entry-history-form :return-content] return-content))
+      :fx [[:dispatch [:common/show-content :entry-history]]
+           [:dispatch [:entry-form-ex/show-welcome "Showing history entries. Select one to see details"]]]})))
 
 (reg-event-fx
  :update-history-index-selection-ex
@@ -1641,10 +1651,15 @@
 
 (reg-event-fx
  :history-content-close
- (fn [{:keys [_db]} [_event-id entry-uuid]]
-   {:fx [[:dispatch [:entry-form-ex/show-welcome]]
-         [:dispatch [:common/show-content :group-entry]]
-         [:dispatch [:entry-form-ex/find-entry-by-id entry-uuid]]]}))
+ (fn [{:keys [db]} [_event-id entry-uuid]]
+   (let [return-content (history-return-content db)]
+     {:fx [[:dispatch [:entry-form-ex/show-welcome]]
+           [:dispatch [:common/show-content return-content]]
+           ;; The Find Entries page reloads its list and the form itself - the entry may no
+           ;; longer be listed there (e.g. all history deleted)
+           (if (= return-content :find-entries)
+             [:dispatch [:find-entries/reload-if-shown]]
+             [:dispatch [:entry-form-ex/find-entry-by-id entry-uuid]])]})))
 
 (reg-event-fx
  :find-history-entry-by-index
@@ -1701,7 +1716,7 @@
    ;; Update the entry with the selected version of history
    (update-entry db (fn [api-response]
                       (when-not (on-error api-response)
-                        (dispatch [:restore-entry-from-histore-complete]))))
+                        (dispatch [:restore-entry-from-history-complete]))))
    {}))
 
 (reg-event-db
@@ -1715,17 +1730,22 @@
    (assoc-in-key-db db  [entry-form-key :entry-history-form :delete-all-flag] open?)))
 
 (reg-event-fx
- :restore-entry-from-histore-complete
+ :restore-entry-from-history-complete
  (fn [{:keys [db]} [_event-id]]
-   {:fx [[:dispatch [:update-restore-confirm-open-ex false]]
-         [:dispatch [:common/show-content :group-entry]]
-         ;; Need to reload the newly upated entry
-         ;; entry-list and entry-category selection remains the same
-         [:dispatch [:entry-form-ex/find-entry-by-id
-                     (get-in-key-db db [entry-form-key :data :uuid])]]
-         ;; Refresh the entry list so the row reflects the restored
-         ;; title/icon (built-in or custom) instead of the pre-restore values
-         [:dispatch [:entry-list/entry-updated]]]}))
+   (let [return-content (history-return-content db)]
+     {:fx (cond-> [[:dispatch [:update-restore-confirm-open-ex false]]
+                   [:dispatch [:common/show-content return-content]]]
+            ;; Need to reload the newly upated entry
+            ;; entry-list and entry-category selection remains the same
+            ;; The Find Entries page reloads the form itself through the entry list refresh below
+            (not= return-content :find-entries)
+            (conj [:dispatch [:entry-form-ex/find-entry-by-id
+                              (get-in-key-db db [entry-form-key :data :uuid])]])
+
+            ;; Refresh the entry list so the row reflects the restored
+            ;; title/icon (built-in or custom) instead of the pre-restore values
+            :always
+            (conj [:dispatch [:entry-list/entry-updated]]))})))
 
 (reg-sub
  :entry-history-form

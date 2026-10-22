@@ -188,6 +188,9 @@
          ]
      {:db db
       :fx [#_[:dispatch [:entry-category/selected-category-title category]]
+           ;; The search dialog can be used from the Find Entries or History page as well,
+           ;; and the selected entry is shown in the main entry list
+           [:dispatch [:common/show-content :group-entry]]
            [:dispatch [:entry-category/select-all-entries-category]]
            [:dispatch [:group-tree-content/clear-group-selection]]
            [:dispatch [:entry-list/update-selected-entry-id entry-uuid]]
@@ -209,7 +212,9 @@
          category (if-not (nil? category) category const/CATEGORY_ALL_ENTRIES)]
      {:fx [[:load-bg-entry-summary-data [(active-db-key db) category]]
            ;; The TOTP codes shown on the rows may have changed with the entries
-           [:dispatch [:entry-list-otp/entries-changed]]]})))
+           [:dispatch [:entry-list-otp/entries-changed]]
+           ;; The Find Entries page shares the entry form and lists entries of its own
+           [:dispatch [:find-entries/reload-if-shown]]]})))
 
 (reg-fx
  :load-bg-entry-summary-data
@@ -236,17 +241,20 @@
          ;; entry summary vec is loaded to show in 'entry-list'.
          ;; We need to find the entry's index in that vec so that we can use that info to scroll to that item.
          ;; In all other cases, the index is nil and the list is shown from the top
-         item-index (entry-item-index sorted-entries current-selected-entry-id)]
+         item-index (entry-item-index sorted-entries current-selected-entry-id)
+
+         ;; The entry form is shared with the Find Entries page. While that page is showing,
+         ;; the form belongs to its selected entry and is reloaded by its own events
+         find-entries-shown? (= :find-entries (get-in-key-db db [:show-content]))]
 
      {:db (-> db (assoc-in-key-db [:entry-list :selected-entry-item-index] item-index))
-      :fx [[:dispatch [:update-selected-entry-items sorted-entries]]
-           [:dispatch [:update-category-source category]]
-           (if (nil? item-index)
-             [:dispatch [:entry-form-ex/show-welcome]]
-             ;; Following event is dipatched only when the selected entry is in the list ( search time )
-             [:dispatch [:entry-form-ex/find-entry-by-id current-selected-entry-id]]
-             ;; Following will not work as  we see warning on console "re-frame: in ":fx" effect found"
-             #_[[:dispatch [:entry-form-ex/find-entry-by-id current-selected-entry-id]]])]})))
+      :fx (cond-> [[:dispatch [:update-selected-entry-items sorted-entries]]
+                   [:dispatch [:update-category-source category]]]
+            (not find-entries-shown?)
+            (conj (if (nil? item-index)
+                    [:dispatch [:entry-form-ex/show-welcome]]
+                    ;; Following event is dipatched only when the selected entry is in the list ( search time )
+                    [:dispatch [:entry-form-ex/find-entry-by-id current-selected-entry-id]])))})))
 
 ;; list of entry items returned by backend api when a category selected
 ;; or entry items returned in a search result - Work is yet to be done

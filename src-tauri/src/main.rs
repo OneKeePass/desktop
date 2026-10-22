@@ -158,6 +158,7 @@ fn main() {
             commands::entry_type_headers,
             commands::export_as_xml,
             commands::export_main_content_as_xml,
+            commands::find_entries,
             commands::form_otp_url,
             commands::generate_key_file,
             commands::generate_password_phrase,

@@ -58,6 +58,7 @@ pub mod menu_ids {
     pub const COPY_TOTP: &str = "CopyTotp";
 
     pub const PASSWORD_GENERATOR: &str = "PasswordGenerator";
+    pub const FIND_ENTRIES: &str = "FindEntries";
 
     pub const ABOUT: &str = "About";
 }
@@ -466,6 +467,14 @@ fn build_tools_menus<R: Runtime>(
         true,
         Some("CmdOrControl+G"),
     )?)
+    // Enabled only while the active db is unlocked - see tool_bar.cljs
+    .item(&MenuItem::with_id(
+        app_handle,
+        FIND_ENTRIES,
+        system_menu_translation.sub_menu(FIND_ENTRIES, "Find Entries…"),
+        false,
+        Some("Shift+CmdOrControl+F"),
+    )?)
     .build();
 
     tools_menus
@@ -609,6 +618,9 @@ pub fn menu_action_requested<R: Runtime>(request: MenuActionRequest, app_handle:
         }
         EDIT_GROUP | NEW_GROUP | CLONE_GROUP | DELETE_GROUP => {
             toggle_enable_disable(app_handle, MAIN_MENU_GROUPS, menu_id, menu_enabled);
+        }
+        FIND_ENTRIES => {
+            toggle_enable_disable(app_handle, MAIN_MENU_TOOLS, menu_id, menu_enabled);
         }
         // PASSWORD_GENERATOR => {
         //   toggle_enable_disable(app_handle, MAIN_MENU_TOOLS, menu_id, menu_enabled);

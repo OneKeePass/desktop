@@ -449,6 +449,13 @@
                    entry-category
                    (csk/->camelCaseString entry-category))} dispatch-fn :convert-response true))
 
+(defn find-entries
+  "Gets the entries matching the find kind as defined in the enum EntryFindKind of onekeepass-core.
+   The arg 'kind' is a keyword (e.g :with-attachments, :by-size) that is sent as the camelCase
+   enum name. Returns a map (struct EntryFindResult)"
+  [db-key kind dispatch-fn]
+  (invoke-api "find_entries" {:db-key db-key :kind (csk/->camelCaseString kind)} dispatch-fn))
+
 (defn history-entries-summary [db-key entry-uuid dispatch-fn]
   (invoke-api "history_entries_summary" {:db-key db-key :entry-uuid entry-uuid} dispatch-fn))
 
