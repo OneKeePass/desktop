@@ -224,16 +224,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "argon2-sys"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "190bcd1a5417d25c2fff051cd443de3c9c348094d1cb5760d28ecf88428b76a0"
-dependencies = [
- "cc",
- "libc",
-]
-
-[[package]]
 name = "async-broadcast"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4252,9 +4242,9 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 name = "onekeepass-core"
 version = "0.26.0"
 dependencies = [
- "argon2-sys",
  "base64 0.22.1",
  "botan",
+ "botan-sys",
  "cfg-if",
  "chbs",
  "chrono",
@@ -4276,7 +4266,7 @@ dependencies = [
  "p256 0.13.2",
  "passwords",
  "psl",
- "quick-xml 0.37.5",
+ "quick-xml 0.42.0",
  "rand_core 0.6.4",
  "regex",
  "reqwest 0.13.4",
@@ -5124,15 +5114,6 @@ checksum = "a993555f31e5a609f617c12db6250dedcac1b0a85076912c436e6fc9b2c8e6a3"
 
 [[package]]
 name = "quick-xml"
-version = "0.37.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "331e97a1af0bf59823e6eadffe373d7b27f485be8748f71471c662c1f269b7fb"
-dependencies = [
- "memchr",
-]
-
-[[package]]
-name = "quick-xml"
 version = "0.39.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdcc8dd4e2f670d309a5f0e83fe36dfdc05af317008fea29144da1a2ac858e5e"
@@ -5145,6 +5126,15 @@ name = "quick-xml"
 version = "0.41.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e660451e55124f798a69a5af3f49ccfbefbd41910eefd25caf2393e1f3473ec1"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
+name = "quick-xml"
+version = "0.42.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41b1177fdf999d2321d3fb46ff47159d9c1fb9ad66a4879f8c50a0b504615e9b"
 dependencies = [
  "memchr",
 ]
