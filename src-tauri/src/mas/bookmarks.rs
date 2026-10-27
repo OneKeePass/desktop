@@ -66,10 +66,12 @@ pub(crate) fn store_db_file(path: &str, b64: &str) {
     store(StoreKind::DbFile, path, b64);
 }
 
+#[allow(dead_code)] // Retained for a future saved-file-access management flow.
 pub(crate) fn remove_db_file(path: &str) {
     remove(StoreKind::DbFile, path);
 }
 
+#[allow(dead_code)] // Retained for a future saved-file-access management flow.
 pub(crate) fn clear_db_files() {
     clear(StoreKind::DbFile);
 }
