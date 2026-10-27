@@ -227,7 +227,7 @@ impl<'a> PlaceHolderParser<'a> {
         }
     }
 
-    fn parse(&mut self) -> Result<Vec<PlaceHolder>, String> {
+    fn parse(&mut self) -> Result<Vec<PlaceHolder<'_>>, String> {
         let mut out: Vec<PlaceHolder<'_>> = vec![];
         // Combine all parers that are used to parse a sequence string
         let mut parser = alt((

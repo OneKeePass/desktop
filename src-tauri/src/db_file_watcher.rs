@@ -13,7 +13,8 @@ use crate::constants::event_names::DB_FILE_CHANGED_EVENT;
 use crate::constants::window_labels::MAIN_WINDOW_LABEL;
 
 struct WatcherEntry {
-    watcher: RecommendedWatcher,
+    // Keeps the OS watch active until this entry is dropped.
+    _watcher: RecommendedWatcher,
     // True once the event has been sent to the frontend but not yet acknowledged.
     // Prevents duplicate events if the file is written multiple times quickly.
     notification_pending: bool,
@@ -141,7 +142,7 @@ impl DbFileWatcherState {
                         watchers.insert(
                             db_key.to_string(),
                             WatcherEntry {
-                                watcher,
+                                _watcher: watcher,
                                 notification_pending: false,
                             },
                         );

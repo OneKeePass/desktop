@@ -236,6 +236,7 @@ impl AppState {
         store.get(db_key).cloned().flatten()
     }
 
+    #[allow(dead_code)] // Retained for reference.
     pub(crate) fn clear_remote_mtime(&self, db_key: &str) {
         let mut store = self.remote_mtimes.lock().unwrap();
         store.remove(db_key);

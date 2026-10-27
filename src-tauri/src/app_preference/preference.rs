@@ -578,6 +578,7 @@ impl Preference {
     // True if the given path is currently tracked in recents. Used to decide
     // whether a kp_service load failure should trigger the sandbox re-pick
     // recovery flow vs. just propagating the raw error.
+    #[cfg(any(feature = "mas-build", rust_analyzer))]
     pub(crate) fn is_in_recent_files(&self, file_name: &str) -> bool {
         self.recent_files.iter().any(|r| r.path == file_name)
     }
