@@ -1,3 +1,15 @@
+### 0.28.0
+
+#### Changes
+- New **Tools -> Find Entries** page (Shift+Ctrl/Cmd+F) to list entries with attachments, passkeys, TOTP or history, or sorted by size
+- **Remember key file** option in the Open Database dialog. Only the key file location is saved on this computer, not the key file itself
+- A URL without a scheme, such as `example.com`, now opens as `https://example.com`. URLs with schemes other than http or https are not opened
+
+#### Fixed
+- Custom icons now show for databases opened through auto open, instead of the built-in icons
+- Search no longer returns entries that are in the Recycle Bin
+- Entries with empty passkey fields are no longer treated as passkeys
+
 ### 0.27.0
 
 #### Changes

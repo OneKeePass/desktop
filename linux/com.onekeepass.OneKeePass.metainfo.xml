@@ -90,6 +90,19 @@
   </recommends>
 
   <releases>
+    <release version="0.28.0" date="2026-11-07">
+      <url type="details">https://github.com/OneKeePass/desktop/releases/tag/v0.28.0</url>
+      <description>
+        <ul>
+          <li>New Find Entries page in the Tools menu to list entries with attachments, passkeys, TOTP or history, or sorted by size</li>
+          <li>The Open Database dialog can remember the key file location for a database; the key file itself is not copied</li>
+          <li>A URL without a scheme, such as example.com, now opens as an https address; URLs with other schemes are not opened</li>
+          <li>Fixed: custom icons now show for databases opened through auto open</li>
+          <li>Fixed: search no longer returns entries that are in the Recycle Bin</li>
+          <li>Fixed: entries with empty passkey fields are no longer treated as passkeys</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.27.0" date="2026-10-05">
       <url type="details">https://github.com/OneKeePass/desktop/releases/tag/v0.27.0</url>
       <description>
