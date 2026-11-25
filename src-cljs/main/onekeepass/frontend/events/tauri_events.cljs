@@ -213,11 +213,13 @@
 (defn- register-browser-connection-request-event []
   (bg/register-event-listener BROWSER_CONNECTION_REQUEST_EVENT handle-browser-connection-request-event))
 
+;; Sent when the browser extension saved a passkey, or saved a login / updated a
+;; password ('change' is passkey-saved, login-saved or password-updated)
 (defn- handle-passkey-data-changed-event [js-event]
-  (let [{:keys [db-key entry-uuid group-uuid entry-type-uuid entry-type-name tags]}
+  (let [{:keys [db-key entry-uuid group-uuid entry-type-uuid entry-type-name tags change]}
         (-> js-event to-cljs :payload)]
     (dispatch [:common/passkey-db-data-changed
-               db-key entry-uuid group-uuid entry-type-uuid entry-type-name tags])))
+               db-key entry-uuid group-uuid entry-type-uuid entry-type-name tags change])))
 
 (defn- register-passkey-data-changed-event []
   (println "PASSKEY_DATA_CHANGED_EVENT received")

@@ -680,6 +680,10 @@
         "launchingSystemViewer": "Iniciando el visor del sistema",
         "passkeySaved": "Clave de acceso guardada",
         "passkeySavedToDb": "Clave de acceso guardada en {{- dbName}}",
+        "loginSavedFromBrowser": "Inicio de sesión guardado desde el navegador",
+        "loginSavedFromBrowserToDb": "Inicio de sesión guardado desde el navegador en {{- dbName}}",
+        "passwordUpdatedFromBrowser": "Contraseña actualizada desde el navegador",
+        "passwordUpdatedFromBrowserInDb": "Contraseña actualizada desde el navegador en {{- dbName}}",
         "recycleBinEmptied": "Papelera vaciada",
         "remoteUpToDate": "La base de datos remota está actualizada"
     },

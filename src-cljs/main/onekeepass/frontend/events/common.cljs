@@ -874,7 +874,7 @@
 ;;    The refresh runs when the user next switches to that db.
 (reg-event-fx
  :common/passkey-db-data-changed
- (fn [{:keys [db]} [_event-id db-key entry-uuid group-uuid entry-type-uuid entry-type-name tags]]
+ (fn [{:keys [db]} [_event-id db-key entry-uuid group-uuid entry-type-uuid entry-type-name tags change]]
    ;;(println "in :common/passkey-db-data-changed refreshing db" db-key)
    (if (= db-key (active-db-key db))
      {:fx [[:dispatch [:load-all-tags]]
@@ -887,7 +887,10 @@
                        entry-uuid group-uuid entry-type-uuid entry-type-name tags]]
            ;; Show the affected entry in the form panel
            [:dispatch [:entry-form-ex/find-entry-by-id entry-uuid]]
-           [:dispatch [:common/message-snackbar-open (lstr-sm 'passkeySaved)]]]}
+           [:dispatch [:common/message-snackbar-open (case change
+                                                       "login-saved" (lstr-sm 'loginSavedFromBrowser)
+                                                       "password-updated" (lstr-sm 'passwordUpdatedFromBrowser)
+                                                       (lstr-sm 'passkeySaved))]]]}
      ;; Target a specific (non-active) db-key directly - assoc-in-key-db cannot be
      ;; used here as it always writes to the active db. Name the db in the message
      ;; since the user is not currently looking at it.
@@ -896,7 +899,10 @@
                        db-key)]
        {:db (assoc-in db [db-key :passkey-refresh-pending] true)
         :fx [[:dispatch [:common/message-snackbar-open
-                         (lstr-sm 'passkeySavedToDb {:dbName db-name})]]]}))))
+                         (case change
+                           "login-saved" (lstr-sm 'loginSavedFromBrowserToDb {:dbName db-name})
+                           "password-updated" (lstr-sm 'passwordUpdatedFromBrowserInDb {:dbName db-name})
+                           (lstr-sm 'passkeySavedToDb {:dbName db-name}))]]]}))))
 
 ;; Refreshes the now-active db's panels after a passkey was added to it while it
 ;; was not the active db. Dispatched from :common/change-active-db-complete.
