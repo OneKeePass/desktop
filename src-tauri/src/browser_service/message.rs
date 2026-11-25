@@ -2,6 +2,9 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use zeroize::Zeroize;
+
+use onekeepass_core::db_service::browser_extension::{LoginCredentialInput, LoginCredentialSaveInfo};
 
 use crate::app_state;
 
@@ -116,6 +119,29 @@ pub enum Request {
         tab_url: Option<String>,
     },
 
+    // ── Saving a login submitted in the browser ──────────────────────────────
+    //
+    // Both carry the password the user submitted, so the extension encrypts the
+    // payload with the session keys: `message` + `nonce` decrypt (with replay
+    // protection, see SessionStore::decrypt_request) to the JSON of
+    // `LoginCredentialInput` / `LoginCredentialSaveInfo`.
+
+    // Is the submitted login new, changed or already stored?
+    CheckLoginCredential {
+        association_id: String,
+        request_id: String,
+        message: String,
+        nonce: String,
+    },
+
+    // The user confirmed Save / Update in the extension's popup.
+    SaveLoginCredential {
+        association_id: String,
+        request_id: String,
+        message: String,
+        nonce: String,
+    },
+
     // Step 2 of authentication: user has chosen a passkey; sign the assertion.
     CompletePasskeyAssertion {
         association_id: String,
@@ -210,6 +236,33 @@ fn validate_origin_matches_tab_url(
         ));
     }
     Ok(())
+}
+
+// Validates the site a login was submitted on: an https origin, or plain http on
+// the local machine only (the extension offers to save nothing else). Like an
+// origin, it must have no path, query or fragment.
+fn validate_login_site(url: &str) -> onekeepass_core::error::Result<()> {
+    if url.starts_with("https://") {
+        return validate_https_origin(url);
+    }
+    let local_http = url.strip_prefix("http://").map_or(false, |rest| {
+        let host = if rest.starts_with("[::1]") {
+            "[::1]"
+        } else {
+            rest.split(':').next().unwrap_or("")
+        };
+        matches!(host, "localhost" | "127.0.0.1" | "[::1]")
+            && !rest.contains(['/', '?', '#'])
+            && !rest.chars().any(|c| c.is_ascii_whitespace() || c.is_control())
+    });
+    if local_http {
+        Ok(())
+    } else {
+        log::warn!("Login site validation failed: '{}'", url);
+        Err(onekeepass_core::error::Error::UnexpectedError(
+            "INVALID_ORIGIN".to_string(),
+        ))
+    }
 }
 
 // Rejects oversized string fields before they reach the database or crypto layer.
@@ -384,6 +437,24 @@ impl Request {
                     tab_url.as_deref(),
                 )
                 .await;
+            }
+
+            Ok(Request::CheckLoginCredential {
+                ref association_id,
+                ref request_id,
+                ref message,
+                ref nonce,
+            }) => {
+                Self::check_login_credential(association_id, request_id, message, nonce).await;
+            }
+
+            Ok(Request::SaveLoginCredential {
+                ref association_id,
+                ref request_id,
+                ref message,
+                ref nonce,
+            }) => {
+                Self::save_login_credential(association_id, request_id, message, nonce).await;
             }
 
             // Ok(x) => {
@@ -901,6 +972,100 @@ impl Request {
         SessionStore::send_session_response(association_id, &resp.json_str()).await;
     }
 
+    // Decrypts an encrypted request payload and parses it. The decrypted JSON holds
+    // the password, so it is wiped as soon as it is parsed.
+    async fn decrypt_payload<T: serde::de::DeserializeOwned>(
+        association_id: &str,
+        message: &str,
+        nonce: &str,
+    ) -> onekeepass_core::error::Result<T> {
+        check_field_len("message", message, 65536)?;
+        check_field_len("nonce", nonce, 64)?;
+        let mut plain = SessionStore::decrypt_request(association_id, nonce, message).await?;
+        let parsed = serde_json::from_str::<T>(&plain).map_err(|_| {
+            onekeepass_core::error::Error::UnexpectedError("INVALID_REQUEST".to_string())
+        });
+        plain.zeroize();
+        parsed
+    }
+
+    async fn check_login_credential(
+        association_id: &str,
+        request_id: &str,
+        message: &str,
+        nonce: &str,
+    ) {
+        let check_result =
+            match Self::decrypt_payload::<LoginCredentialInput>(association_id, message, nonce)
+                .await
+            {
+                Ok(input) => check_field_len("url", &input.url, 2048)
+                    .and_then(|_| check_field_len("username", &input.username, 4096))
+                    .and_then(|_| check_field_len("password", &input.password, 4096))
+                    .and_then(|_| validate_login_site(&input.url))
+                    .and_then(|_| db_calls::check_login_credential(&input))
+                    .and_then(|ref check| Ok(serde_json::to_string(check)?)),
+                Err(e) => Err(e),
+            };
+
+        let resp = match check_result {
+            Ok(ref json) => match SessionStore::encrypt(association_id, json).await {
+                Ok((nonce, enc_msg)) => ResponseResult::with_ok(Response::LoginCredentialChecked {
+                    message_content: enc_msg,
+                    request_id: request_id.to_string(),
+                    nonce,
+                }),
+                Err(error) => ResponseActionName::CheckLoginCredential.from_error(error, request_id),
+            },
+            Err(e) => ResponseResult::from_error(
+                ResponseActionName::CheckLoginCredential,
+                &format!("{}", e),
+                request_id,
+            ),
+        };
+
+        SessionStore::send_session_response(association_id, &resp.json_str()).await;
+    }
+
+    async fn save_login_credential(
+        association_id: &str,
+        request_id: &str,
+        message: &str,
+        nonce: &str,
+    ) {
+        let save_result =
+            match Self::decrypt_payload::<LoginCredentialSaveInfo>(association_id, message, nonce)
+                .await
+            {
+                Ok(info) => check_field_len("url", &info.url, 2048)
+                    .and_then(|_| check_field_len("username", &info.username, 4096))
+                    .and_then(|_| check_field_len("password", &info.password, 4096))
+                    .and_then(|_| check_field_len("title", info.title.as_deref().unwrap_or(""), 512))
+                    .and_then(|_| validate_login_site(&info.url))
+                    .and_then(|_| db_calls::save_login_credential(&info))
+                    .and_then(|ref outcome| Ok(serde_json::to_string(outcome)?)),
+                Err(e) => Err(e),
+            };
+
+        let resp = match save_result {
+            Ok(ref json) => match SessionStore::encrypt(association_id, json).await {
+                Ok((nonce, enc_msg)) => ResponseResult::with_ok(Response::LoginCredentialSaved {
+                    message_content: enc_msg,
+                    request_id: request_id.to_string(),
+                    nonce,
+                }),
+                Err(error) => ResponseActionName::SaveLoginCredential.from_error(error, request_id),
+            },
+            Err(e) => ResponseResult::from_error(
+                ResponseActionName::SaveLoginCredential,
+                &format!("{}", e),
+                request_id,
+            ),
+        };
+
+        SessionStore::send_session_response(association_id, &resp.json_str()).await;
+    }
+
     // Gets the entry detail data for a given db_key and entry uuid
     async fn entry_details_by_id(
         association_id: &str,
@@ -1018,6 +1183,23 @@ pub enum Response {
         request_id: String,
         nonce: String,
     },
+
+    // ── Saving a submitted login ──────────────────────────────────────────────
+
+    // Encrypted `LoginCredentialCheck`: a status with entry titles, never a
+    // stored password.
+    LoginCredentialChecked {
+        message_content: String,
+        request_id: String,
+        nonce: String,
+    },
+
+    // Encrypted `LoginCredentialSaveOutcome` of the added or updated entry.
+    LoginCredentialSaved {
+        message_content: String,
+        request_id: String,
+        nonce: String,
+    },
 }
 
 impl Response {
@@ -1047,6 +1229,9 @@ enum ResponseActionName {
     CreatePasskey,
     GetPasskeyList,
     CompletePasskeyAssertion,
+    // Saving a submitted login
+    CheckLoginCredential,
+    SaveLoginCredential,
     // UnexpectedError,
 }
 
@@ -1067,6 +1252,8 @@ impl ResponseActionName {
             CreatePasskey => "CreatePasskey",
             GetPasskeyList => "GetPasskeyList",
             CompletePasskeyAssertion => "CompletePasskeyAssertion",
+            CheckLoginCredential => "CheckLoginCredential",
+            SaveLoginCredential => "SaveLoginCredential",
             // UnexpectedError => "UnexpectedError",
         }
     }
@@ -1146,7 +1333,7 @@ Error trailing characters at line 1 column 146 in deserializing to json of recei
 
 #[cfg(test)]
 mod tests {
-    use crate::browser_service::message::Request;
+    use crate::browser_service::message::{validate_login_site, Request};
 
     #[test]
     fn verify() {
@@ -1350,6 +1537,44 @@ mod tests {
             })
             .unwrap_or_default();
         (rp_id, allow_ids)
+    }
+
+    #[test]
+    fn login_site_validation() {
+        assert!(validate_login_site("https://example.com").is_ok());
+        assert!(validate_login_site("https://login.example.com:8443").is_ok());
+        assert!(validate_login_site("http://localhost:8765").is_ok());
+        assert!(validate_login_site("http://127.0.0.1").is_ok());
+        assert!(validate_login_site("http://[::1]:3000").is_ok());
+
+        assert!(validate_login_site("http://example.com").is_err());
+        assert!(validate_login_site("http://localhost.evil.com").is_err());
+        assert!(validate_login_site("https://example.com/path").is_err());
+        assert!(validate_login_site("http://localhost/path").is_err());
+        assert!(validate_login_site("ftp://example.com").is_err());
+        assert!(validate_login_site("javascript:alert(1)").is_err());
+        assert!(validate_login_site("").is_err());
+    }
+
+    #[test]
+    fn parse_encrypted_login_requests() {
+        for action in ["CheckLoginCredential", "SaveLoginCredential"] {
+            let json = format!(
+                r#"{{"action":"{}","association_id":"Chrome","request_id":"r1","message":"bWVzc2FnZQ==","nonce":"bm9uY2U="}}"#,
+                action
+            );
+            match serde_json::from_str::<Request>(&json).unwrap() {
+                Request::CheckLoginCredential { message, nonce, .. }
+                | Request::SaveLoginCredential { message, nonce, .. } => {
+                    assert_eq!(message, "bWVzc2FnZQ==");
+                    assert_eq!(nonce, "bm9uY2U=");
+                }
+                other => panic!("Unexpected variant: {:?}", other),
+            }
+        }
+        // A plaintext password field is not part of the request: it must be encrypted
+        let json = r#"{"action":"CheckLoginCredential","association_id":"Chrome","request_id":"r1","url":"https://x.com","password":"p"}"#;
+        assert!(serde_json::from_str::<Request>(json).is_err());
     }
 
     #[test]

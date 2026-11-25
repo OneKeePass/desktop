@@ -1,10 +1,14 @@
 use onekeepass_core::db_service as kp_service;
 
-use onekeepass_core::db_service::browser_extension::{EntryBasicInfo, GroupInfo, PasskeySummary};
+use onekeepass_core::db_service::browser_extension::{
+    EntryBasicInfo, GroupInfo, LoginCredentialCheck, LoginCredentialInput,
+    LoginCredentialSaveInfo, LoginCredentialSaveOutcome, PasskeySummary,
+};
 use onekeepass_core::error::Result;
 use serde::Serialize;
 use uuid::Uuid;
 
+use crate::app_state;
 use crate::browser_service::{passkey_db, passkey_db::OpenedDbInfo};
 
 // Validates that `db_key` refers to a currently open AND unlocked database.
@@ -70,6 +74,49 @@ pub(crate) fn custom_icon_for_browser_extension(
     custom_icon_uuid: &str,
 ) -> Result<kp_service::browser_extension::BrowserExtensionCustomIcon> {
     kp_service::browser_extension::custom_icon_for_browser_extension(db_key, custom_icon_uuid)
+}
+
+// ── Saving logins submitted in the browser ───────────────────────────────────
+
+// Checks a login the user submitted on a site against the unlocked databases.
+// The stored passwords are compared in core and never returned: the answer is a
+// status with entry titles and the databases/groups a new entry can go to.
+pub(crate) fn check_login_credential(
+    input: &LoginCredentialInput,
+) -> Result<LoginCredentialCheck> {
+    // As for the fill list, only unlocked databases are reachable from the extension
+    let enabled_db_keys = kp_service::unlocked_kdbx_cache_keys()?;
+    kp_service::browser_extension::check_login_credential(&enabled_db_keys, input)
+}
+
+// Saves a login the user confirmed in the extension (adds an entry or updates the
+// password of an existing one, keeping the old one in its history), writes the
+// database file and tells the main window to show the entry.
+pub(crate) fn save_login_credential(
+    info: &LoginCredentialSaveInfo,
+) -> Result<LoginCredentialSaveOutcome> {
+    validate_db_key(&info.db_key)?;
+    let enabled_db_keys = kp_service::unlocked_kdbx_cache_keys()?;
+    let backup_file_name = app_state::AppState::state_instance().get_backup_file(&info.db_key);
+    let outcome = kp_service::browser_extension::save_login_credential_to_db(
+        &enabled_db_keys,
+        info,
+        backup_file_name.as_deref(),
+    )?;
+    passkey_db::notify_entry_saved_from_browser(
+        &info.db_key,
+        &outcome.entry_uuid.to_string(),
+        &outcome.group_uuid.to_string(),
+        &outcome.entry_type_uuid.to_string(),
+        &outcome.entry_type_name,
+        &outcome.tags,
+        if outcome.created {
+            passkey_db::BrowserEntryChange::LoginSaved
+        } else {
+            passkey_db::BrowserEntryChange::PasswordUpdated
+        },
+    );
+    Ok(outcome)
 }
 
 // Following will get the complete EntryFormData which is not required for browser extension for now

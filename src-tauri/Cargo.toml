@@ -37,6 +37,8 @@ tipsy = "0.7.0"
 futures-util = "0.3"
 data-encoding = "2.9.0"
 crypto_box = "0.9.1"
+# Wipes the decrypted browser-extension requests that carry a password
+zeroize = "1"
 
 ## SSH agent service. ssh-key is pinned to 0.6.7 so it unifies with the copy
 ## ssh-agent-lib re-exports (the desktop tree separately resolves ssh-key
@@ -58,7 +60,10 @@ tauri = { version = "2", features = [] }
 ## onekeepass-core = {path = "../../onekeepass-core", version = "0.25.1", features = ["favicon", "desktop-ssh-agent"] }
 
 ## Need to use the git ref for release
-onekeepass-core = {git = "https://github.com/OneKeePass/onekeepass-core.git" , tag="v0.25.1", features = ["favicon", "desktop-ssh-agent"] }
+## Saving logins from the browser extension and its 2FA code fill need the
+## onekeepass-core changes in Rovart/onekeepass-core feature/popup-redesign-otp.
+## Switch back to the OneKeePass repo tag once those are merged and released.
+onekeepass-core = {git = "https://github.com/Rovart/onekeepass-core.git" , branch="feature/popup-redesign-otp", features = ["favicon", "desktop-ssh-agent"] }
 
 tauri-plugin-shell = "2"
 tauri-plugin-process = "2"

@@ -30,6 +30,48 @@ struct PasskeyChangedPayload {
     entry_type_uuid: String,
     entry_type_name: String,
     tags: Vec<String>,
+    // What the browser extension changed; picks the message the UI shows
+    change: BrowserEntryChange,
+}
+
+// The kinds of entry change made from the browser extension that the main window
+// is told about (PASSKEY_DATA_CHANGED_EVENT)
+#[derive(Clone, Copy, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum BrowserEntryChange {
+    PasskeySaved,
+    LoginSaved,
+    PasswordUpdated,
+}
+
+// Tells the main window that an entry was added or changed from the browser
+// extension, so the UI reloads the entry list, shows the entry and a message.
+pub(crate) fn notify_entry_saved_from_browser(
+    db_key: &str,
+    entry_uuid: &str,
+    group_uuid: &str,
+    entry_type_uuid: &str,
+    entry_type_name: &str,
+    tags: &[String],
+    change: BrowserEntryChange,
+) {
+    if let Some(win) =
+        app_state::AppState::global_app_handle().get_webview_window(MAIN_WINDOW_LABEL)
+    {
+        log::debug!("Emiting event PASSKEY_DATA_CHANGED_EVENT in db message to the UI layer");
+        let _ = win.emit(
+            PASSKEY_DATA_CHANGED_EVENT,
+            PasskeyChangedPayload {
+                db_key: db_key.to_string(),
+                entry_uuid: entry_uuid.to_string(),
+                group_uuid: group_uuid.to_string(),
+                entry_type_uuid: entry_type_uuid.to_string(),
+                entry_type_name: entry_type_name.to_string(),
+                tags: tags.to_vec(),
+                change,
+            },
+        );
+    }
 }
 
 // ── Shared data structures ────────────────────────────────────────────────────
@@ -145,22 +187,15 @@ pub(crate) fn create_and_store_passkey(
 
     // 5. Notify the main window so the UI reloads the entry list and can navigate
     //    to the affected entry
-    if let Some(win) =
-        app_state::AppState::global_app_handle().get_webview_window(MAIN_WINDOW_LABEL)
-    {
-        log::debug!("Emiting event PASSKEY_DATA_CHANGED_EVENT in db message to the UI layer");
-        let _ = win.emit(
-            PASSKEY_DATA_CHANGED_EVENT,
-            PasskeyChangedPayload {
-                db_key: db_key.to_string(),
-                entry_uuid: outcome.entry_uuid.to_string(),
-                group_uuid: outcome.group_uuid.to_string(),
-                entry_type_uuid: outcome.entry_type_uuid.to_string(),
-                entry_type_name: outcome.entry_type_name.clone(),
-                tags: outcome.tags.clone(),
-            },
-        );
-    }
+    notify_entry_saved_from_browser(
+        db_key,
+        &outcome.entry_uuid.to_string(),
+        &outcome.group_uuid.to_string(),
+        &outcome.entry_type_uuid.to_string(),
+        &outcome.entry_type_name,
+        &outcome.tags,
+        BrowserEntryChange::PasskeySaved,
+    );
 
     Ok(creation_result.credential_json)
 }

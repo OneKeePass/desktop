@@ -1,3 +1,10 @@
+### Unreleased
+
+#### Changes
+- The browser extension can save a login you submit on a site: it offers to add it as a new entry, or to update the password of the existing entry (the old password is kept in the entry's history). The app compares the submitted login with your entries itself, so stored passwords never go to the browser, and the requests that carry the password are encrypted with replay protection
+- The browser extension can fill an entry's 2FA (TOTP) code into a site's one-time code field. Only the generated code is sent, never the secret
+- Entries that hold only a passkey are no longer offered in the browser extension's password list
+
 ### 0.27.0
 
 #### Changes

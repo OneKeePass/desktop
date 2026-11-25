@@ -680,6 +680,10 @@
         "launchingSystemViewer": "Launching the system viewer",
         "passkeySaved": "Passkey saved",
         "passkeySavedToDb": "Passkey saved in {{- dbName}}",
+        "loginSavedFromBrowser": "Login saved from the browser",
+        "loginSavedFromBrowserToDb": "Login saved from the browser in {{- dbName}}",
+        "passwordUpdatedFromBrowser": "Password updated from the browser",
+        "passwordUpdatedFromBrowserInDb": "Password updated from the browser in {{- dbName}}",
         "recycleBinEmptied": "Recycle bin is emptied",
         "remoteUpToDate": "Remote database is up to date"
     },
